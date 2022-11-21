@@ -1,0 +1,18 @@
+pbi-utils许可协议
+
+版权所有 (C) 2022 焦棚子
+
+您免费授予获得pbi-utils及相关文件包含且不限于pbi-utils.exe、pbi-utils-install.exe及其带有版本号的文件(以下简称:本软件)。
+作者或版权持有人保留本软件所有权利。
+本软件的副本及相关文档的使用，您在属地法律允许范围内都不受到任何限制。
+本软件“按原样”免费提供，不提供任何形式的保证及保修。
+在任何情况下，作者或版权持有人均不对本软件或本软件的使用及其他引起任何索赔、损害及其他责任负责。
+您使用本软件的前提是接受上述协议及承担本软件或本软件的使用及其他带来的任何问题，并且与作者或版权持有人无关。
+
+开发资源如下:
+Python 3.9.13，主页：https://www.python.org/；许可协议：https://docs.python.org/3.9/license.html。
+pbi-tools，主页：https://pbi.tools/；许可协议：https://github.com/pbi-tools/pbi-tools/blob/main/LICENSE。
+PySide6，主页：https://wiki.qt.io/Qt_for_Python；许可协议：https://www.qt.io/licensing/。
+PyInstaller，主页：https://pyinstaller.org/；许可协议：https://pyinstaller.org/en/stable/license.html。
+pyinstaller-versionfile，主页：https://github.com/DudeNr33/pyinstaller-versionfile；许可协议：https://github.com/DudeNr33/pyinstaller-versionfile/blob/master/LICENSE。
+NSIS，主页：https://nsis.sourceforge.io/Main_Page；许可协议：https://nsis.sourceforge.io/License。
