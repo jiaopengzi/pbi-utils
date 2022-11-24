@@ -1,10 +1,24 @@
-# 165 pbi-utils 使用文档
+# pbi-utils 使用文档
 
 ## 一、背景
 
-先来说一下为什么会有 pbi-utils 这个小工具吧。在我日常做演示的示例文件的时候。每次都要重新搞一次 Power BI，就想能不能像 PPT 模板那样，搞一个模板，然后更专心的去专注内容本身呢？一段时间来，我其实也是用的这种方式，自己存有一份示例模板，这样每次另存一份就 ok 了。直到有一天我要做关于 Power BI 行级别安全性 (Row-level security,简称 RLS) 的示例的时候，发现用这样模板另存就没办法去适配不同的业务模型了。于是开始思考，是否能把这种 RLS 抽象出来，同时能把兼具模板，最好还能兼具到页面权限，还能一键生成那该多好。这就是 pbi-utils 最初设想，但面对 Power BI 要去操控数据模型目前可以是用 Tabular Editor(https://tabulareditor.github.io/)，但是没法操控新建页面等。这个是事情也就搁置了，直到有一天在 sqlbi(https://www.sqlbi.com/) 上看到了一个名叫 **pbi-tools**(https://pbi.tools/) 的工具，pbi-tools 可以完全把 pbix 文件完成拆解成模型(model)和报告(report)，这就可以二次开发了。于是便有了 **pbi-utils** 这个小工具。
+先来说一下为什么会有 pbi-utils 这个小工具吧。在我日常做演示的示例文件的时候，每次都要重新搞一次 Power BI Desktop，就想能不能像 PPT 模板那样，搞一个模板，然后更专心的去专注内容本身呢？一段时间来，我其实也是用的这种方式，自己存有一份示例模板，这样每次另存一份就 ok 了。
 
-这里要特别感谢 @mthierba(pbi-tools作者), 在 pbi-utils 中只是使用了 pbi-tools 一部分功能，大家有兴趣去主页看看，pbi-tools 非常好的一个工具。
+直到有一天我要做关于 Power BI 行级别安全性 (Row-level security,简称 RLS) 的示例的时候，发现用这样模板另存就没办法去适配不同的业务模型了。
+
+于是开始思考，是否能把这种 RLS 抽象出来，同时能把兼具模板，最好还能兼具到页面权限，还能一键生成那该多好。这就是 pbi-utils 最初设想，但面对 Power BI 要去操控数据模型目前可以是用 Tabular Editor(https://tabulareditor.github.io/)，但是没法操控新建页面等。这个是事情也就搁置了。
+
+直到有一天在 sqlbi(https://www.sqlbi.com/) 上看到了一个名叫 **pbi-tools**(https://pbi.tools/) 的工具，pbi-tools 可以完全把 pbix 文件完成拆解成模型(model)和报告(report)，这就可以二次开发了。于是便有了 **pbi-utils** 这个小工具。
+
+在此特别感谢 @mthierba(pbi-tools作者)。
+
+在 pbi-utils 中使用了 pbi-tools 一部分功能，更多功能大家有兴趣去 pbi-tools 主页看看，这是一个非常棒的工具。
+
+
+
+pbi-utils 整体框架如下：
+
+![框架](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-0.png)
 
 
 
@@ -13,12 +27,15 @@
 - 下载地址-github：https://github.com/jiaopengzi/pbi-utils/releases
 - 下载地址-gitee：https://gitee.com/jiaopengzi/pbi-utils/releases
 - 下载地址-网盘：https://pan.baidu.com/s/1wMi0GbRA23YvRBjpZcwWFg?pwd=jiao
+- pbi-utils-portable-x.x.x.x.zip 便携式，zip 文件解压后找到 pbi-utils.exe 即可使用。
 
-- pbi-utils-x.x.x.x.zip 文件为解压后找到 pbi-utils.exe 即可使用。
+- pbi-utils-setup-x.x.x.x.exe 安装文件，双击安装即可使用。
 
-- pbi-utils-install-x.x.x.x.exe 是安装文件，双击安装即可使用。
+- 支持的 pbix 文件需要是 Power BI Desktop 版本： 2022年10月+ ，操作系统： win10+ 。
 
 
+
+首页界面
 
 ![首页](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-28.png)
 
@@ -391,3 +408,5 @@ DAX 2 pbix 和 pbix 2 DAX 就是一个逆向的过程。
 1. 我们在操作 pbix 的时候，并没有在原本的 pbix 文件上操作，对于我们原本文件的安全性有了保证，不会破坏原来的文件。
 2. 我们所有生成的 pbit 文件是 Power BI 模板文件，里面不会包含数据，只有对应的元数据，当我们确认好使用后，请及时另存为 pbix 。
 3. 在生成多页导航的 pbit 中，还可以根据自己的需求重新修改来实现个性化的 Home、Navigation 和 NoPermission 等页面。
+4. 已知一部分老版本 Power BI Desktop 生成的 pbix 文件会出现不可知的一些问题，请升级到最新版本的 Power BI Desktop 后另存一份即可。
+
