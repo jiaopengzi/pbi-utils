@@ -1,0 +1,24 @@
+
+
+pbi-tools extract -pbixPath "C:\desktop\power-bi-custom-template-dev\demo\template_1.53_template.pbix" -extractFolder C:\desktop\demo
+pbi-tools extract -pbixPath "C:\desktop\power-bi-custom-template-dev\demo\template_1.48.pbix" -extractFolder C:\desktop\测试新建表格
+pbi-tools extract -pbixPath "C:\desktop\无度量值视觉.pbix" -extractFolder C:\desktop\无度量值视觉提取
+pbi-tools extract -pbixPath ""C:\desktop\power-bi-custom-template-dev\demo\template_1.50.pbix"" -extractFolder C:\desktop\temp150
+
+pbi-tools compile -folder C:\Users\jiaopengzi\AppData\Local\Temp\pbit_temp -format PBIT -outPath "C:\desktop\149.pbit" -overwrite true
+
+pbi-tools extract -pbixPath "C:\desktop\M.pbix" -extractFolder C:\desktop\M
+
+pbi-tools extract -pbixPath "C:\desktop\shijue2编译后检验.pbix" -extractFolder C:\desktop\编译后检验
+
+
+
+pbi-tools compile -folder C:\desktop\编译后检验 -format PBIT -outPath C:\desktop\编译后检验.pbit -overwrite true
+pbi-tools compile -folder C:\desktop\pbi视觉对象参考 -format PBIT -outPath C:\desktop\pbi视觉对象参考-源-导入和修正\视觉与度量值关系-度量值换表-增加表.pbit -overwrite true
+
+pbi-tools compile -folder C:\Users\jiaopengzi\AppData\Local\Temp\pbix_extract -format PBIT -outPath C:\desktop\power-bi-custom-template-dev\demo\111.pbit -overwrite true
+
+pyinstaller -F -w main.py --noconsole --icon=C:\desktop\demo\icos\favicon.ico --upx-dir C:\Users\jiaopengzi\AppData\Roaming\Python\Python39\Scripts\upx1.exe
+
+pyinstaller -F -w main.py --noconsole --icon=C:\desktop\demo\icos\favicon.ico --upx-dir C:\desktop\upx1\upx.exe
+

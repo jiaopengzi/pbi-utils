@@ -1,0 +1,15 @@
+{
+    "name": "Path_Sample",
+    "kind": "m",
+    "queryGroup": "parameters",
+    "annotations": [
+        {
+            "name": "PBI_ResultType",
+            "value": "Text"
+        },
+        {
+            "name": "PBI_NavigationStepName",
+            "value": "Navigation"
+        }
+    ]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "c1103f2024a7c30694b3",
+  "layouts": [
+    {
+      "id": 0,
+      "position": {
+        "height": 32,
+        "width": 1248,
+        "x": 0,
+        "y": 752,
+        "z": 0,
+        "tabOrder": 4000
+      }
+    }
+  ],
+  "singleVisualGroup": {
+    "displayName": "Footer",
+    "groupMode": 0
+  },
+  "parentGroupName": "1472860153a5ba9bd013"
+}

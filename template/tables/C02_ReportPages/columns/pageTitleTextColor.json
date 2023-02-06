@@ -1,0 +1,12 @@
+{
+  "name": "pageTitleTextColor",
+  "dataType": "string",
+  "sourceColumn": "pageTitleTextColor",
+  "summarizeBy": "none",
+  "annotations": [
+    {
+      "name": "SummarizationSetBy",
+      "value": "Automatic"
+    }
+  ]
+}

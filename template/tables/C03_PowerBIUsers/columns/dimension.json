@@ -1,0 +1,12 @@
+{
+  "name": "dimension",
+  "dataType": "string",
+  "sourceColumn": "dimension",
+  "summarizeBy": "none",
+  "annotations": [
+    {
+      "name": "SummarizationSetBy",
+      "value": "Automatic"
+    }
+  ]
+}

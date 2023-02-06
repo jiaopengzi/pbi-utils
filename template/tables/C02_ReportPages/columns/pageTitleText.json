@@ -1,0 +1,12 @@
+{
+  "name": "pageTitleText",
+  "dataType": "string",
+  "sourceColumn": "pageTitleText",
+  "summarizeBy": "none",
+  "annotations": [
+    {
+      "name": "SummarizationSetBy",
+      "value": "Automatic"
+    }
+  ]
+}

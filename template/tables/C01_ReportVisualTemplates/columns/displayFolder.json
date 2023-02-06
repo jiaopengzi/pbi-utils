@@ -1,0 +1,12 @@
+{
+  "name": "displayFolder",
+  "dataType": "string",
+  "sourceColumn": "displayFolder",
+  "summarizeBy": "none",
+  "annotations": [
+    {
+      "name": "SummarizationSetBy",
+      "value": "Automatic"
+    }
+  ]
+}

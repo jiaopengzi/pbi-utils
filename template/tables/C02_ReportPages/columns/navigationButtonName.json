@@ -1,0 +1,12 @@
+{
+  "name": "navigationButtonName",
+  "dataType": "string",
+  "sourceColumn": "navigationButtonName",
+  "summarizeBy": "none",
+  "annotations": [
+    {
+      "name": "SummarizationSetBy",
+      "value": "Automatic"
+    }
+  ]
+}

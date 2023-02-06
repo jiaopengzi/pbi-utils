@@ -1,0 +1,13 @@
+{
+  "name": "status",
+  "dataType": "boolean",
+  "sourceColumn": "status",
+  "formatString": "\"TRUE\";\"TRUE\";\"FALSE\"",
+  "summarizeBy": "none",
+  "annotations": [
+    {
+      "name": "SummarizationSetBy",
+      "value": "Automatic"
+    }
+  ]
+}

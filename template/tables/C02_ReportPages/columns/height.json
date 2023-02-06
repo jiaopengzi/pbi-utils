@@ -1,0 +1,12 @@
+{
+  "name": "height",
+  "dataType": "string",
+  "sourceColumn": "height",
+  "summarizeBy": "none",
+  "annotations": [
+    {
+      "name": "SummarizationSetBy",
+      "value": "Automatic"
+    }
+  ]
+}

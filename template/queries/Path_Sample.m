@@ -1,0 +1,1 @@
+"C:\desktop\power-bi-custom-template-dev\demo\source" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]

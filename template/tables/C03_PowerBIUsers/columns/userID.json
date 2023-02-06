@@ -1,0 +1,16 @@
+{
+  "name": "userID",
+  "dataType": "string",
+  "sourceColumn": "userID",
+  "summarizeBy": "none",
+  "annotations": [
+    {
+      "name": "SummarizationSetBy",
+      "value": "Automatic"
+    },
+    {
+      "name": "PBI_ChangedProperties",
+      "value": "[\"FormatString\"]"
+    }
+  ]
+}

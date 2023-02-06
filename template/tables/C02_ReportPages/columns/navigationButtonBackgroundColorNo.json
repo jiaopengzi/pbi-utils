@@ -1,0 +1,12 @@
+{
+  "name": "navigationButtonBackgroundColorNo",
+  "dataType": "string",
+  "sourceColumn": "navigationButtonBackgroundColorNo",
+  "summarizeBy": "none",
+  "annotations": [
+    {
+      "name": "SummarizationSetBy",
+      "value": "Automatic"
+    }
+  ]
+}
