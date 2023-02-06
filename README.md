@@ -410,3 +410,13 @@ DAX 2 pbix 和 pbix 2 DAX 就是一个逆向的过程。
 3. 在生成多页导航的 pbit 中，还可以根据自己的需求重新修改来实现个性化的 Home、Navigation 和 NoPermission 等页面。
 4. 已知一部分老版本 Power BI Desktop 生成的 pbix 文件会出现不可知的一些问题，请升级到最新版本的 Power BI Desktop 后另存一份即可。
 
+
+
+## 七、版本更新
+
+### 版本1.0.0.1
+
+- 更新 pbi-tools 版本 ：1.0.0-rc.2（https://github.com/pbi-tools/pbi-tools/releases/tag/1.0.0-rc.2）。
+- 增加默认的模板度量值。
+- 修复已知 bug。
+
