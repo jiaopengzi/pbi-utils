@@ -1,0 +1,19 @@
+{
+  "name": "C03_PowerBIUsers",
+  "partitions": [
+    {
+      "name": "C03_PowerBIUsers-41cfaa53-e398-4546-97f9-50b8872f3715",
+      "mode": "import",
+      "queryGroup": "config",
+      "source": {
+        "type": "m"
+      }
+    }
+  ],
+  "annotations": [
+    {
+      "name": "PBI_ResultType",
+      "value": "Table"
+    }
+  ]
+}

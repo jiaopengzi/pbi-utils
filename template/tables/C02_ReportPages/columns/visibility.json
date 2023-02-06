@@ -1,0 +1,12 @@
+{
+  "name": "visibility",
+  "dataType": "string",
+  "sourceColumn": "visibility",
+  "summarizeBy": "none",
+  "annotations": [
+    {
+      "name": "SummarizationSetBy",
+      "value": "Automatic"
+    }
+  ]
+}

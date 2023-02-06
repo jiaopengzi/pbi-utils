@@ -1,0 +1,20 @@
+{
+  "name": "514e762c32d65d761a24",
+  "layouts": [
+    {
+      "id": 0,
+      "position": {
+        "height": 784,
+        "width": 1264,
+        "x": 16,
+        "y": 0,
+        "z": 0,
+        "tabOrder": 0
+      }
+    }
+  ],
+  "singleVisualGroup": {
+    "displayName": "Template",
+    "groupMode": 0
+  }
+}

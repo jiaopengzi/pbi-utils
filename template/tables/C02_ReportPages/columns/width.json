@@ -1,0 +1,12 @@
+{
+  "name": "width",
+  "dataType": "string",
+  "sourceColumn": "width",
+  "summarizeBy": "none",
+  "annotations": [
+    {
+      "name": "SummarizationSetBy",
+      "value": "Automatic"
+    }
+  ]
+}

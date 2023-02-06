@@ -1,0 +1,21 @@
+{
+  "name": "394a4ec45c00074ca81c",
+  "layouts": [
+    {
+      "id": 0,
+      "position": {
+        "height": 64,
+        "width": 80,
+        "x": 1184,
+        "y": 0,
+        "z": 1000,
+        "tabOrder": 0
+      }
+    }
+  ],
+  "singleVisualGroup": {
+    "displayName": "TopRight",
+    "groupMode": 0
+  },
+  "parentGroupName": "514e762c32d65d761a24"
+}

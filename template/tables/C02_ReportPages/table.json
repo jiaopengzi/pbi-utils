@@ -1,0 +1,19 @@
+{
+  "name": "C02_ReportPages",
+  "partitions": [
+    {
+      "name": "C02_ReportPages-1e5249ce-18c0-4fa9-aac3-2f4dbb43830d",
+      "mode": "import",
+      "queryGroup": "config",
+      "source": {
+        "type": "m"
+      }
+    }
+  ],
+  "annotations": [
+    {
+      "name": "PBI_ResultType",
+      "value": "Table"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "verticalAlignment",
+  "dataType": "string",
+  "sourceColumn": "verticalAlignment",
+  "summarizeBy": "none",
+  "annotations": [
+    {
+      "name": "SummarizationSetBy",
+      "value": "Automatic"
+    }
+  ]
+}

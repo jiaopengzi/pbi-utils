@@ -1,0 +1,27 @@
+{
+  "name": "C01_ReportVisualTemplates",
+  "partitions": [
+    {
+      "name": "C01_ReportVisualTemplates-103af67b-9f9c-466f-8a1d-344d0a81e1f7",
+      "mode": "import",
+      "queryGroup": "config",
+      "source": {
+        "type": "m"
+      }
+    }
+  ],
+  "annotations": [
+    {
+      "name": "PBI_ResultType",
+      "value": "Table"
+    },
+    {
+      "name": "PBI_ChangedProperties",
+      "value": "[\"IsHidden\"]"
+    },
+    {
+      "name": "PBI_NavigationStepName",
+      "value": "Navigation"
+    }
+  ]
+}

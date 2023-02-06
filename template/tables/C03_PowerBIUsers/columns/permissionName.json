@@ -1,0 +1,12 @@
+{
+  "name": "permissionName",
+  "dataType": "string",
+  "sourceColumn": "permissionName",
+  "summarizeBy": "none",
+  "annotations": [
+    {
+      "name": "SummarizationSetBy",
+      "value": "Automatic"
+    }
+  ]
+}
