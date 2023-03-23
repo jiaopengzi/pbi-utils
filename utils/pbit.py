@@ -963,9 +963,11 @@ class Pbit(object):
                     displayfolder = "config\\visual"
                 # 度量值类型
                 dataCategory = measure["dataCategory"]
+                # 度量值描述说明
+                description = measure["description"]
                 # measure_folder = measure["measureTable"]  # measureTable = self.name_measure_table, 不单独设置
                 # 度量值信息配置的 json 文件内容
-                json_dax = {"name": name, "displayFolder": displayfolder, "dataCategory": dataCategory}
+                json_dax = {"name": name, "description": description, "displayFolder": displayfolder, "dataCategory": dataCategory}
                 # 度量值信息配置的 json 文件名称
                 json_name = f"{name}.json"
                 # 度量值名称

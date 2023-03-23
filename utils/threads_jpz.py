@@ -240,97 +240,97 @@ class ThreadCompile(QThread):
     def run(self):
         """执行生成 pbit
         """
-        # try:
-        pbit = Pbit()
-        if self.path_pbix_source is not None:
-            pbit.path_pbix_source = self.path_pbix_source
+        try:
+            pbit = Pbit()
+            if self.path_pbix_source is not None:
+                pbit.path_pbix_source = self.path_pbix_source
 
-        if self.config_json_path is not None:
-            pbit.config_json_path = self.config_json_path
+            if self.config_json_path is not None:
+                pbit.config_json_path = self.config_json_path
 
-        if self.new_report_pages_list is not None:
-            pbit.new_report_pages_list = self.new_report_pages_list
+            if self.new_report_pages_list is not None:
+                pbit.new_report_pages_list = self.new_report_pages_list
 
-        if self.name_measure_table is not None:
-            pbit.name_measure_table = self.name_measure_table
+            if self.name_measure_table is not None:
+                pbit.name_measure_table = self.name_measure_table
 
-        if self.name_dax_folder_parent is not None:
-            pbit.name_dax_folder_parent = self.name_dax_folder_parent
+            if self.name_dax_folder_parent is not None:
+                pbit.name_dax_folder_parent = self.name_dax_folder_parent
 
-        # 3、提取出 demo 文件夹中的 pbix 文件到文件夹 template/pbix_extract
-        pbit.pbi_tools_command_extract()
+            # 3、提取出 demo 文件夹中的 pbix 文件到文件夹 template/pbix_extract
+            pbit.pbi_tools_command_extract()
 
-        # 判断是否提取正确的文件
-        if not pbit.folder_pbix_extract_status:
+            # 判断是否提取正确的文件
+            if not pbit.folder_pbix_extract_status:
+                pbit.delete_folder_pbix_extract()
+                self.signal_dic.emit({"progress": 0, "status": False, "error": "extract_error"})
+                return
+
+            # 判断提取模型是否与 config.json 匹配
+            if not pbit.extract_is_match_config_json():
+                pbit.delete_folder_pbix_extract()
+                self.signal_dic.emit({"progress": 0, "status": False, "error": "not_match"})
+                return
+            # 创建项目文件夹
+            pbit.create_folder_project()
+            i = 10
+            self.signal_dic.emit({"progress": i, "status": True})
+            # 4、初始化临时文件夹
+            pbit.init_folder_temp()
+            # 6、根据上述的配置文件,写入导航度量值
+            pbit.rewrite_dax_from_template_dax_list()
+            # 写入视觉度量值
+            pbit.write_report_visual_template_measures()
+            # 写入rls度量值
+            pbit.write_rls_measures()
+            # 写入rls database.json
+            pbit.rewrite_database_json_rls()
+            # 复制模板中 M 查询到模型中
+            pbit.create_queries_in_model_queries()
+            # 复制模板中表格到模型中
+            pbit.create_table_in_model_tables()
+            # 重写database.json 中的 queryGroups 结点
+            pbit.rewrite_database_json_queryGroups()
+            # 重写database.json annotations 结点
+            pbit.rewrite_database_json_annotations()
+            i += random() * 10
+            self.signal_dic.emit({"progress": i, "status": True})
+            # 7、生成内容页及无权限页
+            pbit.generate_report_page(["PageTitle"])
+            i += random() * 10
+            self.signal_dic.emit({"progress": i, "status": True})
+            # 8、重写 temp->Report->report.json
+            pbit.rewrite_report_json()
+            # 9、重写 temp/Report/sections/xxx_xxx/section.json
+            pbit.rewrite_page_section_json()
+            # 10、重写 temp/Report/sections/xxx_xxx/config.json
+            pbit.rewrite_page_config_json()
+            i += random() * 10
+            self.signal_dic.emit({"progress": i, "status": True})
+            # 12、复制按钮模板到对应导航页面待用
+            pbit.copy_navigation_button()
+            # 13、重写导航按钮的 json 文件,绑定度量值
+            pbit.rewrite_navigation_button_json()
+            i += random() * 40
+            self.signal_dic.emit({"progress": i, "status": True})
+            # 度量值更换表后,修改每个页面下视觉对象度量值表名称
+            pbit.rewrite_all_page_visualcontainers_visual_config_json_measure_table_change("Measure", pbit.name_measure_table)
+            # 14、编译修改后的 pbix 提取出的文件到 demo 文件夹
+            pbit.pbi_tools_command_compile()
+            # 删除提取的文件
             pbit.delete_folder_pbix_extract()
-            self.signal_dic.emit({"progress": 0, "status": False, "error": "extract_error"})
-            return
+            # pbit 文件未生成
+            if not pbit.pbi_tools_command_compile_status:
+                self.signal_dic.emit({"progress": 0, "status": False, "error": "compile_error"})
+                return
 
-        # 判断提取模型是否与 config.json 匹配
-        if not pbit.extract_is_match_config_json():
-            pbit.delete_folder_pbix_extract()
-            self.signal_dic.emit({"progress": 0, "status": False, "error": "not_match"})
-            return
-        # 创建项目文件夹
-        pbit.create_folder_project()
-        i = 10
-        self.signal_dic.emit({"progress": i, "status": True})
-        # 4、初始化临时文件夹
-        pbit.init_folder_temp()
-        # 6、根据上述的配置文件,写入导航度量值
-        pbit.rewrite_dax_from_template_dax_list()
-        # 写入视觉度量值
-        pbit.write_report_visual_template_measures()
-        # 写入rls度量值
-        pbit.write_rls_measures()
-        # 写入rls database.json
-        pbit.rewrite_database_json_rls()
-        # 复制模板中 M 查询到模型中
-        pbit.create_queries_in_model_queries()
-        # 复制模板中表格到模型中
-        pbit.create_table_in_model_tables()
-        # 重写database.json 中的 queryGroups 结点
-        pbit.rewrite_database_json_queryGroups()
-        # 重写database.json annotations 结点
-        pbit.rewrite_database_json_annotations()
-        i += random() * 10
-        self.signal_dic.emit({"progress": i, "status": True})
-        # 7、生成内容页及无权限页
-        pbit.generate_report_page(["PageTitle"])
-        i += random() * 10
-        self.signal_dic.emit({"progress": i, "status": True})
-        # 8、重写 temp->Report->report.json
-        pbit.rewrite_report_json()
-        # 9、重写 temp/Report/sections/xxx_xxx/section.json
-        pbit.rewrite_page_section_json()
-        # 10、重写 temp/Report/sections/xxx_xxx/config.json
-        pbit.rewrite_page_config_json()
-        i += random() * 10
-        self.signal_dic.emit({"progress": i, "status": True})
-        # 12、复制按钮模板到对应导航页面待用
-        pbit.copy_navigation_button()
-        # 13、重写导航按钮的 json 文件,绑定度量值
-        pbit.rewrite_navigation_button_json()
-        i += random() * 40
-        self.signal_dic.emit({"progress": i, "status": True})
-        # 度量值更换表后,修改每个页面下视觉对象度量值表名称
-        pbit.rewrite_all_page_visualcontainers_visual_config_json_measure_table_change("Measure", pbit.name_measure_table)
-        # 14、编译修改后的 pbix 提取出的文件到 demo 文件夹
-        pbit.pbi_tools_command_compile()
-        # 删除提取的文件
-        pbit.delete_folder_pbix_extract()
-        # pbit 文件未生成
-        if not pbit.pbi_tools_command_compile_status:
-            self.signal_dic.emit({"progress": 0, "status": False, "error": "compile_error"})
-            return
+            self.signal_dic.emit({"progress": 100, "status": True})
 
-        self.signal_dic.emit({"progress": 100, "status": True})
+        except PermissionError:
+            self.signal_dic.emit({"progress": 0, "status": False, "error": "PermissionError"})
 
-        # except PermissionError:
-        #     self.signal_dic.emit({"progress": 0, "status": False, "error": "PermissionError"})
-        #
-        # except Exception:
-        #     self.signal_dic.emit({"progress": 100, "status": False})
+        except Exception:
+            self.signal_dic.emit({"progress": 100, "status": False})
 
 
 class ThreadLoadJsonReportVisualEdit(QThread, UiMethod):
