@@ -20,7 +20,7 @@ ABOUT_HTML = """
             line-height: 1.5;
             font-weight: 400;
             font-style: normal;
-            color: #1e2f56;
+            color: #1e2858;
         }
         
         p {

@@ -6,8 +6,8 @@
 
     <style>
         .cls-text {
-            fill: #1e2f56;
-        <!-- fill: #c19220; -->
+            fill: #1e2858;
+        <!-- fill: #c89828; -->
         stroke:none;
         }
         .cls-text-p {
@@ -90,7 +90,7 @@
         <use xlink:href="#i" x="330" y="120" height="30" />
     </symbol>
     <!-- 背景矩形 -->
-    <rect id="jiaopengzi-logo-svg-background" x="0" y="0" width="550" height="1054" fill="#c19220" stroke="#c19220" />
+    <rect id="jiaopengzi-logo-svg-background" x="0" y="0" width="550" height="1054" fill="#c89828" stroke="#c89828" />
     <!-- 大字母logo -->
     <use xlink:href="#j" x="0" y="62" height="340" />
     <!-- 中文和英文组合调用 -->

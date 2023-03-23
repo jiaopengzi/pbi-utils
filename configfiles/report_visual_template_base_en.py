@@ -78,7 +78,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
         },
         {
                 "name"         : "logo_left_color",
-                "value"        : "#C19220FF",
+                "value"        : "#c89828FF",
                 "dataCategory" : "Uncategorized",
                 # "measureTable": "Measure",
                 "status"       : True,
@@ -87,7 +87,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
         },
         {
                 "name"         : "info_background_color",
-                "value"        : "#C1922088",
+                "value"        : "#c8982888",
                 "dataCategory" : "Uncategorized",
                 # "measureTable": "Measure",
                 "status"       : True,
@@ -96,7 +96,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
         },
         {
                 "name"         : "font_color_theme_dark",
-                "value"        : "#1E2F56FF",
+                "value"        : "#1e2858FF",
                 "dataCategory" : "Uncategorized",
                 # "measureTable": "Measure",
                 "status"       : True,
