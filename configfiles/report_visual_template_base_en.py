@@ -16,7 +16,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
         # "measureTable": "Measure",
         "status"       : True,
         "description"  : "Customize the report refresh time",
-        "displayFolder": "99\\template"
+        "displayFolder": "template\\visual"
 
 },
         {
@@ -26,7 +26,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "logo",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         },
 
         {
@@ -36,7 +36,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "version",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         },
         {
                 "name"         : "author",
@@ -45,7 +45,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "author",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         },
 
         {
@@ -55,7 +55,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "display text",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         },
 
         {
@@ -65,7 +65,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "URL",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         },
         {
                 "name"         : "weburl_tip",
@@ -74,7 +74,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "URL tips",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         },
         {
                 "name"         : "logo_left_color",
@@ -83,7 +83,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "Left logo accent color",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         },
         {
                 "name"         : "info_background_color",
@@ -92,7 +92,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "Transparent background color of information column directly below",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         },
         {
                 "name"         : "font_color_theme_dark",
@@ -101,7 +101,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "Font color - theme color - dark color",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         }
 ]
 ]

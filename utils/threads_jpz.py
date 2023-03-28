@@ -165,12 +165,14 @@ class ThreadCreateJson(QThread, UiMethod):
                  new_report_pages_list=None,
                  config_json_path=None,
                  page_name_is_uuid=False,
+                 measure_is_hidden=False,
                  *args, **kwargs):
         self.parent = parent
         self.path_pbix_source = path_pbix_source
         self.new_report_pages_list = new_report_pages_list
         self.config_json_path = config_json_path
         self.page_name_is_uuid = page_name_is_uuid
+        self.measure_is_hidden = measure_is_hidden
         super().__init__(*args, **kwargs)
 
     def run(self):
@@ -202,7 +204,7 @@ class ThreadCreateJson(QThread, UiMethod):
             if self.config_json_path is not None:
                 pbit.config_json_path = self.config_json_path
             # 5、初始化页面配置文件 ./demo/source/config/ReportPages.json,便于后续使用
-            pbit.init_config_json()
+            pbit.init_config_json(self.measure_is_hidden)
             # 删除提取的文件
             pbit.delete_folder_pbix_extract()
 

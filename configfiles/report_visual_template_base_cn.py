@@ -16,7 +16,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
         # "measureTable": "Measure",
         "status"       : True,
         "description"  : "自定义报表刷新时间",
-        "displayFolder": "99\\template"
+        "displayFolder": "template\\visual"
 
 },
         {
@@ -26,7 +26,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "报表logo",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         },
 
         {
@@ -36,7 +36,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "报表版本",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         },
         {
                 "name"         : "author",
@@ -45,7 +45,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "报表作者",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         },
 
         {
@@ -55,7 +55,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "URL显示文本",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         },
 
         {
@@ -65,7 +65,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "URL链接",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         },
         {
                 "name"         : "weburl_tip",
@@ -74,7 +74,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "URL提示",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         },
         {
                 "name"         : "logo_left_color",
@@ -83,7 +83,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "左侧 logo 强调颜色",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         },
         {
                 "name"         : "info_background_color",
@@ -92,7 +92,7 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "正下方信息栏本透明背景色",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         },
         {
                 "name"         : "font_color_theme_dark",
@@ -101,6 +101,6 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 # "measureTable": "Measure",
                 "status"       : True,
                 "description"  : "字体颜色-主题色-深色",
-                "displayFolder": "99\\template"
+                "displayFolder": "template\\visual"
         }
 ]

@@ -45,6 +45,7 @@ class JsonInit(UiMethod):
         self.layout.addLayout(self.ui_01_row_02())
         self.layout.addLayout(self.ui_01_row_03())
         self.layout.addLayout(self.ui_01_row_04())  # 第 4 行 选择框
+        self.layout.addLayout(self.ui_01_row_06())  # 第 6 行 选择框
         self.layout.addLayout(self.ui_01_row_05())
         self.layout.addStretch()  # 增加弹簧
         self.widget.setLayout(self.layout)
@@ -124,7 +125,20 @@ class JsonInit(UiMethod):
         checkbox_layout.addWidget(checkbox)
         checkbox_layout.addStretch(1)
         return checkbox_layout
+    def ui_01_row_06(self):
+        """第6行
 
+        :return: 第6行的布局
+        :rtype: QHBoxLayout
+        """
+
+        checkbox_layout = QHBoxLayout()
+        checkbox = QCheckBox(self.ui_01_dic[self.QCheckBox_isHidden]["display"])
+        checkbox.setObjectName(f"{self.ui_01}_{self.QCheckBox_isHidden}")
+        checkbox_layout.addStretch(1)
+        checkbox_layout.addWidget(checkbox)
+        checkbox_layout.addStretch(1)
+        return checkbox_layout
     def ui_01_row_05(self):
         """第 5 行
 
@@ -153,12 +167,14 @@ class JsonInit(UiMethod):
             le2 = self.findChild(QLineEdit, f"{self.ui_01}_{self.QLineEdit_content}")
             le3 = self.findChild(QLineEdit, f"{self.ui_01}_{self.QLineEdit_config}")
             cb4 = self.findChild(QCheckBox, f"{self.ui_01}_{self.QCheckBox_isencrypt}")
+            cb5 = self.findChild(QCheckBox, f"{self.ui_01}_{self.QCheckBox_isHidden}")
 
             # 获取控件文本
             le1_str = le1.text()
             le2_str = le2.text()
             le3_str = le3.text()
             cb4_state = bool(cb4.isChecked())
+            cb5_state = bool(cb5.isChecked())
 
             valid = Validator()
 
@@ -182,9 +198,10 @@ class JsonInit(UiMethod):
                 self.msg_display("msg0203", msg)
                 le3.setFocus()
                 return
+
             # 初始化小于 10 的随机的进度
             self.progress_bar_display(int(random() * 10))
-            self.thread = ThreadCreateJson(self, le1_str, le2_str, le3_str, cb4_state)
+            self.thread = ThreadCreateJson(self, le1_str, le2_str, le3_str, cb4_state, cb5_state)
             self.thread.signal_dic.connect(self.create_json_signal_dic_callback)
             self.thread.start()
 

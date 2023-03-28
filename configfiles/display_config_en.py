@@ -56,6 +56,7 @@ DISPLAY_CONFIG = {
                 "QLineEdit_config"   : {"placeholder": "e.g. D:\\demo\\source\\config\\config.json"},
                 "QPushButton_save"   : {"display": "save", "icon": "btn_save.svg"},
                 "QCheckBox_isencrypt": {"display": "Whether the page URL name uses a random value"},
+                "QCheckBox_isHidden": {"display": "Whether the template measure is hidden"},
                 "QPushButton_init"   : {"display": "init", "icon": "init.svg"}
         },
 
@@ -127,7 +128,7 @@ DISPLAY_CONFIG = {
                 "QLabel_measuretable"    : {"display": "measure table"},
                 "QComboBox_measuretable" : {"placeholder": "If you can't choose, initialize the configuration file!"},
                 "QLabel_measurefolder"   : {"display": "display folder"},
-                "QLineEdit_measurefolder": {"placeholder": "e.g. navigation"},
+                "QLineEdit_measurefolder": {"placeholder": "e.g. template\\navigation"},
                 "QPushButton_create"     : {"display": "create pbit", "icon": "btn_create.svg"}
         },
 

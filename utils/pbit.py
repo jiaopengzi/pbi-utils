@@ -714,7 +714,7 @@ class Pbit(object):
 
         # 读取基础报表配置
         dic = read_json(self.config_json_path)
-
+        measure_is_hidden = dic["TemplateMeasureIsHidden"]
         pages = dic["ReportPages"]
         page_list = dic["PageGroup"] or self.new_report_pages_list
         # 新增页面名称组多组list [['A00', 'A01', 'A02', 'A03', 'A04'], ['B00', 'B01', 'B02'], ['C00', 'C01', 'C02']]
@@ -731,7 +731,8 @@ class Pbit(object):
                         name_x.append({"ordinal": ordinal, "name": page["displayName"]})
                         break
             name_group.append(name_x)
-        return {"pages": pages, "name_group": name_group}
+
+        return {"pages": pages, "name_group": name_group, "measure_is_hidden": measure_is_hidden}
 
     def get_measure_table(self, folder_pbix_extract_x: int = None):
         """获取存放度量值的表
@@ -941,6 +942,7 @@ class Pbit(object):
         img_tmp = DAX_REPORT_VISUAL_TEMPLATE["ImageUrl"]
         img_tmp_not = DAX_REPORT_VISUAL_TEMPLATE["NotImageUrl"]
         config_json_dic = read_json(self.config_json_path)
+        measure_is_hidden = self.read_report_page_json()["measure_is_hidden"]
         if measure_list := config_json_dic["ReportVisualTemplates"]:
 
             measure_name_keyword_list = [dic["name"] for dic in measure_list]
@@ -968,6 +970,8 @@ class Pbit(object):
                 # measure_folder = measure["measureTable"]  # measureTable = self.name_measure_table, 不单独设置
                 # 度量值信息配置的 json 文件内容
                 json_dax = {"name": name, "description": description, "displayFolder": displayfolder, "dataCategory": dataCategory}
+                # 度量值是否隐藏
+                json_dax = self.measure_is_hidden_dict(json_dax, measure_is_hidden)
                 # 度量值信息配置的 json 文件名称
                 json_name = f"{name}.json"
                 # 度量值名称
@@ -985,6 +989,7 @@ class Pbit(object):
         :rtype: None
         """
         config_json_dic = read_json(self.config_json_path)
+        measure_is_hidden = self.read_report_page_json()["measure_is_hidden"]
         if permission_list := config_json_dic["PermissionList"]:
 
             measure_name_keyword_list = [dic["name"] for dic in permission_list]
@@ -1003,6 +1008,8 @@ class Pbit(object):
                 displayfolder = f"{self.name_dax_folder_parent}\\rls"
                 # 度量值信息配置的 json 文件内容
                 json_dax = {"name": name, "displayFolder": displayfolder}
+                # 度量值是否隐藏
+                json_dax = self.measure_is_hidden_dict(json_dax, measure_is_hidden)
                 # 度量值信息配置的 json 文件名称
                 json_name = f"{name}.json"
                 # 度量值名称
@@ -1140,15 +1147,15 @@ class Pbit(object):
             self.folder_pbix_extract_status = False
         return out
 
-    def init_config_json(self):
+    def init_config_json(self, measure_is_hidden: bool = False):
         """初始化 config.json
 
         如果列表中只有1个元素则导航页使用总导航页 Navigation, 移除 A00
         新增页面名称组多组list [['A00', 'A01', 'A02', 'A03', 'A04'], ['B00', 'B01', 'B02'], ['C00', 'C01', 'C02']]
         一组list ['A00', 'A01', 'A02', 'A03', 'A04', 'B00', 'B01', 'B02', 'C00', 'C01', 'C02']
 
-        :return None
-        :rtype None
+        :param measure_is_hidden: 模板度量值度量是否隐藏
+        :return: None
         """
 
         rpbj = set_custom_report_base(REPORT_PAGE_BASE_JSON) or REPORT_PAGE_BASE_JSON
@@ -1219,6 +1226,7 @@ class Pbit(object):
         dic["MeasureTable"] = self.get_all_tables()
         dic["TableColumns"] = self.get_table_columns()
         dic["PermissionList"] = []
+        dic["TemplateMeasureIsHidden"] = measure_is_hidden
         # 覆盖写入
         write_json_in_file(self.config_json_path, dic)
 
@@ -1234,6 +1242,19 @@ class Pbit(object):
             shutil.rmtree(self.folder_temp)
         shutil.copytree(self.folder_pbix_extract(folder_pbix_extract_x), self.folder_temp)  # 复制对应的文件夹并更名为需要的文件夹名称
 
+    @staticmethod
+    def measure_is_hidden_dict(measure_dict, measure_is_hidden: bool = False) -> dict:
+        """度量值是否隐藏字典
+
+        :param measure_dict: 度量值属性字典
+        :param measure_is_hidden: 是否隐藏度量值
+        :return: 度量值属性字典
+        """
+        if measure_is_hidden:
+            measure_dict["isHidden"] = True
+            measure_dict["changedProperties"] = [{"property": "IsHidden"}]
+        return measure_dict
+
     def rewrite_dax_from_template_dax_list(self):
         """源自 TEMPLATE_DAX_LIST 根据页面信息写入导航的度量值。
 
@@ -1241,6 +1262,7 @@ class Pbit(object):
         :rtype: None
         """
         pages = self.read_report_page_json()["pages"]
+        measure_is_hidden = self.read_report_page_json()["measure_is_hidden"]
         # 迁移至config
         dax_dic_list = TEMPLATE_DAX_LIST
         measure_name_keyword_list = list(TEMPLATE_DAX_LIST.keys())
@@ -1260,6 +1282,9 @@ class Pbit(object):
                 displayfolder = f"{self.name_dax_folder_parent}\\{dax_dic}"
                 # 度量值信息配置的 json 文件内容
                 json_dax = {"name": name, "displayFolder": displayfolder}
+                # 度量值是否隐藏
+                # measure_is_hidden = self.read_report_page_json()["measure_is_hidden"]
+                json_dax = self.measure_is_hidden_dict(json_dax, measure_is_hidden)
                 # 度量值信息配置的 json 文件名称
                 json_name = f"{name}.json"
                 # 度量值名称

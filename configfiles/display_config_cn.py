@@ -56,6 +56,7 @@ DISPLAY_CONFIG = {
                 "QLineEdit_config"   : {"placeholder": "例如: D:\\demo\\source\\config\\config.json"},
                 "QPushButton_save"   : {"display": "保存", "icon": "btn_save.svg"},
                 "QCheckBox_isencrypt": {"display": "页面 URL 名称是否使用随机值"},
+                "QCheckBox_isHidden": {"display": "模板度量值是否隐藏"},
                 "QPushButton_init"   : {"display": "初始化", "icon": "init.svg"}
         },
 
@@ -126,7 +127,7 @@ DISPLAY_CONFIG = {
                 "QLabel_measuretable"    : {"display": "度量值表"},
                 "QComboBox_measuretable" : {"placeholder": "若不能选择，请初始化配置文件！"},
                 "QLabel_measurefolder"   : {"display": "度量值文件夹"},
-                "QLineEdit_measurefolder": {"placeholder": "例如: navigation"},
+                "QLineEdit_measurefolder": {"placeholder": "例如: template\\navigation"},
                 "QPushButton_create"     : {"display": "生成pbit", "icon": "btn_create.svg"}
         },
 
