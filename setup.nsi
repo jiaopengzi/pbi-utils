@@ -4,7 +4,7 @@
 !define PRODUCT_NAME "pbi-utils"
 !define MAIN_EXE "pbi-utils.exe"
 !define INSTALL_FOLDER "pbi-utils"
-!define PRODUCT_VERSION "1.0.1.0"
+!define PRODUCT_VERSION "1.0.2.0"
 !define PRODUCT_PUBLISHER "jiaopengzi"
 !define PRODUCT_WEB_SITE "https://jiaopengzi.com/2880.html"
 !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\${MAIN_EXE}"
@@ -62,11 +62,11 @@ SetCompressor lzma
 !insertmacro MUI_LANGUAGE "SimpChinese"
 
 ; 安装包元数据
-VIProductVersion "1.0.1.0"
-VIFileVersion "1.0.1.0"
+VIProductVersion "1.0.2.0"
+VIFileVersion "1.0.2.0"
 VIAddVersionKey "CompanyName" "jiaopengzi"
 VIAddVersionKey "FileDescription" "about pbi-utils setup"
-VIAddVersionKey "ProductVersion" "1.0.1.0"
+VIAddVersionKey "ProductVersion" "1.0.2.0"
 VIAddVersionKey "LegalCopyright" "${U+00A9} jiaopengzi. All rights reserved."
 VIAddVersionKey "OriginalFilename" "pbi-utils-setup.exe"
 VIAddVersionKey "ProductName" "pbi-utils-setup"
@@ -75,7 +75,7 @@ BrandingText " www.jiaopengzi.com"
 ; MUI end ------
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "C:\desktop\pbi-utils-release\pbi-utils-1.0.1.0-setup.exe"
+OutFile "C:\desktop\pbi-utils-release\pbi-utils-1.0.2.0-setup.exe"
 InstallDir "$PROGRAMFILES\${INSTALL_FOLDER}"
 InstallDirRegKey HKLM "${PRODUCT_DIR_REGKEY}" ""
 ShowInstDetails show
@@ -178,6 +178,7 @@ File C:\desktop\pbi-utils\dist\pbi-utils\shiboken6\shiboken6.abi3.dll
 File C:\desktop\pbi-utils\dist\pbi-utils\shiboken6\VCRUNTIME140_1.dll
 SetOutPath $INSTDIR\template
 SetOutPath $INSTDIR\template\expressions
+File C:\desktop\pbi-utils\dist\pbi-utils\template\expressions\fxCalendar.json
 File C:\desktop\pbi-utils\dist\pbi-utils\template\expressions\Path_Sample.json
 SetOutPath $INSTDIR\template\navigation_button
 File C:\desktop\pbi-utils\dist\pbi-utils\template\navigation_button\config.json
@@ -187,6 +188,7 @@ SetOutPath $INSTDIR\template\queries
 File C:\desktop\pbi-utils\dist\pbi-utils\template\queries\C01_ReportVisualTemplates.m
 File C:\desktop\pbi-utils\dist\pbi-utils\template\queries\C02_ReportPages.m
 File C:\desktop\pbi-utils\dist\pbi-utils\template\queries\C03_PowerBIUsers.m
+File C:\desktop\pbi-utils\dist\pbi-utils\template\queries\fxCalendar.m
 File C:\desktop\pbi-utils\dist\pbi-utils\template\queries\Path_Sample.m
 SetOutPath $INSTDIR\template\sections
 SetOutPath $INSTDIR\template\sections\000_Home
@@ -552,6 +554,7 @@ Delete $INSTDIR\shiboken6\MSVCP140_2.dll
 Delete $INSTDIR\shiboken6\Shiboken.pyd
 Delete $INSTDIR\shiboken6\shiboken6.abi3.dll
 Delete $INSTDIR\shiboken6\VCRUNTIME140_1.dll
+Delete $INSTDIR\template\expressions\fxCalendar.json
 Delete $INSTDIR\template\expressions\Path_Sample.json
 Delete $INSTDIR\template\navigation_button\config.json
 Delete $INSTDIR\template\navigation_button\filters.json
@@ -559,6 +562,7 @@ Delete $INSTDIR\template\navigation_button\visualContainer.json
 Delete $INSTDIR\template\queries\C01_ReportVisualTemplates.m
 Delete $INSTDIR\template\queries\C02_ReportPages.m
 Delete $INSTDIR\template\queries\C03_PowerBIUsers.m
+Delete $INSTDIR\template\queries\fxCalendar.m
 Delete $INSTDIR\template\queries\Path_Sample.m
 Delete $INSTDIR\template\sections\000_Home\config.json
 Delete $INSTDIR\template\sections\000_Home\filters.json

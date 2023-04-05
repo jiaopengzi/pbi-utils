@@ -1,0 +1,15 @@
+{
+  "name": "fxCalendar",
+  "kind": "m",
+  "queryGroup": "functions",
+  "annotations": [
+    {
+      "name": "PBI_NavigationStepName",
+      "value": "Navigation"
+    },
+    {
+      "name": "PBI_ResultType",
+      "value": "Function"
+    }
+  ]
+}

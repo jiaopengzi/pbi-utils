@@ -424,8 +424,7 @@ class Pbit(object):
 
         主要是：参数 或 未加载的 m 语句 以及函数
 
-        Returns: {"config":"config"}
-            返回的查询组名称字典
+        Returns: {"config":"config"} 返回的查询组名称字典
         """
         expressions_name_old = {}
         database_json_dic = read_json(self.database_json_path)  # 读取 database.json
