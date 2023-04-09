@@ -104,4 +104,3 @@ REPORT_VISUAL_TEMPLATES_BASE = [{
                 "displayFolder": "template\\visual"
         }
 ]
-]

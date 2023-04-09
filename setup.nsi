@@ -4,7 +4,7 @@
 !define PRODUCT_NAME "pbi-utils"
 !define MAIN_EXE "pbi-utils.exe"
 !define INSTALL_FOLDER "pbi-utils"
-!define PRODUCT_VERSION "1.0.2.0"
+!define PRODUCT_VERSION "1.0.2.1"
 !define PRODUCT_PUBLISHER "jiaopengzi"
 !define PRODUCT_WEB_SITE "https://jiaopengzi.com/2880.html"
 !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\${MAIN_EXE}"
@@ -62,11 +62,11 @@ SetCompressor lzma
 !insertmacro MUI_LANGUAGE "SimpChinese"
 
 ; 安装包元数据
-VIProductVersion "1.0.2.0"
-VIFileVersion "1.0.2.0"
+VIProductVersion "1.0.2.1"
+VIFileVersion "1.0.2.1"
 VIAddVersionKey "CompanyName" "jiaopengzi"
 VIAddVersionKey "FileDescription" "about pbi-utils setup"
-VIAddVersionKey "ProductVersion" "1.0.2.0"
+VIAddVersionKey "ProductVersion" "1.0.2.1"
 VIAddVersionKey "LegalCopyright" "${U+00A9} jiaopengzi. All rights reserved."
 VIAddVersionKey "OriginalFilename" "pbi-utils-setup.exe"
 VIAddVersionKey "ProductName" "pbi-utils-setup"
@@ -75,7 +75,7 @@ BrandingText " www.jiaopengzi.com"
 ; MUI end ------
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "C:\desktop\pbi-utils-release\pbi-utils-1.0.2.0-setup.exe"
+OutFile "C:\desktop\pbi-utils-release\pbi-utils-1.0.2.1-setup.exe"
 InstallDir "$PROGRAMFILES\${INSTALL_FOLDER}"
 InstallDirRegKey HKLM "${PRODUCT_DIR_REGKEY}" ""
 ShowInstDetails show
