@@ -20,7 +20,7 @@ Some functions of pbi-tools are used in pbi-utils. If you are interested in more
 
 The overall framework of pbi-utils is as follows:
 
-![image-20230413144937309](https://imagesource.jiaopengzi.com/blog/202304131449358.png!sourcepng)
+![图-01](https://image.jiaopengzi.com/blog/202304131449358.png "图-01")
 
 
 
@@ -34,7 +34,7 @@ The overall framework of pbi-utils is as follows:
 
 Home interface
 
-![image-20230413151553091](https://imagesource.jiaopengzi.com/blog/202304131515122.png!sourcepng)
+![图-02](https://image.jiaopengzi.com/blog/202304131515122.png "图-02")
 
 
 
@@ -52,7 +52,7 @@ Still use the demo data shared with you before ( https://jiaopengzi.com/1435.htm
 
 What we get is a pbix file that only imports business data and has no report page.
 
-![165-1](https://camo.githubusercontent.com/82e101c8203af2cf9d163945d274d5ded39bb42552f9877db592c65781feac15/68747470733a2f2f696d6167652e6a69616f70656e677a692e636f6d2f77702d636f6e74656e742f75706c6f6164732f323032322f31312f3136352d312e706e67)
+![图-03](https://camo.githubusercontent.com/82e101c8203af2cf9d163945d274d5ded39bb42552f9877db592c65781feac15/68747470733a2f2f696d6167652e6a69616f70656e677a692e636f6d2f77702d636f6e74656e742f75706c6f6164732f323032322f31312f3136352d312e706e67 "图-03")
 
 
 
@@ -62,7 +62,7 @@ First we need to initialize the json configuration file for our pbix file.
 
 Rules for the number of pages of content: it can only be an integer from 1 to 99. If multiple secondary classifications are required, use commas to separate them; other content cannot be entered.
 
-![image-20230413152528860](https://imagesource.jiaopengzi.com/blog/202304131525901.png!sourcepng)
+![图-04](https://image.jiaopengzi.com/blog/202304131525901.png "图-04")
 
 
 
@@ -74,7 +74,7 @@ After clicking initialization, we can get our json configuration file`C:/desktop
 
 
 
-![image-20230413152636669](https://imagesource.jiaopengzi.com/blog/202304131526694.png!sourcepng)
+![图-05](https://image.jiaopengzi.com/blog/202304131526694.png "图-05")
 
 
 
@@ -82,7 +82,7 @@ After clicking initialization, we can get our json configuration file`C:/desktop
 
 Select the previously initialized `C:/desktop/demo/demo.json`file under Template Metrics to see the template metrics.
 
-![image-20230413152748741](https://imagesource.jiaopengzi.com/blog/202304131527774.png!sourcepng)
+![图-06](https://image.jiaopengzi.com/blog/202304131527774.png "图-06")
 
 
 
@@ -94,7 +94,7 @@ Select the previously initialized `C:/desktop/demo/demo.json`file under Template
 - Remember to save after modification.
 - 
 
-![image-20230413152853968](https://imagesource.jiaopengzi.com/blog/202304131528999.png!sourcepng)
+![图-07](https://image.jiaopengzi.com/blog/202304131528999.png "图-07")
 
 
 
@@ -106,7 +106,7 @@ The properties of the page here are to use my template for everyone. When using 
 
 Page editing does not add or delete, so it needs to be considered clearly when we plan the report, and the number and classification of pages can only be confirmed through initialization.
 
-![image-20230413152937869](https://imagesource.jiaopengzi.com/blog/202304131529900.png!sourcepng)
+![图-08](https://image.jiaopengzi.com/blog/202304131529900.png "图-08")
 
 
 
@@ -170,7 +170,7 @@ Authorization category initialization is mainly for RLS. If there is no RLS requ
 
 On the permission category initialization page, select the previously initialized `C:/desktop/demo/demo.json`file to see the permission category initialization page.
 
-![image-20230413153335401](https://imagesource.jiaopengzi.com/blog/202304131533433.png!sourcepng)
+![图-09](https://image.jiaopengzi.com/blog/202304131533433.png "图-09")
 
 Currently there is no RLS configuration, if necessary, fill in and save according to the following configuration.
 
@@ -185,8 +185,8 @@ Currently there is no RLS configuration, if necessary, fill in and save accordin
 - Add RLS rules
 
     
-    
-    ![image-20230413154901288](https://imagesource.jiaopengzi.com/blog/202304131549323.png!sourcepng)
+  
+    ![图-10](https://image.jiaopengzi.com/blog/202304131549323.png "图-10")
 
 
 
@@ -194,7 +194,7 @@ Currently there is no RLS configuration, if necessary, fill in and save accordin
 
 On the permission table editing page, select the previously initialized `C:/desktop/demo/demo.json`file to see the permission table editing page.
 
-![image-20230413153720378](https://imagesource.jiaopengzi.com/blog/202304131537407.png!sourcepng)
+![图-11](https://image.jiaopengzi.com/blog/202304131537407.png "图-11")
 
 - By default, a corresponding local user permission will be generated according to the account of the computer where the user is located.
 
@@ -213,7 +213,7 @@ On the permission table editing page, select the previously initialized `C:/desk
     
         
 
-![image-20230413154009526](https://imagesource.jiaopengzi.com/blog/202304131540558.png!sourcepng)
+![图-12](https://image.jiaopengzi.com/blog/202304131540558.png "图-12")
 
 
 
@@ -232,13 +232,13 @@ After compiling and generating the pbit page, at this point, basically our confi
 
 Click **create pbit** button, and you will see a prompt that the pbit is created successfully after a while.
 
-![image-20230413162908497](https://imagesource.jiaopengzi.com/blog/202304131629533.png!sourcepng)
+![图-13](https://image.jiaopengzi.com/blog/202304131629533.png "图-13")
 
 
 
 A pbix name keyword folder will be created in the same directory as our pbix file.
 
-![image-20230413154343324](https://imagesource.jiaopengzi.com/blog/202304131543349.png!sourcepng)
+![图-14](https://image.jiaopengzi.com/blog/202304131543349.png "图-14")
 
 
 
@@ -246,7 +246,7 @@ Open the pbit file in the folder and confirm the loading. You can see that our p
 
 
 
-![165-13](https://camo.githubusercontent.com/ffbbe0cfed84eb03cce423b7f26d2d50a07a90a8507c00097746478fa18c7d46/68747470733a2f2f696d6167652e6a69616f70656e677a692e636f6d2f77702d636f6e74656e742f75706c6f6164732f323032322f31312f3136352d31332e706e67)
+![图-15](https://camo.githubusercontent.com/ffbbe0cfed84eb03cce423b7f26d2d50a07a90a8507c00097746478fa18c7d46/68747470733a2f2f696d6167652e6a69616f70656e677a692e636f6d2f77702d636f6e74656e742f75706c6f6164732f323032322f31312f3136352d31332e706e67 "图-15")
 
 
 
@@ -262,7 +262,7 @@ At the same time, pay attention to RLS, in Modeling=>View as=>you can see that w
 
 
 
-![165-14](https://camo.githubusercontent.com/f0aeeed91872c75705d31e669e19ae500269463f9ac28b1cc78918e6fd2012e5/68747470733a2f2f696d6167652e6a69616f70656e677a692e636f6d2f77702d636f6e74656e742f75706c6f6164732f323032322f31312f3136352d31342e706e67)
+![图-16](https://camo.githubusercontent.com/f0aeeed91872c75705d31e669e19ae500269463f9ac28b1cc78918e6fd2012e5/68747470733a2f2f696d6167652e6a69616f70656e677a692e636f6d2f77702d636f6e74656e742f75706c6f6164732f323032322f31312f3136352d31342e706e67 "图-16")
 
 
 
@@ -270,7 +270,7 @@ When we click OK, we can find that it is consistent with the RLS we configured.
 
 
 
-![165-15](https://camo.githubusercontent.com/564e2ace59ed23b114aeb79df5eb184a99cc1cbb30045fb61d3fbb5e5aa60dc9/68747470733a2f2f696d6167652e6a69616f70656e677a692e636f6d2f77702d636f6e74656e742f75706c6f6164732f323032322f31312f3136352d31352e706e67)
+![图-17](https://camo.githubusercontent.com/564e2ace59ed23b114aeb79df5eb184a99cc1cbb30045fb61d3fbb5e5aa60dc9/68747470733a2f2f696d6167652e6a69616f70656e677a692e636f6d2f77702d636f6e74656e742f75706c6f6164732f323032322f31312f3136352d31352e706e67 "图-17")
 
 Also includes page permissions, etc. please watch our demo video.
 
@@ -284,21 +284,21 @@ In the pbixA 2 pbixB page, the 2 here means to.
 
 We saved the previous pbit file as A.pbix, and created a new B.pbix file without any measurement value.
 
-![165-16](https://camo.githubusercontent.com/f3babcfd2bbc2b2fa6476f83da8cc2d1b6641a425a2ddc214e6caf4fca6abaa3/68747470733a2f2f696d6167652e6a69616f70656e677a692e636f6d2f77702d636f6e74656e742f75706c6f6164732f323032322f31312f3136352d31362e706e67)
+![图-18](https://camo.githubusercontent.com/f3babcfd2bbc2b2fa6476f83da8cc2d1b6641a425a2ddc214e6caf4fca6abaa3/68747470733a2f2f696d6167652e6a69616f70656e677a692e636f6d2f77702d636f6e74656e742f75706c6f6164732f323032322f31312f3136352d31362e706e67 "图-18")
 
 Select the corresponding A.pbix and B.pbix, click load.
 
-![image-20230413155302053](https://imagesource.jiaopengzi.com/blog/202304131553094.png!sourcepng)
+![图-19](https://image.jiaopengzi.com/blog/202304131553094.png "图-19")
 
 After waiting for a while, you can see a pop-up window for multi-line editing. Here we select the measurement value that needs to be imported into B.pbix, select the measurement value table, and click commit.
 
-![image-20230413160045400](https://imagesource.jiaopengzi.com/blog/202304131600475.png!sourcepng)
+![图-20](https://image.jiaopengzi.com/blog/202304131600475.png "图-20")
 
 
 
 You can see the prompt, in the same directory as B.pbix, a B.pbit file is generated.
 
-![image-20230413160113363](https://imagesource.jiaopengzi.com/blog/202304131601391.png!sourcepng)
+![图-21](https://image.jiaopengzi.com/blog/202304131601391.png "图-21")
 
 
 
@@ -308,7 +308,7 @@ We see a yellow exclamation mark, this is because our B.pbix does not have the t
 
 
 
-![image-20230413160241607](https://imagesource.jiaopengzi.com/blog/202304131602667.png!sourcepng)
+![图-22](https://image.jiaopengzi.com/blog/202304131602667.png "图-22")
 
 
 
@@ -316,7 +316,7 @@ We see a yellow exclamation mark, this is because our B.pbix does not have the t
 
 In the pbix 2 DAX page, we select the corresponding pbix file and the corresponding folder; click the button to export DAX.
 
-![image-20230413160352172](https://imagesource.jiaopengzi.com/blog/202304131603200.png!sourcepng)
+![图-23](https://image.jiaopengzi.com/blog/202304131603200.png "图-23")
 
 
 
@@ -324,11 +324,11 @@ We open the path of the prompt, and we can see the exported measures.
 
 
 
-![image-20230413160502891](https://imagesource.jiaopengzi.com/blog/202304131605923.png!sourcepng)
+![图-24](https://image.jiaopengzi.com/blog/202304131605923.png "图-24")
 
 
 
-![image-20230413160538084](https://imagesource.jiaopengzi.com/blog/202304131605112.png!sourcepng)
+![图-25](https://image.jiaopengzi.com/blog/202304131605112.png "图-25")
 
 
 
@@ -356,7 +356,7 @@ Select the above exported measures folder and click Import DAX.
 
 
 
-![image-20230413160748626](https://imagesource.jiaopengzi.com/blog/202304131607655.png!sourcepng)
+![图-26](https://image.jiaopengzi.com/blog/202304131607655.png "图-26")
 
 
 
@@ -364,7 +364,7 @@ You can see the prompt message, and a C.pbit file is created in the same directo
 
 
 
-![image-20230413160906602](https://imagesource.jiaopengzi.com/blog/202304131609661.png!sourcepng)
+![图-27](https://image.jiaopengzi.com/blog/202304131609661.png "图-27")
 
 
 
@@ -374,11 +374,11 @@ On the about page, there are mainly our contact information, user documentation 
 
 Chinese interface display
 
-![image-20230413161041621](https://imagesource.jiaopengzi.com/blog/202304131610652.png!sourcepng)
+![图-28](https://image.jiaopengzi.com/blog/202304131610652.png "图-28")
 
 English version interface display
 
-![image-20230413161003593](https://imagesource.jiaopengzi.com/blog/202304131610622.png!sourcepng)
+![图-29](https://image.jiaopengzi.com/blog/202304131610622.png "图-29")
 
 
 
