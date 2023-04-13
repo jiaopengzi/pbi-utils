@@ -69,8 +69,8 @@ class Validator(object):
         """
         if self.is_blank(input_):
             return False, MSG["msg1101"]["msg"]
-        if self.has_space(input_):
-            return False, MSG["msg1102"]["msg"]
+        # if self.has_space(input_):
+        #     return False, MSG["msg1102"]["msg"]
         if not os.path.exists(input_):
             return False, MSG["msg1107"]["msg"]
         return (True, "正确") if self.is_contain(input_, ".pbix") and os.path.isfile(input_) else (False, MSG["msg1103"]["msg"])
@@ -98,8 +98,8 @@ class Validator(object):
         """
         if self.is_blank(input_):
             return False, MSG["msg1101"]["msg"]
-        if self.has_space(input_):
-            return False, MSG["msg1102"]["msg"]
+        # if self.has_space(input_):
+        #     return False, MSG["msg1102"]["msg"]
         if not is_create and not os.path.exists(input_):
             return False, MSG["msg1107"]["msg"]
         return (True, "正确") if self.is_contain(input_, ".pbit") else (False, MSG["msg1104"]["msg"])
@@ -116,8 +116,8 @@ class Validator(object):
         """
         if self.is_blank(input_):
             return False, MSG["msg1101"]["msg"]
-        if self.has_space(input_):
-            return False, MSG["msg1102"]["msg"]
+        # if self.has_space(input_):
+        #     return False, MSG["msg1102"]["msg"]
         if not is_create and not os.path.exists(input_):
             return False, MSG["msg1107"]["msg"]
         return (True, "正确") if self.is_contain(input_, ".json") else (False, MSG["msg1105"]["msg"])
@@ -133,8 +133,8 @@ class Validator(object):
         """
         if self.is_blank(input_):
             return False, MSG["msg1101"]["msg"]
-        if self.has_space(input_):
-            return False, MSG["msg1102"]["msg"]
+        # if self.has_space(input_):
+        #     return False, MSG["msg1102"]["msg"]
         if not os.path.exists(input_):
             return False, MSG["msg1107"]["msg"]
         return (True, "正确") if os.path.isdir(input_) else (False, MSG["msg1106"]["msg"])

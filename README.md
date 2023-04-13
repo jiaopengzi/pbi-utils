@@ -1,162 +1,139 @@
-# pbi-utils 使用文档
+# pbi-utils documentation
 
-## 一、背景
+## [中文版文档](https://jiaopengzi.com/2880.html)
 
-先来说一下为什么会有 pbi-utils 这个小工具吧。在我日常做演示的示例文件的时候，每次都要重新搞一次 Power BI Desktop，就想能不能像 PPT 模板那样，搞一个模板，然后更专心的去专注内容本身呢？一段时间来，我其实也是用的这种方式，自己存有一份示例模板，这样每次另存一份就 ok 了。
+## 1.Background
 
-直到有一天我要做关于 Power BI 行级别安全性 (Row-level security,简称 RLS) 的示例的时候，发现用这样模板另存就没办法去适配不同的业务模型了。
+Let me talk about why there is a small tool called pbi-utils. When I make sample files for presentations every day, I have to start Power BI Desktop again every time. I wonder if I can make a template like a PPT template, and then focus more on the content itself? For a period of time, I have actually used this method. I have saved a sample template, so it is ok to save another copy every time.
 
-于是开始思考，是否能把这种 RLS 抽象出来，同时能把兼具模板，最好还能兼具到页面权限，还能一键生成那该多好。这就是 pbi-utils 最初设想，但面对 Power BI 要去操控数据模型目前可以是用 Tabular Editor(https://tabulareditor.github.io/)，但是没法操控新建页面等。这个是事情也就搁置了。
+Until one day I was going to make an example about Power BI row-level security (RLS for short), and found that there was no way to adapt to different business models by saving the template in this way.
 
-直到有一天在 sqlbi(https://www.sqlbi.com/) 上看到了一个名叫 **pbi-tools**(https://pbi.tools/) 的工具，pbi-tools 可以完全把 pbix 文件完成拆解成模型(model)和报告(report)，这就可以二次开发了。于是便有了 **pbi-utils** 这个小工具。
+So I started to think about whether this kind of RLS can be abstracted, and at the same time, it can have templates, preferably page permissions, and one-click generation. This is the original idea of pbi-utils, but currently you can use [Tabular Editor](https://tabulareditor.github.io/) to manipulate the data model in the face of Power BI, but you can't control the new page and so on. This is the matter and shelved it.
 
-在此特别感谢 @mthierba(pbi-tools作者)。
+Until one day I saw a tool called **[pbi-tools](https://pbi.tools/)** on [sqlbi](https://www.sqlbi.com/), pbi-tools can completely disassemble the pbix file Model (model) and report (report), which can be secondary development. So there is a small tool called **pbi-utils**.
 
-在 pbi-utils 中使用了 pbi-tools 一部分功能，更多功能大家有兴趣去 pbi-tools 主页看看，这是一个非常棒的工具。
+Special thanks to [@mthierba](https://twitter.com/mthierba) (author of pbi-tools).
 
+Some functions of pbi-tools are used in pbi-utils. If you are interested in more functions, go to the home page of pbi-tools. This is a very good tool.
 
 
-pbi-utils 整体框架如下：
 
-![框架](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-0.png)
+The overall framework of pbi-utils is as follows:
 
+![image-20230413144937309](https://imagesource.jiaopengzi.com/blog/202304131449358.png!sourcepng)
 
 
-## 二、pbi-utils下载及安装
 
-- 下载地址-github：https://github.com/jiaopengzi/pbi-utils/releases
-- 下载地址-gitee：https://gitee.com/jiaopengzi/pbi-utils/releases
-- 下载地址-网盘：https://pan.baidu.com/s/1wMi0GbRA23YvRBjpZcwWFg?pwd=jiao
-- pbi-utils-portable-x.x.x.x.zip 便携式，zip 文件解压后找到 pbi-utils.exe 即可使用。
+## 2.Download and install pbi-utils
 
-- pbi-utils-setup-x.x.x.x.exe 安装文件，双击安装即可使用。
+- Download address-github: https://github.com/jiaopengzi/pbi-utils/releases
+- Download address-gitee: https://gitee.com/jiaopengzi/pbi-utils/releases
+- pbi-utils-portable-xxxxzip is portable, after decompressing the zip file, find pbi-utils.exe to use it.
+- pbi-utils-setup-xxxxexe installation file, double click to install it.
+- The supported pbix files need to be Power BI Desktop version: October 2022+, operating system: win10+.
 
-- 支持的 pbix 文件需要是 Power BI Desktop 版本： 2022年10月+ ，操作系统： win10+ 。
+Home interface
 
+![image-20230413151553091](https://imagesource.jiaopengzi.com/blog/202304131515122.png!sourcepng)
 
 
-首页界面
 
-![首页](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-28.png)
+## 3.Automatically generate pbit
 
+Before doing the documentation, let's talk about my basic ideas. It is relatively simple to say, that is, through a separate json configuration file, some configurations we need are decoupled separately. I can complete the Power BI adjustment needs by manipulating the configuration file.
 
 
-## 三、自动生成pbit
 
-在做使用文档前，我们先说一下我的基本思路。说来也比较简单，就是通过单独的 json 配置文件，把我们需要的一些配置单独解耦出来。我通过操作配置文件即可完成 Power BI 调整需求。
+### 1. Example file description
 
+Let me first explain that what we usually get is business data, and we can add pbi-utils to create a basic report model shell.
 
+Still use the demo data shared with you before ( https://jiaopengzi.com/1435.html )
 
-### 1、示例文件说明
+What we get is a pbix file that only imports business data and has no report page.
 
-先来交代一下，我们一般拿到的都是业务数据，创建基础的报告模型壳子就可以加个 pbi-utils。
+![165-1](https://camo.githubusercontent.com/82e101c8203af2cf9d163945d274d5ded39bb42552f9877db592c65781feac15/68747470733a2f2f696d6167652e6a69616f70656e677a692e636f6d2f77702d636f6e74656e742f75706c6f6164732f323032322f31312f3136352d312e706e67)
 
-依然使用之前分享给大家的 demo 数据(https://jiaopengzi.com/1435.html) 
 
-我们拿到的是一个只导入了业务数据，没有报告页面的 pbix 文件。
 
-![165-1](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-1.png)
+### 2. Initialization
 
+First we need to initialize the json configuration file for our pbix file.
 
+Rules for the number of pages of content: it can only be an integer from 1 to 99. If multiple secondary classifications are required, use commas to separate them; other content cannot be entered.
 
-### 2、初始化
+![image-20230413152528860](https://imagesource.jiaopengzi.com/blog/202304131525901.png!sourcepng)
 
-首先我们需要对我们 pbix 文件进行 json 配置文件初始化。
 
-内容页数规则：只能是 1-99 的整数，如果需要多个二级分类，则使用英文半角逗号分开；其它内容无法输入。
 
-![165-2](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-2.png)
+As shown in the figure below, we think that `C:/desktop/demo/demo.pbix`is a business template, and the number of content pages: 3,4 means that we need page navigation for two secondary categories. At the same time, the number of content pages for the first category is 3 pages, and the number of content pages for the second category for 4 pages.
 
+Of course, there is also a page URL name whether to use random values. This purpose is actually prepared for fake page permissions. We will introduce it in the video.
 
+After clicking initialization, we can get our json configuration file`C:/desktop/demo/demo.json`
 
-下图所示，我们以为 `C:/desktop/demo/demo.pbix` 为业务模板，内容页数：3,4 表示我们需要两个二级分类的页面导航，同时第一个分类内容页数为3页，第二个分类的内容页数为4页。
 
-当然还有一个页面 URL 名称是否使用随机值，这目的其实是为了伪页面权限准备的，在视频中我们再介绍。
 
-点击初始化后即可得到我们 json 配置文件`C:/desktop/demo/demo.json`
+![image-20230413152636669](https://imagesource.jiaopengzi.com/blog/202304131526694.png!sourcepng)
 
-![165-3](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-3.png)
 
 
+### 3. Template metrics
 
-### 3、模板度量值
+Select the previously initialized `C:/desktop/demo/demo.json`file under Template Metrics to see the template metrics.
 
-在 模板度量值 下选择前面初始化的`C:/desktop/demo/demo.json`文件即可看到模板度量值。
+![image-20230413152748741](https://imagesource.jiaopengzi.com/blog/202304131527774.png!sourcepng)
 
-![165-4](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-4.png)
 
 
+- I made templates for some of my commonly used template metrics for everyone. Of course, these can be customized. When you save each time, the template measurement value you saved will be used as the template for the next initialization. So you can increase or decrease according to your needs.
+- If there is a metric value in our previous pbix template, please do not have the same name as the metric value here.
+- We have added a **report refresh time** . If it is enabled and unchecked, it will be displayed according to the automatic refresh time, and if it is checked, it will be displayed according to the assigned content.
+- Image URL Compatible image URL link and SVG format.
+- You can delete, edit and enter multiple lines by right-clicking; use `|` split , and use newline for multiple lines.
+- Remember to save after modification.
+- 
 
-- 我把我常用的一些模板度量值做成了模板给到大家。当然这些都可以自定义，当你每一次保存的时候，下次初始化的时候就将使用你保存过的模板度量值作为模板。所以大家可以根据自己需要增减。
+![image-20230413152853968](https://imagesource.jiaopengzi.com/blog/202304131528999.png!sourcepng)
 
-- 如果我们前面的 pbix 模板中有度量值了的话，请不要和这里的度量值重名。
 
-- 度量值类别中我们增加了一个 **报表刷新时间**，如果启用勾选去掉，则是按照自动刷新时间来显示，打上勾则是按照赋值的内容显示。
-- 图片 URL 兼容 图片的 URL 链接和 SVG 格式。
-- 可以通过右键进行 删除、编辑和多行输入；多行输入字段间使用  `|`  分割，多行用换行。
-- 记得修改以后要保存。
 
-![165-5](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-5.png)
+### 4. Page editing
 
+Select the previously initialized file under page editing `C:/desktop/demo/demo.json`to see the page configuration file.
 
+The properties of the page here are to use my template for everyone. When using it, as long as it is saved, it will use its own template when it is initialized later, which is very humane.
 
-### 4、页面编辑
+Page editing does not add or delete, so it needs to be considered clearly when we plan the report, and the number and classification of pages can only be confirmed through initialization.
 
-在 页面编辑 下选择前面初始化的`C:/desktop/demo/demo.json`文件即可看到页面配置文件。
+![image-20230413152937869](https://imagesource.jiaopengzi.com/blog/202304131529900.png!sourcepng)
 
-这里的页面的属性，是使用我的给大家的模板，在使用的时候，只要保存后，以后初始化的时候则会使用自己的模板，非常的人性。
 
-页面编辑是没有新增和删除的，所以是在我们前面做报告规划的时候就需要考虑清楚的，只能通过初始化来确认页面的数量和分级。
 
-![165-6](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-6.png)
+#### Ⅰ. Field description
 
+- ordinal: Page sorting starts at 0.
+- urlName: The name of the page, as used in the URL in the Power BI service.
+- displayName: The display name of the Power BI page.
+- displayOption: 1、Page view:1=>Fit to page, 2=>Fit to width, 3=>Actual size.
+- height: Page height.
+- width: Page width.
+- verticalAlignment: Vertical alignment:'Middle'=>Middle, 'Top'=>Top.Note that single quotes need to be preserved.
+- visibility: Hide page:0=>show, 1=>hide.
+- pageTitleText: page title.
+- pageTitleTextColor: Page title text color, using decimal color, plus transparency, with two 00s at the end indicating full transparency and FF being completely opaque.
+- pageTitleBackgroundColor: Page title background color, same format as above.
+- navigationButtonName: The navigation button name (selection View in the show pane).
+- navigationButtonDisplayName: The name of the navigation button page is displayed.
+- navigationButtonTextColorYes: Navigation button text color - permissioned, format as above.
+- navigationButtonTextColorNo:  Navigation button text color - no permission, same format as above.
+- navigationButtonBackgroundColorYes: Navigation button background color - with permission, the format is the same as above.
+- navigationButtonBackgroundColorNo:  Navigation button background color - no permission, same format as above.
+- navigationButtonTooltipYes: Navigation button mouse on the tooltip - there are permissions.
+- navigationButtonTooltipNo:  Navigation button mouse on the tooltip - no permission.
+- note: note
 
-
-#### Ⅰ、字段说明
-
-- ID: 页面的索引从 0 开始，不能编辑。
-
-- url名称: 页面名称，在 Power BI 服务中 url 中的使用；名称不能重复。
-
-- 显示名称: Power BI 页面的显示名称。
-
-- 页面视图: 页面视图 1 调整到页面大小 , 2 适应宽度 , 3 实际大小。
-
-- 页面高度: 正整数。
-
-- 页面宽度: 正整数。
-
-- 页面垂直对齐: 分选项为：'Top', 'Middle' ;注意单引号的保留。
-
-- 页面隐藏属性:  0 为不隐藏, 1 隐藏。
-
-- 页面标题文字: 页面标题文字。
-
-- 页面标题文字颜色: 使用16进制颜色,加上透明度,末尾两位00表示完全透明,FF完全不透明。
-
-- 页面标题背景颜色: 使用16进制颜色,加上透明度,末尾两位00表示完全透明,FF完全不透明。
-
-- 导航按钮名称: 导航按钮名称（选择窗格中查看）。
-
-- 导航按钮页面中显示名称: 导航按钮页面中显示内容。
-
-- 导航按钮文字颜色-有权限: 使用16进制颜色,加上透明度,末尾两位00表示完全透明,FF完全不透明。
-
-- 导航按钮文字颜色-无权限: 使用16进制颜色,加上透明度,末尾两位00表示完全透明,FF完全不透明。
-
-- 导航按钮背景颜色-有权限: 使用16进制颜色,加上透明度,末尾两位00表示完全透明,FF完全不透明。
-
-- 导航按钮背景颜色-无权限: 使用16进制颜色,加上透明度,末尾两位00表示完全透明,FF完全不透明。
-
-- 导航按钮鼠标放上去的工具提示-有权限: 导航按钮鼠标放上去的工具提示文字-有权限。
-
-- 导航按钮鼠标放上去的工具提示-有权限:  导航按钮鼠标放上去的工具提示文字-有权限。
-
-- 备注: 备注说明，可以留空。
-
-  
-
-#### Ⅱ、页面层级导航示意图
+#### Ⅱ. Schematic diagram of page level navigation
 
 ```
 Home
@@ -178,245 +155,237 @@ Home
       	├─Z02
       	├─...
       	└─Z99
-
 ```
 
-- Home：首页，建议名称保留不变
+- Home: Home page, suggested name remains unchanged
+- Navigation: the general navigation page, navigate to the second-level navigation page, namely: A00-Z00, A to Z represent categories, theoretically there are 26 categories, numbers are represented by two zeros, if there is only one category on the content page, there is only one category by default Navigation A navigation page.
+- Content pages: A01...A99, B01...B99 ... Z01...Z99; categories are represented by letters, content pages range from 01 to 99, theoretically each category can have 99 pages, plus categories can Get 26 * 100 = 2600 content pages, which can basically meet the various levels of navigation needs of Power BI. Of course, after initialization, these names can be customized according to business needs.
+- NoPermission: No permission prompt page, the page that jumps when the user has no permission.
 
-- Navigation：总导航页，导航至第二层导航页，即：A00-Z00，A至Z表示分类，理论上有26个分类，数字使用两个零表示，如果内容页只有一个分类的话则默认只有 Navigation 一个导航页。
 
-- 内容页：A01...A99, B01...B99 ... Z01...Z99；分类用字母表示，内容页从 01 至 99，理论上每个分类可以有 99 个页面，加上分类可以得到 26 * 100= 2600内容页面，基本能满足 Power BI 各种层级导航需求了。当然初始化后，这些名称都是可以根据业务需求自定义的。
 
-- NoPermission：无权限提示页，用户无权限的时候跳转的页面。
+### 5. Permission category initialization
 
-  
+Authorization category initialization is mainly for RLS. If there is no RLS requirement, the current setting can be skipped.
 
-### 5、权限类别初始化
+On the permission category initialization page, select the previously initialized `C:/desktop/demo/demo.json`file to see the permission category initialization page.
 
-权限类别初始化主要是针对 RLS 。如果没有 RLS 需求的则可以跳过当前设置。
+![image-20230413153335401](https://imagesource.jiaopengzi.com/blog/202304131533433.png!sourcepng)
 
-在 权限类别初始化 页面选择前面初始化的`C:/desktop/demo/demo.json`文件即可看到权限类别初始化页面。
+Currently there is no RLS configuration, if necessary, fill in and save according to the following configuration.
 
-![165-7](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-7.png)
+- name of rls: the metric name of the rls rule you need to add, the combination of letters, underscores and numbers is invalid, and cannot be the same name as the original metric in pbix.
 
+- table: The table will obtain the name of the corresponding table through our previous initialization.
 
+- column: When the form is updated, the corresponding field of the form can be obtained.
 
-当前是没有任何的 RLS 配置，如果需要则按照下列配置填写保存即可。
+- Field value: The field value is **all the values** of the current field , the purpose is to reserve after the category is initialized.
 
-- rls名称：即你需要添加的 rls 规则的度量值名称，字母下划线和数字的组合输入其它无效，不能与 pbix 中原有度量值重名。
+- Add RLS rules
 
-- 表格：表格会通过前面我们的初始化获得对应表格的名称。
+    
+    
+    ![image-20230413154901288](https://imagesource.jiaopengzi.com/blog/202304131549323.png!sourcepng)
 
-- 字段：当表格更新后，即可获得表格对应的字段。
 
-- 字段值：字段值是当前字段**所有的取值**，目的是类别初始化后备用。
 
-- 添加 RLS 规则
+### 6. Permission table editing
 
-  ![165-8](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-8.png)
+On the permission table editing page, select the previously initialized `C:/desktop/demo/demo.json`file to see the permission table editing page.
 
+![image-20230413153720378](https://imagesource.jiaopengzi.com/blog/202304131537407.png!sourcepng)
 
+- By default, a corresponding local user permission will be generated according to the account of the computer where the user is located.
 
-### 6、权限表编辑
+- Permissions include page ordinal and RLS permission, and RLS permission is the data we initialized using permission category earlier.
 
-在 权限表编辑 页面选择前面初始化的`C:/desktop/demo/demo.json`文件即可看到权限表编辑页面。
+- A user name will have a normal Power BI account, and the corresponding account name is also required on this machine to support local user permissions.
 
-![165-9](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-9.png)
+- **edit** via right click
+    - Add one Power BI account;
+    
+    - Page permissions reserved: 1, 2, 3, 4, 5, 6, 7;
+    
+    - Region ID reserved: 1, 2, 3, 4;
+    
+    - Product category reserved: A, B, C.
+    
+        
 
+![image-20230413154009526](https://imagesource.jiaopengzi.com/blog/202304131540558.png!sourcepng)
 
 
-- 默认情况下，会根据用户所在电脑的账户生成一条对应本机用户权限。
 
-- 权限包括 页面序号 和 RLS 权限，RLS 权限则是我们前面使用权限类别初始化的数据。
-- 一个用户名称会有正常的 Power BI 帐号，同时在本机上也需要对应的账户名称来支持本地用户的权限。
+Of course, you can also add more account configurations through the Add button, remember to save.
 
-- 通过**右键编辑**
 
-  - Power BI 帐号增加一个；
 
-  - 页面权限 保留：1，2，3，4，5，6，7; 
+### 7. Compile and generate pbit
 
-  - 大区ID 保留：1，2，3，4；
+After compiling and generating the pbit page, at this point, basically our configuration is done, and the page we need can be generated.
 
-  - 产品分类 保留：A类,B类,C类。
+- Choose our pbix template.
+- Select the configuration file we have configured `C:/desktop/demo/demo.json`.
+- Select the table that needs to store the measures.
+- It is recommended to use a combination of letters, underlines and numbers to store the metrics of our navigation and necessary elements.
 
-![165-10](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-10.png)
+Click **create pbit** button, and you will see a prompt that the pbit is created successfully after a while.
 
-当然也可以通过新增按钮增加更多的帐号配置，记得保存。
+![image-20230413162908497](https://imagesource.jiaopengzi.com/blog/202304131629533.png!sourcepng)
 
 
 
-### 7、编译生成pbit
+A pbix name keyword folder will be created in the same directory as our pbix file.
 
-在 编译生成pbit 页面，到了这里，基本上我们的配置就做好了，可以生成我们需要的页面了。
+![image-20230413154343324](https://imagesource.jiaopengzi.com/blog/202304131543349.png!sourcepng)
 
-- 选择我们的 pbix 模板。
-- 选择我们已经配置好的配置文件`C:/desktop/demo/demo.json`。
-- 选择需要存放度量值的表格。
-- 度量值文件夹自定义，建议使用字母下划线数字来组合，用来存放我们的导航和必要元素的度量值。
 
-点击 **生成pbit** 按钮，片刻后就能看到 pbit 创建成功的提示。
 
-![165-11](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-11.png)
+Open the pbit file in the folder and confirm the loading. You can see that our page has changed from a blank page at the beginning to a page that meets our configuration and has been successfully created.
 
 
 
-在我们 pbix 文件的同目录下会创建一个 pbix 名称关键字文件夹。
+![165-13](https://camo.githubusercontent.com/ffbbe0cfed84eb03cce423b7f26d2d50a07a90a8507c00097746478fa18c7d46/68747470733a2f2f696d6167652e6a69616f70656e677a692e636f6d2f77702d636f6e74656e742f75706c6f6164732f323032322f31312f3136352d31332e706e67)
 
-![165-12](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-12.png)
 
 
+Note the 5 changes in the marked numbers:
 
-打开文件夹下的 pbit 文件，确认加载，可以看到我们的页面已经从最开始的只有一个空白页，到现在符合我们配置的页面创建成功了。
+1. The display name and page number and hierarchical structure in the page editor.
+2. Measures in Template Measures
+3. The navigation metrics automatically written in the background of the pbi-utils tool, and the folder test02 is written by ourselves during compilation.
+4. Metrics under the rls folder, the rls name we initialized in the permission class.
+5. Auxiliary tables automatically written by the background of the pbi-utils tool.
 
-![165-13](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-13.png)
+At the same time, pay attention to RLS, in Modeling=>View as=>you can see that we have an additional rls role. We pull a matrix of dimensions related to the RLS permissions in our configuration file.
 
 
 
-注意其中标注数字的 5 处变化：
+![165-14](https://camo.githubusercontent.com/f0aeeed91872c75705d31e669e19ae500269463f9ac28b1cc78918e6fd2012e5/68747470733a2f2f696d6167652e6a69616f70656e677a692e636f6d2f77702d636f6e74656e742f75706c6f6164732f323032322f31312f3136352d31342e706e67)
 
-1. 页面编辑里面的显示名称及页数和层级结构。
-2. 模板度量值中的度量值
-3. pbi-utils 工具后台自动写入的导航度量值，文件夹 test02 是我们自己在编译时候写的。
-4. rls 文件夹下的度量值，即我们在权限类别初始化的 rls 名称。
-5. pbi-utils 工具后台自动写入的辅助表格。
 
 
+When we click OK, we can find that it is consistent with the RLS we configured.
 
-同时关注 RLS, 在建模->通过以下身份查看->可以看到我们多了一个 rls 角色。我们拉一个和我们配置文件中 RLS 权限相关的维度矩阵。
 
-![165-14](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-14.png)
 
+![165-15](https://camo.githubusercontent.com/564e2ace59ed23b114aeb79df5eb184a99cc1cbb30045fb61d3fbb5e5aa60dc9/68747470733a2f2f696d6167652e6a69616f70656e677a692e636f6d2f77702d636f6e74656e742f75706c6f6164732f323032322f31312f3136352d31352e706e67)
 
+Also includes page permissions, etc. please watch our demo video.
 
-当我们点击确认后，可以发现和我们配置的 RLS 是一致的。
 
-![165-15](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-15.png)
 
-
-
-还有包括页面权限等，请观看我们的演示视频。
-
-
-
-## 四、度量值操作
+## 4. Operate measure
 
 ### 1、pbixA 2 pbixB
 
-在 pbixA 2 pbixB 页面，这里的 2 表示 to 的意思。
+In the pbixA 2 pbixB page, the 2 here means to.
 
-我们把前面的 pbit 文件保存为 A.pbix，新建了一个 B.pbix 文件，没有任何度量值。
+We saved the previous pbit file as A.pbix, and created a new B.pbix file without any measurement value.
 
-![165-16](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-16.png)
+![165-16](https://camo.githubusercontent.com/f3babcfd2bbc2b2fa6476f83da8cc2d1b6641a425a2ddc214e6caf4fca6abaa3/68747470733a2f2f696d6167652e6a69616f70656e677a692e636f6d2f77702d636f6e74656e742f75706c6f6164732f323032322f31312f3136352d31362e706e67)
 
+Select the corresponding A.pbix and B.pbix, click load.
 
+![image-20230413155302053](https://imagesource.jiaopengzi.com/blog/202304131553094.png!sourcepng)
 
-选择对应的 A.pbix 和 B.pbix，点击加载数据
+After waiting for a while, you can see a pop-up window for multi-line editing. Here we select the measurement value that needs to be imported into B.pbix, select the measurement value table, and click commit.
 
-![165-17](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-17.png)
-
-
-
-稍等片刻后，可以看到一个多行编辑的弹窗，在这里我们选择需要导入到 B.pbix 度量值，并选择好度量值表，点击提交。
-
-![165-18](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-18.png)
+![image-20230413160045400](https://imagesource.jiaopengzi.com/blog/202304131600475.png!sourcepng)
 
 
 
-可以看到提示，在 B.pbix 的同目录下，生成了一个 B.pbit 的文件。
+You can see the prompt, in the same directory as B.pbix, a B.pbit file is generated.
 
-![165-19](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-19.png)
+![image-20230413160113363](https://imagesource.jiaopengzi.com/blog/202304131601391.png!sourcepng)
 
 
 
-打开 B.pbit，可以开电脑我们前面导入的度量值都进来了。这样我们从 pbixA 到 pbixB 的度量值就导入好了。
+Open B.pbit, you can turn on the computer, and all the measurement values we imported before have come in. In this way, our measurement values from pbixA to pbixB are imported.
 
-我们看到有黄色叹号，这是因为我们的 B.pbix 中并没有我们 A.pbix 中的表，所以在使用导入功能前，一定要搞清楚这些度量值导入后是否有意义。
+We see a yellow exclamation mark, this is because our B.pbix does not have the table in our A.pbix, so before using the import function, we must find out whether these metric values are meaningful after importing.
 
-![165-20](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-20.png)
+
+
+![image-20230413160241607](https://imagesource.jiaopengzi.com/blog/202304131602667.png!sourcepng)
 
 
 
 ### 2、pbix 2 DAX
 
-在 pbix 2 DAX 页面中，我们选择对应的 pbix 文件和对应的文件夹；点击按钮 导出DAX。
+In the pbix 2 DAX page, we select the corresponding pbix file and the corresponding folder; click the button to export DAX.
 
-![165-21](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-21.png)
-
-
-
-我们打开提示的路径，就可以看到导出的度量值了。
-
-![165-22](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-22.png)
-
-![165-23](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-23.png)
+![image-20230413160352172](https://imagesource.jiaopengzi.com/blog/202304131603200.png!sourcepng)
 
 
 
-导出的度量值中，名称中有一个分隔符 `][` 分隔符前是存放度量值的表，分隔符之后是度量值名称。 
-
-在导出的度量值中，最前面的注释是后续导入需要的，请不要随意删除。
-
-- @description：度量值描述。
-
-- @displayFolder：度量值所在文件夹。
-
-- @formatString：度量值的格式化字符串。
-
-- @dataCategory：度量值的数据类别。
+We open the path of the prompt, and we can see the exported measures.
 
 
+
+![image-20230413160502891](https://imagesource.jiaopengzi.com/blog/202304131605923.png!sourcepng)
+
+
+
+![image-20230413160538084](https://imagesource.jiaopengzi.com/blog/202304131605112.png!sourcepng)
+
+
+
+In the exported metric, there is a separator in the name. Before `][`the separator is the table that stores the metric, and after the separator is the name of the metric.
+
+In the exported metric value, the first comment is required for subsequent import, please do not delete it at will.
+
+- @description: The measure description.
+
+- @displayFolder: The folder where the measure is located.
+
+- @formatString: The format string for the measure.
+
+- @dataCategory: The data category of the measure.
+
+    
 
 ### 3、DAX 2 pbix
 
-DAX 2 pbix 和 pbix 2 DAX 就是一个逆向的过程。
+DAX 2 pbix and pbix 2 DAX is a reverse process.
 
-首先需要读取到导入的 pbix 文件，目的是拿到对应的度量值表，读取完成后，可以选择对应的度量值表。
+First, you need to read the imported pbix file to get the corresponding measurement value table. After reading, you can select the corresponding measurement value table.
 
-选择上述导出的度量值文件夹，点击 导入DAX。
-
-![165-24](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-24.png)
+Select the above exported measures folder and click Import DAX.
 
 
 
-可以看到提示消息，在我们需要导入的 C.pbix 文件的同目录下，创建了一个 C.pbit 文件。打开查看，可以看到文件夹里面的度量值都导入进来了，和前面 pbixA 2 pbixB一样，我们看到有黄色叹号，这是因为我们的 C.pbix 中并没有我们 A.pbix 中的表。
-
-![165-25](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-25.png)
+![image-20230413160748626](https://imagesource.jiaopengzi.com/blog/202304131607655.png!sourcepng)
 
 
 
-
-
-## 五、关于
-
-在关于页面主要是我们的联系方式、使用文档以及我们的视频课推介，我们做了中文和英文两种语言的显示。可以通过下方语言选择切换。
-
-中文界面显示
-
-![165-26](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-26.png)
+You can see the prompt message, and a C.pbit file is created in the same directory as the C.pbix file we need to import. Open and view, you can see that all the metric values in the folder have been imported. Like the previous pbixA 2 pbixB, we see a yellow exclamation mark. This is because our C.pbix does not have the table in our A.pbix.
 
 
 
-英文版界面显示
-
-![165-27](https://image.jiaopengzi.com/wp-content/uploads/2022/11/165-27.png)
+![image-20230413160906602](https://imagesource.jiaopengzi.com/blog/202304131609661.png!sourcepng)
 
 
 
-## 六、注意事项
+## 5. About
 
-1. 我们在操作 pbix 的时候，并没有在原本的 pbix 文件上操作，对于我们原本文件的安全性有了保证，不会破坏原来的文件。
-2. 我们所有生成的 pbit 文件是 Power BI 模板文件，里面不会包含数据，只有对应的元数据，当我们确认好使用后，请及时另存为 pbix 。
-3. 在生成多页导航的 pbit 中，还可以根据自己的需求重新修改来实现个性化的 Home、Navigation 和 NoPermission 等页面。
-4. 已知一部分老版本 Power BI Desktop 生成的 pbix 文件会出现不可知的一些问题，请升级到最新版本的 Power BI Desktop 后另存一份即可。
+On the about page, there are mainly our contact information, user documentation and our video course recommendation, and we have displayed them in two languages, Chinese and English. You can switch through the language selection below.
+
+Chinese interface display
+
+![image-20230413161041621](https://imagesource.jiaopengzi.com/blog/202304131610652.png!sourcepng)
+
+English version interface display
+
+![image-20230413161003593](https://imagesource.jiaopengzi.com/blog/202304131610622.png!sourcepng)
 
 
 
-## 七、版本更新
+## 6. Matters needing attention
 
-### 版本1.0.0.1
-
-- 更新 pbi-tools 版本 ：1.0.0-rc.2（https://github.com/pbi-tools/pbi-tools/releases/tag/1.0.0-rc.2）。
-- 增加默认的模板度量值。
-- 修复已知 bug。
+1. When we operate pbix, we do not operate on the original pbix file, which guarantees the security of our original file and will not destroy the original file.
+2. All the pbit files we generate are Power BI template files, which will not contain data, only the corresponding metadata. After we confirm the use, please save it as pbix in time.
+3. In the pbit that generates multi-page navigation, you can also modify it according to your own needs to realize personalized pages such as Home, Navigation and NoPermission.
+4. It is known that some unknowable problems will occur in the pbix files generated by some old versions of Power BI Desktop. Please upgrade to the latest version of Power BI Desktop and save another copy.
 

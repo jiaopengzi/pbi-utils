@@ -1,4 +1,5 @@
 
+pyside6-rcc .\resource.qrc -o .\resource.py
 
 pbi-tools extract -pbixPath "C:\desktop\power-bi-custom-template-dev\demo\template_1.53_template.pbix" -extractFolder C:\desktop\demo
 pbi-tools extract -pbixPath "C:\desktop\power-bi-custom-template-dev\demo\template_1.48.pbix" -extractFolder C:\desktop\测试新建表格
@@ -21,4 +22,3 @@ pbi-tools compile -folder C:\Users\jiaopengzi\AppData\Local\Temp\pbix_extract -f
 pyinstaller -F -w main.py --noconsole --icon=C:\desktop\demo\icos\favicon.ico --upx-dir C:\Users\jiaopengzi\AppData\Roaming\Python\Python39\Scripts\upx1.exe
 
 pyinstaller -F -w main.py --noconsole --icon=C:\desktop\demo\icos\favicon.ico --upx-dir C:\desktop\upx1\upx.exe
-

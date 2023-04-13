@@ -49,12 +49,12 @@ DISPLAY_CONFIG = {
         "ui_01"       : {
                 "QLabel_pbix"        : {"display": "pbix模板"},
                 "QLineEdit_pbix"     : {"placeholder": "例如: D:\\demo\\template.pbix"},
-                "QPushButton_choose" : {"display": "选择", "icon": "btn_choose.svg"},
+                "QPushButton_choose" : {"display": "选择", "icon": "btn_pbix.png"},
                 "QLabel_content"     : {"display": "内容页数"},
                 "QLineEdit_content"  : {"placeholder": "例如: 3,5,6 ;请使用英文半角逗号分隔！"},
                 "QLabel_config"      : {"display": "配置文件"},
                 "QLineEdit_config"   : {"placeholder": "例如: D:\\demo\\source\\config\\config.json"},
-                "QPushButton_save"   : {"display": "保存", "icon": "btn_save.svg"},
+                "QPushButton_save"   : {"display": "保存", "icon": "btn_json.svg"},
                 "QCheckBox_isencrypt": {"display": "页面 URL 名称是否使用随机值"},
                 "QCheckBox_isHidden": {"display": "模板度量值是否隐藏"},
                 "QPushButton_init"   : {"display": "初始化", "icon": "init.svg"}
@@ -63,7 +63,7 @@ DISPLAY_CONFIG = {
         "ui_02"       : {
                 "QLabel_config"     : {"display": "配置文件"},
                 "QLineEdit_config"  : {"placeholder": "例如: D:\\demo\\source\\config\\config.json"},
-                "QPushButton_choose": {"display": "选择", "icon": "btn_choose.svg"},
+                "QPushButton_choose": {"display": "选择", "icon": "btn_json.svg"},
                 "QPushButton_add"   : {"display": "新增", "icon": "btn_add.svg"},
                 "QPushButton_save"  : {"display": "保存", "icon": "btn_save.svg"},
                 "QTableWidget_table": {},
@@ -76,7 +76,7 @@ DISPLAY_CONFIG = {
         "ui_03"       : {
                 "QLabel_config"     : {"display": "配置文件"},
                 "QLineEdit_config"  : {"placeholder": "例如: D:\\demo\\source\\config\\config.json"},
-                "QPushButton_choose": {"display": "选择", "icon": "btn_choose.svg"},
+                "QPushButton_choose": {"display": "选择", "icon": "btn_json.svg"},
                 "QPushButton_save"  : {"display": "保存", "icon": "btn_save.svg"},
                 "QTableWidget_table": {},
                 "QAction_edit"      : {"display": "编辑"},
@@ -86,7 +86,7 @@ DISPLAY_CONFIG = {
         "ui_04"       : {
                 "QLabel_config"       : {"display": "配置文件"},
                 "QLineEdit_config"    : {"placeholder": "例如: D:\\demo\\source\\config\\config.json"},
-                "QPushButton_choose"  : {"display": "选择", "icon": "btn_choose.svg"},
+                "QPushButton_choose"  : {"display": "选择", "icon": "btn_json.svg"},
                 "QLabel_rlsname"      : {"display": "rls名称"},
                 "QLineEdit_rlsname"   : {"placeholder": "例如: rls_1，字母下划线数字组合，且不与度量值重名！"},
                 "QLabel_table"        : {"display": "表格"},
@@ -104,7 +104,7 @@ DISPLAY_CONFIG = {
         "ui_05"       : {
                 "QLabel_config"     : {"display": "配置文件"},
                 "QLineEdit_config"  : {"placeholder": "例如: D:\\demo\\source\\config\\config.json"},
-                "QPushButton_choose": {"display": "选择", "icon": "btn_choose.svg"},
+                "QPushButton_choose": {"display": "选择", "icon": "btn_json.svg"},
                 "QPushButton_add"   : {"display": "新增", "icon": "btn_add.svg"},
                 "QPushButton_save"  : {"display": "保存", "icon": "btn_save.svg"},
                 "QTableWidget_table": {},
@@ -117,13 +117,13 @@ DISPLAY_CONFIG = {
         "ui_06"       : {
                 "QLabel_pbix"            : {"display": "pbix模板"},
                 "QLineEdit_pbix"         : {"placeholder": "例如: D:\\demo\\template.pbix"},
-                "QPushButton_pbix"       : {"display": "选择", "icon": "btn_choose.svg"},
+                "QPushButton_pbix"       : {"display": "选择", "icon": "btn_pbix.png"},
                 "QLabel_config"          : {"display": "配置文件"},
                 "QLineEdit_config"       : {"placeholder": "例如: D:\\demo\\source\\config\\config.json"},
-                "QPushButton_choose"     : {"display": "选择", "icon": "btn_choose.svg"},
+                "QPushButton_choose"     : {"display": "选择", "icon": "btn_json.svg"},
                 "QLabel_pbit"            : {"display": "pbit文件"},
                 "QLineEdit_pbit"         : {"placeholder": "例如: D:\\demo\\custom.pbit"},
-                "QPushButton_pbit"       : {"display": "选择", "icon": "btn_choose.svg"},
+                "QPushButton_pbit"       : {"display": "选择", "icon": "btn_pbit.png"},
                 "QLabel_measuretable"    : {"display": "度量值表"},
                 "QComboBox_measuretable" : {"placeholder": "若不能选择，请初始化配置文件！"},
                 "QLabel_measurefolder"   : {"display": "度量值文件夹"},
@@ -134,32 +134,32 @@ DISPLAY_CONFIG = {
         "ui_07"       : {
                 "QLabel_pbixA"     : {"display": "pbixA"},
                 "QLineEdit_pbixA"  : {"placeholder": "例如: D:\\demo\\customA.pbix"},
-                "QPushButton_pbixA": {"display": "选择", "icon": "btn_choose.svg"},
+                "QPushButton_pbixA": {"display": "选择", "icon": "btn_pbix.png"},
                 "QLabel_pbixB"     : {"display": "pbixB"},
                 "QLineEdit_pbixB"  : {"placeholder": "例如: D:\\demo\\customB.pbix"},
-                "QPushButton_pbixB": {"display": "选择", "icon": "btn_choose.svg"},
+                "QPushButton_pbixB": {"display": "选择", "icon": "btn_pbix.png"},
                 "QPushButton_load" : {"display": "加载数据", "icon": "btn_load.svg"}
         },
 
         "ui_08"       : {
                 "QLabel_pbix"     : {"display": "pbix"},
                 "QLineEdit_pbix"  : {"placeholder": "例如: D:\\demo\\custom.pbix"},
-                "QPushButton_pbix": {"display": "选择", "icon": "btn_choose.svg"},
+                "QPushButton_pbix": {"display": "选择", "icon": "btn_pbix.png"},
                 "QLabel_dax"      : {"display": "dax文件夹"},
                 "QLineEdit_dax"   : {"placeholder": "例如: D:\\demo\\dax"},
-                "QPushButton_dax" : {"display": "选择", "icon": "btn_choose.svg"},
+                "QPushButton_dax" : {"display": "选择", "icon": "btn_folder.svg"},
                 "QPushButton_load": {"display": "导出DAX", "icon": "out.svg"}
         },
 
         "ui_09"       : {
                 "QLabel_pbix"           : {"display": "pbix"},
                 "QLineEdit_pbix"        : {"placeholder": "例如: D:\\demo\\custom.pbix"},
-                "QPushButton_pbix"      : {"display": "读取", "icon": "btn_read.svg"},
+                "QPushButton_pbix"      : {"display": "读取", "icon": "btn_pbix.png"},
                 "QLabel_measuretable"   : {"display": "度量值表"},
                 "QComboBox_measuretable": {"placeholder": "若不能选择，请重新读取！"},
                 "QLabel_dax"            : {"display": "dax文件夹"},
                 "QLineEdit_dax"         : {"placeholder": "例如: D:\\demo\\dax"},
-                "QPushButton_dax"       : {"display": "选择", "icon": "btn_choose.svg"},
+                "QPushButton_dax"       : {"display": "选择", "icon": "btn_folder.svg"},
                 "QPushButton_load"      : {"display": "导入DAX", "icon": "in.svg"},
                 "QLabel_load"           : {"display": "正在读取，请稍候..."},
         },

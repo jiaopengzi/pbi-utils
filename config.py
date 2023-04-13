@@ -31,8 +31,8 @@ def python_file_path() -> str:
     return os.path.abspath(__file__)
 
 
-VERSION_INFO = {"version"     : "1.0.2.1",
-                "release_date": "2023-04-09"}
+VERSION_INFO = {"version"     : "1.0.2.2",
+                "release_date": "2023-04-13"}
 
 temp = Template(ABOUT_HTML)
 ABOUT_HTML = temp.substitute(VERSION_INFO)

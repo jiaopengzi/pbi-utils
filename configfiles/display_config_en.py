@@ -49,12 +49,12 @@ DISPLAY_CONFIG = {
         "ui_01"       : {
                 "QLabel_pbix"        : {"display": "pbix-template"},
                 "QLineEdit_pbix"     : {"placeholder": "e.g. D:\\demo\\template.pbix"},
-                "QPushButton_choose" : {"display": "select", "icon": "btn_choose.svg"},
+                "QPushButton_choose" : {"display": "select", "icon": "btn_pbix.png"},
                 "QLabel_content"     : {"display": "content page list"},
                 "QLineEdit_content"  : {"placeholder": "e.g. 3,5,6 ;Please use comma separation!"},
                 "QLabel_config"      : {"display": "configuration file"},
                 "QLineEdit_config"   : {"placeholder": "e.g. D:\\demo\\source\\config\\config.json"},
-                "QPushButton_save"   : {"display": "save", "icon": "btn_save.svg"},
+                "QPushButton_save"   : {"display": "save", "icon": "btn_json.svg"},
                 "QCheckBox_isencrypt": {"display": "Whether the page URL name uses a random value"},
                 "QCheckBox_isHidden": {"display": "Whether the template measure is hidden"},
                 "QPushButton_init"   : {"display": "init", "icon": "init.svg"}
@@ -63,7 +63,7 @@ DISPLAY_CONFIG = {
         "ui_02"       : {
                 "QLabel_config"     : {"display": "configuration file"},
                 "QLineEdit_config"  : {"placeholder": "e.g. D:\\demo\\source\\config\\config.json"},
-                "QPushButton_choose": {"display": "select", "icon": "btn_choose.svg"},
+                "QPushButton_choose": {"display": "select", "icon": "btn_json.svg"},
                 "QPushButton_add"   : {"display": "add", "icon": "btn_add.svg"},
                 "QPushButton_save"  : {"display": "save", "icon": "btn_save.svg"},
                 "QTableWidget_table": {},
@@ -76,7 +76,7 @@ DISPLAY_CONFIG = {
         "ui_03"       : {
                 "QLabel_config"     : {"display": "configuration file"},
                 "QLineEdit_config"  : {"placeholder": "e.g. D:\\demo\\source\\config\\config.json"},
-                "QPushButton_choose": {"display": "select", "icon": "btn_choose.svg"},
+                "QPushButton_choose": {"display": "select", "icon": "btn_json.svg"},
                 "QPushButton_save"  : {"display": "save", "icon": "btn_save.svg"},
                 "QTableWidget_table": {},
                 "QAction_edit"      : {"display": "Edit"},
@@ -87,7 +87,7 @@ DISPLAY_CONFIG = {
         "ui_04"       : {
                 "QLabel_config"       : {"display": "configuration file"},
                 "QLineEdit_config"    : {"placeholder": "e.g. D:\\demo\\source\\config\\config.json"},
-                "QPushButton_choose"  : {"display": "select", "icon": "btn_choose.svg"},
+                "QPushButton_choose"  : {"display": "select", "icon": "btn_json.svg"},
                 "QLabel_rlsname"      : {"display": "name of rls"},
                 "QLineEdit_rlsname"   : {"placeholder": "e.g. rls_1, a combination of letters underscored numbers."},
                 "QLabel_table"        : {"display": "table"},
@@ -105,7 +105,7 @@ DISPLAY_CONFIG = {
         "ui_05"       : {
                 "QLabel_config"     : {"display": "configuration file"},
                 "QLineEdit_config"  : {"placeholder": "e.g. D:\\demo\\source\\config\\config.json"},
-                "QPushButton_choose": {"display": "select", "icon": "btn_choose.svg"},
+                "QPushButton_choose": {"display": "select", "icon": "btn_json.svg"},
                 "QPushButton_add"   : {"display": "add", "icon": "btn_add.svg"},
                 "QPushButton_save"  : {"display": "save", "icon": "btn_save.svg"},
                 "QTableWidget_table": {},
@@ -118,13 +118,13 @@ DISPLAY_CONFIG = {
         "ui_06"       : {
                 "QLabel_pbix"            : {"display": "pbix-template"},
                 "QLineEdit_pbix"         : {"placeholder": "e.g. D:\\demo\\template.pbix"},
-                "QPushButton_pbix"       : {"display": "select", "icon": "btn_choose.svg"},
+                "QPushButton_pbix"       : {"display": "select", "icon": "btn_pbix.png"},
                 "QLabel_config"          : {"display": "configuration file"},
                 "QLineEdit_config"       : {"placeholder": "e.g. D:\\demo\\source\\config\\config.json"},
-                "QPushButton_choose"     : {"display": "select", "icon": "btn_choose.svg"},
+                "QPushButton_choose"     : {"display": "select", "icon": "btn_json.svg"},
                 "QLabel_pbit"            : {"display": "pbit file"},
                 "QLineEdit_pbit"         : {"placeholder": "e.g. D:\\demo\\custom.pbit"},
-                "QPushButton_pbit"       : {"display": "select", "icon": "btn_choose.svg"},
+                "QPushButton_pbit"       : {"display": "select", "icon": "btn_pbit.png"},
                 "QLabel_measuretable"    : {"display": "measure table"},
                 "QComboBox_measuretable" : {"placeholder": "If you can't choose, initialize the configuration file!"},
                 "QLabel_measurefolder"   : {"display": "display folder"},
@@ -135,32 +135,32 @@ DISPLAY_CONFIG = {
         "ui_07"       : {
                 "QLabel_pbixA"     : {"display": "pbixA"},
                 "QLineEdit_pbixA"  : {"placeholder": "e.g. D:\\demo\\customA.pbix"},
-                "QPushButton_pbixA": {"display": "select", "icon": "btn_choose.svg"},
+                "QPushButton_pbixA": {"display": "select", "icon": "btn_pbix.png"},
                 "QLabel_pbixB"     : {"display": "pbixB"},
                 "QLineEdit_pbixB"  : {"placeholder": "e.g. D:\\demo\\customB.pbix"},
-                "QPushButton_pbixB": {"display": "select", "icon": "btn_choose.svg"},
+                "QPushButton_pbixB": {"display": "select", "icon": "btn_pbix.png"},
                 "QPushButton_load" : {"display": "load", "icon": "btn_load.svg"}
         },
 
         "ui_08"       : {
                 "QLabel_pbix"     : {"display": "pbix"},
                 "QLineEdit_pbix"  : {"placeholder": "e.g. D:\\demo\\custom.pbix"},
-                "QPushButton_pbix": {"display": "select", "icon": "btn_choose.svg"},
+                "QPushButton_pbix": {"display": "select", "icon": "btn_pbix.png"},
                 "QLabel_dax"      : {"display": "dax folder"},
                 "QLineEdit_dax"   : {"placeholder": "e.g. D:\\demo\\dax"},
-                "QPushButton_dax" : {"display": "select", "icon": "btn_choose.svg"},
+                "QPushButton_dax" : {"display": "select", "icon": "btn_folder.svg"},
                 "QPushButton_load": {"display": "export DAX", "icon": "out.svg"}
         },
 
         "ui_09"       : {
                 "QLabel_pbix"           : {"display": "pbix"},
                 "QLineEdit_pbix"        : {"placeholder": "e.g. D:\\demo\\custom.pbix"},
-                "QPushButton_pbix"      : {"display": "read", "icon": "btn_read.svg"},
+                "QPushButton_pbix"      : {"display": "read", "icon": "btn_pbix.png"},
                 "QLabel_measuretable"   : {"display": "measure table"},
                 "QComboBox_measuretable": {"placeholder": "If you can't choose, Please re-read!"},
                 "QLabel_dax"            : {"display": "dax folder"},
                 "QLineEdit_dax"         : {"placeholder": "e.g. D:\\demo\\dax"},
-                "QPushButton_dax"       : {"display": "select", "icon": "btn_choose.svg"},
+                "QPushButton_dax"       : {"display": "select", "icon": "btn_folder.svg"},
                 "QPushButton_load"      : {"display": "import DAX", "icon": "in.svg"},
                 "QLabel_load"           : {"display": "reading, please wait..."},
         },
