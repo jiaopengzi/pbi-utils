@@ -39,6 +39,7 @@ class Pbit(object):
     path_pbit_target = os.path.join(folder_demo, "demo1.40.pbit")  # 编译后 PBIT 路径,按照时间给定版本
     folder_template = os.path.join(runtime_tmpdir(), "template")  # 模板文件夹
     folder_project = None  # 生成的项目文件夹
+    queries_new = []  # 新增加的 M 查询
 
     def content_page(self, folder_pbix_extract_x: int = None) -> str:
         """获取内容页的在提取后的文件夹中的文件夹名称.
@@ -333,6 +334,8 @@ class Pbit(object):
 
         Returns:    None
         """
+
+        table_is_hidden = self.read_report_page_json()["measure_is_hidden"]  # 是否隐藏表格和度量值隐藏共用一个配置
         tables_path = os.path.join(self.folder_temp, "Model\\tables")  # 目标模型中的 tables 文件夹路径
         tables_path_template = os.path.join(self.folder_template, "tables")  # 源模板中的 tables 文件夹路径
 
@@ -344,8 +347,8 @@ class Pbit(object):
                 if os.path.exists(folder_path_tar):  # 如果有文件夹,先删除掉，提示那些表明为保留字
                     shutil.rmtree(folder_path_tar)
                 shutil.copytree(folder_path_src, folder_path_tar)
-
-    queries_new = []  # 新增加的 M 查询
+                table_path = os.path.join(folder_path_tar, "table.json")
+                self.table_is_hidden(table_path, table_is_hidden)  # 隐藏表格
 
     def create_queries_in_model_queries(self) -> None:
         """复制模板中 M 查询到模型中
@@ -1249,10 +1252,22 @@ class Pbit(object):
         :param measure_is_hidden: 是否隐藏度量值
         :return: 度量值属性字典
         """
-        if measure_is_hidden:
-            measure_dict["isHidden"] = True
-            measure_dict["changedProperties"] = [{"property": "IsHidden"}]
+        measure_dict["isHidden"] = measure_is_hidden
+        measure_dict["changedProperties"] = [{"property": "IsHidden"}]
         return measure_dict
+
+    @staticmethod
+    def table_is_hidden(table_json_path: str, table_is_hidden: bool = True) -> None:
+        """表是否隐藏
+
+        :param table_json_path: 表 json 文件路径
+        :param table_is_hidden: 表 是否隐藏，默认隐藏
+        :return: 度量值属性字典
+        """
+        table_dict = read_json(table_json_path)
+        table_dict["isHidden"] = table_is_hidden
+        table_dict["changedProperties"] = [{"property": "IsHidden"}]
+        write_json_in_file(table_json_path, table_dict)
 
     def rewrite_dax_from_template_dax_list(self):
         """源自 TEMPLATE_DAX_LIST 根据页面信息写入导航的度量值。

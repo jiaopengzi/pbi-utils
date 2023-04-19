@@ -16,10 +16,6 @@
       "value": "Table"
     },
     {
-      "name": "PBI_ChangedProperties",
-      "value": "[\"IsHidden\"]"
-    },
-    {
       "name": "PBI_NavigationStepName",
       "value": "Navigation"
     }
