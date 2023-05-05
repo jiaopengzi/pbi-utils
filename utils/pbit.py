@@ -1252,8 +1252,14 @@ class Pbit(object):
         :param measure_is_hidden: 是否隐藏度量值
         :return: 度量值属性字典
         """
-        measure_dict["isHidden"] = measure_is_hidden
-        measure_dict["changedProperties"] = [{"property": "IsHidden"}]
+        if measure_is_hidden:
+            measure_dict["isHidden"] = measure_is_hidden
+            measure_dict["changedProperties"] = [{"property": "IsHidden"}]
+        else:
+            if measure_dict.get("isHidden"):
+                measure_dict.pop("isHidden")
+            if measure_dict.get("changedProperties"):
+                measure_dict.pop("changedProperties")
         return measure_dict
 
     @staticmethod
@@ -1265,8 +1271,14 @@ class Pbit(object):
         :return: 度量值属性字典
         """
         table_dict = read_json(table_json_path)
-        table_dict["isHidden"] = table_is_hidden
-        table_dict["changedProperties"] = [{"property": "IsHidden"}]
+        if table_is_hidden:
+            table_dict["isHidden"] = table_is_hidden
+            table_dict["changedProperties"] = [{"property": "IsHidden"}]
+        else:
+            if table_dict.get("isHidden"):
+                table_dict.pop("isHidden")
+            if table_dict.get("changedProperties"):
+                table_dict.pop("changedProperties")
         write_json_in_file(table_json_path, table_dict)
 
     def rewrite_dax_from_template_dax_list(self):
