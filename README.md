@@ -1,5 +1,7 @@
 # pbi-utils documentation
 
+## [COMMANDS](COMMANDS.md)
+
 ## [中文版文档](https://jiaopengzi.com/2880.html)
 
 ## 1.Background
