@@ -1,0 +1,66 @@
+# FilePath    : pbi-utils\.github\workflows\build.yaml
+# Author      : jiaopengzi
+# Blog        : https://jiaopengzi.com
+# Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+# Description : 在 v2/main 验证 Windows ZIP, 仅通过完整门禁的 desktop 标签创建正式或测试发行版.
+
+name: Build pbi-utils
+
+on:
+  push:
+    branches: [main, v2]
+    tags: ['desktop-v*']
+  pull_request:
+    branches: [main, v2]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.build.outputs.release_tag != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Download verified build artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download "$GITHUB_RUN_ID" --name "pbi-utils-windows-$GITHUB_RUN_ID" --dir release-zip --repo "$GITHUB_REPOSITORY"
+      - name: Read exact changelog section
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
+        run: |
+          Import-Module ./scripts/ReleaseAutomation.psm1 -Force
+          $notes = Get-PbiReleaseNotes -RepositoryRoot $PWD -Tag $env:RELEASE_TAG
+          [IO.File]::WriteAllText((Join-Path $env:RUNNER_TEMP 'release-notes.md'), $notes)
+      - name: Publish verified ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
+          ARCHIVE_NAME: ${{ needs.build.outputs.archive_name }}
+        run: |
+          set -euo pipefail
+          archive="release-zip/$ARCHIVE_NAME"
+          test -s "$archive"
+          flags=()
+          if [[ "$PRERELEASE" == true ]]; then flags+=(--prerelease --latest=false); fi
+          gh release create "$RELEASE_TAG" "$archive" --verify-tag \
+            --repo "$GITHUB_REPOSITORY" --title "$RELEASE_TAG" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" "${flags[@]}"

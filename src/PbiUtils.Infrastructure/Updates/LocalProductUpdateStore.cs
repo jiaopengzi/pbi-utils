@@ -139,7 +139,7 @@ public sealed class LocalProductUpdateStore(string root) : IProductUpdateStore
             foreach (var item in value.EnumerateArray()) Strict(item);
     }
 
-    /// <summary>缓存同样校验版本、状态和精确仓库地址, 不信任磁盘链接或任意失败码.</summary>
+    /// <summary>缓存同样校验版本、状态、ZIP 文件名和精确仓库地址; 旧 EXE、任意磁盘链接或失败码均拒绝.</summary>
     private static void ValidateCheck(ProductUpdateCheck check)
     {
         if (check is null) throw new JsonException();
@@ -159,7 +159,7 @@ public sealed class LocalProductUpdateStore(string root) : IProductUpdateStore
         foreach (var asset in check.Assets)
         {
             if (asset.DownloadUrl != ProductUpdatePolicy.Link(check.Source, check.LatestVersion!, asset.DotNetMode)
-                || asset.FileName != $"pbi-utils-{check.LatestVersion}-win-x64-{asset.DotNetMode}-setup.exe" || asset.Size is < 0) throw new JsonException();
+                || asset.FileName != $"pbi-utils-{check.LatestVersion}-win-x64-{asset.DotNetMode}.zip" || asset.Size is < 0) throw new JsonException();
         }
     }
 

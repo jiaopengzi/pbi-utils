@@ -1,0 +1,65 @@
+# FilePath    : pbi-utils\.github\workflows\sync_gitee.yaml
+# Author      : jiaopengzi
+# Blog        : https://jiaopengzi.com
+# Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+# Description : v2 仅验证分支门禁, 只有 main 可使用 SSH 密钥将 main 代码同步至 Gitee, 不同步标签或发行版.
+
+name: Sync Gitee
+
+on:
+  push:
+    branches: [main, v2]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-gitee-main
+  cancel-in-progress: false
+
+jobs:
+  branch-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Report synchronization policy
+        env:
+          SOURCE_REF: ${{ github.ref }}
+        run: |
+          if [[ "$SOURCE_REF" == refs/heads/main ]]; then
+            echo 'main: synchronize main code only.'
+          else
+            echo 'SKIP: this ref cannot synchronize code, tags or releases to Gitee.'
+          fi
+
+  sync:
+    needs: branch-policy
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Synchronize main with a remote lease
+        env:
+          GITEE_SSH_PRIVATE_KEY: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}
+          GITEE_REPO: git@gitee.com:jiaopengzi/pbi-utils.git
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          test -n "$GITEE_SSH_PRIVATE_KEY"
+          ssh_dir="$(mktemp -d "$RUNNER_TEMP/pbi-utils-gitee.XXXXXX")"
+          trap 'rm -rf -- "$ssh_dir"' EXIT
+          chmod 700 "$ssh_dir"
+          printf '%s\n' "$GITEE_SSH_PRIVATE_KEY" > "$ssh_dir/key"
+          chmod 600 "$ssh_dir/key"
+          # Gitee 官方公钥: https://help.gitee.com/account/gitees-ssh-key-fingerprints
+          printf '%s\n' 'gitee.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEKxHSJ7084RmkJ4YdEi5tngynE8aZe2uEoVVsB/OvYN' > "$ssh_dir/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $ssh_dir/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$ssh_dir/known_hosts"
+          remote_sha="$(git ls-remote "$GITEE_REPO" refs/heads/main | cut -f1)"
+          git -c push.followTags=false push --force-with-lease="refs/heads/main:$remote_sha" \
+            "$GITEE_REPO" HEAD:refs/heads/main

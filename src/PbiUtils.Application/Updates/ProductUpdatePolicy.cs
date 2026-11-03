@@ -12,7 +12,7 @@ namespace PbiUtils.Application.Updates;
 /// <summary>只接受当前 desktop 正式发布, 不混用旧产品或其他版本附件.</summary>
 public static class ProductUpdatePolicy
 {
-    /// <summary>正式软件更新仅分发不含 .NET 的安装包, 运行时由安装器按需补齐.</summary>
+    /// <summary>正式软件更新仅分发不含 .NET 的 ZIP 包, 内含安装器和 SHA256, 运行时由安装器按需补齐.</summary>
     public static IReadOnlyList<string> Modes { get; } = Array.AsReadOnly(["without-dotnet"]);
 
     /// <summary>拒绝未知来源, 不允许自由主机或地址.</summary>
@@ -47,7 +47,7 @@ public static class ProductUpdatePolicy
         return true;
     }
 
-    /// <summary>构建唯一固定仓库 release 或完整包地址, 非法版本/目标抛参数错误.</summary>
+    /// <summary>根据固定来源、版本和目标构建唯一发布页或 ZIP 包地址; 非法版本/目标抛参数错误.</summary>
     public static string Link(string source, string version, string target)
     {
         ValidateSource(source);
@@ -55,10 +55,10 @@ public static class ProductUpdatePolicy
             throw new AppException("INVALID_UPDATE_TARGET", "更新目标无效");
         var prefix = $"https://{source}.com/jiaopengzi/pbi-utils/releases/";
         return target == "release" ? prefix + "tag/desktop-v" + version
-            : prefix + $"download/desktop-v{version}/pbi-utils-{version}-win-x64-{target}-setup.exe";
+            : prefix + $"download/desktop-v{version}/pbi-utils-{version}-win-x64-{target}.zip";
     }
 
-    /// <summary>完整发布列表中选择最高正式版本; 正文保留原文本, 仅限制显示长度.</summary>
+    /// <summary>从完整发布列表选择最高正式版本和同源同版本唯一 ZIP; 正文保留原文本, 仅限制显示长度.</summary>
     public static ProductUpdateCheck Select(string source, string currentVersion, IEnumerable<ProductRelease> releases, DateTimeOffset checkedAt)
     {
         ValidateSource(source);
@@ -73,7 +73,7 @@ public static class ProductUpdatePolicy
         var assets = new List<ProductUpdateAsset>();
         foreach (var mode in Modes)
         {
-            var name = $"pbi-utils-{value}-win-x64-{mode}-setup.exe";
+            var name = $"pbi-utils-{value}-win-x64-{mode}.zip";
             var url = Link(source, value, mode);
             var candidates = latest.Assets.Where(asset => asset.Name == name && asset.Url == url && (asset.Size is null or >= 0)).ToArray();
             if (candidates.Length == 1) assets.Add(new(mode, name, url, candidates[0].Size));

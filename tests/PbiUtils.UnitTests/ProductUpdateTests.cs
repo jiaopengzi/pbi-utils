@@ -39,29 +39,45 @@ public sealed class ProductUpdateTests : IDisposable
             if (scenario.GetProperty("name").GetString() == "github-both-modes")
             {
                 Assert.Equal(scenario.GetProperty("releases")[0].GetProperty("body").GetString(), check.Notes);
-                Assert.Equal(check.Assets[0].DownloadUrl, service.ResolveLink(source, "0.2.0", "without-dotnet").AbsoluteUri);
+                Assert.Equal("pbi-utils-0.2.0-win-x64-without-dotnet.zip", Assert.Single(check.Assets).FileName);
+                Assert.Equal("https://github.com/jiaopengzi/pbi-utils/releases/download/desktop-v0.2.0/pbi-utils-0.2.0-win-x64-without-dotnet.zip", service.ResolveLink(source, "0.2.0", "without-dotnet").AbsoluteUri);
                 Assert.Equal("INVALID_UPDATE_TARGET", Assert.Throws<AppException>(() => service.ResolveLink(source, "0.2.0", "with-dotnet")).Code);
                 Assert.Throws<AppException>(() => service.ResolveLink(source, "0.3.0", "release"));
             }
         }
     }
 
-    /// <summary>正式下载仅选择不含运行时的安装包, 缺失时不得回退其他模式或旧版本附件.</summary>
+    /// <summary>正式下载仅选择不含运行时的 ZIP 包, 缺失时不得回退 EXE、其他模式或旧版本附件.</summary>
     [Theory]
     [InlineData("github")]
     [InlineData("gitee")]
-    public void MissingFrameworkDependentInstallerDoesNotFallBack(string source)
+    public void MissingFrameworkDependentZipDoesNotFallBack(string source)
     {
         var check = ProductUpdatePolicy.Select(source, "0.1.0",
             [new("desktop-v0.2.0", false, false, "latest",
-                [new("pbi-utils-0.2.0-win-x64-with-dotnet-setup.exe", $"https://{source}.com/jiaopengzi/pbi-utils/releases/download/desktop-v0.2.0/pbi-utils-0.2.0-win-x64-with-dotnet-setup.exe", 123)]),
+                [new("pbi-utils-0.2.0-win-x64-with-dotnet.zip", $"https://{source}.com/jiaopengzi/pbi-utils/releases/download/desktop-v0.2.0/pbi-utils-0.2.0-win-x64-with-dotnet.zip", 123),
+                 new("pbi-utils-0.2.0-win-x64-without-dotnet-setup.exe", $"https://{source}.com/jiaopengzi/pbi-utils/releases/download/desktop-v0.2.0/pbi-utils-0.2.0-win-x64-without-dotnet-setup.exe", 42)]),
              new("desktop-v0.1.0", false, false, "older",
-                [new("pbi-utils-0.1.0-win-x64-without-dotnet-setup.exe", ProductUpdatePolicy.Link(source, "0.1.0", "without-dotnet"), 42)])],
+                [new("pbi-utils-0.1.0-win-x64-without-dotnet.zip", $"https://{source}.com/jiaopengzi/pbi-utils/releases/download/desktop-v0.1.0/pbi-utils-0.1.0-win-x64-without-dotnet.zip", 42)])],
             DateTimeOffset.UtcNow);
         Assert.Equal("available", check.Status);
         Assert.Equal("0.2.0", check.LatestVersion);
         Assert.Empty(check.Assets);
         Assert.Equal(ProductUpdatePolicy.Link(source, "0.2.0", "release"), check.ReleaseUrl);
+    }
+
+    /// <summary>磁盘缓存只接受当前 ZIP 下载契约, 拒绝 EXE 及跨源/跨版地址且不产生配置文件.</summary>
+    [Theory]
+    [InlineData("pbi-utils-0.2.0-win-x64-without-dotnet-setup.exe", "https://github.com/jiaopengzi/pbi-utils/releases/download/desktop-v0.2.0/pbi-utils-0.2.0-win-x64-without-dotnet-setup.exe")]
+    [InlineData("pbi-utils-0.2.0-win-x64-without-dotnet.zip", "https://gitee.com/jiaopengzi/pbi-utils/releases/download/desktop-v0.2.0/pbi-utils-0.2.0-win-x64-without-dotnet.zip")]
+    [InlineData("pbi-utils-0.2.0-win-x64-without-dotnet.zip", "https://github.com/jiaopengzi/pbi-utils/releases/download/desktop-v0.1.0/pbi-utils-0.2.0-win-x64-without-dotnet.zip")]
+    public void InvalidCachedDownloadContractCannotBeSaved(string name, string url)
+    {
+        var store = new LocalProductUpdateStore(root);
+        var check = new ProductUpdateCheck("github", "0.1.0", "available", DateTimeOffset.UtcNow, "0.2.0",
+            "https://github.com/jiaopengzi/pbi-utils/releases/tag/desktop-v0.2.0", "", [new("without-dotnet", name, url, 42)]);
+        Assert.Throws<JsonException>(() => store.SaveCheck(check, false, default));
+        Assert.False(File.Exists(Path.Combine(root, "product-updates.json")));
     }
 
     /// <summary>失败分类不伪装无发布, 保留限流与 HTTP 故障的区别.</summary>

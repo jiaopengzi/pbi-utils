@@ -37,7 +37,7 @@ function result(source: "github" | "gitee" = "github", status: ProductUpdateChec
         latestVersion: "0.2.0",
         releaseUrl: "https://example.invalid/release",
         notes: "<img src=x onerror=alert(1)>\n[link](javascript:alert(1))",
-        assets: [{ dotNetMode: "without-dotnet", fileName: "fixture.exe", downloadUrl: "https://example.invalid/file", size: null }],
+        assets: [{ dotNetMode: "without-dotnet", fileName: "fixture.zip", downloadUrl: "https://example.invalid/file", size: null }],
         errorCode: status === "failed" ? "UPDATE_TIMEOUT" : null,
         isSimulation: false,
     }
@@ -444,21 +444,21 @@ it.each([
     const time = wrapper.get(".update-details time")
     expect(time.text()).toBe(expected)
     expect(time.attributes("datetime")).toBe(expected === "-" ? undefined : timestamp)
-    expect(wrapper.get('[data-target="without-dotnet"]').text()).toBe("下载安装包")
+    expect(wrapper.get('[data-target="without-dotnet"]').text()).toBe("下载 ZIP 安装包")
     expect(wrapper.find(".update-notes").attributes("open")).toBeUndefined()
     const requestsBefore = request.mock.calls.length
     setLocale("en-us")
     await flushPromises()
     expect(time.text()).toBe(expected)
     expect(wrapper.get(".update-details dt").text()).toBe("Last checked")
-    expect(wrapper.get('[data-target="without-dotnet"]').text()).toBe("Download installer")
+    expect(wrapper.get('[data-target="without-dotnet"]').text()).toBe("Download ZIP package")
     expect(request).toHaveBeenCalledTimes(requestsBefore)
     expect(check.checkedAtUtc).toBe(timestamp)
     wrapper.unmount()
     bridge.dispose()
 })
 
-it("本次发布缺少不含 .NET 的安装包时只启用发布页面, 不回退其他附件", async () => {
+it("本次发布缺少不含 .NET 的 ZIP 安装包时只启用发布页面, 不回退其他附件", async () => {
     const bridge = markRaw(new BridgeClient(new MockTransport()))
     const scope = effectScope()
     const updates = scope.run(() =>
@@ -476,7 +476,7 @@ it("本次发布缺少不含 .NET 的安装包时只启用发布页面, 不回�
     await updates.check(false)
     const wrapper = mount(SoftwareUpdatePanel, { props: { bridge, updates } })
     expect(wrapper.get('[data-target="without-dotnet"]').attributes("disabled")).toBeDefined()
-    expect(wrapper.get('[data-target="without-dotnet"]').attributes("title")).toBe("此发布未提供安装包")
+    expect(wrapper.get('[data-target="without-dotnet"]').attributes("title")).toBe("此发布未提供 ZIP 安装包")
     expect(wrapper.get('[data-target="release"]').attributes("disabled")).toBeUndefined()
     expect(wrapper.find('[data-target="with-dotnet"]').exists()).toBe(false)
     await expect(bridge.request("updates.open", { source: "github", version: "0.2.0", target: "with-dotnet" } as never).promise).rejects.toMatchObject({

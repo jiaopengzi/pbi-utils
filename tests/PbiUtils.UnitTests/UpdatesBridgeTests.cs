@@ -112,16 +112,16 @@ public sealed class UpdatesBridgeTests
         return response.GetProperty("error").GetProperty("code").GetString();
     }
 
-    /// <summary>仅替换HTTP, 保留版本策略、存储与桥接授权行为.</summary>
+    /// <summary>仅替换 HTTP, 保留版本策略、ZIP 缓存与桥接授权行为.</summary>
     private sealed class Releases(bool fail = false) : IProductReleaseSource
     {
-        /// <summary>返回请求来源同一版本的完整安装包元数据, 不接触真实服务.</summary>
+        /// <summary>返回请求来源同一版本的 ZIP 安装包元数据, 不接触真实服务.</summary>
         public Task<ProductRelease[]> ReadAsync(string source, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
             if (fail) return Task.FromException<ProductRelease[]>(new AppException("UPDATE_NETWORK_FAILED", "固定传输错误", 3));
             return Task.FromResult<ProductRelease[]>([new("desktop-v0.2.0", false, false, "plain text",
-                [new("pbi-utils-0.2.0-win-x64-without-dotnet-setup.exe", ProductUpdatePolicy.Link(source, "0.2.0", "without-dotnet"), 42)])]);
+                [new("pbi-utils-0.2.0-win-x64-without-dotnet.zip", ProductUpdatePolicy.Link(source, "0.2.0", "without-dotnet"), 42)])]);
         }
     }
 
