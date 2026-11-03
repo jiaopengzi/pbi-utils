@@ -9,6 +9,12 @@
 同一个精确标签只能出现一次, 已发布标签不可覆盖或重用.
 分类按需使用 Added、Changed、Deprecated、Removed、Fixed、Security, 不保留空分类.
 
+## [desktop-v0.1.0-v2.3] - 2026-11-03
+
+### Fixed
+
+- 为英文 Windows 和无窗口测试进程统一 UTF-8 输出边界, 保留 Bash 发布别名和两种 PowerShell 安装器测试的中文断言.
+
 ## [desktop-v0.1.0-v2.2] - 2026-11-03
 
 ### Changed
