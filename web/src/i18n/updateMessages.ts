@@ -8,7 +8,7 @@
 export const updateMessages = {
     "zh-cn": {
         "updates.title": "软件更新",
-        "updates.description": "检查更新、查看发布说明并下载 ZIP 安装包，内含安装器和 SHA256 校验文件。",
+        "updates.description": "检查更新、查看发布说明并下载 ZIP 安装包，内含安装器，SHA256 校验值见发布说明。",
         "updates.currentVersion": "当前版本",
         "updates.automatic": "自动检查更新",
         "updates.source": "发布来源",
@@ -54,7 +54,7 @@ export const updateMessages = {
     },
     "en-us": {
         "updates.title": "Software updates",
-        "updates.description": "Check updates, read release notes and download a ZIP package containing the installer and SHA256 checksum file.",
+        "updates.description": "Check updates, read release notes and download the ZIP containing the installer. The installer SHA256 is in the release notes.",
         "updates.currentVersion": "Current version",
         "updates.automatic": "Check for updates automatically",
         "updates.source": "Release source",

@@ -142,12 +142,11 @@ Debug 与 Release 互不覆盖。所选模式的临时产物完成编译、前�
 
 GitHub Actions 的 [build.yaml](.github/workflows/build.yaml) 仅在推送 `desktop-v*` 发布标签时自动构建发版；面向 `main`、`v2` 的 PR 和手动触发可单独运行验证。普通分支 push 不触发构建，避免提交和标签各跑一遍。流程统一包含固定工具链、`release` 门禁和发布后 CLI/MCP smoke。CI 从仓库配置读取 .NET SDK、Node、pnpm 和产品版本，使用与许可来源一致、归档 SHA256 固定的 NSIS；不执行产品安装或开发外部工具登记。通过后上传版本化 ZIP，PR/手动分支验证不创建 Release。
 
-正式发布只分发 `pbi-utils-<版本>-win-x64-without-dotnet.zip`，由用户解压并运行安装器，运行时由安装器按需补齐。ZIP 根目录恰好包含本次 `package` 的两个文件：
+正式发布只分发 `pbi-utils-<版本>-win-x64-without-dotnet.zip`，由用户解压并运行安装器，运行时由安装器按需补齐。ZIP 根目录只包含本次 `package` 的安装器：
 
 - `pbi-utils-<版本>-win-x64-without-dotnet-setup.exe`。
-- `pbi-utils-<版本>-win-x64-without-dotnet-setup.sha256`。
 
-安装器 JSON、目录锁文件和中间产物保留在本地，不进入 ZIP。归档前核验 SHA256 对应的精确文件名与实际安装器字节，归档后再次检查内容。软件更新仅识别同源同版本的上述 ZIP；缺少、重复或地址不符时禁用下载。开发命令仍支持两种本地构建模式。更新检查仅访问匿名 Releases API，不读取仓库分支上的 changelog 文件，也不要求自建更新服务器。标签构建发布 GitHub 成功后，同一工作流将同一 ZIP 同步发布到 Gitee；本地 `run.ps1` 仍只生成文件，不创建远程 Release、不上传文件。
+安装器 JSON、`.sha256` 侧文件、目录锁和中间产物保留在本地，不进入 ZIP。归档前后核验安装器字节及本地校验值，发布时从实际 ZIP 内的 EXE 计算 SHA256，将摘要和精确 EXE 文件名写入 GitHub/Gitee 发布说明；该摘要对应安装器，不是 ZIP。软件更新仅识别同源同版本的上述 ZIP；缺少、重复或地址不符时禁用下载。开发命令仍支持两种本地构建模式。更新检查仅访问匿名 Releases API，不读取仓库分支上的 changelog 文件，也不要求自建更新服务器。标签构建发布 GitHub 成功后，同一工作流将同一 ZIP 同步发布到 Gitee；本地 `run.ps1` 仍只生成文件，不创建远程 Release、不上传文件。
 
 #### 标签、更新日志与 Git 别名
 

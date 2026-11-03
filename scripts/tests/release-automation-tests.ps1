@@ -2,7 +2,7 @@
 # Author      : jiaopengzi
 # Blog        : https://jiaopengzi.com
 # Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-# Description : 在隔离目录验证发布标签、更新说明、精确 ZIP 内容与校验和拒绝行为.
+# Description : 在隔离目录验证发布标签、安装器摘要说明、单文件 ZIP 与校验和拒绝行为.
 
 <# .SYNOPSIS 不访问远端或执行安装, 任一发布行为断言不满足即失败. #>
 $ErrorActionPreference = 'Stop'
@@ -37,6 +37,7 @@ try {
 
 - 首个正式版.
 '@ | Set-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md')
+    $validChangelog = Get-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Raw
     $branch = Get-PbiReleaseContext -RepositoryRoot $sandbox -Ref 'refs/heads/v2'
     Assert (!$branch.ReleaseTag -and $branch.SourceBranch -ceq 'v2') 'v2 push 必须只构建'
     $stable = Get-PbiReleaseContext -RepositoryRoot $sandbox -Ref 'refs/tags/desktop-v0.1.0'
@@ -57,6 +58,7 @@ try {
     Assert-Rejected { Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag $preview.ReleaseTag }
     Add-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Value '- '
     Assert-Rejected { Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag $preview.ReleaseTag }
+    Set-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Value $validChangelog
 
     $package = Join-Path $sandbox 'artifacts/release/win-x64/without-dotnet'
     $null = New-Item -ItemType Directory -Path $package -Force
@@ -73,18 +75,43 @@ try {
     $archive = [IO.Compression.ZipFile]::OpenRead($zip)
     try {
         $entries = @($archive.Entries.FullName | Sort-Object)
-        Assert (($entries -join '|') -ceq "$name.exe|$name.sha256") 'ZIP 根目录必须恰好包含 EXE 和 SHA256'
+        Assert ($entries.Count -eq 1 -and $entries[0] -ceq "$name.exe") 'ZIP 根目录必须仅包含当前 EXE, 不含 SHA256 或其他文件'
         $reader = [IO.BinaryReader]::new($archive.GetEntry("$name.exe").Open())
         try { Assert (($reader.ReadBytes(4) -join ',') -ceq '1,4,7,11') 'ZIP 内容必须保持安装器原字节' } finally { $reader.Dispose() }
     } finally { $archive.Dispose() }
     $zipHash = (Get-FileHash -LiteralPath $zip).Hash
+    Assert ($hash -cne $zipHash) '夹具必须区分安装器摘要与 ZIP 摘要'
+    Assert ((Get-Content -LiteralPath (Join-Path $package "$name.sha256") -Raw).Trim() -ceq "$hash  $name.exe") '本地 SHA256 侧文件仍保留且不加入 ZIP'
+    $hashNotes = Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag $preview.ReleaseTag -InstallerSha256 $hash.ToLowerInvariant()
+    $expectedHashNotes = $notes + "`n### 安装器 SHA256`n`n" + '```text' + "`n$hash  $name.exe`n" + '```' + "`n"
+    Assert ($hashNotes -ceq $expectedHashNotes) '发布说明必须追加规范大写的实际 EXE 摘要与精确文件名代码块'
+    Assert (!$hashNotes.Contains($zipHash) -and !$hashNotes.Contains([IO.Path]::GetFileName($zip))) '安装器摘要说明不能混入 ZIP 哈希或 ZIP 文件名'
+    Assert ((Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag $preview.ReleaseTag) -ceq $notes) '构建前省略摘要时必须保持原 CHANGELOG 章节'
+    foreach ($invalid in @('', ' ', ('A' * 63), ('A' * 65), ('g' * 64), "$hash`n", " $hash")) {
+        Assert-Rejected { Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag $preview.ReleaseTag -InstallerSha256 $invalid }
+    }
+    Add-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Value "`n## [desktop-v0.2.0] - 2026-11-03`n- 其他产品版本."
+    Assert-Rejected { Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag 'desktop-v0.2.0' -InstallerSha256 $hash }
+    Assert-Rejected { Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag 'desktop-v0.2.0' }
     'invalid checksum' | Set-Content -LiteralPath (Join-Path $package "$name.sha256")
     Assert-Rejected { New-PbiReleaseArchive -RepositoryRoot $sandbox -Destination (Join-Path $sandbox 'dist') }
     Assert ((Get-FileHash -LiteralPath $zip).Hash -ceq $zipHash) '失败不得覆盖原 ZIP'
+    "$([string]::new('0', 64))  $name.exe" | Set-Content -LiteralPath (Join-Path $package "$name.sha256")
+    Assert-Rejected { New-PbiReleaseArchive -RepositoryRoot $sandbox -Destination (Join-Path $sandbox 'dist') }
+    Assert ((Get-FileHash -LiteralPath $zip).Hash -ceq $zipHash) '错误摘要不得覆盖原 ZIP'
     "$hash  wrong.exe" | Set-Content -LiteralPath (Join-Path $package "$name.sha256")
     Assert-Rejected { New-PbiReleaseArchive -RepositoryRoot $sandbox -Destination (Join-Path $sandbox 'dist') }
+    Assert ((Get-FileHash -LiteralPath $zip).Hash -ceq $zipHash) '错误安装器名不得覆盖原 ZIP'
     Remove-Item -LiteralPath (Join-Path $package "$name.sha256")
     Assert-Rejected { New-PbiReleaseArchive -RepositoryRoot $sandbox -Destination (Join-Path $sandbox 'dist') }
+    Assert ((Get-FileHash -LiteralPath $zip).Hash -ceq $zipHash) '缺少 SHA256 不得覆盖原 ZIP'
+    "$hash  $name.exe" | Set-Content -LiteralPath (Join-Path $package "$name.sha256")
+    [IO.File]::WriteAllBytes($exe, [byte[]]@())
+    Assert-Rejected { New-PbiReleaseArchive -RepositoryRoot $sandbox -Destination (Join-Path $sandbox 'dist') }
+    Assert ((Get-FileHash -LiteralPath $zip).Hash -ceq $zipHash) '空安装器不得覆盖原 ZIP'
+    Remove-Item -LiteralPath $exe
+    Assert-Rejected { New-PbiReleaseArchive -RepositoryRoot $sandbox -Destination (Join-Path $sandbox 'dist') }
+    Assert ((Get-FileHash -LiteralPath $zip).Hash -ceq $zipHash) '缺少安装器不得覆盖原 ZIP'
     Write-Output 'PASS release context, notes and exact ZIP archive'
 } finally {
     $absolute = [IO.Path]::GetFullPath($sandbox)

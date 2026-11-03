@@ -2,7 +2,7 @@
 # Author      : jiaopengzi
 # Blog        : https://jiaopengzi.com
 # Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-# Description : 复用产品版本生成受限发布上下文、精确更新说明与双文件 ZIP, 不创建远端发行版.
+# Description : 复用产品版本生成受限发布上下文、安装器摘要说明与单文件 ZIP, 不创建远端发行版.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -31,12 +31,16 @@ function Get-PbiReleaseContext([string]$RepositoryRoot, [string]$Ref) {
 }
 
 <#
-.SYNOPSIS 从 CHANGELOG 精确选取唯一、含真实内容的发布章节, 不回退到其他版本.
+.SYNOPSIS 从 CHANGELOG 精确选取当前版本唯一且含真实内容的章节, 可追加安装器 SHA256, 不回退到其他版本.
 .PARAMETER RepositoryRoot 仓库根目录.
 .PARAMETER Tag 精确发布标签, 不含 refs/tags 前缀.
-.OUTPUTS 原章节正文, 找不到、重复、日期格式无效或内容为空时抛错.
+.PARAMETER InstallerSha256 可选的实际归档 EXE 的 64 位十六进制摘要, 调用者须从安装器字节获取, 不能传 ZIP 摘要.
+.OUTPUTS 原章节正文及可选的大写摘要代码块; 标签版本不符、摘要非法、章节缺失或重复、日期无效及内容为空时抛错.
 #>
-function Get-PbiReleaseNotes([string]$RepositoryRoot, [string]$Tag) {
+function Get-PbiReleaseNotes([string]$RepositoryRoot, [string]$Tag, [string]$InstallerSha256) {
+    $context = Get-PbiReleaseContext $RepositoryRoot "refs/tags/$Tag"
+    $includeInstallerHash = $PSBoundParameters.ContainsKey('InstallerSha256')
+    if ($includeInstallerHash -and $InstallerSha256 -cnotmatch '\A[0-9A-Fa-f]{64}\z') { throw '安装器 SHA256 必须为精确 64 位十六进制摘要' }
     $lines = @(Get-Content -LiteralPath (Join-Path $RepositoryRoot 'CHANGELOG.md'))
     $marker = '^## \[' + [regex]::Escape($Tag) + '\] - (\d{4}-\d{2}-\d{2})$'
     $indices = @(for ($index = 0; $index -lt $lines.Count; $index++) { if ($lines[$index] -cmatch $marker) { $index } })
@@ -50,11 +54,14 @@ function Get-PbiReleaseNotes([string]$RepositoryRoot, [string]$Tag) {
     $content = [regex]::Replace($notes, '(?s)<!--.*?-->', '')
     $contentLines = @($content -split '\r?\n' | Where-Object { $_.Trim() -and $_ -notmatch '^\s*#' -and $_ -notmatch '^\s*(?:[-*+]\s*)?$' })
     if (!$contentLines.Count) { throw 'CHANGELOG 发布章节没有更新内容' }
-    return $notes + "`n"
+    if (!$includeInstallerHash) { return $notes + "`n" }
+    $installerHash = $InstallerSha256.ToUpperInvariant()
+    $installerName = "pbi-utils-$($context.Version)-win-x64-without-dotnet-setup.exe"
+    return $notes + "`n`n### 安装器 SHA256`n`n" + '```text' + "`n$installerHash  $installerName`n" + '```' + "`n"
 }
 
 <#
-.SYNOPSIS 校验当前 without-dotnet 安装器和 SHA256, 创建仅含两文件的 ZIP 并核对归档原字节.
+.SYNOPSIS 用本地 SHA256 侧文件校验当前 without-dotnet 安装器, 创建仅含 EXE 的 ZIP 并核对归档原字节.
 .PARAMETER RepositoryRoot 仓库根目录, 安装器必须已由现有 package/release 成功生成.
 .PARAMETER Destination ZIP 输出目录; 临时归档校验完成后才替换本版本 ZIP.
 .OUTPUTS ZIP 的绝对路径; 缺失、空安装器、错误校验和、归档写入/校验失败时抛错, 不交付半包.
@@ -76,20 +83,16 @@ function New-PbiReleaseArchive([string]$RepositoryRoot, [string]$Destination) {
     $archivePath = Join-Path $destinationRoot $context.ArchiveName
     $temporary = Join-Path $destinationRoot ('.release-' + [Guid]::NewGuid().ToString('N') + '.zip')
     try {
-        Compress-Archive -LiteralPath @($exe, $checksum) -DestinationPath $temporary -CompressionLevel Optimal
+        Compress-Archive -LiteralPath $exe -DestinationPath $temporary -CompressionLevel Optimal
         $archive = [IO.Compression.ZipFile]::OpenRead($temporary)
         try {
-            $names = @($archive.Entries.FullName | Sort-Object)
-            if (($names -join '|') -cne "$baseName.exe|$baseName.sha256") { throw 'ZIP 必须在根目录恰好包含安装器和 SHA256' }
-            foreach ($file in @($exe, $checksum)) {
-                $entry = $archive.GetEntry([IO.Path]::GetFileName($file))
-                $stream = $entry.Open()
-                try { $actualHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)) } finally { $stream.Dispose() }
-                if ($actualHash -cne (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash) { throw 'ZIP 内容与原始文件不一致' }
-                if ($file -ceq $exe -and $actualHash -cne $hash) { throw '归档期间安装器发生变化' }
-            }
-            $reader = [IO.StreamReader]::new($archive.GetEntry("$baseName.sha256").Open())
-            try { if ($reader.ReadToEnd().Trim() -cne $expectedChecksum) { throw '归档期间 SHA256 发生变化' } } finally { $reader.Dispose() }
+            if ($archive.Entries.Count -ne 1 -or $archive.Entries[0].FullName -cne "$baseName.exe") { throw 'ZIP 必须在根目录仅包含当前安装器 EXE' }
+            $stream = $archive.GetEntry("$baseName.exe").Open()
+            try { $actualHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)) } finally { $stream.Dispose() }
+            if ($actualHash -cne $hash) { throw '归档期间安装器发生变化' }
+            if ($actualHash -cne (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash) { throw 'ZIP 内容与当前安装器不一致' }
+            # 侧文件只用于本地输入与并发校验, 不作为 ZIP 条目分发; 摘要由发布说明单独呈现.
+            if ((Get-Content -LiteralPath $checksum -Raw).Trim() -cne $expectedChecksum) { throw '归档期间 SHA256 发生变化' }
         } finally { $archive.Dispose() }
         Move-Item -LiteralPath $temporary -Destination $archivePath -Force
         return $archivePath

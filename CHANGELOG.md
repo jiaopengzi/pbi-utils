@@ -9,6 +9,17 @@
 同一个精确标签只能出现一次, 已发布标签不可覆盖或重用.
 分类按需使用 Added、Changed、Deprecated、Removed、Fixed、Security, 不保留空分类.
 
+## [desktop-v0.1.0-v2.5] - 2026-11-03
+
+### Changed
+
+- 安装包 ZIP 仅包含 EXE, 安装器 SHA256 与精确文件名写入 GitHub/Gitee 发布说明.
+
+### Fixed
+
+- 正常 pnpm 包脚本回显按普通信息显示, 不再被 PowerShell 当作错误染红; 保留其他诊断与原始退出码.
+- 正确处理 Gitee 查询尚不存在发行版时的 `HTTP 200 + null`, 并严格拒绝异常响应.
+
 ## [desktop-v0.1.0-v2.4] - 2026-11-03
 
 ### Fixed

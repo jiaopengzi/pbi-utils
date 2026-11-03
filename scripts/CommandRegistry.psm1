@@ -160,19 +160,51 @@ function ConvertTo-PbiNativeText([string]$File, [string[]]$Arguments, [string]$L
 }
 
 <#
+.SYNOPSIS 读取当前前端包的精确 pnpm 脚本回显, 不将未知 stderr 文本猜测为普通信息.
+.PARAMETER File 只有 pnpm 或其同名入口可分类, 其他工具不读取前端配置.
+.PARAMETER Arguments 必须明确使用当前仓库的 --dir web, 避免套用其他包的脚本定义.
+.OUTPUTS 精确单行回显集合; 配置无法确认时返回 null, 原生命令仍执行并自行报告输入错误和退出码.
+.NOTES 此处仅决定显示通道, 不取代 pnpm 的配置验证, 不将读取失败当作命令成功.
+#>
+function Get-PbiPnpmCommandEchoes([string]$File, [string[]]$Arguments) {
+    if ([IO.Path]::GetFileNameWithoutExtension($File) -ine 'pnpm' -or $null -eq $Arguments -or $Arguments.Count -lt 2 -or
+        $Arguments[0] -cne '--dir' -or $Arguments[1] -cne 'web') { return $null }
+    try {
+        $package = Get-Content -LiteralPath (Join-Path $script:Root 'web/package.json') -Raw | ConvertFrom-Json -AsHashtable
+        if ($package -isnot [hashtable] -or !$package.ContainsKey('scripts') -or $package.scripts -isnot [hashtable]) { return $null }
+        $echoes = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        foreach ($command in $package.scripts.Values) {
+            if ($command -is [string] -and $command.Length -gt 0 -and !$command.Contains("`n") -and !$command.Contains("`r")) {
+                $null = $echoes.Add('$ ' + $command)
+            }
+        }
+        return ,$echoes
+    } catch {
+        if ($_.Exception -is [OperationCanceledException] -or $_.Exception -is [Management.Automation.PipelineStoppedException]) { throw }
+        # 无法确认时不改写通道, 让后续 pnpm 原样报告损坏配置, 保留其真实退出码.
+        Write-Verbose '无法确认 pnpm 脚本回显, 保留原始输出通道.'
+        return $null
+    }
+}
+
+<#
 .SYNOPSIS 按参数数组执行原生命令, 保留输出通道和原始非零退出码.
 .PARAMETER File 固定工具名称或测试工具路径.
 .PARAMETER Arguments 独立参数数组, 不拼接或执行任意命令字符串.
-.NOTES 仅精确改写 .NET 的无需还原提示; 诊断不凭 stderr 或错误字样裁决成功.
+.NOTES 仅精确改写 .NET 无需还原提示及已核验的 pnpm 包脚本回显; 诊断不凭 stderr 或错误字样裁决成功.
 #>
 function Invoke-PbiNative([string]$File, [string[]]$Arguments) {
     if (!(Get-Command $File -ErrorAction SilentlyContinue)) { Stop-Pbi 3 "缺少工具 $File, 请参阅 .docs/toolchain.md 官方安装来源" }
+    $commandEchoes = Get-PbiPnpmCommandEchoes $File $Arguments
     # 原生命令的退出码在输出全部读完后裁决, 不受调用 shell 的原生错误偏好影响.
     $PSNativeCommandUseErrorActionPreference = $false
     & $File @Arguments 2>&1 | ForEach-Object {
         $isErrorStream = $_ -is [Management.Automation.ErrorRecord]
         $line = ConvertTo-PbiNativeText $File $Arguments ([string]$_)
-        if ($line -match '^\s*(已成功生成[。.]|Build succeeded\.|0 个(警告|错误)\b|0 (Warning|Error)\(s\)|所有项目依赖均为最新|All projects are up-to-date for restore\.)') {
+        if ($null -ne $commandEchoes -and $commandEchoes.Contains($line)) {
+            # pnpm 将包脚本命令回显写 stderr; 只将精确已知的回显作为普通信息, 避免外层 PowerShell 误染红.
+            [Console]::Out.WriteLine($line)
+        } elseif ($line -match '^\s*(已成功生成[。.]|Build succeeded\.|0 个(警告|错误)\b|0 (Warning|Error)\(s\)|所有项目依赖均为最新|All projects are up-to-date for restore\.)') {
             Write-PbiMessage $line 'Success' $isErrorStream
         } elseif ($line -match '(?i)(\berror\s+[A-Z]+\d+\s*:|:\s*error\b|已失败生成|生成失败|Build FAILED|^\s*[1-9]\d* 个错误)') {
             Write-PbiMessage $line 'Error' $isErrorStream

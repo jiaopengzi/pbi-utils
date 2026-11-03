@@ -148,13 +148,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh run download "$GITHUB_RUN_ID" --name "pbi-utils-windows-$GITHUB_RUN_ID" --dir release-zip --repo "$GITHUB_REPOSITORY"
-      - name: Read exact changelog section
+      - name: Read changelog and hash the archived installer
         shell: pwsh
         env:
           RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
+          ARCHIVE_NAME: ${{ needs.build.outputs.archive_name }}
         run: |
           Import-Module ./scripts/ReleaseAutomation.psm1 -Force
-          $notes = Get-PbiReleaseNotes -RepositoryRoot $PWD -Tag $env:RELEASE_TAG
+          $context = Get-PbiReleaseContext -RepositoryRoot $PWD -Ref $env:GITHUB_REF
+          $installerName = "pbi-utils-$($context.Version)-win-x64-without-dotnet-setup.exe"
+          $archive = [IO.Compression.ZipFile]::OpenRead((Join-Path $PWD "release-zip/$env:ARCHIVE_NAME"))
+          try {
+            if ($archive.Entries.Count -ne 1 -or $archive.Entries[0].FullName -cne $installerName) { throw '发布 ZIP 必须仅包含当前安装器 EXE' }
+            $stream = $archive.Entries[0].Open()
+            try { $installerHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)) } finally { $stream.Dispose() }
+          } finally { $archive.Dispose() }
+          $notes = Get-PbiReleaseNotes -RepositoryRoot $PWD -Tag $env:RELEASE_TAG -InstallerSha256 $installerHash
           [IO.File]::WriteAllText((Join-Path $env:RUNNER_TEMP 'release-notes.md'), $notes)
       - name: Publish verified ZIP
         env:
