@@ -9,19 +9,27 @@ name: Build pbi-utils
 on:
   push:
     tags: ['desktop-v*']
+    branches: [v2]
+    paths: ['.github/**']
   pull_request:
     branches: [main, v2]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Optional existing release tag to reuse without rebuilding
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  cancel-in-progress: false
 
 jobs:
   build:
+    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') || contains(github.event.head_commit.message, '[release-retry:')
     runs-on: windows-latest
     timeout-minutes: 45
     outputs:
@@ -42,10 +50,24 @@ jobs:
           persist-credentials: false
       - name: Validate version, tag and source branch
         id: metadata
+        env:
+          REQUESTED_TAG: ${{ inputs.release_tag }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           $ErrorActionPreference = 'Stop'
           Import-Module ./scripts/ReleaseAutomation.psm1 -Force
-          $context = Get-PbiReleaseContext -RepositoryRoot $PWD -Ref $env:GITHUB_REF
+          $requestedTag = $env:REQUESTED_TAG
+          if ($env:GITHUB_REF -ceq 'refs/heads/v2' -and $env:GITHUB_EVENT_NAME -ceq 'push') {
+            $markers = [regex]::Matches($env:COMMIT_MESSAGE, '\[release-retry: (desktop-v[0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?-v2\.[1-9][0-9]*)\]')
+            if ($markers.Count -ne 1) { throw '附件重试提交必须指定唯一有效标签' }
+            $requestedTag = $markers[0].Groups[1].Value
+          }
+          $reuse = ![string]::IsNullOrEmpty($requestedTag)
+          if ($reuse -and $env:GITHUB_REF -cne 'refs/heads/v2') { throw '已有发行版重试只允许 v2' }
+          $releaseRef = if ($reuse) { "refs/tags/$requestedTag" } else { $env:GITHUB_REF }
+          $context = Get-PbiReleaseContext -RepositoryRoot $PWD -Ref $releaseRef
+          if ($reuse -and !$context.Prerelease) { throw 'v2 不能重试正式发行版' }
+          "reuse=$($reuse.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
           if ($context.ReleaseTag) {
             git merge-base --is-ancestor HEAD "refs/remotes/origin/$($context.SourceBranch)"
             if ($LASTEXITCODE -ne 0) { throw '发布提交不属于指定来源分支' }
@@ -57,16 +79,20 @@ jobs:
           $null = New-Item -ItemType Directory -Path ./artifacts/evidence -Force
           $context | ConvertTo-Json | Set-Content ./artifacts/evidence/ci-context.json -Encoding utf8
       - uses: actions/setup-dotnet@v6.1.0
+        if: steps.metadata.outputs.reuse != 'true'
         with:
           global-json-file: global.json
       - uses: actions/setup-node@v7.1.0
+        if: steps.metadata.outputs.reuse != 'true'
         with:
           node-version-file: web/package.json
       - uses: pnpm/action-setup@v6.1.1
+        if: steps.metadata.outputs.reuse != 'true'
         with:
           package_json_file: web/package.json
           run_install: false
       - name: Prepare licensed NSIS compiler
+        if: steps.metadata.outputs.reuse != 'true'
         run: |
           $ErrorActionPreference = 'Stop'
           $catalog = Get-Content ./licenses/catalog.json -Raw | ConvertFrom-Json
@@ -101,19 +127,30 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $actual.Trim() -cne 'v3.13') { throw 'NSIS 编译器版本不符' }
           $root >> $env:GITHUB_PATH
       - name: Restore locked dependencies
+        if: steps.metadata.outputs.reuse != 'true'
         run: pwsh -NoProfile -File ./run.ps1 -Choice setupAll -Scope All -NonInteractive
       - name: Check, test, build and package
+        if: steps.metadata.outputs.reuse != 'true'
         run: |
           pwsh -NoProfile -File ./run.ps1 -Choice release -DotNetMode without-dotnet -NonInteractive 2>&1 | Tee-Object -FilePath ./artifacts/evidence/release-gate.log
           exit $LASTEXITCODE
       - name: Verify framework-dependent CLI and MCP
+        if: steps.metadata.outputs.reuse != 'true'
         run: pwsh -NoProfile -File ./scripts/tests/published-smoke.ps1 -Configuration Release -DotNetMode without-dotnet
       - name: Create and verify installer ZIP
+        if: steps.metadata.outputs.reuse != 'true'
         run: |
           Import-Module ./scripts/ReleaseAutomation.psm1 -Force
           New-PbiReleaseArchive -RepositoryRoot $PWD -Destination ./artifacts/release-zip
+      - name: Reuse the existing release ZIP
+        if: steps.metadata.outputs.reuse == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.release_tag }}
+          ARCHIVE_NAME: ${{ steps.metadata.outputs.archive_name }}
+        run: ./.github/scripts/release-bundle.ps1 -Mode Download -Directory ./artifacts/release-zip
       - name: Prepare shared release notes and integrity manifest
-        if: steps.metadata.outputs.release_tag != ''
+        if: steps.metadata.outputs.release_tag != '' && steps.metadata.outputs.reuse != 'true'
         env:
           RELEASE_TAG: ${{ steps.metadata.outputs.release_tag }}
           ARCHIVE_NAME: ${{ steps.metadata.outputs.archive_name }}
@@ -126,6 +163,7 @@ jobs:
           if-no-files-found: error
           compression-level: 0
       - name: Interactive desktop acceptance
+        if: steps.metadata.outputs.reuse != 'true'
         run: Write-Output 'UNRUN - CI 自动测试不等于交互 Windows UI 验收. 按 .docs/acceptance.md 在交互会话补验.'
       - name: Upload available build evidence
         uses: actions/upload-artifact@v7.0.2
@@ -141,7 +179,7 @@ jobs:
   push-github:
     name: push-github
     needs: build
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.build.outputs.release_tag != ''
+    if: needs.build.outputs.release_tag != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
@@ -171,7 +209,7 @@ jobs:
   push-gitee:
     name: push-gitee
     needs: build
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.build.outputs.release_tag != ''
+    if: needs.build.outputs.release_tag != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
@@ -197,6 +235,12 @@ jobs:
         shell: pwsh
         run: ./.github/scripts/release-bundle.ps1 -Mode Verify -Directory ./release-zip
       - uses: ./.github/actions/push-gitee
+        timeout-minutes: 8
         with:
           token: ${{ secrets.GITEE_TOKEN }}
           ssh-key: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}
+      - name: Collect upload transport evidence
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f "$RUNNER_TEMP/gitee-upload-metrics.jsonl" ]]; then cat "$RUNNER_TEMP/gitee-upload-metrics.jsonl"; fi
