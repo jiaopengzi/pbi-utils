@@ -167,7 +167,7 @@ git savetag
 
 CI 还会核验标签提交确实属于对应来源分支，Release 正文取精确 CHANGELOG 章节，附件只有上述 ZIP。已有同名 GitHub Release 复用，说明同步更新；已有附件必须精确一致，不覆盖附件。Gitee 发布 Action 只推送此次精确标签，不推送 `v2` 分支；使用已配置的 `GITEE_SSH_PRIVATE_KEY` 和 `GITEE_TOKEN`，预发布标记与 GitHub 一致。附件上传复用 [action-gitee-release v2.0.0](https://github.com/nICEnnnnnnnLee/action-gitee-release/releases/tag/v2.0.0)，明确指定数字发行版 ID 和唯一 ZIP，禁用自动重试并限制发布任务时长。上传前检查 ZIP 不超过 100,000,000 字节，上传后从公开链接下载核验长度和 SHA256，最后才开放正式发行版。若 GitHub 已发布而 Gitee 失败，使用“重新运行失败的作业”，或在 `Build pbi-utils` 手动入口填写已有 `release_tag`，不重复构建或创建 GitHub Release。独立入口也会核验 GitHub 已有的发行版、原标签提交、单 EXE ZIP 和发行说明中的 EXE 摘要；已有精确 Gitee 附件只在字节完全一致时复用，冲突明确失败，不删除重建。
 
-构建和重试统一由 `build.yaml` 编排，直接显示 `build`、`push-github`、`push-gitee`，发布实现分别位于两个本地 Action YAML，不保留重复的 Gitee 工作流。填写已有 `release_tag` 时，`build` 仅下载并验证原发行版 ZIP，不安装工具链、不重新构建；两端继续共用这份产物，并受各自的按标签发布锁保护。Bash helper 只承担发行版准备、冲突检查和公开附件校验，上传由现成 Action 执行。未合并 `main` 时，手动入口的网页可见性仍由 GitHub 的默认分支登记规则决定。
+构建和重试统一由 `build.yaml` 编排，直接显示 `build`、`push-github`、`push-gitee`，发布实现分别位于两个本地 Action YAML，不保留重复的 Gitee 工作流。填写已有 `release_tag` 时，`build` 仅下载并验证原发行版 ZIP，不安装工具链、不重新构建；重试仅执行 Gitee 发布，跳过已成功的 GitHub 发布；Gitee 继续受按标签发布锁保护。Bash helper 只承担发行版准备、冲突检查和公开附件校验，上传由现成 Action 执行。未合并 `main` 时，手动入口的网页可见性仍由 GitHub 的默认分支登记规则决定。
 
 工作流尚未进入默认分支时，手动入口不可用。此时仅允许在修改 `.github/**` 的 `v2` 提交说明中显式包含 `[release-retry: desktop-v0.1.0-v2.7]` 一类完整预发布标签，使用新流程复验该已有发行版。普通分支提交不构建或发布，标签 push 仍只触发一次完整构建；重试标记不会创建或移动标签。
 
