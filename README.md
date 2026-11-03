@@ -140,14 +140,14 @@ Debug 与 Release 互不覆盖。所选模式的临时产物完成编译、前�
 
 两个固定来源为 [GitHub](https://github.com/jiaopengzi/pbi-utils/releases) 和 [Gitee](https://gitee.com/jiaopengzi/pbi-utils/releases)。新 Windows 产品仅识别 `desktop-v<版本>` 正式 Release，例如 `desktop-v0.1.0`，排除旧 v1 标签、草稿和预发布。版本来自 `Directory.Build.props`，查询完整的有界分页后比较数字版本，不依赖 API 返回顺序；超过分页/响应预算明确失败。两来源分别查询，附件与说明必须属于同一来源、同一版本，不拼接不同发布的结果。
 
-GitHub Actions 的 [build.yaml](.github/workflows/build.yaml) 在 `main`、`v2` 推送及面向这两个分支的 PR 上执行完整构建验证，复用 [ci.yml](.github/workflows/ci.yml) 中的固定工具链、`release` 门禁和发布后 CLI/MCP smoke。CI 从仓库配置读取 .NET SDK、Node、pnpm 和产品版本，使用与许可来源一致、归档 SHA256 固定的 NSIS；不执行产品安装或开发外部工具登记。通过后上传版本化 ZIP，分支/PR 构建不创建 Release。
+GitHub Actions 的 [build.yaml](.github/workflows/build.yaml) 在 `main`、`v2` 推送及面向这两个分支的 PR 上执行完整构建验证，统一包含固定工具链、`release` 门禁和发布后 CLI/MCP smoke。CI 从仓库配置读取 .NET SDK、Node、pnpm 和产品版本，使用与许可来源一致、归档 SHA256 固定的 NSIS；不执行产品安装或开发外部工具登记。通过后上传版本化 ZIP，分支/PR 构建不创建 Release。
 
 正式发布只分发 `pbi-utils-<版本>-win-x64-without-dotnet.zip`，由用户解压并运行安装器，运行时由安装器按需补齐。ZIP 根目录恰好包含本次 `package` 的两个文件：
 
 - `pbi-utils-<版本>-win-x64-without-dotnet-setup.exe`。
 - `pbi-utils-<版本>-win-x64-without-dotnet-setup.sha256`。
 
-安装器 JSON、目录锁文件和中间产物保留在本地，不进入 ZIP。归档前核验 SHA256 对应的精确文件名与实际安装器字节，归档后再次检查内容。软件更新仅识别同源同版本的上述 ZIP；缺少、重复或地址不符时禁用下载。开发命令仍支持两种本地构建模式。更新检查仅访问匿名 Releases API，不读取仓库分支上的 changelog 文件，也不要求自建更新服务器。Gitee 当前仅同步 `main` 代码，不自动创建 Release 或上传附件；选择 Gitee 更新源时，其发行版是否可用以实际查询为准。当前本地 `run.ps1` 仍只生成文件，不创建远程 Release、不上传文件。
+安装器 JSON、目录锁文件和中间产物保留在本地，不进入 ZIP。归档前核验 SHA256 对应的精确文件名与实际安装器字节，归档后再次检查内容。软件更新仅识别同源同版本的上述 ZIP；缺少、重复或地址不符时禁用下载。开发命令仍支持两种本地构建模式。更新检查仅访问匿名 Releases API，不读取仓库分支上的 changelog 文件，也不要求自建更新服务器。标签构建发布 GitHub 成功后，同一工作流将同一 ZIP 同步发布到 Gitee；本地 `run.ps1` 仍只生成文件，不创建远程 Release、不上传文件。
 
 #### 标签、更新日志与 Git 别名
 
@@ -156,19 +156,21 @@ GitHub Actions 的 [build.yaml](.github/workflows/build.yaml) 在 `main`、`v2` 
 在仓库根目录配置本仓库的 alias，不修改全局 Git 配置：
 
 ```powershell
-git config --local alias.savetag '!pwsh -NoProfile -File ./.gitalias/savetag.ps1'
+git config --local alias.savetag '!bash ./.gitalias/savetag.sh'
 git savetag --dry-run
 git savetag
 ```
 
-`git savetag` 从 CHANGELOG 的最新发布章节读取标签，要求工作区干净、位于 `main` 或 `v2`、标签尚未在本地或 origin 存在。先正常提交审核后的文件，再执行此命令。它创建 annotated tag，并将当前分支和此标签原子推送至 origin；不自动暂存/提交、不 force、不附带其他标签，失败时如实保留并报告本地状态。`--dry-run` 只校验和预览，不创建标签或推送。
+`git savetag` 使用 Git Bash 和项目已有的 PowerShell 7（仅解析 XML 产品版本），从 CHANGELOG 的最新发布章节读取标签，要求工作区干净、位于 `main` 或 `v2`、标签尚未在本地或 origin 存在。先正常提交审核后的文件，再执行此命令。它创建 annotated tag，并将当前分支和此标签原子推送至 origin；不自动暂存/提交、不 force、不附带其他标签，失败时如实保留并报告本地状态。`--dry-run` 只校验和预览，不创建标签或推送。
 
 - `main`：`desktop-v<版本>`，成功构建后创建正式 GitHub Release。
 - `v2`：`desktop-v<版本>-v2.<正整数>`，例如 `desktop-v0.1.0-v2.1`，成功构建后创建非 latest 的 GitHub 预发布，软件更新会忽略它。
 
-CI 还会核验标签提交确实属于对应来源分支，Release 正文取精确 CHANGELOG 章节，附件只有上述 ZIP。已有同名 Release 不自动覆盖。首次在 `v2` 上线时使用 push 和 tag 事件验证；手动触发入口须等工作流进入默认分支后可用。
+CI 还会核验标签提交确实属于对应来源分支，Release 正文取精确 CHANGELOG 章节，附件只有上述 ZIP。已有同名 GitHub Release 不自动覆盖。Gitee 发行任务只推送此次精确标签，不推送 `v2` 分支；使用已配置的 `GITEE_SSH_PRIVATE_KEY` 和 `GITEE_TOKEN`，预发布标记与 GitHub 一致。上传前检查 ZIP 不超过 100,000,000 字节，上传后从公开链接下载核验长度和 SHA256，最后才开放正式发行版。若 GitHub 已发布而 Gitee 失败，使用 GitHub 的“重新运行失败的作业”继续 Gitee 阶段，不重复构建或创建 GitHub Release；已有精确 Gitee 附件只在字节完全一致时复用，冲突明确失败，不删除重建。
 
-[sync_gitee.yaml](.github/workflows/sync_gitee.yaml) 在 `v2` 只运行门禁说明，不读取密钥或同步任何 ref；只有 `main` 的 push/手动运行能使用 `GITEE_SSH_PRIVATE_KEY`，以远端租约保护将当前 `main` 镜像到 Gitee 的 `main`，不同步其他分支、标签或 Release。代码同步无需 `GITEE_TOKEN`，已配置的该 secret 保持原样。`v2` 的跳过结果不能证明合并后 `main` 的真实同步权限已通过。
+首次在 `v2` 上线时使用 push 和 tag 事件验证；手动触发入口须等工作流进入默认分支后可用。
+
+[sync_gitee.yaml](.github/workflows/sync_gitee.yaml) 在 `v2` 只运行门禁说明，不读取密钥或同步任何 ref；只有 `main` 的 push/手动运行能使用 `GITEE_SSH_PRIVATE_KEY`，以远端租约保护将当前 `main` 镜像到 Gitee 的 `main`。该工作流不处理标签或 Release，发行版同步由 `build.yaml` 负责。代码同步无需 `GITEE_TOKEN`。`v2` 的跳过结果不能证明合并后 `main` 的真实代码同步权限已通过。
 
 ```text
 pbi-utils --help

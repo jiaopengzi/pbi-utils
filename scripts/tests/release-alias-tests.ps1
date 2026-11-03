@@ -8,8 +8,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-$source = Join-Path $root '.gitalias/savetag.ps1'
-if (!(Test-Path -LiteralPath $source -PathType Leaf)) { throw '发布脚本尚未实现: .gitalias/savetag.ps1' }
+$source = Join-Path $root '.gitalias/savetag.sh'
+if (!(Test-Path -LiteralPath $source -PathType Leaf)) { throw '发布脚本尚未实现: .gitalias/savetag.sh' }
 $sandbox = Join-Path ([IO.Path]::GetTempPath()) ('pbi-release-alias-' + [Guid]::NewGuid().ToString('N'))
 $savedGitEnvironment = @{}
 foreach ($variable in @(Get-ChildItem Env: | Where-Object { $_.Name -like 'GIT_*' })) { $savedGitEnvironment[$variable.Name] = $variable.Value }
@@ -37,11 +37,11 @@ function New-ReleaseFixture([string]$Name, [string]$Branch = 'v2', [string]$Tag 
     $null = New-Item -ItemType Directory -Path $repository -Force
     $null = Invoke-RequiredGit $directory @('init', '--quiet', '--bare', "--template=$template", $remote)
     $null = Invoke-RequiredGit $directory @('init', '--quiet', "--initial-branch=$Branch", "--template=$template", $repository)
-    foreach ($setting in @(@('user.name', 'Release Test'), @('user.email', 'release-test@example.invalid'), @('core.autocrlf', 'false'), @('alias.savetag', '!pwsh -NoProfile -File ./.gitalias/savetag.ps1'))) {
+    foreach ($setting in @(@('user.name', 'Release Test'), @('user.email', 'release-test@example.invalid'), @('core.autocrlf', 'false'), @('alias.savetag', '!bash ./.gitalias/savetag.sh'))) {
         $null = Invoke-RequiredGit $repository @('config', '--local', $setting[0], $setting[1])
     }
     $null = New-Item -ItemType Directory -Path (Join-Path $repository '.gitalias')
-    Copy-Item -LiteralPath $source -Destination (Join-Path $repository '.gitalias/savetag.ps1')
+    Copy-Item -LiteralPath $source -Destination (Join-Path $repository '.gitalias/savetag.sh')
     [IO.File]::WriteAllText((Join-Path $repository 'Directory.Build.props'), "<Project><PropertyGroup><Version>$Version</Version></PropertyGroup></Project>")
     [IO.File]::WriteAllText((Join-Path $repository 'CHANGELOG.md'), "# Changelog`n`n## [$Tag] - 2026-11-03`n`n### Added`n`n- 隔离发布测试.`n")
     [IO.File]::WriteAllText((Join-Path $repository 'payload.txt'), "fixture`n")

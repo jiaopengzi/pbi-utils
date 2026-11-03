@@ -9,6 +9,19 @@
 同一个精确标签只能出现一次, 已发布标签不可覆盖或重用.
 分类按需使用 Added、Changed、Deprecated、Removed、Fixed、Security, 不保留空分类.
 
+## [desktop-v0.1.0-v2.2] - 2026-11-03
+
+### Changed
+
+- 发布别名统一为 `.gitalias/savetag.sh`, 保留版本与分支核验、预览和精确原子推送.
+- 完整构建、GitHub 发版及 Gitee ZIP 同步发布统一在 `build.yaml`, 移除独立 `ci.yml`.
+- Checkout 使用 `actions/checkout@v7`, 其余构建 Actions 使用 Node 24 版本.
+
+### Fixed
+
+- 修复 SourceForge 将 PowerShell 默认下载请求引导到 HTML 页导致的 NSIS 校验失败, 保留官方归档哈希、许可和版本校验.
+- 构建失败时仅上传实际存在的证据, 避免查找尚未生成的产物.
+
 ## [desktop-v0.1.0-v2.1] - 2026-11-03
 
 ### Added
