@@ -15,6 +15,9 @@ $savedGitEnvironment = @{}
 foreach ($variable in @(Get-ChildItem Env: | Where-Object { $_.Name -like 'GIT_*' })) { $savedGitEnvironment[$variable.Name] = $variable.Value }
 $ownsSandbox = $false
 $passed = 0
+$savedConsoleInputEncoding = [Console]::InputEncoding
+$savedConsoleOutputEncoding = [Console]::OutputEncoding
+$savedPipelineEncoding = $OutputEncoding
 
 <# .SYNOPSIS 在指定隔离仓库运行 Git, 返回退出码和输出; 非零码仅由调用方按场景判定. #>
 function Invoke-TestGit([string]$Repository, [string[]]$Arguments) {
@@ -72,6 +75,11 @@ function Assert-ReleaseRejected([hashtable]$Fixture, [string]$Reason) {
 }
 
 try {
+    # 无窗口测试宿主可能默认使用 CP936; Bash 的 UTF-8 诊断与 C# wrapper 的 UTF-8 读流必须保持同一边界.
+    $utf8 = [Text.UTF8Encoding]::new($false)
+    [Console]::InputEncoding = $utf8
+    [Console]::OutputEncoding = $utf8
+    $OutputEncoding = $utf8
     $null = New-Item -ItemType Directory -Path $sandbox
     $ownsSandbox = $true
     $template = Join-Path $sandbox 'empty-template'
@@ -164,14 +172,21 @@ try {
     Assert-ReleaseRejected $fixture '无法核验远端标签'
     Write-Host "PASS release alias: $passed assertions."
 } finally {
-    foreach ($variable in @(Get-ChildItem Env: | Where-Object { $_.Name -like 'GIT_*' })) { Remove-Item -LiteralPath "Env:$($variable.Name)" }
-    foreach ($name in $savedGitEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $savedGitEnvironment[$name], 'Process') }
-    if ($ownsSandbox -and (Test-Path -LiteralPath $sandbox)) {
-        $item = Get-Item -LiteralPath $sandbox -Force
-        $resolved = [IO.Path]::GetFullPath($item.FullName).TrimEnd([IO.Path]::DirectorySeparatorChar)
-        $expected = [IO.Path]::GetFullPath($sandbox).TrimEnd([IO.Path]::DirectorySeparatorChar)
-        $links = @(Get-ChildItem -LiteralPath $sandbox -Force -Recurse | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint })
-        if ($resolved -ine $expected -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $links.Count) { throw '拒绝清理非预期或含链接的隔离测试目录.' }
-        Remove-Item -LiteralPath $sandbox -Recurse -Force
+    try {
+        foreach ($variable in @(Get-ChildItem Env: | Where-Object { $_.Name -like 'GIT_*' })) { Remove-Item -LiteralPath "Env:$($variable.Name)" }
+        foreach ($name in $savedGitEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $savedGitEnvironment[$name], 'Process') }
+        if ($ownsSandbox -and (Test-Path -LiteralPath $sandbox)) {
+            $item = Get-Item -LiteralPath $sandbox -Force
+            $resolved = [IO.Path]::GetFullPath($item.FullName).TrimEnd([IO.Path]::DirectorySeparatorChar)
+            $expected = [IO.Path]::GetFullPath($sandbox).TrimEnd([IO.Path]::DirectorySeparatorChar)
+            $links = @(Get-ChildItem -LiteralPath $sandbox -Force -Recurse | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint })
+            if ($resolved -ine $expected -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $links.Count) { throw '拒绝清理非预期或含链接的隔离测试目录.' }
+            Remove-Item -LiteralPath $sandbox -Recurse -Force
+        }
+    } finally {
+        # 即使隔离目录清理失败, 也恢复调用前的三个编码设置, 不改变产品或后续测试的控制台策略.
+        [Console]::InputEncoding = $savedConsoleInputEncoding
+        [Console]::OutputEncoding = $savedConsoleOutputEncoding
+        $OutputEncoding = $savedPipelineEncoding
     }
 }
