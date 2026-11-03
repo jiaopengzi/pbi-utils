@@ -1,0 +1,150 @@
+/**
+ * FilePath    : pbi-utils\web\src\features\scaffold\udf-detail.scss
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : UDF 详情顶部横向元数据与全宽文档, 复用项目主题和共享模态滚动.
+ */
+.udf-detail-dialog {
+    .el-dialog__header {
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--el-border-color-lighter);
+    }
+    .el-dialog__title {
+        font-weight: 600;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+    .el-dialog__body {
+        padding-block: 20px;
+    }
+    .el-dialog__footer {
+        padding-top: 16px;
+        border-top: 1px solid var(--el-border-color-lighter);
+    }
+    .udf-detail-hero {
+        padding: 20px 24px;
+        margin-bottom: 28px;
+        background: var(--el-fill-color-lighter);
+        border: 1px solid var(--el-border-color-lighter);
+        border-top: 3px solid var(--brand-accent);
+        border-radius: var(--el-border-radius-base);
+    }
+    .udf-detail-intro {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+        > div {
+            min-width: 0;
+        }
+        p {
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+    }
+    .udf-detail-icon {
+        width: 44px;
+        height: 44px;
+        flex: 0 0 44px;
+        color: var(--el-color-primary);
+    }
+    .udf-detail-code h3 {
+        margin: 0 0 12px;
+        font-size: 16px;
+    }
+    .udf-detail-section {
+        margin-block: 24px 0;
+        padding-top: 20px;
+        border-top: 1px solid var(--el-border-color-lighter);
+        > summary {
+            padding-block: 4px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            &:focus-visible {
+                outline: 2px solid var(--brand-accent);
+                outline-offset: 3px;
+            }
+        }
+        &[open] > summary {
+            margin-bottom: 16px;
+        }
+    }
+    .udf-detail-library-copy {
+        min-width: 0;
+    }
+    .udf-detail-document {
+        font-size: 14px;
+        line-height: 1.8;
+    }
+    .udf-detail-function {
+        margin-top: 16px;
+        padding: 16px;
+        border: 1px solid var(--el-border-color-lighter);
+        border-radius: var(--el-border-radius-base);
+        min-width: 0;
+        > summary {
+            cursor: pointer;
+            font-weight: 600;
+            overflow-wrap: anywhere;
+            line-height: 1.6;
+        }
+        &[open] > summary {
+            margin-bottom: 12px;
+        }
+    }
+    .udf-detail-metadata {
+        display: grid;
+        grid-template-columns: minmax(160px, 1fr) minmax(100px, 0.6fr) minmax(140px, 1fr) minmax(200px, 1.5fr);
+        gap: 16px 24px;
+        margin: 0;
+        dt {
+            color: var(--el-text-color-secondary);
+            font-size: 12px;
+        }
+        dd {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 24px;
+            margin: 8px 0 0;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+    }
+    .udf-detail-meta-item {
+        min-width: 0;
+        padding-left: 20px;
+        border-left: 1px solid var(--el-border-color-light);
+        &:first-child {
+            padding-left: 0;
+            border-left: 0;
+        }
+    }
+    .udf-detail-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        .el-tag {
+            height: auto;
+            min-height: var(--el-tag-height);
+            padding-block: 4px;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+    }
+}
+@media (max-width: 760px) {
+    .udf-detail-dialog .udf-detail-hero {
+        padding: 16px;
+    }
+    .udf-detail-dialog .udf-detail-metadata {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .udf-detail-dialog .udf-detail-meta-item {
+        padding-left: 0;
+        border-left: 0;
+    }
+}

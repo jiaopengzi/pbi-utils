@@ -1,0 +1,820 @@
+/**
+ * FilePath    : pbi-utils\web\src\app\style.scss
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 保留深蓝金色品牌主题, 定义 Element Plus 工作区与响应式交互布局.
+ */
+
+@use "../ui/operation-lock";
+
+@font-face {
+    font-family: "JBMono";
+    src: url("../assets/fonts/JetBrainsMono-Medium.woff2") format("woff2");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* 组件色阶由 ui/theme.scss 生成, 此处保留已有产品主题变量. */
+:root {
+    --font-code: "JBMono", "Microsoft YaHei", monospace;
+    --brand-primary: #1e2858;
+    --brand-accent: #c89828;
+    --text: #252c45;
+    --muted: #626b80;
+    --canvas: #f5f6fa;
+    --sidebar: #eceef5;
+    --surface: #fff;
+    --border: #d5d9e5;
+    --primary-soft: #e9edf8;
+    --accent-soft: #f7efd9;
+    --accent-text: #70531a;
+    --error: #9b3b35;
+    --error-soft: #f8e8e3;
+    --el-text-color-primary: var(--text);
+    --el-text-color-regular: var(--text);
+    --el-text-color-secondary: var(--muted);
+    --el-border-color: var(--border);
+    font-family: var(--el-font-family);
+    font-size: var(--el-font-size-base);
+    font-synthesis: none;
+    color: var(--text);
+    background: var(--canvas);
+}
+* {
+    box-sizing: border-box;
+}
+body {
+    margin: 0;
+}
+button,
+input,
+textarea {
+    font: inherit;
+}
+pre,
+code,
+kbd,
+samp {
+    font-family: var(--font-code);
+}
+button:focus-visible,
+a:focus-visible,
+[role="tab"]:focus-visible {
+    outline: 3px solid var(--brand-accent);
+    outline-offset: 3px;
+}
+// 控件尺寸和文字排版沿用 Element Plus 默认值; 按钮组的间距由现有 flex/grid 容器负责.
+.el-button + .el-button {
+    margin-left: 0;
+}
+.el-message-box__btns {
+    gap: 12px;
+}
+// 确认框和共享业务弹窗均相对于内容视口居中, 超长正文只滚动内容区.
+.is-message-box .el-overlay-message-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.is-message-box .el-overlay-message-box::after {
+    display: none;
+}
+.el-overlay-message-box .el-message-box {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 32px);
+}
+.el-message-box__content {
+    overflow-y: auto;
+    min-height: 0;
+}
+.el-message-box__header,
+.el-message-box__btns {
+    flex-shrink: 0;
+}
+// 结果消息沿用 Element Plus 的递增层级, 弹窗内错误也须可见;
+// 在途通道仍由 OperationMessages 固定在模态遮罩下, 不遮挡确认操作.
+.el-message.app-feedback-message {
+    // 限制长提示的阅读宽度, 窄视口仍保留两侧边距, 不截断业务原文.
+    max-width: min(640px, calc(100vw - 32px));
+    align-items: flex-start;
+
+    .el-message__content {
+        min-width: 0;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        line-height: var(--el-font-line-height-primary);
+    }
+
+    .el-message__icon,
+    .el-message__closeBtn {
+        // 图标保留原尺寸并在首行行框内居中, 避免多行内容将图标压缩或移到中部.
+        flex-shrink: 0;
+        height: var(--el-font-line-height-primary);
+    }
+}
+.el-button > span {
+    // 本地图标以 UiIcon 输出, 对齐组件默认图标与文字的 6px 间隔.
+    gap: 6px;
+}
+// 加载图标覆盖原内容而不新增宽度, 保留文字的可访问名称及按钮原有几何尺寸.
+.el-button.is-loading > .el-icon.is-loading {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin: -0.5em 0 0 -0.5em;
+}
+.el-button.is-loading > :not(.el-icon.is-loading) {
+    opacity: 0;
+}
+.el-button.is-loading > .el-icon.is-loading + span {
+    margin-left: 0;
+}
+.el-form-item {
+    min-width: 0;
+}
+.el-input,
+.el-select,
+.el-input-number {
+    width: 100%;
+    min-width: 0;
+}
+.el-checkbox {
+    max-width: 100%;
+}
+.el-form-item__error {
+    // 多语言校验信息参与正文布局, 避免长错误与下一字段重叠; 字号和行高使用组件默认值.
+    position: static;
+}
+.el-form-item__content,
+.el-checkbox__label,
+.el-button > span {
+    min-width: 0;
+}
+.el-form-item__label {
+    color: var(--text);
+}
+.el-table {
+    max-width: 100%;
+    --el-table-header-bg-color: var(--canvas);
+    .cell {
+        overflow-wrap: anywhere;
+        word-break: normal;
+    }
+}
+.el-descriptions__cell {
+    overflow-wrap: anywhere;
+}
+.el-collapse-item__title,
+.el-collapse-item__header {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+.el-collapse-item__header {
+    height: auto;
+    min-height: var(--el-collapse-header-height);
+    // 允许长标题换行, 仍保留组件默认的单行最小高度.
+    line-height: var(--el-font-line-height-primary);
+}
+.ui-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+.shell {
+    display: flex;
+    height: 100dvh;
+    overflow: hidden;
+}
+.sidebar {
+    width: 212px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    background: var(--brand-primary);
+    color: #d6dfec;
+    padding: 28px 16px 15px;
+    display: flex;
+    flex-direction: column;
+}
+.brand {
+    color: white;
+    font-size: 18px;
+    font-weight: 650;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.brand-mark {
+    width: 38px;
+    height: 38px;
+    display: block;
+    flex-shrink: 0;
+}
+.sidebar nav {
+    display: grid;
+    gap: 6px;
+    margin-top: 16px;
+}
+.sidebar nav .el-button,
+.sidebar .collapse-button {
+    // 导航的 disabled 仅锁定操作, 显式保留原色, 避免忙碌切换时回退到组件默认色阶.
+    --el-button-text-color: #bcc8df;
+    --el-button-bg-color: transparent;
+    --el-button-border-color: transparent;
+    --el-button-hover-text-color: #fff;
+    --el-button-hover-bg-color: #ffffff15;
+    --el-button-hover-border-color: transparent;
+    --el-button-active-text-color: #fff;
+    --el-button-active-bg-color: #ffffff15;
+    --el-button-active-border-color: transparent;
+    --el-button-disabled-text-color: #bcc8df;
+    --el-button-disabled-bg-color: transparent;
+    --el-button-disabled-border-color: transparent;
+    --el-button-outline-color: var(--brand-accent);
+    // 纵向导航由 grid 管理间距, 不继承组件横排按钮的相邻左边距.
+    margin-inline: 0;
+    width: 100%;
+    justify-content: flex-start;
+    color: #bcc8df;
+    background: transparent;
+    border: 1px solid transparent;
+    border-left-width: 3px;
+    text-align: left;
+}
+.sidebar nav .el-button.active {
+    --el-button-disabled-text-color: #fff;
+    --el-button-disabled-bg-color: #303e75;
+    color: white;
+    background: #303e75;
+    border-left: 3px solid var(--brand-accent);
+}
+.sidebar .ui-icon {
+    filter: brightness(0) invert(0.8);
+}
+.sidebar .el-button:hover:not(:disabled) {
+    color: white;
+    background: #ffffff15;
+}
+// 鼠标停留时进入临时锁仍保留原悬停色, 不因 disabled 往返闪动.
+.sidebar .el-button.is-disabled:hover {
+    color: var(--el-button-hover-text-color);
+    background: var(--el-button-hover-bg-color);
+}
+.sidebar-footer {
+    margin-top: auto;
+    padding-top: 32px;
+    color: #b6c4da;
+    font-size: 12px;
+    line-height: 2;
+}
+.collapse-button {
+    margin-top: 16px;
+}
+.sidebar .nav-search {
+    margin-top: 24px;
+    /* 显式覆盖按钮各状态的色阶, 避免全局忙碌禁用时回退到 Element Plus 白底. */
+    --el-button-text-color: #d6dbeb;
+    --el-button-bg-color: #ffffff0d;
+    --el-button-border-color: #ffffff20;
+    --el-button-hover-text-color: #fff;
+    --el-button-hover-bg-color: #ffffff15;
+    --el-button-hover-border-color: #ffffff20;
+    --el-button-active-text-color: #fff;
+    --el-button-active-bg-color: #ffffff15;
+    --el-button-active-border-color: #ffffff20;
+    --el-button-disabled-text-color: #d6dbeb;
+    --el-button-disabled-bg-color: #ffffff0d;
+    --el-button-disabled-border-color: #ffffff20;
+    --el-button-outline-color: var(--brand-accent);
+    width: 100%;
+    color: var(--el-button-text-color);
+    background: var(--el-button-bg-color);
+    border: 1px solid var(--el-button-border-color);
+    justify-content: flex-start;
+}
+.nav-search > span {
+    width: 100%;
+}
+.nav-search kbd {
+    margin-left: auto;
+    opacity: 0.65;
+}
+main {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+.workspace-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--canvas);
+    padding: 20px 36px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    flex-shrink: 0;
+}
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+.project-name {
+    max-width: 220px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 12px;
+}
+.content {
+    container: workspace / inline-size;
+    width: 100%;
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    padding: 40px clamp(32px, 2.2vw, 64px) 28px;
+}
+h1 {
+    font-size: clamp(25px, 3vw, 35px);
+    font-weight: 550;
+    letter-spacing: -1px;
+    margin: 17px 0 14px;
+}
+.connections-content > h1 {
+    margin: 0 0 26px;
+}
+p {
+    line-height: 1.8;
+}
+.panel {
+    min-width: 0;
+    border-color: var(--border);
+    background: var(--surface);
+    margin-bottom: 20px;
+}
+.panel-body {
+    min-width: 0;
+}
+.panel h2 {
+    font-size: 16px;
+    margin: 0 0 16px;
+    font-weight: 600;
+}
+.panel-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+.panel-heading h2 {
+    margin: 0;
+}
+.panel-heading small {
+    color: var(--muted);
+}
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin: 16px 0;
+}
+.panel-heading .actions {
+    margin: 0;
+}
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+}
+.hint,
+.catalog-source {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.8;
+}
+.tabs {
+    min-width: 0;
+    margin-bottom: 24px;
+    // 页签使用组件默认字号和间距, 仅保留窄容器的换行与可聚焦布局.
+    .el-tabs__item {
+        max-width: 100%;
+        height: auto;
+        min-height: var(--el-tabs-header-height);
+        white-space: normal;
+        text-align: center;
+        overflow-wrap: anywhere;
+    }
+    // Element Plus 默认单行导航和位移只适用于横向翻页; 换行后每个真实页签仍直接可见与可聚焦.
+    .el-tabs__nav-wrap.is-scrollable {
+        padding: 0;
+    }
+    .el-tabs__nav-next,
+    .el-tabs__nav-prev,
+    .el-tabs__active-bar {
+        display: none;
+    }
+    .el-tabs__nav-scroll {
+        overflow: visible;
+    }
+    .el-tabs__nav {
+        float: none;
+        display: flex;
+        flex-wrap: wrap;
+        width: 100%;
+        transform: none !important;
+    }
+    .el-tabs__item.is-active {
+        box-shadow: inset 0 -2px var(--el-color-primary);
+    }
+}
+.tabs .el-tabs__content {
+    display: none;
+}
+// 页签的整组临时锁不改变普通项和当前项的文字色, 继续保留组件禁用状态与键盘拦截.
+.tabs .el-tabs__item.is-disabled {
+    color: var(--el-text-color-primary);
+    &.is-active,
+    &:hover {
+        color: var(--el-color-primary);
+    }
+}
+.object-layout {
+    display: grid;
+    grid-template-columns: minmax(0, min(25%, 230px)) minmax(0, 1fr);
+    gap: 24px;
+    margin-top: 20px;
+}
+.object-list {
+    max-height: 62vh;
+    overflow-y: auto;
+    min-width: 0;
+}
+.object-list .el-button,
+.ai-history-item,
+.recent-project-row .recent-project-open {
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+    margin-bottom: 8px;
+    // 记录按钮承载名称与元数据两行, 仅高度与换行随内容扩展, 其余尺寸沿用默认按钮.
+    height: auto;
+    white-space: normal;
+}
+.object-list .el-button > span,
+.ai-history-item > span,
+.recent-project-row .recent-project-open > span {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+    max-width: 100%;
+    gap: 6px;
+    line-height: var(--el-font-line-height-primary);
+}
+.object-list .el-button.active,
+.ai-history-item[aria-current="true"],
+.search-results .active {
+    border-color: var(--brand-accent);
+    background: var(--accent-soft);
+}
+.object-detail {
+    min-width: 0;
+}
+.recent-projects {
+    display: grid;
+    gap: 8px;
+}
+.recent-project-row {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 4px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    // 整行提供单层反馈, 请求或确认锁定后不显示可操作的悬停态.
+    &:has(.recent-project-open:enabled):hover,
+    &:has(.recent-project-open:enabled):focus-within {
+        border-color: var(--el-color-primary-light-7);
+        background: var(--primary-soft);
+    }
+    .recent-project-open {
+        // 行边框和背景负责悬停反馈, 记录名称不随临时禁用或鼠标停留切换色阶.
+        --el-button-hover-text-color: var(--text);
+        --el-button-hover-bg-color: transparent;
+        --el-button-hover-border-color: transparent;
+        --el-button-active-text-color: var(--text);
+        --el-button-active-bg-color: transparent;
+        --el-button-active-border-color: transparent;
+        --el-button-disabled-text-color: var(--text);
+        --el-button-disabled-bg-color: transparent;
+        --el-button-disabled-border-color: transparent;
+        flex: 1;
+        min-width: 0;
+        height: auto;
+        margin: 0;
+        border-color: transparent;
+        background: transparent;
+        > span {
+            // 局部选择器优先于按需加载的按钮样式, 长名称和路径仍从同一左边界换行.
+            overflow-wrap: anywhere;
+        }
+    }
+    .recent-project-remove {
+        flex: none;
+        // 纯图标操作保持默认控件高度的正方形目标, 不给文本按钮另设密度.
+        width: var(--el-component-size);
+        margin: 0;
+        padding: 0;
+        border-color: transparent;
+        background: transparent;
+        &:hover:not(:disabled),
+        &:focus-visible:not(:disabled) {
+            background: var(--error-soft);
+        }
+    }
+}
+.recent-files-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+    h2 {
+        margin: 0;
+    }
+    // 该开关随请求临时锁定, 不把整段标签一起变淡; 真实禁用与鼠标提示仍由组件保留.
+    .el-switch.is-disabled {
+        opacity: 1;
+    }
+}
+.recent-projects small {
+    color: var(--muted);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+}
+.scan-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.desktop-instance-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    .el-button + .el-button {
+        margin-left: 0;
+    }
+}
+.instance-card.is-current {
+    border-color: var(--el-color-success);
+}
+.instance-heading {
+    display: grid;
+    grid-template-columns: auto minmax(80px, 1fr) auto auto;
+    align-items: center;
+    gap: 14px;
+}
+.instance-connect-button {
+    margin: 0;
+}
+.instance-details {
+    min-width: 0;
+}
+.instance-indicators {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.instance-metadata {
+    display: block;
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.instance-summary {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.instance-stat {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 12px;
+    dt {
+        color: var(--muted);
+    }
+    dd {
+        margin: 0;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+    }
+    + .instance-stat {
+        border-left: 1px solid var(--border);
+        padding-left: 12px;
+    }
+}
+.instance-indicators {
+    justify-content: flex-end;
+    gap: 8px;
+}
+.scan-summary {
+    margin: 24px 0 12px;
+    font-size: 12px;
+    color: var(--muted);
+}
+.instance-heading h2 {
+    margin: 0;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.description-note {
+    display: block;
+    margin-top: 6px;
+    color: var(--muted);
+}
+/* 环境卡片按实际可用宽度换列, 每列保持等宽并允许真实系统字段换行. */
+.environment-content {
+    min-width: 0;
+}
+.environment-descriptions .el-descriptions__table {
+    table-layout: fixed;
+    width: 100%;
+}
+.environment-descriptions .el-descriptions__cell {
+    vertical-align: top;
+    line-height: 1.6;
+    word-break: normal;
+}
+.search-results {
+    display: grid;
+    gap: 8px;
+    margin-top: 16px;
+}
+.search-results .el-button {
+    justify-content: flex-start;
+    text-align: left;
+    // 列表间距由 grid 管理, 不继承后加载组件样式中的横排按钮间距.
+    + .el-button {
+        margin-left: 0;
+    }
+}
+.feature-dialog {
+    max-height: calc(100dvh - 32px);
+    display: flex;
+    flex-direction: column;
+    margin: auto;
+}
+.feature-dialog .el-dialog__body {
+    overflow-y: auto;
+    min-height: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.feature-dialog .el-dialog__header,
+.feature-dialog .el-dialog__footer {
+    flex-shrink: 0;
+}
+.feature-dialog .el-dialog__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.feature-dialog .el-dialog__footer .el-button + .el-button {
+    margin-left: 0;
+}
+.dialog-actions {
+    justify-content: flex-end;
+    gap: 12px;
+    margin-bottom: 0;
+}
+.checkbox-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    // 动态报表页名称可长于弹窗; 仅列表选项随内容换行, 字号和方框大小仍使用组件默认值.
+    .el-checkbox {
+        min-width: 0;
+        height: auto;
+        min-height: var(--el-component-size);
+    }
+    .el-checkbox__label {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+}
+.multiline {
+    white-space: pre-line;
+}
+.skip-link {
+    position: fixed;
+    top: -100px;
+    z-index: 3000;
+    padding: 12px;
+    background: white;
+}
+.skip-link:focus {
+    top: 5px;
+    left: 5px;
+}
+.collapsed .sidebar {
+    width: 76px;
+    padding-left: 12px;
+    padding-right: 12px;
+}
+.collapsed .sidebar .brand span,
+.collapsed .nav-label,
+.collapsed .nav-search kbd,
+.collapsed .sidebar-footer p {
+    display: none;
+}
+@include compact-desktop {
+    .content {
+        padding: 30px 25px;
+    }
+    .workspace-header {
+        padding: 20px 25px;
+    }
+    .ai-layout {
+        grid-template-columns: 208px minmax(0, 1fr);
+        gap: 16px;
+    }
+    .object-layout {
+        grid-template-columns: minmax(0, min(25%, 200px)) minmax(0, 1fr);
+        gap: 20px;
+    }
+}
+@include wide-desktop {
+    .object-layout {
+        grid-template-columns: minmax(0, min(25%, 280px)) minmax(0, 1fr);
+        gap: 28px;
+    }
+}
+// 按可用工作区宽度调整信息密度, 侧栏折叠和并排详情布局仍保持原有流程.
+@container workspace (max-width: 850px) {
+    .instance-heading {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+    .instance-indicators {
+        grid-column: 2 / -1;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+    .instance-heading h2,
+    .instance-metadata {
+        white-space: normal;
+        overflow: visible;
+        overflow-wrap: anywhere;
+        text-overflow: clip;
+    }
+}
+@include short-window {
+    .content {
+        padding-top: 20px;
+        padding-bottom: 20px;
+    }
+    .workspace-header {
+        padding-top: 12px;
+        padding-bottom: 12px;
+    }
+    .sidebar-footer {
+        padding-top: 16px;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}

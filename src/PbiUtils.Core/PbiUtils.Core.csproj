@@ -1,0 +1,9 @@
+<!--
+ * FilePath    : pbi-utils\src\PbiUtils.Core\PbiUtils.Core.csproj
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 配置不依赖宿主的共享核心契约项目.
+-->
+
+<Project Sdk="Microsoft.NET.Sdk" />

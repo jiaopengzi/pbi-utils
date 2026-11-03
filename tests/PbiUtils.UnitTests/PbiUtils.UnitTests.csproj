@@ -1,0 +1,31 @@
+<!--
+ * FilePath    : pbi-utils\tests\PbiUtils.UnitTests\PbiUtils.UnitTests.csproj
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 配置共享核心, MCP 与宿主桥接协议的单元测试.
+-->
+
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><IsTestProject>true</IsTestProject><IsPackable>false</IsPackable></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <ProjectReference Include="../../src/PbiUtils.Infrastructure/PbiUtils.Infrastructure.csproj" />
+    <Compile Include="../Support/UdfPackageFixture.cs" Link="Support/UdfPackageFixture.cs" />
+    <Compile Include="../../src/PbiUtils.Host/Bridge/Protocol/*.cs" Link="Bridge/Protocol/%(Filename)%(Extension)" />
+    <Compile Include="../../src/PbiUtils.Host/Bridge/Session/*.cs" Link="Bridge/Session/%(Filename)%(Extension)" />
+    <Compile Include="../../src/PbiUtils.Host/Bridge/Connections/*.cs" Link="Bridge/Connections/%(Filename)%(Extension)" />
+    <Compile Include="../../src/PbiUtils.Host/Bridge/Scaffolding/*.cs" Link="Bridge/Scaffolding/%(Filename)%(Extension)" />
+    <Compile Include="../../src/PbiUtils.Host/Bridge/Configuration/*.cs" Link="Bridge/Configuration/%(Filename)%(Extension)" />
+    <Compile Include="../../src/PbiUtils.Host/Bridge/Calendar/*.cs" Link="Bridge/Calendar/%(Filename)%(Extension)" />
+    <Compile Include="../../src/PbiUtils.Host/Bridge/Udf/*.cs" Link="Bridge/Udf/%(Filename)%(Extension)" />
+    <Compile Include="../../src/PbiUtils.Desktop/Bridge/GuiBusinessClient.cs" Link="Gui/GuiBusinessClient.cs" />
+    <Compile Include="../../src/PbiUtils.Windows/Models/Editing/DesktopModelDraft.cs" Link="ModelEditing/DesktopModelDraft.cs" />
+    <Content Include="../contracts/bridge.json" Link="bridge-contracts.json" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Fixtures/Scaffolding/lunar-2000-2099-v1.bin" LogicalName="PbiUtils.Tests.Scaffolding.Lunar.v1" />
+    <EmbeddedResource Include="Fixtures/DaxFormatting/oracle.json" LogicalName="PbiUtils.Tests.DaxFormatting.Oracle" />
+    <EmbeddedResource Include="Fixtures/DaxFormatting/production.tmdl" LogicalName="PbiUtils.Tests.DaxFormatting.ProductionTmdl" />
+  </ItemGroup>
+</Project>

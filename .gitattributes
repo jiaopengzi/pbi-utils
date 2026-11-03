@@ -1,0 +1,21 @@
+# FilePath    : pbi-utils\.gitattributes
+# Author      : jiaopengzi
+# Blog        : https://jiaopengzi.com
+# Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+# Description : 固定文本检出为 LF, 与 .editorconfig 一致并保留二进制资源原始字节.
+
+* text=auto eol=lf
+
+# 许可证来源由清单绑定原始字节, 禁止 Git 转换换行.
+/licenses/source/** -text
+
+# 内嵌 PBIP 来源快照的大小、哈希和基线绑定原始 CRLF 字节.
+/src/PbiUtils.Infrastructure/Scaffolding/Assets/pbip/** text=auto eol=crlf
+/src/PbiUtils.Infrastructure/SampleData/Assets/** text=auto eol=crlf
+# 来源 CSV 使用混合行尾, 按原始字节保存, 不参与文本换行转换.
+/src/PbiUtils.Infrastructure/SampleData/Assets/*.csv -text whitespace=cr-at-eol
+
+*.bin -text
+*.ico -text
+*.png -text
+*.woff2 -text

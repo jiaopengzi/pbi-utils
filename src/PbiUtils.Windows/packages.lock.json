@@ -1,0 +1,190 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0-windows7.0": {
+      "Microsoft.AnalysisServices": {
+        "type": "Direct",
+        "requested": "[19.118.3, )",
+        "resolved": "19.118.3",
+        "contentHash": "W4Z2uowmV+LaDC0ApUgT5uAa+CyDmCF1FCj47CxE1vUBLTBDXy4gp639r1OrJdbf90FuIFdXKDDWxa2cTk7jLQ==",
+        "dependencies": {
+          "Microsoft.Identity.Client": "4.83.3",
+          "Microsoft.Identity.Client.Broker": "4.83.3"
+        }
+      },
+      "Microsoft.AnalysisServices.AdomdClient": {
+        "type": "Direct",
+        "requested": "[19.118.3, )",
+        "resolved": "19.118.3",
+        "contentHash": "uEWP6OLNtwSqnCFNVj1QDCziosBxM6PkZIhMLmnq4uW5VH009Mz7xRM0hVaSLJshQt67ye4qd1s93mETZ5QoXw==",
+        "dependencies": {
+          "Microsoft.Identity.Client": "4.83.3",
+          "Microsoft.Identity.Client.Broker": "4.83.3"
+        }
+      },
+      "Microsoft.Extensions.AI.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.11.0",
+        "contentHash": "h4DX/TdJU4fk1GGaf19n6Kujkj6VXbGeL4UEOsQ8+ZJC5fVApPauokCtvBP684BYbczUYZQNfo1mbmyHG4WVSg=="
+      },
+      "Microsoft.Extensions.DependencyInjection": {
+        "type": "Transitive",
+        "resolved": "10.0.0",
+        "contentHash": "f0RBabswJq+gRu5a+hWIobrLWiUYPKMhCD9WO3sYBAdSy3FFH14LMvLVFZc2kPSCimBLxSuitUhsd6tb0TAY6A==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.0"
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "G2GrGWNAPZBsii2F6AU8n+JT2tC1/I0Ml/e9ZyNCgPjf3hZqronP7o0X91aAynCmVeae8KkSIUNXXeXCNRmdVQ=="
+      },
+      "Microsoft.Extensions.Logging": {
+        "type": "Transitive",
+        "resolved": "10.0.0",
+        "contentHash": "BStFkd5CcnEtarlcgYDBcFzGYCuuNMzPs02wN3WBsOFoYIEmYoUdAiU+au6opzoqfTYJsMTW00AeqDdnXH2CvA==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection": "10.0.0",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.0",
+          "Microsoft.Extensions.Options": "10.0.0"
+        }
+      },
+      "Microsoft.Extensions.Options": {
+        "type": "Transitive",
+        "resolved": "10.0.0",
+        "contentHash": "8oCAgXOow5XDrY9HaXX1QmH3ORsyZO/ANVHBlhLyCeWTH5Sg4UuqZeOTWJi6484M+LqSx0RqQXDJtdYy2BNiLQ==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.0",
+          "Microsoft.Extensions.Primitives": "10.0.0"
+        }
+      },
+      "Microsoft.Extensions.Primitives": {
+        "type": "Transitive",
+        "resolved": "10.0.0",
+        "contentHash": "inRnbpCS0nwO/RuoZIAqxQUuyjaknOOnCEZB55KSMMjRhl0RQDttSmLSGsUJN3RQ3ocf5NDLFd2mOQViHqMK5w=="
+      },
+      "Microsoft.Identity.Client.Broker": {
+        "type": "Transitive",
+        "resolved": "4.83.3",
+        "contentHash": "1yn682hgnCimnYR27Ne/SRMWxCWUZtCKjYwPzWbjrfhqBF1GS7bDlPZkF4yvJxl90Y+xzDdZFh4u9pcGIFSEvw==",
+        "dependencies": {
+          "Microsoft.Identity.Client": "4.83.3",
+          "Microsoft.Identity.Client.NativeInterop": "0.20.4"
+        }
+      },
+      "Microsoft.Identity.Client.NativeInterop": {
+        "type": "Transitive",
+        "resolved": "0.20.4",
+        "contentHash": "JHlfJ8oolxj20sNlwdIh8H8MZtzVQ55MyOjrIrQCtD/KJL5x8EOjQxafYu8AEYZOCSW+09DQnRogGk+J37BURA=="
+      },
+      "Microsoft.IdentityModel.Abstractions": {
+        "type": "Transitive",
+        "resolved": "8.14.0",
+        "contentHash": "iwbCpSjD3ehfTwBhtSNEtKPK0ICun6ov7Ibx6ISNA9bfwIyzI2Siwyi9eJFCJBwxowK9xcA1mj+jBWiigeqgcQ=="
+      },
+      "pbiutils.application": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.13, )",
+          "PbiUtils.Core": "[0.1.0, )"
+        }
+      },
+      "pbiutils.core": {
+        "type": "Project"
+      },
+      "pbiutils.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.AnalysisServices": "[19.118.3, )",
+          "Microsoft.Identity.Client": "[4.90.1, )",
+          "ModelContextProtocol.Core": "[2.3.0, )",
+          "PbiUtils.Application": "[0.1.0, )",
+          "Serilog": "[4.4.0, )",
+          "Serilog.Extensions.Logging": "[10.0.0, )",
+          "Serilog.Formatting.Compact": "[3.0.0, )",
+          "Serilog.Sinks.File": "[7.0.0, )"
+        }
+      },
+      "Microsoft.Extensions.Logging.Abstractions": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.13, )",
+        "resolved": "10.0.13",
+        "contentHash": "aSZEhEig4fvNiw2zs8Z6NyDlniKtq6YjcF3DyHuqTEHcZ2VKA/6itMPZ+dW+yWABWExlDcQwwdbqX1Rcb7W8WQ==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13"
+        }
+      },
+      "Microsoft.Identity.Client": {
+        "type": "CentralTransitive",
+        "requested": "[4.90.1, )",
+        "resolved": "4.90.1",
+        "contentHash": "GLsf4cfEfIZD4pBkmBc8kCjfE811PKsM29T9nMZQDS2px/buM/Ha8jVYiGPdiA7cqjYNIX+G5d0S12TtGZS6RA==",
+        "dependencies": {
+          "Microsoft.IdentityModel.Abstractions": "8.14.0"
+        }
+      },
+      "ModelContextProtocol.Core": {
+        "type": "CentralTransitive",
+        "requested": "[2.3.0, )",
+        "resolved": "2.3.0",
+        "contentHash": "EDpbQholhVWoNumb0Ab3oGv9LmXOLgaD5ixEIUkrnzpnqD0TJCSHTJ5G71/J1KlrQ98aWDclWTPMffKTnCJoMw==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.11.0",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.13"
+        }
+      },
+      "Serilog": {
+        "type": "CentralTransitive",
+        "requested": "[4.4.0, )",
+        "resolved": "4.4.0",
+        "contentHash": "ZC6Le3rr4TVJJjS4KsQAesxeF1EhW9qcZmmG7eP5Y2G3+gTGkJEUXkq4+tZNPtyp05I0wWOxnIjwtxFweJsObw=="
+      },
+      "Serilog.Extensions.Logging": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.0, )",
+        "resolved": "10.0.0",
+        "contentHash": "vx0kABKl2dWbBhhqAfTOk53/i8aV/5VaT3a6il9gn72Wqs2pM7EK2OB6No6xdqK2IaY6Zf9gdjLuK9BVa2rT+Q==",
+        "dependencies": {
+          "Microsoft.Extensions.Logging": "10.0.0",
+          "Serilog": "4.2.0"
+        }
+      },
+      "Serilog.Formatting.Compact": {
+        "type": "CentralTransitive",
+        "requested": "[3.0.0, )",
+        "resolved": "3.0.0",
+        "contentHash": "wQsv14w9cqlfB5FX2MZpNsTawckN4a8dryuNGbebB/3Nh1pXnROHZov3swtu3Nj5oNG7Ba+xdu7Et/ulAUPanQ==",
+        "dependencies": {
+          "Serilog": "4.0.0"
+        }
+      },
+      "Serilog.Sinks.File": {
+        "type": "CentralTransitive",
+        "requested": "[7.0.0, )",
+        "resolved": "7.0.0",
+        "contentHash": "fKL7mXv7qaiNBUC71ssvn/dU0k9t0o45+qm2XgKAlSt19xF+ijjxyA3R6HmCgfKEKwfcfkwWjayuQtRueZFkYw==",
+        "dependencies": {
+          "Serilog": "4.2.0"
+        }
+      }
+    },
+    "net10.0-windows7.0/win-x64": {
+      "Microsoft.AnalysisServices.AdomdClient": {
+        "type": "Direct",
+        "requested": "[19.118.3, )",
+        "resolved": "19.118.3",
+        "contentHash": "uEWP6OLNtwSqnCFNVj1QDCziosBxM6PkZIhMLmnq4uW5VH009Mz7xRM0hVaSLJshQt67ye4qd1s93mETZ5QoXw==",
+        "dependencies": {
+          "Microsoft.Identity.Client": "4.83.3",
+          "Microsoft.Identity.Client.Broker": "4.83.3"
+        }
+      },
+      "Microsoft.Identity.Client.NativeInterop": {
+        "type": "Transitive",
+        "resolved": "0.20.4",
+        "contentHash": "JHlfJ8oolxj20sNlwdIh8H8MZtzVQ55MyOjrIrQCtD/KJL5x8EOjQxafYu8AEYZOCSW+09DQnRogGk+J37BURA=="
+      }
+    }
+  }
+}

@@ -1,0 +1,1939 @@
+createOrReplace
+
+	ref table 00_Measure
+
+		measure 0000_刷新时间 =
+				
+				SELECTEDVALUE ( '04_RefreshTime'[RefreshTime] )
+			displayFolder: 00_基础度量值
+			lineageTag: 5426aa1e-70f4-4839-b39a-20053f127ba6
+
+		measure 0001_销售金额_单位_D_ =
+				
+				SUM ( 'T05_订单子表'[F_06_产品销售金额] )
+			formatString: #,0
+			displayFolder: 00_基础度量值
+			lineageTag: a865d0c9-3112-45bf-8506-139a16a60917
+
+			annotation PBI_FormatHint = {"isDecimal":true}
+
+		measure 0002_订单数量_单位_D_ =
+				
+				COUNTROWS ( 'T04_订单主表' )
+			formatString: #,0
+			displayFolder: 00_基础度量值
+			lineageTag: 8c2c6d13-bd87-4220-8df4-970c0af1ca2d
+
+		measure 0003_销售目标_单位_D_ =
+				
+				SUM ( 'T06_销售目标表'[F_04_每日目标] )
+			formatString: #,0
+			displayFolder: 00_基础度量值
+			lineageTag: 997425b1-2c47-4fdf-944a-3607b956c56c
+
+			annotation PBI_FormatHint = {"isDecimal":true}
+
+		measure 0004_产品成本金额_单位_D_ =
+				
+				SUMX (
+				    'T05_订单子表',
+				    RELATED ( 'T00_产品表'[F_05_产品成本价格] ) * 'T05_订单子表'[F_05_产品销售数量]
+				)
+			formatString: #,0
+			displayFolder: 00_基础度量值
+			lineageTag: 618ba262-a820-4ba8-8114-45f4d8ca0dac
+
+			annotation PBI_FormatHint = {"isDecimal":true}
+
+		measure 0005_毛利_单位_D_ =
+				
+				[0001_销售金额_单位_D_] - [0004_产品成本金额_单位_D_]
+			formatString: #,0
+			displayFolder: 00_基础度量值
+			lineageTag: 704fed73-6e07-4a21-94cd-25be5f874325
+
+			annotation PBI_FormatHint = {"isDecimal":true}
+
+		measure 0006_毛利率_%_D_ =
+				
+				DIVIDE ( [0005_毛利_单位_D_], [0001_销售金额_单位_D_], BLANK () )
+			formatString: 0.00%;-0.00%;0.00%
+			displayFolder: 00_基础度量值
+			lineageTag: 1c069c77-cbe7-4574-ba66-8a77eaf97710
+
+			changedProperty = FormatString
+
+		measure 0007_目标完成率_%_D_ =
+				
+				DIVIDE ( [0001_销售金额_单位_D_], [0003_销售目标_单位_D_] )
+			formatString: 0.00%;-0.00%;0.00%
+			displayFolder: 00_基础度量值
+			lineageTag: 9659005c-adae-4a9b-a5b2-ae13dfeff34a
+
+			changedProperty = FormatString
+
+		measure 0008_产品数量_单位_D_ =
+				
+				CALCULATE ( COUNTROWS ( 'T00_产品表' ), KEEPFILTERS ( 'T05_订单子表' ) )
+			formatString: #,0
+			displayFolder: 00_基础度量值
+			lineageTag: 30ee9582-778e-47ac-b460-206992a6ec79
+
+		measure 0009_门店数量_单位_D_ =
+				
+				VAR DATE_AC_A =
+				    LASTDATE ( '01_Calendar'[dates] )
+				VAR TABLE_OPEN =
+				    FILTER ( 'T01_门店表', 'T01_门店表'[F_04_开店日期] <= DATE_AC_A )
+				VAR TABLE_CLOSE =
+				    FILTER ( TABLE_OPEN, [F_09_关店日期] > DATE_AC_A || [F_09_关店日期] = BLANK () )
+				RETURN
+				    COUNTROWS ( TABLE_CLOSE )
+			formatString: #,0
+			displayFolder: 00_基础度量值
+			lineageTag: b537a112-a17f-415f-b458-19eb19157ead
+
+		measure 0010_客户数量_已购买_订单日期_单位_D_ =
+				
+				CALCULATE (
+				    COUNTROWS ( 'T02_客户表' ),
+				    KEEPFILTERS ( 'T04_订单主表' ),
+				    KEEPFILTERS ( 'T05_订单子表' )
+				)
+			formatString: #,0
+			displayFolder: 00_基础度量值
+			lineageTag: 917d263c-5423-4a7f-ae81-9b7ff0be3ec5
+
+		measure 0011_大区_idphotoURL =
+				
+				VAR U = "https://demo.jiaopengzi.com/idphoto/"
+				VAR R =
+				    SELECTEDVALUE ( 'D00_大区表'[F_01_大区ID] )
+				VAR L = ".png"
+				RETURN
+				    IF ( HASONEVALUE ( 'D00_大区表'[F_03_大区负责人] ), U & R & L, BLANK () )
+			displayFolder: 00_基础度量值
+			lineageTag: a380b88f-6417-4c5d-96f9-2cb739a86305
+			dataCategory: ImageUrl
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0012_大区_负责人 =
+				
+				SELECTEDVALUE ( 'D00_大区表'[F_03_大区负责人] )
+			displayFolder: 00_基础度量值
+			lineageTag: e388c30a-2d84-433d-abd9-c39e13d4b0e0
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0013_大区 =
+				
+				SELECTEDVALUE ( 'D00_大区表'[F_02_大区] )
+			displayFolder: 00_基础度量值
+			lineageTag: 1021c2b2-ceee-4563-89fb-6f0f2a3adb62
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0014_省简称 =
+				
+				VAR TF0 =
+				    HASONEFILTER ( 'D01_省份表'[F_04_省简称] )
+				VAR TF1 =
+				    HASONEFILTER ( 'D01_省份表_对比'[F_04_省简称] )
+				VAR R0 =
+				    SELECTEDVALUE ( 'D01_省份表'[F_04_省简称] )
+				VAR R1 =
+				    COUNTROWS ( 'D01_省份表' )
+				VAR R_DB0 =
+				    SELECTEDVALUE ( 'D01_省份表_对比'[F_04_省简称] )
+				VAR R_DB1 =
+				    COUNTROWS ( 'D01_省份表_对比' )
+				VAR D =
+				    SELECTEDVALUE ( 'G02_P50_AB对比分析'[对比维度] )
+				RETURN
+				    SWITCH (
+				        TRUE (),
+				        D = "A"
+				            && TF0 = TRUE (), R0,
+				        D = "A"
+				            && TF0 = FALSE (), "省：" & R1,
+				        D = "B"
+				            && TF1 = TRUE (), R_DB0,
+				        D = "B"
+				            && TF1 = FALSE (), "省：" & R_DB1,
+				        R0
+				    )
+			displayFolder: 00_基础度量值
+			lineageTag: cadc4d5c-e8e8-472a-aa9e-875a758e8376
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0015_折扣比例_%_D_ =
+				
+				VAR FZ = [0001_销售金额_单位_D_]
+				VAR FM =
+				    SUMX ( 'T05_订单子表', 'T05_订单子表'[F_03_产品销售价格] * 'T05_订单子表'[F_05_产品销售数量] )
+				RETURN
+				    DIVIDE ( FZ, FM, BLANK () )
+			formatString: 0%;-0%;0%
+			displayFolder: 00_基础度量值
+			lineageTag: ef2349da-e617-462d-8dfa-1403733a295d
+
+			changedProperty = FormatString
+
+		measure 0016_订单件数_单位_D_ =
+				
+				SUM ( 'T05_订单子表'[F_05_产品销售数量] )
+			formatString: #,0
+			displayFolder: 00_基础度量值
+			lineageTag: d06e89ce-5ee7-403a-b8be-b3a0288d6e64
+
+			changedProperty = FormatString
+
+		measure 0017_销售金额_门店占比_%_D_ =
+				
+				VAR FZ = [0001_销售金额_单位_D_]
+				VAR FM =
+				    CALCULATE (
+				        [0001_销售金额_单位_D_],
+				        ALL ( 'T01_门店表'[F_02_门店名称], 'T01_门店表'[F_00_自动编号] )
+				    )
+				RETURN
+				    DIVIDE ( FZ, FM, BLANK () )
+			displayFolder: 00_基础度量值
+			lineageTag: eb5b3795-d3d7-4ec4-b651-b5e5d2538caa
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0018_产品数量_入库_单位_D_ =
+				
+				SUM ( 'T03_入库信息表'[F_02_入库产品数量] )
+			formatString: #,0
+			displayFolder: 00_基础度量值
+			lineageTag: eb5deb39-dc19-4f46-9bf6-106607652d32
+
+			changedProperty = FormatString
+
+		measure 0019_产品数量_出库_单位_D_ =
+				
+				CALCULATE (
+				    SUM ( 'T05_订单子表'[F_05_产品销售数量] ),
+				    USERELATIONSHIP ( 'T04_订单主表'[F_04_送货日期], '01_Calendar'[dates] )
+				)
+			formatString: #,0
+			displayFolder: 00_基础度量值
+			lineageTag: 1a6197e8-fd93-47a6-b46c-406e53dd45b9
+
+			changedProperty = FormatString
+
+		measure 0100_日期矩阵_DAY =
+				
+				SELECTEDVALUE ( '01_Calendar'[day] )
+			formatString: 0
+			displayFolder: 01_日期矩阵_日历热力图
+			lineageTag: 672a1f91-2db2-419e-b42b-ecee8a7c1eb2
+
+			changedProperty = FormatString
+
+		measure 0101_日期矩阵_DAY_color_map =
+				
+				VAR VALUE_DAY = [0001_销售金额_单位_D_]
+				VAR VALUE_TABLE_0 =
+				    CALCULATETABLE (
+				        '01_Calendar',
+				        ALL (
+				            '01_Calendar'[dates],
+				            '01_Calendar'[day],
+				            '01_Calendar'[weeknumber],
+				            '01_Calendar'[weekday],
+				            '01_Calendar'[weekcna] //易错点：注意清除筛选的时候，按列排序的列都要加上；weekcna按照weekday排序的。
+				        )
+				    )
+				VAR VALUE_TABLE_1 =
+				    SUMMARIZE (
+				        VALUE_TABLE_0,
+				        '01_Calendar'[day],
+				        "@DAY", [0001_销售金额_单位_D_]
+				    )
+				VAR VALUE_DAY_MAX =
+				    MAXX ( VALUE_TABLE_1, [@DAY] )
+				VAR VALUE_DAY_MIN =
+				    MINX ( VALUE_TABLE_1, [@DAY] )
+				VAR VALUE_DIFF_MAX = ( VALUE_DAY_MAX - VALUE_DAY_MIN ) //min是最浅颜色，max是最深颜色。
+				VAR VALUE_DIFF_DAY = ( VALUE_DAY_MAX - VALUE_DAY )
+				VAR X = VALUE_DIFF_DAY / VALUE_DIFF_MAX
+				VAR R =
+				    INT ( 200 * X ) + 20
+				VAR G =
+				    INT ( 100 * X ) + 140 //222,239
+				VAR B = 250
+				VAR D = ","
+				VAR TF =
+				    VALUE_DAY = BLANK ()
+				RETURN
+				    IF ( TF, "#dddddd", "RGB(" & R & D & G & D & B & ")" )
+			displayFolder: 01_日期矩阵_日历热力图
+			lineageTag: 1a01c7e0-62d6-4a83-bf58-d120ba435d4f
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0200_计算组矩阵_color_背景 =
+				
+				/*
+				    good:#188818
+				    neutral:#DD8800
+				    bad:#BB1818
+				    1、YTD>=1,MTD>=1 =>good
+				    2、YTD>=1,MTD< 1 =>neutral
+				    3、YTD< 1,MTD>=1 =>neutral
+				    4、YTD< 1,MTD< 1=>bad
+				*/
+				VAR MTD0 =
+				    VAR DATE_END_AC =
+				        LASTDATE ( '01_Calendar'[dates] )
+				    VAR DATE_SATRT_AC =
+				        STARTOFMONTH ( DATE_END_AC )
+				    VAR DATE_TABLE_AC =
+				        DATESBETWEEN ( '01_Calendar'[dates], DATE_SATRT_AC, DATE_END_AC )
+				    RETURN
+				        CALCULATE ( [0007_目标完成率_%_D_], DATE_TABLE_AC )
+				VAR YTD0 =
+				    VAR DATE_END_AC =
+				        LASTDATE ( '01_Calendar'[dates] )
+				    VAR DATE_SATRT_AC =
+				        STARTOFYEAR ( DATE_END_AC )
+				    VAR DATE_TABLE_AC =
+				        DATESBETWEEN ( '01_Calendar'[dates], DATE_SATRT_AC, DATE_END_AC )
+				    RETURN
+				        CALCULATE ( [0007_目标完成率_%_D_], DATE_TABLE_AC )
+				VAR COLOR0 =
+				    SWITCH (
+				        TRUE (),
+				        YTD0 >= 1
+				            && MTD0 >= 1, "#188818",
+				        YTD0 >= 1
+				            && MTD0 < 1, "#DD8800",
+				        YTD0 < 1
+				            && MTD0 >= 1, "#DD8800",
+				        YTD0 < 1
+				            && MTD0 < 1, "#BB1818"
+				    )
+				VAR LIST0 = { "AC", "MTD", "YTD" }
+				VAR ROW_VALUE =
+				    SELECTEDVALUE ( 'G03_P60_DWMQHY'[F_07_指标] )
+				VAR COLOR_AC_TF =
+				    IF ( ROW_VALUE IN LIST0, COLOR0, BLANK () )
+				RETURN
+				    COLOR_AC_TF
+			displayFolder: 02_计算组矩阵_时间智能
+			lineageTag: 12230955-2de1-4b33-90cd-c371a217c0cf
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0201_计算组矩阵_color_字体 =
+				
+				/*
+				    good:#188818
+				    neutral:#DD8800
+				    bad:#BB1818
+				    字体颜色：#EEEEEE
+				*/
+				VAR LIST0 = { "AC", "MTD", "YTD" }
+				VAR ROW_VALUE =
+				    SELECTEDVALUE ( 'G03_P60_DWMQHY'[F_07_指标] )
+				VAR COLOR_AC_TF =
+				    IF ( ROW_VALUE IN LIST0, "#EEEEEE", BLANK () )
+				RETURN
+				    COLOR_AC_TF
+			displayFolder: 02_计算组矩阵_时间智能
+			lineageTag: dc9a9cb0-97e0-4bfe-8b30-04f07c5de488
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0202_计算组矩阵_工具提示_01_指标 =
+				
+				SELECTEDVALUE ( 'G03_P60_DWMQHY'[F_07_指标] )
+			displayFolder: 02_计算组矩阵_时间智能
+			lineageTag: 30a6d982-ab88-4cfe-9ca8-cd8ddc6f4bf1
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0203_计算组矩阵_工具提示_02_开始日期 =
+				
+				"开始日期"
+			displayFolder: 02_计算组矩阵_时间智能
+			lineageTag: 315d36b9-7f15-49d4-a8b1-c9bbcb506ff7
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0204_计算组矩阵_工具提示_03_结束日期 =
+				
+				"结束日期"
+			displayFolder: 02_计算组矩阵_时间智能
+			lineageTag: 900643ac-4309-473d-a0d1-4fa14a465097
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0205_计算组矩阵_工具提示_04_指标说明 =
+				
+				SELECTEDVALUE ( 'G03_P60_DWMQHY'[F_08_说明] )
+			displayFolder: 02_计算组矩阵_时间智能
+			lineageTag: 365fd1a6-3fec-460f-9551-b3d55afa62ab
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0206_计算组矩阵_工具提示_05_页面说明 =
+				
+				50
+			displayFolder: 02_计算组矩阵_时间智能
+			lineageTag: 30afc207-068c-42d8-b160-c3226beb3c93
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0207_计算组矩阵_工具提示_06_各省大区内排名 =
+				
+				VAR DQ =
+				    SELECTEDVALUE ( 'D00_大区表'[F_01_大区ID] )
+				VAR TABLE0 =
+				    ADDCOLUMNS ( ALL ( 'D01_省份表' ), "@销售额", [0001_销售金额_单位_D_] )
+				VAR TABLE1 =
+				    FILTER ( TABLE0, [F_01_大区ID] = DQ )
+				VAR TABLE2 =
+				    ADDCOLUMNS (
+				        TABLE1,
+				        "@RANK", RANKX ( TABLE1, [0001_销售金额_单位_D_], [@销售额], DESC )
+				    )
+				VAR N =
+				    SUM ( 'T71_大区_排名辅助'[ID] )
+				VAR TABLE3 =
+				    FILTER ( TABLE2, [@RANK] = N )
+				RETURN
+				    CALCULATE ( MAXX ( TABLE3, [F_04_省简称] ), ALL ( 'D00_大区表' ) )
+			displayFolder: 02_计算组矩阵_时间智能
+			lineageTag: a5c0ccf4-6459-4db3-a8ac-c13cf49d521d
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0300_销售金额_贡献_组织_省简称_% =
+				
+				VAR FZ = [0001_销售金额_单位_D_]
+				VAR FM =
+				    CALCULATE (
+				        [0001_销售金额_单位_D_],
+				        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] )
+				    )
+				VAR P =
+				    DIVIDE ( FZ, FM, BLANK () )
+				RETURN
+				    P
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 03_销售金额_贡献_组织
+			lineageTag: 7b7b5e9c-be88-4e7c-bd54-7849ab24eefc
+
+			changedProperty = FormatString
+
+		measure 0301_销售金额_贡献_组织_省简称_累计_% =
+				
+				VAR R =
+				    RANKX (
+				        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),
+				        [0001_销售金额_单位_D_],
+				        ,
+				        DESC
+				    )
+				        + CALCULATE ( SUM ( 'D01_省份表'[F_02_省ID] ) ) / 100
+				VAR T =
+				    ADDCOLUMNS (
+				        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),
+				        "R",
+				            RANKX (
+				                ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),
+				                [0001_销售金额_单位_D_],
+				                ,
+				                DESC
+				            )
+				                + CALCULATE ( SUM ( 'D01_省份表'[F_02_省ID] ) ) / 100
+				    )
+				VAR LJ =
+				    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )
+				VAR FM =
+				    CALCULATE (
+				        [0001_销售金额_单位_D_],
+				        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] )
+				    )
+				VAR P =
+				    DIVIDE ( LJ, FM, BLANK () )
+				RETURN
+				    P
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 03_销售金额_贡献_组织
+			lineageTag: 7e970f83-e364-4789-9717-0a001d7578f0
+
+			changedProperty = FormatString
+
+		measure 0302_销售金额_贡献_组织_省简称_累计_二八分界_% =
+				
+				VAR T0 =
+				    ADDCOLUMNS (
+				        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),
+				        "R",
+				            RANKX (
+				                ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),
+				                [0001_销售金额_单位_D_],
+				                ,
+				                DESC
+				            )
+				                + CALCULATE ( SUM ( 'D01_省份表'[F_02_省ID] ) ) / 100
+				    )
+				VAR T1 =
+				    ADDCOLUMNS (
+				        T0,
+				        "@P%",
+				            VAR R =
+				                RANKX (
+				                    ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),
+				                    [0001_销售金额_单位_D_],
+				                    ,
+				                    DESC
+				                )
+				                    + CALCULATE ( SUM ( 'D01_省份表'[F_02_省ID] ) ) / 100
+				            VAR LJ =
+				                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )
+				            VAR FM =
+				                CALCULATE (
+				                    [0001_销售金额_单位_D_],
+				                    ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] )
+				                )
+				            VAR P =
+				                DIVIDE ( LJ, FM, BLANK () )
+				            RETURN
+				                P
+				    )
+				VAR T2 =
+				    FILTER ( T1, [@P%] >= 0.8 )
+				VAR MINRANK =
+				    MINX ( T2, [@P%] )
+				RETURN
+				    MINRANK
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 03_销售金额_贡献_组织
+			lineageTag: 0f5fbf0a-93ef-4b0e-a558-0e6a31673c6b
+
+			changedProperty = FormatString
+
+		measure 0303_销售金额_贡献_组织_省简称_大区color =
+				
+				VAR DQ =
+				    CALCULATE ( SUM ( 'D00_大区表'[F_01_大区ID] ), 'D01_省份表' )
+				VAR TABLE0 =
+				    FILTER ( 'T70_主题颜色', [ID] = DQ )
+				VAR COLOR =
+				    CONCATENATEX ( TABLE0, [颜色值] )
+				RETURN
+				    COLOR
+			displayFolder: 03_销售金额_贡献_组织
+			lineageTag: 43d244a6-82d7-45af-9458-d0dd00a2f8e5
+
+			changedProperty = FormatString
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0400_销售金额_贡献_产品_分类_% =
+				
+				VAR FZ = [0001_销售金额_单位_D_]
+				VAR FM =
+				    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[F_02_产品分类] ) )
+				VAR P =
+				    DIVIDE ( FZ, FM, BLANK () )
+				RETURN
+				    P
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 04_销售金额_贡献_产品分类
+			lineageTag: 3d031da6-4f39-408c-b175-147f8edf5f67
+
+			changedProperty = FormatString
+
+		measure 0401_销售金额_贡献_产品_分类_累计_% =
+				
+				VAR R =
+				    RANKX ( ALL ( 'T00_产品表'[F_02_产品分类] ), [0001_销售金额_单位_D_],, DESC )
+				VAR T =
+				    ADDCOLUMNS (
+				        ALL ( 'T00_产品表'[F_02_产品分类] ),
+				        "R", RANKX ( ALL ( 'T00_产品表'[F_02_产品分类] ), [0001_销售金额_单位_D_],, DESC )
+				    )
+				VAR LJ =
+				    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )
+				VAR FM =
+				    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[F_02_产品分类] ) )
+				VAR P =
+				    DIVIDE ( LJ, FM, BLANK () )
+				RETURN
+				    P
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 04_销售金额_贡献_产品分类
+			lineageTag: 0615ea95-a0e8-42f0-9c6e-fdf1419f0bfa
+
+			changedProperty = FormatString
+
+		measure 0402_销售金额_贡献_产品_分类_累计_二八分界_% =
+				
+				VAR T0 =
+				    ADDCOLUMNS (
+				        ALL ( 'T00_产品表'[F_02_产品分类] ),
+				        "R", RANKX ( ALL ( 'T00_产品表'[F_02_产品分类] ), [0001_销售金额_单位_D_],, DESC )
+				    )
+				VAR T1 =
+				    ADDCOLUMNS (
+				        T0,
+				        "@P%",
+				            VAR R =
+				                RANKX ( ALL ( 'T00_产品表'[F_02_产品分类] ), [0001_销售金额_单位_D_],, DESC )
+				            VAR LJ =
+				                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )
+				            VAR FM =
+				                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[F_02_产品分类] ) )
+				            VAR P =
+				                DIVIDE ( LJ, FM, BLANK () )
+				            RETURN
+				                P
+				    )
+				VAR T2 =
+				    FILTER ( T1, [@P%] >= 0.8 )
+				VAR MINRANK =
+				    MINX ( T2, [@P%] )
+				RETURN
+				    MINRANK
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 04_销售金额_贡献_产品分类
+			lineageTag: 2622168c-61df-49af-a335-867bb0a0bf15
+
+			changedProperty = FormatString
+
+		measure 0500_销售金额_贡献_产品_折扣_% =
+				
+				VAR FZ = [0001_销售金额_单位_D_]
+				VAR FM =
+				    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T72_折扣分组'[折扣分类] ) )
+				VAR P =
+				    DIVIDE ( FZ, FM, BLANK () )
+				RETURN
+				    P
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 05_销售金额_贡献_产品折扣
+			lineageTag: a5a8821a-d0d0-44f9-a25a-34aaaadd761f
+
+			changedProperty = FormatString
+
+		measure 0501_销售金额_贡献_产品_折扣_累计_% =
+				
+				VAR R =
+				    RANKX ( ALL ( 'T72_折扣分组'[折扣分类] ), [0001_销售金额_单位_D_],, DESC )
+				VAR T =
+				    ADDCOLUMNS (
+				        ALL ( 'T72_折扣分组'[折扣分类] ),
+				        "R", RANKX ( ALL ( 'T72_折扣分组'[折扣分类] ), [0001_销售金额_单位_D_],, DESC )
+				    )
+				VAR LJ =
+				    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )
+				VAR FM =
+				    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T72_折扣分组'[折扣分类] ) )
+				VAR P =
+				    DIVIDE ( LJ, FM, BLANK () )
+				RETURN
+				    P
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 05_销售金额_贡献_产品折扣
+			lineageTag: a27e56b4-7ed3-4c87-9510-484bb1ad217a
+
+			changedProperty = FormatString
+
+		measure 0502_销售金额_贡献_产品_折扣_累计_二八分界_% =
+				
+				VAR T0 =
+				    ADDCOLUMNS (
+				        ALL ( 'T72_折扣分组'[折扣分类] ),
+				        "R", RANKX ( ALL ( 'T72_折扣分组'[折扣分类] ), [0001_销售金额_单位_D_],, DESC )
+				    )
+				VAR T1 =
+				    ADDCOLUMNS (
+				        T0,
+				        "@P%",
+				            VAR R =
+				                RANKX ( ALL ( 'T72_折扣分组'[折扣分类] ), [0001_销售金额_单位_D_],, DESC )
+				            VAR LJ =
+				                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )
+				            VAR FM =
+				                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T72_折扣分组'[折扣分类] ) )
+				            VAR P =
+				                DIVIDE ( LJ, FM, BLANK () )
+				            RETURN
+				                P
+				    )
+				VAR T2 =
+				    FILTER ( T1, [@P%] >= 0.8 )
+				VAR MINRANK =
+				    MINX ( T2, [@P%] )
+				RETURN
+				    MINRANK
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 05_销售金额_贡献_产品折扣
+			lineageTag: 8730b750-a4d0-4c3a-b39f-939b2fb54857
+
+			changedProperty = FormatString
+
+		measure 0600_销售金额_贡献_产品_价格_% =
+				
+				VAR FZ = [0001_销售金额_单位_D_]
+				VAR FM =
+				    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[@价格段] ) )
+				VAR P =
+				    DIVIDE ( FZ, FM, BLANK () )
+				RETURN
+				    P
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 06_销售金额_贡献_产品价格
+			lineageTag: 649dbe2b-f0b3-4316-ad44-a8fbf214053f
+
+			changedProperty = FormatString
+
+		measure 0601_销售金额_贡献_产品_价格_累计_% =
+				
+				VAR R =
+				    RANKX ( ALL ( 'T00_产品表'[@价格段] ), [0001_销售金额_单位_D_],, DESC )
+				VAR T =
+				    ADDCOLUMNS (
+				        ALL ( 'T00_产品表'[@价格段] ),
+				        "R", RANKX ( ALL ( 'T00_产品表'[@价格段] ), [0001_销售金额_单位_D_],, DESC )
+				    )
+				VAR LJ =
+				    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )
+				VAR FM =
+				    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[@价格段] ) )
+				VAR P =
+				    DIVIDE ( LJ, FM, BLANK () )
+				RETURN
+				    P
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 06_销售金额_贡献_产品价格
+			lineageTag: de2e63bd-7cba-4d63-b6be-66eb3f3d3945
+
+			changedProperty = FormatString
+
+		measure 0602_销售金额_贡献_产品_价格_累计_二八分界_% =
+				
+				VAR T0 =
+				    ADDCOLUMNS (
+				        ALL ( 'T00_产品表'[@价格段] ),
+				        "R", RANKX ( ALL ( 'T00_产品表'[@价格段] ), [0001_销售金额_单位_D_],, DESC )
+				    )
+				VAR T1 =
+				    ADDCOLUMNS (
+				        T0,
+				        "@P%",
+				            VAR R =
+				                RANKX ( ALL ( 'T00_产品表'[@价格段] ), [0001_销售金额_单位_D_],, DESC )
+				            VAR LJ =
+				                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )
+				            VAR FM =
+				                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[@价格段] ) )
+				            VAR P =
+				                DIVIDE ( LJ, FM, BLANK () )
+				            RETURN
+				                P
+				    )
+				VAR T2 =
+				    FILTER ( T1, [@P%] >= 0.8 )
+				VAR MINRANK =
+				    MINX ( T2, [@P%] )
+				RETURN
+				    MINRANK
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 06_销售金额_贡献_产品价格
+			lineageTag: 185c8c0b-4afe-4bd4-bed8-1d9e9bc009e3
+
+			changedProperty = FormatString
+
+		measure 0700_销售金额_门店矩阵_排名 =
+				
+				VAR ROW0 =
+				    SELECTEDVALUE ( 'T74_ROW'[ROW] ) - 1
+				VAR COLUMN0 =
+				    SELECTEDVALUE ( T75_COLUMN[COLUMN] )
+				VAR RANK0 = ROW0 * 10 + COLUMN0
+				VAR T0 =
+				    ADDCOLUMNS (
+				        ALL ( 'T01_门店表'[F_02_门店名称] ),
+				        "@VALUE0", [0001_销售金额_单位_D_]
+				    )
+				VAR T1 =
+				    FILTER ( T0, [@VALUE0] <> BLANK () )
+				VAR T2 =
+				    ADDCOLUMNS (
+				        T1,
+				        "@R0",
+				            RANKX ( T1, [0001_销售金额_单位_D_],, DESC )
+				                + CALCULATE ( SUM ( 'T01_门店表'[F_00_自动编号] ) ) / 1000
+				    )
+				VAR T3 =
+				    ADDCOLUMNS ( T2, "@R1", VAR R = [@R0] RETURN RANKX ( T2, [@R0], R, ASC ) )
+				VAR T4 =
+				    FILTER ( T3, [@R1] = RANK0 )
+				RETURN
+				    MAXX ( T4, [@R1] & "-" & [F_02_门店名称] )
+			displayFolder: 07_销售金额_门店矩阵
+			lineageTag: 74d274fb-aef3-4c8e-90e4-0a4632d00fc8
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0701_销售金额_门店矩阵_门店按照毛利_color_背景 =
+				
+				/*
+				    good:#188818 ; RGB:24,136,24 ; 色阶开始：#CCFFCC , RGB:204,255,204
+				    neutral:#DD8800 ; RGB:221,136,0
+				    bad:#BB1818 ; RGB:187,24,24；色阶开始：#FFCCCC , RGB:255,204,204
+				    字体颜色：#EEEEEE ; RGB:238,238,238
+				*/
+				VAR ROW0 =
+				    SELECTEDVALUE ( 'T74_ROW'[ROW] ) - 1
+				VAR COLUMN0 =
+				    SELECTEDVALUE ( T75_COLUMN[COLUMN] )
+				VAR RANK0 = ROW0 * 10 + COLUMN0
+				VAR T0 =
+				    ADDCOLUMNS (
+				        ALL ( 'T01_门店表'[F_02_门店名称] ),
+				        "@VALUE0", [0001_销售金额_单位_D_]
+				    )
+				VAR T1 =
+				    FILTER ( T0, [@VALUE0] <> BLANK () )
+				VAR T2 =
+				    ADDCOLUMNS (
+				        T1,
+				        "@R0",
+				            RANKX ( T1, [0001_销售金额_单位_D_],, DESC )
+				                + CALCULATE ( SUM ( 'T01_门店表'[F_00_自动编号] ) ) / 1000
+				    )
+				VAR T3 =
+				    ADDCOLUMNS ( T2, "@R1", VAR R = [@R0] RETURN RANKX ( T2, [@R0], R, ASC ) )
+				VAR T4 =
+				    FILTER ( T3, [@R1] = RANK0 )
+				VAR MD =
+				    MAXX ( T4, [F_02_门店名称] )
+				VAR FILTER0 =
+				    TREATAS ( { MD }, 'T01_门店表'[F_02_门店名称] )
+				VAR VALUE_MD =
+				    CALCULATE ( [0006_毛利率_%_D_], KEEPFILTERS ( FILTER0 ) )
+				VAR VALUE_TABLE_0 =
+				    CALCULATETABLE ( 'T01_门店表', ALL ( 'T01_门店表'[F_01_门店编号], 'T01_门店表'[F_02_门店名称] ) )
+				VAR VALUE_TABLE_1 =
+				    SUMMARIZE (
+				        VALUE_TABLE_0,
+				        'T01_门店表'[F_02_门店名称],
+				        "@ML", [0006_毛利率_%_D_]
+				    )
+				VAR VALUE_MD_MAX =
+				    MAXX ( VALUE_TABLE_1, [@ML] )
+				VAR VALUE_MD_0 = 0
+				VAR VALUE_MD_MIN =
+				    MINX ( VALUE_TABLE_1, [@ML] )
+				VAR VALUE_DIFF_MAX_0 = ( VALUE_MD_MAX - VALUE_MD_0 ) //0是最浅颜色，max是最深good颜色。
+				VAR VALUE_DIFF_MIN_0 = ( VALUE_MD_MIN - VALUE_MD_0 ) //0是最浅颜色，MIN是最深bad颜色；0包含在bad中。
+				VAR VALUE_DIFF_MD_POSITIVE = ( VALUE_MD_MAX - VALUE_MD ) //正数=>positive
+				VAR VALUE_DIFF_MD_NEGATIVE = ( VALUE_MD_MIN - VALUE_MD ) //负数=>negative
+				VAR X =
+				    IF (
+				        VALUE_MD > 0,
+				        VALUE_DIFF_MD_POSITIVE / VALUE_DIFF_MAX_0,
+				        VALUE_DIFF_MD_NEGATIVE / VALUE_DIFF_MIN_0
+				    ) --------------------------------
+				//good:#188818 ; RGB:24,136,24 ; 色阶开始：#CCFFCC , RGB:204,255,204
+				VAR R_GOOD =
+				    INT ( 180 * X ) + 24 //204-24=180
+				VAR G_GOOD =
+				    INT ( 119 * X ) + 136 //255-136=119
+				VAR B_GOOD =
+				    INT ( 180 * X ) + 24 //204-24=180
+				--------------------------------
+				--------------------------------
+				//bad:#BB1818 ; RGB:187,24,24；色阶开始：#FFCCCC , RGB:255,204,204
+				VAR R_BAD =
+				    INT ( 68 * X ) + 187 //255-187=68
+				VAR G_BAD =
+				    INT ( 180 * X ) + 24 //204-24=180
+				VAR B_BAD =
+				    INT ( 180 * X ) + 24 //204-24=180
+				--------------------------------
+				VAR R =
+				    IF ( VALUE_MD > 0, R_GOOD, R_BAD )
+				VAR G =
+				    IF ( VALUE_MD > 0, G_GOOD, G_BAD )
+				VAR B =
+				    IF ( VALUE_MD > 0, B_GOOD, B_BAD )
+				VAR D = ","
+				VAR TF =
+				    VALUE_MD = BLANK ()
+				RETURN
+				    IF ( TF, "#dddddd", "RGB(" & R & D & G & D & B & ")" )
+			displayFolder: 07_销售金额_门店矩阵
+			lineageTag: 8f968821-899f-450c-a46e-46b5a0a1c9c3
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0702_销售金额_门店矩阵_门店按照毛利_color_字体 =
+				
+				"#CCCCCC"
+				/*
+				    good:#188818 ; RGB:24,136,24 ; 色阶开始：#CCFFCC , RGB:204,255,204
+				    neutral:#DD8800 ; RGB:221,136,0
+				    bad:#BB1818 ; RGB:187,24,24；色阶开始：#FFCCCC , RGB:255,204,204
+				    字体颜色：#EEEEEE ; RGB:238,238,238
+				*/
+			displayFolder: 07_销售金额_门店矩阵
+			lineageTag: b466d4f7-7f7c-4af1-b64e-01afc93757ac
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0800_产品数量_库存_期初_单位_ =
+				
+				VAR DATE_START0 =
+				    CALCULATE ( FIRSTDATE ( '01_Calendar'[dates] ), ALL ( '01_Calendar' ) )
+				VAR DATE_END0 =
+				    LASTDATE ( '01_Calendar'[dates] )
+				VAR TF0 =
+				    HASONEVALUE ( '01_Calendar'[dates] ) //日
+				VAR TF1 =
+				    HASONEVALUE ( '01_Calendar'[YW] ) //周
+				VAR TF2 =
+				    HASONEVALUE ( '01_Calendar'[YM] ) //月
+				VAR TF3 =
+				    HASONEVALUE ( '01_Calendar'[YQ] ) //季度
+				VAR TF4 =
+				    HASONEVALUE ( '01_Calendar'[YH] ) //半年度
+				VAR TF5 =
+				    HASONEVALUE ( '01_Calendar'[FY00] ) //年度
+				VAR N0 =
+				    SWITCH (
+				        TRUE (),
+				        TF0, 0,
+				        TF1,
+				            DATEDIFF (
+				                FIRSTDATE ( '01_Calendar'[StartOfWeek] ),
+				                LASTDATE ( '01_Calendar'[EndOfWeek] ),
+				                DAY
+				            ),
+				        TF2,
+				            DATEDIFF (
+				                FIRSTDATE ( '01_Calendar'[StartOfMonth] ),
+				                LASTDATE ( '01_Calendar'[EndOfMonth] ),
+				                DAY
+				            ),
+				        TF3,
+				            DATEDIFF (
+				                FIRSTDATE ( '01_Calendar'[StartOfQuarter] ),
+				                LASTDATE ( '01_Calendar'[EndOfQuarter] ),
+				                DAY
+				            ),
+				        TF4,
+				            DATEDIFF (
+				                FIRSTDATE ( '01_Calendar'[StartOfHalfYear] ),
+				                LASTDATE ( '01_Calendar'[EndOfHalfYear] ),
+				                DAY
+				            ),
+				        TF5,
+				            DATEDIFF (
+				                FIRSTDATE ( '01_Calendar'[StartOfYear] ),
+				                LASTDATE ( '01_Calendar'[EndOfYear] ),
+				                DAY
+				            ),
+				        0
+				    ) + 1
+				VAR DATE_END1 =
+				    SWITCH (
+				        TRUE (),
+				        TF0, DATEADD ( DATE_END0, - N0, DAY ),
+				        TF1, DATEADD ( LASTDATE ( '01_Calendar'[EndOfWeek] ), - N0, DAY ),
+				        TF2, DATEADD ( LASTDATE ( '01_Calendar'[EndOfMonth] ), - N0, DAY ),
+				        TF3, DATEADD ( LASTDATE ( '01_Calendar'[EndOfQuarter] ), - N0, DAY ),
+				        TF4, DATEADD ( LASTDATE ( '01_Calendar'[EndOfHalfYear] ), - N0, DAY ),
+				        TF5, DATEADD ( LASTDATE ( '01_Calendar'[EndOfYear] ), - N0, DAY ),
+				        DATE_START0 //无筛选的时，默认日期表期初。
+				    )
+				VAR DATE_END2 =
+				    IF ( ISBLANK ( DATE_END1 ), DATE_START0, DATE_END1 ) //兼容dateadd后的空值，注意日期表的两个端点。
+				VAR DATE_TABLE0 =
+				    DATESBETWEEN ( '01_Calendar'[dates], DATE_START0, DATE_END2 )
+				VAR IN0 =
+				    CALCULATE ( [0018_产品数量_入库_单位_D_], DATE_TABLE0 )
+				VAR OUT0 =
+				    CALCULATE ( [0019_产品数量_出库_单位_D_], DATE_TABLE0 )
+				VAR DATE_START_ABS0 =
+				    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_04_送货日期] ), ALL () ) //兼容显示到事实表最后日期。
+				RETURN
+				    IN0 - OUT0
+				//IF ( DATE_START_ABS0 >= DATE_END2, IN0 - OUT0, BLANK () )
+			formatString: #,0
+			displayFolder: 08_产品数量_库存
+			lineageTag: 80d72c72-e334-490b-87ca-59c2ffa388b8
+
+			changedProperty = FormatString
+
+		measure 0801_产品数量_库存_期末_单位_ =
+				
+				VAR DATE_START0 =
+				    CALCULATE ( FIRSTDATE ( '01_Calendar'[dates] ), ALL ( '01_Calendar' ) )
+				VAR DATE_END0 =
+				    LASTDATE ( '01_Calendar'[dates] )
+				VAR DATE_TABLE0 =
+				    DATESBETWEEN ( '01_Calendar'[dates], DATE_START0, DATE_END0 )
+				VAR IN0 =
+				    CALCULATE ( [0018_产品数量_入库_单位_D_], DATE_TABLE0 )
+				VAR OUT0 =
+				    CALCULATE ( [0019_产品数量_出库_单位_D_], DATE_TABLE0 )
+				VAR DATE_START_ABS0 =
+				    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_04_送货日期] ), ALL () ) //兼容显示到事实表最后日期。
+				RETURN
+				    IN0 - OUT0
+				//IF(DATE_START_ABS0>=DATE_END0,IN0 - OUT0,BLANK())
+			formatString: #,0
+			displayFolder: 08_产品数量_库存
+			lineageTag: 245925b2-2ea9-4c6c-87f0-367e1bd031c6
+
+			changedProperty = FormatString
+
+		measure 0802_产品数量_库存_期间平均库存_单位_ = ```
+				
+				/*
+				----------------------------------------------------------------------------------------------------
+				存货周转天数（Days Sales Of Inventory），参考值=>年度：120;半年：60;季度：30;月度：9;周度：2;单日：1。
+				存货周转率（Inventory Turnover），越大表示周转越快。
+				----------------------------------------------------------------------------------------------------
+				年度：N = 360
+				半年：N = 180
+				季度：N = 90
+				月度：N = 30
+				周度：N = 7
+				单日: N = 1
+				----------------------------------------------------------------------------------------------------
+				库存周转天数 = N / 期间存货周转率
+				库存周转率 = 期间出库数量 / 期间平均库存 
+				期间平均库存 =（ 期初库存 + 期末库存）÷ 2
+				----------------------------------------------------------------------------------------------------
+				*/
+				//1、期初期末平均法
+				( [0800_产品数量_库存_期初_单位_] + [0801_产品数量_库存_期末_单位_] ) / 2
+				//2、日平均法
+				// VAR T0 =
+				//     SUMMARIZE ( '01_Calendar', '01_Calendar'[dates] )
+				// VAR T1 =
+				//     ADDCOLUMNS ( T0, "@KC", [0801_产品数量_库存_期末_单位_D_] )
+				// VAR FM =
+				//     COUNTROWS ( T0 )
+				// VAR FZ =
+				//     SUMX ( T1, [@KC] )
+				// RETURN
+				//     DIVIDE ( FZ, FM, BLANK () )
+				```
+			formatString: #,0
+			displayFolder: 08_产品数量_库存
+			lineageTag: 5e8e29ec-6071-4b2b-99b6-a8ae79213b82
+
+			changedProperty = FormatString
+
+		measure 0803_产品数量_库存_期间周转率_单位_ = ```
+				
+				/*
+				----------------------------------------------------------------------------------------------------
+				存货周转天数（Days Sales Of Inventory），参考值=>年度：120;半年：60;季度：30;月度：9;周度：2;单日：1。
+				存货周转率（Inventory Turnover），越大表示周转越快。
+				----------------------------------------------------------------------------------------------------
+				年度：N = 360
+				半年：N = 180
+				季度：N = 90
+				月度：N = 30
+				周度：N = 7
+				单日: N = 1
+				----------------------------------------------------------------------------------------------------
+				库存周转天数 = N / 期间存货周转率
+				库存周转率 = 期间出库数量 / 期间平均库存 
+				期间平均库存 =（ 期初库存 + 期末库存）÷ 2
+				----------------------------------------------------------------------------------------------------
+				*/
+				VAR FM = ( [0800_产品数量_库存_期初_单位_] + [0801_产品数量_库存_期末_单位_] ) / 2
+				VAR FZ = [0019_产品数量_出库_单位_D_]
+				VAR InventoryTurnover =
+				    DIVIDE ( FZ, FM, BLANK () )
+				RETURN
+				    InventoryTurnover
+				```
+			formatString: #,0.0
+			displayFolder: 08_产品数量_库存
+			lineageTag: 18100668-16bc-483c-87e1-1a7bf702e601
+
+			changedProperty = FormatString
+
+		measure 0804_产品数量_库存_期间周转天数_单位_ = ```
+				
+				/*
+				----------------------------------------------------------------------------------------------------
+				存货周转天数（Days Sales Of Inventory），参考值=>年度：120;半年：60;季度：30;月度：9;周度：2;单日：1。
+				存货周转率（Inventory Turnover），越大表示周转越快。
+				----------------------------------------------------------------------------------------------------
+				年度：N = 360
+				半年：N = 180
+				季度：N = 90
+				月度：N = 30
+				周度：N = 7
+				单日: N = 1
+				----------------------------------------------------------------------------------------------------
+				库存周转天数 = N / 期间存货周转率
+				库存周转率 = 期间出库数量 / 期间平均库存 
+				期间平均库存 =（ 期初库存 + 期末库存）÷ 2
+				----------------------------------------------------------------------------------------------------
+				*/
+				VAR TF0 =
+				    HASONEVALUE ( '01_Calendar'[dates] ) //日
+				VAR TF1 =
+				    HASONEVALUE ( '01_Calendar'[YW] ) //周
+				VAR TF2 =
+				    HASONEVALUE ( '01_Calendar'[YM] ) //月
+				VAR TF3 =
+				    HASONEVALUE ( '01_Calendar'[YQ] ) //季度
+				VAR TF4 =
+				    HASONEVALUE ( '01_Calendar'[YH] ) //半年度
+				VAR TF5 =
+				    HASONEVALUE ( '01_Calendar'[FY00] ) //年度
+				VAR N =
+				    SWITCH (
+				        TRUE (),
+				        TF0, 1,
+				        TF1, 7,
+				        TF2, 30,
+				        TF3, 90,
+				        TF4, 180,
+				        TF5, 360,
+				        COUNTROWS ( '01_Calendar' )
+				    )
+				VAR DaysSalesOfInventory =
+				    DIVIDE ( N, [0803_产品数量_库存_期间周转率_单位_] )
+				RETURN
+				    DaysSalesOfInventory
+				```
+			formatString: #,0
+			displayFolder: 08_产品数量_库存
+			lineageTag: e5864bbd-fdab-4eb5-b31a-43876e710357
+
+			changedProperty = FormatString
+
+		measure 0900_客户_客户数量_注册_单位_D_ =
+				
+				VAR C_TBALE0 =
+				    CALCULATETABLE (
+				        VALUES ( 'T02_客户表'[F_01_客户编号] ),
+				        USERELATIONSHIP ( 'T02_客户表'[F_05_注册日期], '01_Calendar'[dates] )
+				    )
+				RETURN
+				    COUNTROWS ( C_TBALE0 )
+			displayFolder: 09_客户_客户数量
+			lineageTag: 194cb4e5-cdba-4621-acd4-0dfff2abf403
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0901_客户_客户数量_已购买_注册日期_单位_D_ =
+				
+				VAR C_TBALE0 =
+				    CALCULATETABLE (
+				        VALUES ( 'T02_客户表'[F_01_客户编号] ),
+				        USERELATIONSHIP ( 'T02_客户表'[F_05_注册日期], '01_Calendar'[dates] )
+				    )
+				VAR C_TBALE1 =
+				    ALL ( 'T04_订单主表'[F_05_客户编号] )
+				VAR C_TBALE2 =
+				    FILTER ( C_TBALE0, [F_01_客户编号] IN C_TBALE1 )
+				RETURN
+				    COUNTROWS ( C_TBALE2 )
+			displayFolder: 09_客户_客户数量
+			lineageTag: 88500e55-429c-40b8-80dd-d2a8f3e4a2d8
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0902_客户_客户数量_零购买_注册日期_单位_D_ =
+				
+				[0900_客户_客户数量_注册_单位_D_] - [0901_客户_客户数量_已购买_注册日期_单位_D_]
+			displayFolder: 09_客户_客户数量
+			lineageTag: bcf27efa-95f1-45d9-a5fb-501cd42473ac
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 0903_客户_客户数量_已购买_单位_%_ =
+				
+				DIVIDE (
+				    [0901_客户_客户数量_已购买_注册日期_单位_D_],
+				    [0900_客户_客户数量_注册_单位_D_]
+				)
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 09_客户_客户数量
+			lineageTag: bdfcd328-044f-4b74-9e2d-c955166e5e2b
+
+			changedProperty = FormatString
+
+		measure 0904_客户_客户数量_零购买_单位_%_ =
+				
+				DIVIDE (
+				    [0902_客户_客户数量_零购买_注册日期_单位_D_],
+				    [0900_客户_客户数量_注册_单位_D_]
+				)
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 09_客户_客户数量
+			lineageTag: 8a8a4dc3-95a2-4595-b8df-7520f9f6d22a
+
+			changedProperty = FormatString
+
+		measure 0905_客户_新客户数量_单位_D_ =
+				
+				// 新客户定义：只有一次购买记录。
+				VAR USER_TABLE0 =
+				    CALCULATETABLE (
+				        ADDCOLUMNS (
+				            ALLSELECTED ( 'T02_客户表'[F_01_客户编号] ),
+				            "@购买次数", CALCULATE ( COUNTROWS ( 'T04_订单主表' ) )
+				        ),
+				        'T04_订单主表',
+				        'T05_订单子表'
+				    )
+				VAR USER_TABLE_NEW =
+				    FILTER ( USER_TABLE0, [@购买次数] = 1 )
+				RETURN
+				    COUNTROWS ( USER_TABLE_NEW )
+			formatString: #,0
+			displayFolder: 09_客户_客户数量
+			lineageTag: 3589bbc3-b3f5-4744-a935-513bf032d94d
+
+			changedProperty = FormatString
+
+		measure 0906_客户_老客户数量_单位_D_ =
+				
+				// 老客户定义：有大于一次购买记录。
+				VAR USER_TABLE0 =
+				    CALCULATETABLE (
+				        ADDCOLUMNS (
+				            ALLSELECTED ( 'T02_客户表'[F_01_客户编号] ),
+				            "@购买次数", CALCULATE ( COUNTROWS ( 'T04_订单主表' ) )
+				        ),
+				        'T04_订单主表',
+				        'T05_订单子表'
+				    )
+				VAR USER_TABLE_OLD =
+				    FILTER ( USER_TABLE0, [@购买次数] > 1 )
+				RETURN
+				    COUNTROWS ( USER_TABLE_OLD )
+			formatString: #,0
+			displayFolder: 09_客户_客户数量
+			lineageTag: cde550a7-cd60-4612-8c3d-1d9e75bdb9eb
+
+			changedProperty = FormatString
+
+		measure 1000_销售金额_贡献_客户_行业_% =
+				
+				VAR FZ = [0001_销售金额_单位_D_]
+				VAR FM =
+				    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_06_客户行业] ) )
+				VAR P =
+				    DIVIDE ( FZ, FM, BLANK () )
+				RETURN
+				    P
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 10_销售金额_贡献_客户_行业
+			lineageTag: b9710dc6-65da-4750-9bab-b7dd4fd8b4ff
+
+			changedProperty = FormatString
+
+		measure 1001_销售金额_贡献_客户_行业_累计_% =
+				
+				VAR R =
+				    RANKX ( ALL ( 'T02_客户表'[F_06_客户行业] ), [0001_销售金额_单位_D_],, DESC )
+				VAR T =
+				    ADDCOLUMNS (
+				        ALL ( 'T02_客户表'[F_06_客户行业] ),
+				        "R", RANKX ( ALL ( 'T02_客户表'[F_06_客户行业] ), [0001_销售金额_单位_D_],, DESC )
+				    )
+				VAR LJ =
+				    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )
+				VAR FM =
+				    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_06_客户行业] ) )
+				VAR P =
+				    DIVIDE ( LJ, FM, BLANK () )
+				RETURN
+				    P
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 10_销售金额_贡献_客户_行业
+			lineageTag: f866a4b5-6c1b-4495-aad2-d2d66a695533
+
+			changedProperty = FormatString
+
+		measure 1002_销售金额_贡献_客户_行业_累计_二八分界_% =
+				
+				VAR T0 =
+				    ADDCOLUMNS (
+				        ALL ( 'T02_客户表'[F_06_客户行业] ),
+				        "R", RANKX ( ALL ( 'T02_客户表'[F_06_客户行业] ), [0001_销售金额_单位_D_],, DESC )
+				    )
+				VAR T1 =
+				    ADDCOLUMNS (
+				        T0,
+				        "@P%",
+				            VAR R =
+				                RANKX ( ALL ( 'T02_客户表'[F_06_客户行业] ), [0001_销售金额_单位_D_],, DESC )
+				            VAR LJ =
+				                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )
+				            VAR FM =
+				                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_06_客户行业] ) )
+				            VAR P =
+				                DIVIDE ( LJ, FM, BLANK () )
+				            RETURN
+				                P
+				    )
+				VAR T2 =
+				    FILTER ( T1, [@P%] >= 0.8 )
+				VAR MINRANK =
+				    MINX ( T2, [@P%] )
+				RETURN
+				    MINRANK
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 10_销售金额_贡献_客户_行业
+			lineageTag: b62854cd-4a29-4961-9396-af98426fbf92
+
+			changedProperty = FormatString
+
+		measure 1100_销售金额_贡献_客户_职业_% =
+				
+				VAR FZ = [0001_销售金额_单位_D_]
+				VAR FM =
+				    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_07_客户职业] ) )
+				VAR P =
+				    DIVIDE ( FZ, FM, BLANK () )
+				RETURN
+				    P
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 11_销售金额_贡献_客户_职业
+			lineageTag: 4f931d00-132e-43eb-b3c2-722cba65e783
+
+			changedProperty = FormatString
+
+		measure 1101_销售金额_贡献_客户_职业_累计_% =
+				
+				VAR R =
+				    RANKX ( ALL ( 'T02_客户表'[F_07_客户职业] ), [0001_销售金额_单位_D_],, DESC )
+				VAR T =
+				    ADDCOLUMNS (
+				        ALL ( 'T02_客户表'[F_07_客户职业] ),
+				        "R", RANKX ( ALL ( 'T02_客户表'[F_07_客户职业] ), [0001_销售金额_单位_D_],, DESC )
+				    )
+				VAR LJ =
+				    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )
+				VAR FM =
+				    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_07_客户职业] ) )
+				VAR P =
+				    DIVIDE ( LJ, FM, BLANK () )
+				RETURN
+				    P
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 11_销售金额_贡献_客户_职业
+			lineageTag: 1e5b4a53-1f54-4649-9f1f-da96babeb861
+
+			changedProperty = FormatString
+
+		measure 1102_销售金额_贡献_客户_职业_累计_二八分界_% =
+				
+				VAR T0 =
+				    ADDCOLUMNS (
+				        ALL ( 'T02_客户表'[F_07_客户职业] ),
+				        "R", RANKX ( ALL ( 'T02_客户表'[F_07_客户职业] ), [0001_销售金额_单位_D_],, DESC )
+				    )
+				VAR T1 =
+				    ADDCOLUMNS (
+				        T0,
+				        "@P%",
+				            VAR R =
+				                RANKX ( ALL ( 'T02_客户表'[F_07_客户职业] ), [0001_销售金额_单位_D_],, DESC )
+				            VAR LJ =
+				                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )
+				            VAR FM =
+				                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_07_客户职业] ) )
+				            VAR P =
+				                DIVIDE ( LJ, FM, BLANK () )
+				            RETURN
+				                P
+				    )
+				VAR T2 =
+				    FILTER ( T1, [@P%] >= 0.8 )
+				VAR MINRANK =
+				    MINX ( T2, [@P%] )
+				RETURN
+				    MINRANK
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 11_销售金额_贡献_客户_职业
+			lineageTag: f574fb91-1ddf-426f-a81d-b7c343be36d9
+
+			changedProperty = FormatString
+
+		measure 1200_销售金额_贡献_客户_年龄段_% =
+				
+				VAR FZ = [0001_销售金额_单位_D_]
+				VAR FM =
+				    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[@年龄段] ) )
+				VAR P =
+				    DIVIDE ( FZ, FM, BLANK () )
+				RETURN
+				    P
+			displayFolder: 12_销售金额_贡献_客户_年龄段
+			lineageTag: f63bcb9e-5ddf-4411-97ba-b5379e5166a7
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 1201_销售金额_贡献_客户_年龄段_累计_% =
+				
+				VAR R =
+				    RANKX ( ALL ( 'T02_客户表'[@年龄段] ), [0001_销售金额_单位_D_],, DESC )
+				VAR T =
+				    ADDCOLUMNS (
+				        ALL ( 'T02_客户表'[@年龄段] ),
+				        "R", RANKX ( ALL ( 'T02_客户表'[@年龄段] ), [0001_销售金额_单位_D_],, DESC )
+				    )
+				VAR LJ =
+				    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )
+				VAR FM =
+				    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[@年龄段] ) )
+				VAR P =
+				    DIVIDE ( LJ, FM, BLANK () )
+				RETURN
+				    P
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 12_销售金额_贡献_客户_年龄段
+			lineageTag: fcbaa263-af26-4633-99f4-ee1d7b0f82d8
+
+			changedProperty = FormatString
+
+		measure 1202_销售金额_贡献_客户_年龄段_累计_二八分界_% =
+				
+				VAR T0 =
+				    ADDCOLUMNS (
+				        ALL ( 'T02_客户表'[@年龄段] ),
+				        "R", RANKX ( ALL ( 'T02_客户表'[@年龄段] ), [0001_销售金额_单位_D_],, DESC )
+				    )
+				VAR T1 =
+				    ADDCOLUMNS (
+				        T0,
+				        "@P%",
+				            VAR R =
+				                RANKX ( ALL ( 'T02_客户表'[@年龄段] ), [0001_销售金额_单位_D_],, DESC )
+				            VAR LJ =
+				                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )
+				            VAR FM =
+				                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[@年龄段] ) )
+				            VAR P =
+				                DIVIDE ( LJ, FM, BLANK () )
+				            RETURN
+				                P
+				    )
+				VAR T2 =
+				    FILTER ( T1, [@P%] >= 0.8 )
+				VAR MINRANK =
+				    MINX ( T2, [@P%] )
+				RETURN
+				    MINRANK
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 12_销售金额_贡献_客户_年龄段
+			lineageTag: a6067eba-2c83-458a-a26d-71382752a621
+
+			changedProperty = FormatString
+
+		measure 1300_销售金额_贡献_客户_新客户_单位_D_ =
+				
+				// 新客户定义：只有一次购买记录。
+				VAR USER_TABLE0 =
+				    CALCULATETABLE (
+				        ADDCOLUMNS (
+				            ALLSELECTED ( 'T02_客户表'[F_01_客户编号] ),
+				            "@购买次数", CALCULATE ( COUNTROWS ( 'T04_订单主表' ) )
+				        ),
+				        KEEPFILTERS ( 'T04_订单主表' ),
+				        KEEPFILTERS ( 'T05_订单子表' )
+				    )
+				VAR USER_TABLE_NEW =
+				    FILTER ( USER_TABLE0, [@购买次数] = 1 )
+				RETURN
+				    CALCULATE ( [0001_销售金额_单位_D_], USER_TABLE_NEW )
+			formatString: #,0.00
+			displayFolder: 13_销售金额_贡献_客户_新老客户
+			lineageTag: 162d1665-afea-4ab8-97cb-9b077143da36
+
+			changedProperty = FormatString
+
+		measure 1301_销售金额_贡献_客户_老客户_单位_D_ =
+				
+				// 老客户定义：有大于一次购买记录。
+				VAR USER_TABLE0 =
+				    CALCULATETABLE (
+				        ADDCOLUMNS (
+				            ALLSELECTED ( 'T02_客户表'[F_01_客户编号] ),
+				            "@购买次数", CALCULATE ( COUNTROWS ( 'T04_订单主表' ) )
+				        ),
+				        KEEPFILTERS ( 'T04_订单主表' ),
+				        KEEPFILTERS ( 'T05_订单子表' )
+				    )
+				VAR USER_TABLE_OLD =
+				    FILTER ( USER_TABLE0, [@购买次数] > 1 )
+				RETURN
+				    CALCULATE ( [0001_销售金额_单位_D_], USER_TABLE_OLD )
+			displayFolder: 13_销售金额_贡献_客户_新老客户
+			lineageTag: 2bb4f77d-b9c7-4694-8888-c2fe701b56c8
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 1400_均值_订单均值_销售额_单位_D_ =
+				
+				VAR FZ = [0001_销售金额_单位_D_]
+				VAR FM = [0002_订单数量_单位_D_]
+				RETURN
+				    DIVIDE ( FZ, FM, BLANK () )
+			formatString: #,0
+			displayFolder: 14_均值
+			lineageTag: ee4c5150-04dc-4c1c-b9c4-5298ed510045
+
+			changedProperty = FormatString
+
+		measure 1401_均值_订单均值_毛利润_单位_D_ =
+				
+				VAR FZ = [0005_毛利_单位_D_]
+				VAR FM = [0002_订单数量_单位_D_]
+				RETURN
+				    DIVIDE ( FZ, FM, BLANK () )
+			formatString: #,0
+			displayFolder: 14_均值
+			lineageTag: 6df318a0-e61f-4dd2-87a2-b5449ef4efa7
+
+			changedProperty = FormatString
+
+		measure 1402_均值_sku均值_销售额_单位_D_ =
+				
+				VAR FZ = [0001_销售金额_单位_D_]
+				VAR FM = [0016_订单件数_单位_D_]
+				RETURN
+				    DIVIDE ( FZ, FM, BLANK () )
+			formatString: #,0
+			displayFolder: 14_均值
+			lineageTag: 9250c0b1-fd60-47a6-86ec-2673995fb707
+
+			changedProperty = FormatString
+
+		measure 1403_均值_sku均值_毛利润_单位_D_ =
+				
+				VAR FZ = [0005_毛利_单位_D_]
+				VAR FM = [0016_订单件数_单位_D_]
+				RETURN
+				    DIVIDE ( FZ, FM, BLANK () )
+			formatString: #,0
+			displayFolder: 14_均值
+			lineageTag: 6a6c94e1-49a3-4c6d-a80e-0a6dd8e05d90
+
+			changedProperty = FormatString
+
+		measure 1404_均值_单均件数_单位_D_ =
+				
+				VAR FZ = [0016_订单件数_单位_D_]
+				VAR FM = [0002_订单数量_单位_D_]
+				RETURN
+				    DIVIDE ( FZ, FM, BLANK () )
+			formatString: #,0.0
+			displayFolder: 14_均值
+			lineageTag: bbbd4db1-1194-45d6-9f7d-b5797de26a2b
+
+			changedProperty = FormatString
+
+		measure 1500_预测_预测达成_单位_ =
+				
+				VAR DAY_MAX =
+				    CALCULATETABLE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL ( '01_Calendar' ) )
+				VAR DAY_MIN =
+				    CALCULATETABLE (
+				        STARTOFYEAR ( '01_Calendar'[dates] ),
+				        ALLSELECTED ( '01_Calendar' )
+				    )
+				VAR DATE_AC =
+				    DATESBETWEEN ( '01_Calendar'[dates], DAY_MIN, DAY_MAX )
+				VAR DATE_PRE =
+				    DATESBETWEEN (
+				        '01_Calendar'[dates],
+				        DATEADD ( DAY_MIN, -1, YEAR ),
+				        DATEADD ( DAY_MAX, -1, YEAR )
+				    )
+				VAR YTD_AC =
+				    CALCULATE ( [0001_销售金额_单位_D_], DATE_AC )
+				VAR YTD_PRE =
+				    CALCULATE ( [0001_销售金额_单位_D_], DATE_PRE )
+				VAR YOY =
+				    DIVIDE ( YTD_AC, YTD_PRE )
+				VAR DAY_AC =
+				    MAX ( '01_Calendar'[dates] )
+				VAR PRE =
+				    CALCULATE (
+				        [0001_销售金额_单位_D_],
+				        DATEADD ( '01_Calendar'[dates], -1, YEAR )
+				    )
+				RETURN
+				    IF ( DAY_AC <= DAY_MAX, BLANK (), PRE * YOY )
+			formatString: #,0
+			displayFolder: 15_预测
+			lineageTag: f1435a79-68fd-4e5a-b5b7-fbcaf787d007
+
+			changedProperty = FormatString
+
+		measure 1501_预测_AC_MTD_单位_ =
+				
+				VAR DAY_MAX =
+				    CALCULATETABLE (
+				        LASTDATE ( 'T04_订单主表'[F_03_下单日期] ),
+				        ALLSELECTED ( '01_Calendar' )
+				    )
+				VAR DAY_AC =
+				    LASTDATE ( '01_Calendar'[dates] )
+				RETURN
+				    IF (
+				        DAY_AC > DAY_MAX,
+				        BLANK (),
+				        CALCULATE ( [0001_销售金额_单位_D_], DATESMTD ( '01_Calendar'[dates] ) )
+				    )
+			formatString: #,0
+			displayFolder: 15_预测
+			lineageTag: e050c074-32e2-4615-9820-318ad30f9d39
+
+			changedProperty = FormatString
+
+		measure 1502_预测_AC_MTD_最后端点_单位_ =
+				
+				VAR DAY_MAX =
+				    CALCULATETABLE (
+				        LASTDATE ( 'T04_订单主表'[F_03_下单日期] ),
+				        ALLSELECTED ( '01_Calendar' )
+				    )
+				VAR DAY_AC =
+				    LASTDATE ( '01_Calendar'[dates] )
+				VAR DATE_EDN =
+				    ENDOFMONTH ( '01_Calendar'[dates] )
+				RETURN
+				    IF (
+				        DAY_AC = DAY_MAX
+				            && DAY_AC < DATE_EDN,
+				        //DAY_AC < DATE_EDN兼容实际月末两个端点（1502，1504）出现。
+				        CALCULATE (
+				            [0001_销售金额_单位_D_],
+				            DATESMTD ( '01_Calendar'[dates] )
+				        ),
+				        BLANK ()
+				    )
+			formatString: #,0
+			displayFolder: 15_预测
+			lineageTag: aaeefab4-5469-4bb4-95b9-b9f2cf1abb8a
+
+			changedProperty = FormatString
+
+		measure 1503_预测_预测达成_MTD_单位_ =
+				
+				VAR DAY_MAX0 =
+				    CALCULATETABLE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL ( '01_Calendar' ) )
+				VAR DAY_MAX1 =
+				    CALCULATETABLE (
+				        LASTDATE ( '01_Calendar'[dates] ),
+				        TREATAS ( DAY_MAX0, '01_Calendar'[dates] )
+				    ) //由于'T04_订单主表'[F_03_下单日期]最大日期后在无日期，DATEADD后为空，需要转化到'01_Calendar'[dates]
+				VAR DAY_MAX2 =
+				    DATEADD ( DAY_MAX1, 1, DAY )
+				VAR DAY_MIN =
+				    CALCULATETABLE (
+				        STARTOFMONTH ( '01_Calendar'[dates] ),
+				        ALLSELECTED ( '01_Calendar' )
+				    )
+				VAR DAY_AC =
+				    LASTDATE ( '01_Calendar'[dates] )
+				VAR MTD_FORE0 =
+				    CALCULATE (
+				        [1500_预测_预测达成_单位_],
+				        DATESBETWEEN ( '01_Calendar'[dates], DAY_MAX2, DAY_AC )
+				    )
+				VAR MTD_FORE1 =
+				    CALCULATE (
+				        [1500_预测_预测达成_单位_],
+				        DATESMTD ( '01_Calendar'[dates] )
+				    )
+				VAR MTD_AC =
+				    CALCULATE ( [0001_销售金额_单位_D_], DATESMTD ( '01_Calendar'[dates] ) )
+				RETURN
+				    SWITCH (
+				        TRUE (),
+				        DAY_AC >= DAY_MAX0
+				            && DAY_MIN > DAY_MAX0, MTD_FORE1,
+				        DAY_AC >= DAY_MAX0
+				            && DAY_MIN <= DAY_MAX0, MTD_AC + MTD_FORE0,
+				        BLANK ()
+				    )
+			formatString: #,0
+			displayFolder: 15_预测
+			lineageTag: 46641076-0cc3-4bfc-8dde-b5c107814708
+
+			changedProperty = FormatString
+
+		measure 1504_预测_预测达成_MTD_最后端点_单位_ =
+				
+				VAR DAY_MAX_M =
+				    CALCULATETABLE (
+				        LASTDATE ( '01_Calendar'[dates] ),
+				        ALLSELECTED ( '01_Calendar' )
+				    )
+				VAR DAY_MAX0 =
+				    CALCULATETABLE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL ( '01_Calendar' ) )
+				VAR DAY_MAX1 =
+				    CALCULATETABLE (
+				        LASTDATE ( '01_Calendar'[dates] ),
+				        TREATAS ( DAY_MAX0, '01_Calendar'[dates] )
+				    )
+				VAR DAY_MAX2 =
+				    DATEADD ( DAY_MAX1, 1, DAY )
+				VAR DAY_MIN =
+				    CALCULATETABLE (
+				        STARTOFMONTH ( '01_Calendar'[dates] ),
+				        ALLSELECTED ( '01_Calendar' )
+				    )
+				VAR DAY_AC =
+				    LASTDATE ( '01_Calendar'[dates] )
+				VAR MTD_FORE0 =
+				    CALCULATE (
+				        [1500_预测_预测达成_单位_],
+				        DATESBETWEEN ( '01_Calendar'[dates], DAY_MAX2, DAY_AC )
+				    )
+				VAR MTD_FORE1 =
+				    CALCULATE (
+				        [1500_预测_预测达成_单位_],
+				        DATESMTD ( '01_Calendar'[dates] )
+				    )
+				VAR MTD_AC =
+				    CALCULATE ( [0001_销售金额_单位_D_], DATESMTD ( '01_Calendar'[dates] ) )
+				RETURN
+				    SWITCH (
+				        TRUE (),
+				        DAY_AC = DAY_MAX_M
+				            && DAY_MIN > DAY_MAX0, MTD_FORE1,
+				        DAY_AC = DAY_MAX_M
+				            && DAY_MIN <= DAY_MAX0, MTD_AC + MTD_FORE0,
+				        BLANK ()
+				    )
+			formatString: #,0
+			displayFolder: 15_预测
+			lineageTag: 4310df4a-ed1f-43ea-9949-8b9ced2d0e32
+
+			changedProperty = FormatString
+
+		measure 1505_预测_目标线_单位_ =
+				
+				CALCULATE (
+				    [0003_销售目标_单位_D_],
+				    ALL ( '01_Calendar'[dates], '01_Calendar'[day] )
+				)
+			formatString: #,0
+			displayFolder: 15_预测
+			lineageTag: ae283415-7691-46a0-9cfe-4c3be1b2936d
+
+			changedProperty = FormatString
+
+		measure 1506_预测_目标_显示标签点_单位_ =
+				
+				VAR DATE0 =
+				    STARTOFMONTH ( '01_Calendar'[dates] )
+				VAR DATE1 =
+				    LASTDATE ( '01_Calendar'[dates] )
+				VAR DOT =
+				    IF ( DATE0 = DATE1, [1505_预测_目标线_单位_], BLANK () )
+				RETURN
+				    DOT
+			formatString: #,0
+			displayFolder: 15_预测
+			lineageTag: 180f2b69-fbc4-44f5-97a6-b2cc7e797136
+
+			changedProperty = FormatString
+
+		measure 1507_预测_AC_MTD_PY_单位_ =
+				
+				CALCULATE (
+				    [0001_销售金额_单位_D_],
+				    SAMEPERIODLASTYEAR ( DATESMTD ( '01_Calendar'[dates] ) )
+				)
+			formatString: #,0
+			displayFolder: 15_预测
+			lineageTag: 410fddf3-b410-4658-b9f2-24ab44b600a7
+
+			changedProperty = FormatString
+
+		measure 1508_预测_AC_MTD线_PY_单位_ =
+				
+				CALCULATE (
+				    [1507_预测_AC_MTD_PY_单位_],
+				    ALL ( '01_Calendar'[dates], '01_Calendar'[day] )
+				)
+			formatString: #,0
+			displayFolder: 15_预测
+			lineageTag: 3cb41ad5-3863-4fe2-8858-5ccecfa35d31
+
+			changedProperty = FormatString
+
+		measure 1509_预测_AC_MTD线_PY_显示标签点_单位_ =
+				
+				VAR DATE0 =
+				    STARTOFMONTH ( '01_Calendar'[dates] )
+				VAR DATE1 =
+				    LASTDATE ( '01_Calendar'[dates] )
+				VAR DOT =
+				    IF ( DATE0 = DATE1, [1508_预测_AC_MTD线_PY_单位_], BLANK () )
+				RETURN
+				    DOT
+			formatString: #,0
+			displayFolder: 15_预测
+			lineageTag: c9ecf670-4cbc-4496-814d-918ed718c843
+
+			changedProperty = FormatString
+
+		measure 1510_预测_实际&预测_MTD_工具提示_单位_ =
+				
+				VAR DAY_MAX =
+				    CALCULATETABLE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL ( '01_Calendar' ) )
+				VAR DAY_AC =
+				    LASTDATE ( '01_Calendar'[dates] )
+				RETURN
+				    IF ( DAY_AC <= DAY_MAX, [1501_预测_AC_MTD_单位_], [1503_预测_预测达成_MTD_单位_] )
+			formatString: #,0
+			displayFolder: 15_预测
+			lineageTag: 2a276042-327e-4b43-93f4-5d457985742c
+
+			changedProperty = FormatString
+
+		measure 1511_预测_目标完成_单位_%_ =
+				
+				DIVIDE ( [1510_预测_实际&预测_MTD_工具提示_单位_], [1505_预测_目标线_单位_] )
+			formatString: 0.0%;-0.0%;0.0%
+			displayFolder: 15_预测
+			lineageTag: b3843e53-58b3-4b1c-9967-151ba72b97c3
+
+			changedProperty = FormatString
+
+		measure 1512_预测_整月_同环比及目标完成率_ =
+				
+				//用最后一天的MTD
+				VAR DATE_START_MONTH_AC =
+				    STARTOFMONTH ( '01_Calendar'[dates] ) //兼容闰月及月份天数不一致。
+				VAR DATE_END_MONTH_LASTYEAR =
+				    ENDOFMONTH ( DATEADD ( DATE_START_MONTH_AC, -1, YEAR ) )
+				VAR DATE_END_MONTH_LAST =
+				    ENDOFMONTH ( DATEADD ( DATE_START_MONTH_AC, -1, MONTH ) )
+				VAR FZ = [1510_预测_实际&预测_MTD_工具提示_单位_]
+				VAR FM_YOY =
+				    CALCULATE ( [1510_预测_实际&预测_MTD_工具提示_单位_], DATE_END_MONTH_LASTYEAR )
+				VAR FM_MOM =
+				    CALCULATE ( [1510_预测_实际&预测_MTD_工具提示_单位_], DATE_END_MONTH_LAST )
+				VAR _YOY =
+				    DIVIDE ( FZ, FM_YOY, BLANK () ) - 1
+				VAR _MOM =
+				    DIVIDE ( FZ, FM_MOM, BLANK () ) - 1
+				VAR _TARGET = [1511_预测_目标完成_单位_%_]
+				VAR YM =
+				    FORMAT ( DATE_START_MONTH_AC, "YYYY年MM月" )
+				RETURN
+				    YM & " 同比去年："
+				        & FORMAT ( _YOY, "0.0%" ) & "，环比上月："
+				        & FORMAT ( _MOM, "0.0%" ) & "，目标完成率："
+				        & FORMAT ( _TARGET, "0.0%" ) & "。"
+			displayFolder: 15_预测
+			lineageTag: fe821bb5-98e7-4031-9357-a9720f10e218
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		measure 1513_预测_MTD_Y轴结束_单位_ =
+				
+				VAR DATE_ALLSELECTED =
+				    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALLSELECTED () )
+				VAR DATE_ALL =
+				    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL () )
+				VAR DATE_MAX =
+				    ENDOFMONTH ( '01_Calendar'[dates] )
+				VAR DATE0 =
+				    IF ( DATE_MAX > DATE_ALL, DATE_ALL, DATE_ALLSELECTED ) //兼容大约当月预测。
+				VAR FM = 60
+				VAR DATETABLE0 =
+				    DATESINPERIOD ( '01_Calendar'[dates], DATE0, - FM, DAY )
+				VAR FZ =
+				    CALCULATE ( [0001_销售金额_单位_D_], DATETABLE0 )
+				RETURN
+				    DIVIDE ( FZ, FM ) * FM
+			formatString: #,0
+			displayFolder: 15_预测
+			lineageTag: be481aee-5bd2-4a77-9007-f5461480675e
+
+			changedProperty = FormatString
+
+		measure 1514_预测_AC_Y轴结束_单位_ =
+				
+				VAR DATE_ALLSELECTED =
+				    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALLSELECTED () )
+				VAR DATE_ALL =
+				    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL () )
+				VAR DATE_MAX =
+				    ENDOFMONTH ( '01_Calendar'[dates] )
+				VAR DATE0 =
+				    IF ( DATE_MAX > DATE_ALL, DATE_ALL, DATE_ALLSELECTED )
+				VAR FM = 60
+				VAR DATETABLE0 =
+				    DATESINPERIOD ( '01_Calendar'[dates], DATE0, - FM, DAY )
+				VAR FZ =
+				    CALCULATE ( [0001_销售金额_单位_D_], DATETABLE0 )
+				RETURN
+				    DIVIDE ( FZ, FM ) * 10
+			formatString: #,0
+			displayFolder: 15_预测
+			lineageTag: ed4e442c-8566-4e44-ba98-479fd3715f47
+
+			changedProperty = FormatString
+
+		measure 9900_weburl =
+				
+				"https://jiaopengzi.com/video/video-101"
+			displayFolder: 99_logo
+			lineageTag: 3ed535f7-b29c-4b2f-a24f-3261d298bb9b
+			dataCategory: WebUrl
+
+			changedProperty = FormatString
+
+		measure 9901_weburl_提示 =
+				
+				"点击前往项目页面。"
+			displayFolder: 99_logo
+			lineageTag: e4f8202d-71d4-48ea-9fe9-acdbf7f7b489
+
+			changedProperty = FormatString
+
+		measure 安全库存 =
+				
+				/*
+				说明：因理想为标准正太分布，安全库存仅作为参考点，需要加入业务的理解。
+				SS= z * SQRT( σd^2* μL + σL^2 * μd^2 )
+				其中
+				SS：安全库存（Safe Stock）
+				z : 服务水平系数，服务水平（现货率）为0.95，在标准正太分布下对应的z=1.65。
+				L : 采购提前期
+				μL: 平均提前期
+				σL: 提前期L的标准差
+				d : 日出库量
+				μd: 平均日出库量
+				σd: 日出库量d的标准差
+				*/
+				1
+			displayFolder: 08_产品数量_库存
+			lineageTag: 988a3cf2-fd0a-4bf2-821f-b2af58a966d4
+
+			annotation PBI_FormatHint = {"isGeneralNumber":true}

@@ -1,0 +1,19 @@
+<!--
+ * FilePath    : pbi-utils\Directory.Build.targets
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 限定 Windows 构建并移除 WinForms 宿主不使用的 WebView2 WPF 引用.
+-->
+
+<Project>
+  <Target Name="RequireWindowsHost" BeforeTargets="PrepareForBuild;Restore">
+    <Error Condition="'$(OS)' != 'Windows_NT'" Text="pbi-utils 仅支持 Windows 开发和运行." />
+  </Target>
+  <!-- WebView2 包同时注册 WPF 和 WinForms, 本宿主只使用 WinForms. -->
+  <Target Name="RemoveUnusedWebView2WpfReference" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="@(Reference)" Condition="'%(Reference.Filename)' == 'Microsoft.Web.WebView2.Wpf'" />
+    </ItemGroup>
+  </Target>
+</Project>

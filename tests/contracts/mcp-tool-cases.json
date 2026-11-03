@@ -1,0 +1,1652 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "calendar_preview",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "options": {
+          "kind": "simple",
+          "startYear": 2024,
+          "endYear": 2025
+        }
+      },
+      "errorCode": "",
+      "fields": [
+        "functionName",
+        "functionExpression",
+        "invocationExpression",
+        "locale"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {
+        "functionName": "PbiUtilsCalendar",
+        "locale": "zh-cn"
+      },
+      "nonEmpty": [
+        "functionExpression",
+        "invocationExpression"
+      ]
+    },
+    {
+      "name": "change_apply",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "change_discard",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "id": "mcp-test-absent"
+      },
+      "errorCode": "",
+      "fields": [
+        "discarded"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {
+        "discarded": true
+      },
+      "nonEmpty": []
+    },
+    {
+      "name": "change_plan",
+      "readOnly": true,
+      "category": "input-rejected",
+      "arguments": {},
+      "errorCode": "INVALID_ARGUMENT",
+      "fields": [],
+      "note": "缺少必填参数拒绝; 不代表业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "configuration_apply",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "configuration_catalog",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {},
+      "errorCode": "",
+      "fields": [
+        "calendarFields",
+        "periodTemplates"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "configuration_discard",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "id": "mcp-test-absent"
+      },
+      "errorCode": "",
+      "fields": [
+        "discarded"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {
+        "discarded": false
+      },
+      "nonEmpty": []
+    },
+    {
+      "name": "configuration_plan",
+      "readOnly": true,
+      "category": "input-rejected",
+      "arguments": {},
+      "errorCode": "INVALID_ARGUMENT",
+      "fields": [],
+      "note": "缺少必填参数拒绝; 不代表业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_app_info",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "",
+      "fields": [
+        "version",
+        "webView2"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_calendar_parseWorkdays",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {
+          "text": "date,isWorkday,name\n2024-01-01,false,Test",
+          "delimiter": "csv",
+          "startYear": 2024,
+          "endYear": 2024
+        }
+      },
+      "errorCode": "",
+      "fields": [
+        "overrides"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_calendar_preferences",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "",
+      "fields": [
+        "fields",
+        "numberedColumns"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_calendar_preview",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {
+          "context": {
+            "kind": "template",
+            "templateId": "builtin:blank",
+            "templateBaseline": "$templateBaseline"
+          },
+          "calendar": {
+            "kind": "simple",
+            "startYear": 2024,
+            "endYear": 2025
+          },
+          "locale": "zh-cn"
+        }
+      },
+      "errorCode": "",
+      "fields": [
+        "functionName",
+        "functionExpression",
+        "invocationExpression"
+      ],
+      "note": "Compile calendar for built-in blank template without writing a model",
+      "resultKind": "object",
+      "equals": {
+        "functionName": "PbiUtilsCalendar"
+      },
+      "nonEmpty": [
+        "functionExpression",
+        "invocationExpression"
+      ]
+    },
+    {
+      "name": "desktop_calendar_savePreferences",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_configuration_apply",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_configuration_complete",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_configuration_context",
+      "readOnly": true,
+      "category": "prerequisite-rejected",
+      "arguments": {
+        "parameters": {
+          "target": "current"
+        }
+      },
+      "errorCode": "PROJECT_NOT_SELECTED",
+      "fields": [],
+      "note": "未连接模型时准确拒绝; 真实模型业务 UNRUN",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_configuration_discard",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_dax_format",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {
+          "value": "[\"SUM(Sales[Amount])\"]",
+          "style": "long"
+        }
+      },
+      "errorCode": "",
+      "fields": [
+        "expressions"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": [
+        "expressions"
+      ]
+    },
+    {
+      "name": "desktop_doctor",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "",
+      "fields": [
+        "diagnostic",
+        "webView2"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_learning_open",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_logging_openDirectory",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_logging_save",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_logging_settings",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "",
+      "fields": [
+        "level",
+        "directory"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_mcp_configuration",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "",
+      "fields": [
+        "executablePath",
+        "readWrite"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_model_discard",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_model_edit",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_model_exportLocation",
+      "readOnly": true,
+      "category": "prerequisite-rejected",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "STALE_CONNECTION",
+      "fields": [],
+      "note": "No observed workspace revision; live model success UNRUN",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_model_exportTables",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_model_openExportDirectory",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_model_save",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_model_tableRowCounts",
+      "readOnly": true,
+      "category": "prerequisite-rejected",
+      "arguments": {
+        "parameters": {
+          "projectId": "mcp-test-missing",
+          "baselineId": "0000000000000000000000000000000000000000000000000000000000000000",
+          "tables": [
+            "Sales"
+          ]
+        }
+      },
+      "errorCode": "STALE_CONNECTION",
+      "fields": [],
+      "note": "No observed workspace revision; live model success UNRUN",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_model_tableStatistics",
+      "readOnly": true,
+      "category": "prerequisite-rejected",
+      "arguments": {
+        "parameters": {
+          "projectId": "mcp-test-missing",
+          "baselineId": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      },
+      "errorCode": "STALE_CONNECTION",
+      "fields": [],
+      "note": "No observed workspace revision; live model success UNRUN",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_model_udfLint",
+      "readOnly": true,
+      "category": "prerequisite-rejected",
+      "arguments": {
+        "parameters": {
+          "projectId": "mcp-test-missing",
+          "baselineId": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      },
+      "errorCode": "STALE_CONNECTION",
+      "fields": [],
+      "note": "No observed workspace revision; live model success UNRUN",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_powerbi_instances",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "",
+      "fields": [
+        "timestamp",
+        "instances"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_powerbi_serviceDeleteLogin",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_powerbi_serviceDeleteRecentModel",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_powerbi_serviceModels",
+      "readOnly": true,
+      "category": "prerequisite-rejected",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "POWER_BI_SIGN_IN_REQUIRED",
+      "fields": [],
+      "note": "Unsigned-in private host; live cloud success UNRUN",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_powerbi_serviceRecentModels",
+      "readOnly": true,
+      "category": "prerequisite-rejected",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "POWER_BI_SIGN_IN_REQUIRED",
+      "fields": [],
+      "note": "Unsigned-in private host; live cloud success UNRUN",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_powerbi_serviceSignIn",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_powerbi_serviceSignOut",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_powerbi_serviceStatus",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "",
+      "fields": [
+        "account",
+        "recentLogins"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_project_connectLocal",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_project_connectRemote",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_project_connectService",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_project_deleteRecent",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_project_disconnect",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_project_inspect",
+      "readOnly": true,
+      "category": "prerequisite-rejected",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "PROJECT_NOT_SELECTED",
+      "fields": [],
+      "note": "未连接模型时准确拒绝; 真实模型业务 UNRUN",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_project_open",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_project_openPath",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_project_openRecent",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_project_recent",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "",
+      "fields": [],
+      "note": "实际只读业务结果",
+      "resultKind": "array",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_remote_form",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "",
+      "fields": [
+        "formId",
+        "recent"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_remote_mutate",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_sample_chooseDirectory",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_sample_clear",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_sample_generate",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_sample_openDirectory",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_sample_status",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "",
+      "fields": [
+        "outputPath",
+        "hasData",
+        "tables"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_scaffold_chooseOutput",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_scaffold_create",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_scaffold_discard",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_scaffold_openDesktop",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_scaffold_openDirectory",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_scaffold_openTemplates",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_scaffold_preview",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_scaffold_templateDetails",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {
+          "templateId": "builtin:blank",
+          "templateBaseline": "$templateBaseline"
+        }
+      },
+      "errorCode": "",
+      "fields": [
+        "tables",
+        "defaultDateTable",
+        "defaultDateColumn",
+        "defaultMeasureTable",
+        "calendarFields"
+      ],
+      "note": "Read exact built-in blank template",
+      "resultKind": "object",
+      "equals": {
+        "tables": []
+      },
+      "nonEmpty": [
+        "calendarFields"
+      ]
+    },
+    {
+      "name": "desktop_scaffold_templates",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "",
+      "fields": [
+        "templates",
+        "periods",
+        "calendarFields"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_scaffold_updateDraft",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_sessions",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {},
+      "errorCode": "",
+      "fields": [
+        "sessions"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_udf_catalog",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {
+          "action": "status"
+        }
+      },
+      "errorCode": "",
+      "fields": [
+        "status"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_udf_catalogRefresh",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_udf_localDelete",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_udf_localGet",
+      "readOnly": true,
+      "category": "input-rejected",
+      "arguments": {
+        "parameters": {
+          "id": "invalid-id"
+        }
+      },
+      "errorCode": "UDF_LOCAL_ID_INVALID",
+      "fields": [],
+      "note": "精确错误码回归",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_udf_localList",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "",
+      "fields": [
+        "items"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_udf_localSave",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_udf_sourceDelete",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_udf_sourceSave",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_udf_sources",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "",
+      "fields": [
+        "items"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_ui_saveSettings",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "desktop_ui_settings",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "parameters": {}
+      },
+      "errorCode": "",
+      "fields": [
+        "locale",
+        "showRecentFiles",
+        "daxFormatStyle"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "doctor",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {},
+      "errorCode": "",
+      "fields": [
+        "version"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "format_code",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "language": "dax",
+        "text": "SUM(Sales[Amount])"
+      },
+      "errorCode": "",
+      "fields": [
+        "text",
+        "executed"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {
+        "text": "SUM ( Sales[Amount] )",
+        "executed": false
+      },
+      "nonEmpty": []
+    },
+    {
+      "name": "measure_list",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "project": "$fixture"
+      },
+      "errorCode": "",
+      "fields": [
+        "measures"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": [
+        "measures"
+      ]
+    },
+    {
+      "name": "model_inspect",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "project": "$fixture"
+      },
+      "errorCode": "",
+      "fields": [
+        "projectId",
+        "baselineId",
+        "model"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "period_preview",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "baseMeasure": "Sales",
+        "options": {
+          "dateTable": "Calendar",
+          "dateColumn": "Date",
+          "measureTable": "Measures",
+          "baseMeasures": [
+            "Sales"
+          ],
+          "templates": [
+            "YTD"
+          ]
+        }
+      },
+      "errorCode": "",
+      "fields": [
+        "measures"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": [
+        "measures"
+      ]
+    },
+    {
+      "name": "project_inspect",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "project": "$fixture"
+      },
+      "errorCode": "",
+      "fields": [
+        "projectId",
+        "baselineId",
+        "model"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "report_inspect",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "project": "$fixture"
+      },
+      "errorCode": "",
+      "fields": [
+        "pages"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "sample_append",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "sample_clear",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "sample_generate",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "sample_inspect",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "output": "$empty"
+      },
+      "errorCode": "",
+      "fields": [
+        "outputPath",
+        "hasData",
+        "tables"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {
+        "hasData": false
+      },
+      "nonEmpty": []
+    },
+    {
+      "name": "scaffold_create",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "scaffold_discard",
+      "readOnly": true,
+      "category": "prerequisite-rejected",
+      "arguments": {
+        "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "errorCode": "INVALID_SCAFFOLD_PLAN",
+      "fields": [],
+      "note": "Unknown plan digest must be rejected",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "scaffold_plan",
+      "readOnly": true,
+      "category": "input-rejected",
+      "arguments": {},
+      "errorCode": "INVALID_ARGUMENT",
+      "fields": [],
+      "note": "缺少必填参数拒绝; 不代表业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "scaffold_template_inspect",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "templateId": "builtin:blank",
+        "templateBaseline": "$templateBaseline"
+      },
+      "errorCode": "",
+      "fields": [
+        "tables",
+        "defaultDateTable",
+        "defaultDateColumn",
+        "defaultMeasureTable",
+        "calendarFields"
+      ],
+      "note": "Read exact built-in blank template",
+      "resultKind": "object",
+      "equals": {
+        "tables": []
+      },
+      "nonEmpty": [
+        "calendarFields"
+      ]
+    },
+    {
+      "name": "scaffold_templates",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {},
+      "errorCode": "",
+      "fields": [
+        "templates"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "server_info",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {},
+      "errorCode": "",
+      "fields": [
+        "version",
+        "allowWrite",
+        "transport"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {
+        "allowWrite": false,
+        "transport": "stdio"
+      },
+      "nonEmpty": []
+    },
+    {
+      "name": "udf_catalog_refresh",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "udf_catalog_search",
+      "readOnly": true,
+      "category": "input-rejected",
+      "arguments": {
+        "source": "invalid-source"
+      },
+      "errorCode": "UDF_SOURCE_INVALID",
+      "fields": [],
+      "note": "精确错误码回归",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "udf_catalog_show",
+      "readOnly": true,
+      "category": "input-rejected",
+      "arguments": {
+        "packageId": "Missing.Test",
+        "version": "1.0.0",
+        "source": "invalid-source"
+      },
+      "errorCode": "UDF_SOURCE_INVALID",
+      "fields": [],
+      "note": "精确错误码回归",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "udf_catalog_status",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {},
+      "errorCode": "",
+      "fields": [
+        "initialized"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "udf_catalog_versions",
+      "readOnly": true,
+      "category": "input-rejected",
+      "arguments": {
+        "packageId": "Missing.Test",
+        "source": "invalid-source"
+      },
+      "errorCode": "UDF_SOURCE_INVALID",
+      "fields": [],
+      "note": "精确错误码回归",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "udf_list",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {
+        "project": "$fixture"
+      },
+      "errorCode": "",
+      "fields": [
+        "functions"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "udf_local_create",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "udf_local_delete",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "udf_local_list",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {},
+      "errorCode": "",
+      "fields": [
+        "items"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "udf_local_show",
+      "readOnly": true,
+      "category": "input-rejected",
+      "arguments": {
+        "id": "invalid-id"
+      },
+      "errorCode": "UDF_LOCAL_ID_INVALID",
+      "fields": [],
+      "note": "精确错误码回归",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "udf_local_update",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "udf_source_delete",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "udf_source_save",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {},
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截; 不代表写入业务成功",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "udf_sources",
+      "readOnly": true,
+      "category": "success",
+      "arguments": {},
+      "errorCode": "",
+      "fields": [
+        "sources"
+      ],
+      "note": "实际只读业务结果",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
+      "name": "updates_check",
+      "readOnly": true,
+      "category": "input-rejected",
+      "arguments": {
+        "source": "https://example.invalid"
+      },
+      "errorCode": "INVALID_UPDATE_SOURCE",
+      "fields": [],
+      "note": "拒绝任意更新来源且不联网; 双源真实共享查询成功/失败由隔离传输行为测试覆盖",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    }
+  ]
+}

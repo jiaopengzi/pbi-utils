@@ -1,0 +1,98 @@
+[
+  {
+    "protocolVersion": 1,
+    "requestProgress": {
+      "requestId": "export-progress-contract",
+      "kind": "tableExport",
+      "stage": "reading",
+      "completedTables": 0,
+      "totalTables": 2,
+      "tableIndex": 1,
+      "rowsRead": 0
+    }
+  },
+  {
+    "protocolVersion": 1,
+    "requestProgress": {
+      "requestId": "export-progress-contract",
+      "kind": "tableExport",
+      "stage": "reading",
+      "completedTables": 0,
+      "totalTables": 2,
+      "tableIndex": 1,
+      "rowsRead": 2500
+    }
+  },
+  {
+    "protocolVersion": 1,
+    "requestProgress": {
+      "requestId": "export-progress-contract",
+      "kind": "tableExport",
+      "stage": "verifying",
+      "completedTables": 0,
+      "totalTables": 2,
+      "tableIndex": 1,
+      "rowsRead": 2500
+    }
+  },
+  {
+    "protocolVersion": 1,
+    "requestProgress": {
+      "requestId": "export-progress-contract",
+      "kind": "tableExport",
+      "stage": "verifying",
+      "completedTables": 1,
+      "totalTables": 2,
+      "tableIndex": 1,
+      "rowsRead": 2500
+    }
+  },
+  {
+    "protocolVersion": 1,
+    "requestProgress": {
+      "requestId": "export-progress-contract",
+      "kind": "tableExport",
+      "stage": "reading",
+      "completedTables": 1,
+      "totalTables": 2,
+      "tableIndex": 2,
+      "rowsRead": 0
+    }
+  },
+  {
+    "protocolVersion": 1,
+    "requestProgress": {
+      "requestId": "export-progress-contract",
+      "kind": "tableExport",
+      "stage": "verifying",
+      "completedTables": 2,
+      "totalTables": 2,
+      "tableIndex": 2,
+      "rowsRead": 100
+    }
+  },
+  {
+    "protocolVersion": 1,
+    "requestProgress": {
+      "requestId": "export-progress-contract",
+      "kind": "tableExport",
+      "stage": "finalizing",
+      "completedTables": 2,
+      "totalTables": 2,
+      "tableIndex": 2,
+      "rowsRead": 100
+    }
+  },
+  {
+    "protocolVersion": 1,
+    "requestProgress": {
+      "requestId": "export-progress-contract",
+      "kind": "tableExport",
+      "stage": "publishing",
+      "completedTables": 2,
+      "totalTables": 2,
+      "tableIndex": 2,
+      "rowsRead": 100
+    }
+  }
+]

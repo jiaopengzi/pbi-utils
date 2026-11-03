@@ -1,0 +1,599 @@
+{
+  "request": {
+    "dax": [
+      "OracleMeasure =\nSELECTEDVALUE ( '04_RefreshTime'[RefreshTime] )",
+      "OracleMeasure =\nSUM ( 'T05_订单子表'[F_06_产品销售金额] )",
+      "OracleMeasure =\nCOUNTROWS ( 'T04_订单主表' )",
+      "OracleMeasure =\nSUM ( 'T06_销售目标表'[F_04_每日目标] )",
+      "OracleMeasure =\nSUMX (\n    'T05_订单子表',\n    RELATED ( 'T00_产品表'[F_05_产品成本价格] ) * 'T05_订单子表'[F_05_产品销售数量]\n)",
+      "OracleMeasure =\n[0001_销售金额_单位_D_] - [0004_产品成本金额_单位_D_]",
+      "OracleMeasure =\nDIVIDE ( [0005_毛利_单位_D_], [0001_销售金额_单位_D_], BLANK () )",
+      "OracleMeasure =\nDIVIDE ( [0001_销售金额_单位_D_], [0003_销售目标_单位_D_] )",
+      "OracleMeasure =\nCALCULATE ( COUNTROWS ( 'T00_产品表' ), KEEPFILTERS ( 'T05_订单子表' ) )",
+      "OracleMeasure =\nVAR DATE_AC_A =\n    LASTDATE ( '01_Calendar'[dates] )\nVAR TABLE_OPEN =\n    FILTER ( 'T01_门店表', 'T01_门店表'[F_04_开店日期] <= DATE_AC_A )\nVAR TABLE_CLOSE =\n    FILTER ( TABLE_OPEN, [F_09_关店日期] > DATE_AC_A || [F_09_关店日期] = BLANK () )\nRETURN\n    COUNTROWS ( TABLE_CLOSE )",
+      "OracleMeasure =\nCALCULATE (\n    COUNTROWS ( 'T02_客户表' ),\n    KEEPFILTERS ( 'T04_订单主表' ),\n    KEEPFILTERS ( 'T05_订单子表' )\n)",
+      "OracleMeasure =\nVAR U = \"https://demo.jiaopengzi.com/idphoto/\"\nVAR R =\n    SELECTEDVALUE ( 'D00_大区表'[F_01_大区ID] )\nVAR L = \".png\"\nRETURN\n    IF ( HASONEVALUE ( 'D00_大区表'[F_03_大区负责人] ), U & R & L, BLANK () )",
+      "OracleMeasure =\nSELECTEDVALUE ( 'D00_大区表'[F_03_大区负责人] )",
+      "OracleMeasure =\nSELECTEDVALUE ( 'D00_大区表'[F_02_大区] )",
+      "OracleMeasure =\nVAR TF0 =\n    HASONEFILTER ( 'D01_省份表'[F_04_省简称] )\nVAR TF1 =\n    HASONEFILTER ( 'D01_省份表_对比'[F_04_省简称] )\nVAR R0 =\n    SELECTEDVALUE ( 'D01_省份表'[F_04_省简称] )\nVAR R1 =\n    COUNTROWS ( 'D01_省份表' )\nVAR R_DB0 =\n    SELECTEDVALUE ( 'D01_省份表_对比'[F_04_省简称] )\nVAR R_DB1 =\n    COUNTROWS ( 'D01_省份表_对比' )\nVAR D =\n    SELECTEDVALUE ( 'G02_P50_AB对比分析'[对比维度] )\nRETURN\n    SWITCH (\n        TRUE (),\n        D = \"A\"\n            && TF0 = TRUE (), R0,\n        D = \"A\"\n            && TF0 = FALSE (), \"省：\" & R1,\n        D = \"B\"\n            && TF1 = TRUE (), R_DB0,\n        D = \"B\"\n            && TF1 = FALSE (), \"省：\" & R_DB1,\n        R0\n    )",
+      "OracleMeasure =\nVAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    SUMX ( 'T05_订单子表', 'T05_订单子表'[F_03_产品销售价格] * 'T05_订单子表'[F_05_产品销售数量] )\nRETURN\n    DIVIDE ( FZ, FM, BLANK () )",
+      "OracleMeasure =\nSUM ( 'T05_订单子表'[F_05_产品销售数量] )",
+      "OracleMeasure =\nVAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    CALCULATE (\n        [0001_销售金额_单位_D_],\n        ALL ( 'T01_门店表'[F_02_门店名称], 'T01_门店表'[F_00_自动编号] )\n    )\nRETURN\n    DIVIDE ( FZ, FM, BLANK () )",
+      "OracleMeasure =\nSUM ( 'T03_入库信息表'[F_02_入库产品数量] )",
+      "OracleMeasure =\nCALCULATE (\n    SUM ( 'T05_订单子表'[F_05_产品销售数量] ),\n    USERELATIONSHIP ( 'T04_订单主表'[F_04_送货日期], '01_Calendar'[dates] )\n)",
+      "OracleMeasure =\nSELECTEDVALUE ( '01_Calendar'[day] )",
+      "OracleMeasure =\nVAR VALUE_DAY = [0001_销售金额_单位_D_]\nVAR VALUE_TABLE_0 =\n    CALCULATETABLE (\n        '01_Calendar',\n        ALL (\n            '01_Calendar'[dates],\n            '01_Calendar'[day],\n            '01_Calendar'[weeknumber],\n            '01_Calendar'[weekday],\n            '01_Calendar'[weekcna] //易错点：注意清除筛选的时候，按列排序的列都要加上；weekcna按照weekday排序的。\n        )\n    )\nVAR VALUE_TABLE_1 =\n    SUMMARIZE (\n        VALUE_TABLE_0,\n        '01_Calendar'[day],\n        \"@DAY\", [0001_销售金额_单位_D_]\n    )\nVAR VALUE_DAY_MAX =\n    MAXX ( VALUE_TABLE_1, [@DAY] )\nVAR VALUE_DAY_MIN =\n    MINX ( VALUE_TABLE_1, [@DAY] )\nVAR VALUE_DIFF_MAX = ( VALUE_DAY_MAX - VALUE_DAY_MIN ) //min是最浅颜色，max是最深颜色。\nVAR VALUE_DIFF_DAY = ( VALUE_DAY_MAX - VALUE_DAY )\nVAR X = VALUE_DIFF_DAY / VALUE_DIFF_MAX\nVAR R =\n    INT ( 200 * X ) + 20\nVAR G =\n    INT ( 100 * X ) + 140 //222,239\nVAR B = 250\nVAR D = \",\"\nVAR TF =\n    VALUE_DAY = BLANK ()\nRETURN\n    IF ( TF, \"#dddddd\", \"RGB(\" & R & D & G & D & B & \")\" )",
+      "OracleMeasure =\n/*\n    good:#188818\n    neutral:#DD8800\n    bad:#BB1818\n    1、YTD>=1,MTD>=1 =>good\n    2、YTD>=1,MTD< 1 =>neutral\n    3、YTD< 1,MTD>=1 =>neutral\n    4、YTD< 1,MTD< 1=>bad\n*/\nVAR MTD0 =\n    VAR DATE_END_AC =\n        LASTDATE ( '01_Calendar'[dates] )\n    VAR DATE_SATRT_AC =\n        STARTOFMONTH ( DATE_END_AC )\n    VAR DATE_TABLE_AC =\n        DATESBETWEEN ( '01_Calendar'[dates], DATE_SATRT_AC, DATE_END_AC )\n    RETURN\n        CALCULATE ( [0007_目标完成率_%_D_], DATE_TABLE_AC )\nVAR YTD0 =\n    VAR DATE_END_AC =\n        LASTDATE ( '01_Calendar'[dates] )\n    VAR DATE_SATRT_AC =\n        STARTOFYEAR ( DATE_END_AC )\n    VAR DATE_TABLE_AC =\n        DATESBETWEEN ( '01_Calendar'[dates], DATE_SATRT_AC, DATE_END_AC )\n    RETURN\n        CALCULATE ( [0007_目标完成率_%_D_], DATE_TABLE_AC )\nVAR COLOR0 =\n    SWITCH (\n        TRUE (),\n        YTD0 >= 1\n            && MTD0 >= 1, \"#188818\",\n        YTD0 >= 1\n            && MTD0 < 1, \"#DD8800\",\n        YTD0 < 1\n            && MTD0 >= 1, \"#DD8800\",\n        YTD0 < 1\n            && MTD0 < 1, \"#BB1818\"\n    )\nVAR LIST0 = { \"AC\", \"MTD\", \"YTD\" }\nVAR ROW_VALUE =\n    SELECTEDVALUE ( 'G03_P60_DWMQHY'[F_07_指标] )\nVAR COLOR_AC_TF =\n    IF ( ROW_VALUE IN LIST0, COLOR0, BLANK () )\nRETURN\n    COLOR_AC_TF",
+      "OracleMeasure =\n/*\n    good:#188818\n    neutral:#DD8800\n    bad:#BB1818\n    字体颜色：#EEEEEE\n*/\nVAR LIST0 = { \"AC\", \"MTD\", \"YTD\" }\nVAR ROW_VALUE =\n    SELECTEDVALUE ( 'G03_P60_DWMQHY'[F_07_指标] )\nVAR COLOR_AC_TF =\n    IF ( ROW_VALUE IN LIST0, \"#EEEEEE\", BLANK () )\nRETURN\n    COLOR_AC_TF",
+      "OracleMeasure =\nSELECTEDVALUE ( 'G03_P60_DWMQHY'[F_07_指标] )",
+      "OracleMeasure =\n\"开始日期\"",
+      "OracleMeasure =\n\"结束日期\"",
+      "OracleMeasure =\nSELECTEDVALUE ( 'G03_P60_DWMQHY'[F_08_说明] )",
+      "OracleMeasure =\n50",
+      "OracleMeasure =\nVAR DQ =\n    SELECTEDVALUE ( 'D00_大区表'[F_01_大区ID] )\nVAR TABLE0 =\n    ADDCOLUMNS ( ALL ( 'D01_省份表' ), \"@销售额\", [0001_销售金额_单位_D_] )\nVAR TABLE1 =\n    FILTER ( TABLE0, [F_01_大区ID] = DQ )\nVAR TABLE2 =\n    ADDCOLUMNS (\n        TABLE1,\n        \"@RANK\", RANKX ( TABLE1, [0001_销售金额_单位_D_], [@销售额], DESC )\n    )\nVAR N =\n    SUM ( 'T71_大区_排名辅助'[ID] )\nVAR TABLE3 =\n    FILTER ( TABLE2, [@RANK] = N )\nRETURN\n    CALCULATE ( MAXX ( TABLE3, [F_04_省简称] ), ALL ( 'D00_大区表' ) )",
+      "OracleMeasure =\nVAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    CALCULATE (\n        [0001_销售金额_单位_D_],\n        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] )\n    )\nVAR P =\n    DIVIDE ( FZ, FM, BLANK () )\nRETURN\n    P",
+      "OracleMeasure =\nVAR R =\n    RANKX (\n        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\n        [0001_销售金额_单位_D_],\n        ,\n        DESC\n    )\n        + CALCULATE ( SUM ( 'D01_省份表'[F_02_省ID] ) ) / 100\nVAR T =\n    ADDCOLUMNS (\n        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\n        \"R\",\n            RANKX (\n                ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\n                [0001_销售金额_单位_D_],\n                ,\n                DESC\n            )\n                + CALCULATE ( SUM ( 'D01_省份表'[F_02_省ID] ) ) / 100\n    )\nVAR LJ =\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\nVAR FM =\n    CALCULATE (\n        [0001_销售金额_单位_D_],\n        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] )\n    )\nVAR P =\n    DIVIDE ( LJ, FM, BLANK () )\nRETURN\n    P",
+      "OracleMeasure =\nVAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\n        \"R\",\n            RANKX (\n                ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\n                [0001_销售金额_单位_D_],\n                ,\n                DESC\n            )\n                + CALCULATE ( SUM ( 'D01_省份表'[F_02_省ID] ) ) / 100\n    )\nVAR T1 =\n    ADDCOLUMNS (\n        T0,\n        \"@P%\",\n            VAR R =\n                RANKX (\n                    ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\n                    [0001_销售金额_单位_D_],\n                    ,\n                    DESC\n                )\n                    + CALCULATE ( SUM ( 'D01_省份表'[F_02_省ID] ) ) / 100\n            VAR LJ =\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\n            VAR FM =\n                CALCULATE (\n                    [0001_销售金额_单位_D_],\n                    ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] )\n                )\n            VAR P =\n                DIVIDE ( LJ, FM, BLANK () )\n            RETURN\n                P\n    )\nVAR T2 =\n    FILTER ( T1, [@P%] >= 0.8 )\nVAR MINRANK =\n    MINX ( T2, [@P%] )\nRETURN\n    MINRANK",
+      "OracleMeasure =\nVAR DQ =\n    CALCULATE ( SUM ( 'D00_大区表'[F_01_大区ID] ), 'D01_省份表' )\nVAR TABLE0 =\n    FILTER ( 'T70_主题颜色', [ID] = DQ )\nVAR COLOR =\n    CONCATENATEX ( TABLE0, [颜色值] )\nRETURN\n    COLOR",
+      "OracleMeasure =\nVAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[F_02_产品分类] ) )\nVAR P =\n    DIVIDE ( FZ, FM, BLANK () )\nRETURN\n    P",
+      "OracleMeasure =\nVAR R =\n    RANKX ( ALL ( 'T00_产品表'[F_02_产品分类] ), [0001_销售金额_单位_D_],, DESC )\nVAR T =\n    ADDCOLUMNS (\n        ALL ( 'T00_产品表'[F_02_产品分类] ),\n        \"R\", RANKX ( ALL ( 'T00_产品表'[F_02_产品分类] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR LJ =\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[F_02_产品分类] ) )\nVAR P =\n    DIVIDE ( LJ, FM, BLANK () )\nRETURN\n    P",
+      "OracleMeasure =\nVAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'T00_产品表'[F_02_产品分类] ),\n        \"R\", RANKX ( ALL ( 'T00_产品表'[F_02_产品分类] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR T1 =\n    ADDCOLUMNS (\n        T0,\n        \"@P%\",\n            VAR R =\n                RANKX ( ALL ( 'T00_产品表'[F_02_产品分类] ), [0001_销售金额_单位_D_],, DESC )\n            VAR LJ =\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\n            VAR FM =\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[F_02_产品分类] ) )\n            VAR P =\n                DIVIDE ( LJ, FM, BLANK () )\n            RETURN\n                P\n    )\nVAR T2 =\n    FILTER ( T1, [@P%] >= 0.8 )\nVAR MINRANK =\n    MINX ( T2, [@P%] )\nRETURN\n    MINRANK",
+      "OracleMeasure =\nVAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T72_折扣分组'[折扣分类] ) )\nVAR P =\n    DIVIDE ( FZ, FM, BLANK () )\nRETURN\n    P",
+      "OracleMeasure =\nVAR R =\n    RANKX ( ALL ( 'T72_折扣分组'[折扣分类] ), [0001_销售金额_单位_D_],, DESC )\nVAR T =\n    ADDCOLUMNS (\n        ALL ( 'T72_折扣分组'[折扣分类] ),\n        \"R\", RANKX ( ALL ( 'T72_折扣分组'[折扣分类] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR LJ =\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T72_折扣分组'[折扣分类] ) )\nVAR P =\n    DIVIDE ( LJ, FM, BLANK () )\nRETURN\n    P",
+      "OracleMeasure =\nVAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'T72_折扣分组'[折扣分类] ),\n        \"R\", RANKX ( ALL ( 'T72_折扣分组'[折扣分类] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR T1 =\n    ADDCOLUMNS (\n        T0,\n        \"@P%\",\n            VAR R =\n                RANKX ( ALL ( 'T72_折扣分组'[折扣分类] ), [0001_销售金额_单位_D_],, DESC )\n            VAR LJ =\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\n            VAR FM =\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T72_折扣分组'[折扣分类] ) )\n            VAR P =\n                DIVIDE ( LJ, FM, BLANK () )\n            RETURN\n                P\n    )\nVAR T2 =\n    FILTER ( T1, [@P%] >= 0.8 )\nVAR MINRANK =\n    MINX ( T2, [@P%] )\nRETURN\n    MINRANK",
+      "OracleMeasure =\nVAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[@价格段] ) )\nVAR P =\n    DIVIDE ( FZ, FM, BLANK () )\nRETURN\n    P",
+      "OracleMeasure =\nVAR R =\n    RANKX ( ALL ( 'T00_产品表'[@价格段] ), [0001_销售金额_单位_D_],, DESC )\nVAR T =\n    ADDCOLUMNS (\n        ALL ( 'T00_产品表'[@价格段] ),\n        \"R\", RANKX ( ALL ( 'T00_产品表'[@价格段] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR LJ =\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[@价格段] ) )\nVAR P =\n    DIVIDE ( LJ, FM, BLANK () )\nRETURN\n    P",
+      "OracleMeasure =\nVAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'T00_产品表'[@价格段] ),\n        \"R\", RANKX ( ALL ( 'T00_产品表'[@价格段] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR T1 =\n    ADDCOLUMNS (\n        T0,\n        \"@P%\",\n            VAR R =\n                RANKX ( ALL ( 'T00_产品表'[@价格段] ), [0001_销售金额_单位_D_],, DESC )\n            VAR LJ =\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\n            VAR FM =\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[@价格段] ) )\n            VAR P =\n                DIVIDE ( LJ, FM, BLANK () )\n            RETURN\n                P\n    )\nVAR T2 =\n    FILTER ( T1, [@P%] >= 0.8 )\nVAR MINRANK =\n    MINX ( T2, [@P%] )\nRETURN\n    MINRANK",
+      "OracleMeasure =\nVAR ROW0 =\n    SELECTEDVALUE ( 'T74_ROW'[ROW] ) - 1\nVAR COLUMN0 =\n    SELECTEDVALUE ( T75_COLUMN[COLUMN] )\nVAR RANK0 = ROW0 * 10 + COLUMN0\nVAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'T01_门店表'[F_02_门店名称] ),\n        \"@VALUE0\", [0001_销售金额_单位_D_]\n    )\nVAR T1 =\n    FILTER ( T0, [@VALUE0] <> BLANK () )\nVAR T2 =\n    ADDCOLUMNS (\n        T1,\n        \"@R0\",\n            RANKX ( T1, [0001_销售金额_单位_D_],, DESC )\n                + CALCULATE ( SUM ( 'T01_门店表'[F_00_自动编号] ) ) / 1000\n    )\nVAR T3 =\n    ADDCOLUMNS ( T2, \"@R1\", VAR R = [@R0] RETURN RANKX ( T2, [@R0], R, ASC ) )\nVAR T4 =\n    FILTER ( T3, [@R1] = RANK0 )\nRETURN\n    MAXX ( T4, [@R1] & \"-\" & [F_02_门店名称] )",
+      "OracleMeasure =\n/*\n    good:#188818 ; RGB:24,136,24 ; 色阶开始：#CCFFCC , RGB:204,255,204\n    neutral:#DD8800 ; RGB:221,136,0\n    bad:#BB1818 ; RGB:187,24,24；色阶开始：#FFCCCC , RGB:255,204,204\n    字体颜色：#EEEEEE ; RGB:238,238,238\n*/\nVAR ROW0 =\n    SELECTEDVALUE ( 'T74_ROW'[ROW] ) - 1\nVAR COLUMN0 =\n    SELECTEDVALUE ( T75_COLUMN[COLUMN] )\nVAR RANK0 = ROW0 * 10 + COLUMN0\nVAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'T01_门店表'[F_02_门店名称] ),\n        \"@VALUE0\", [0001_销售金额_单位_D_]\n    )\nVAR T1 =\n    FILTER ( T0, [@VALUE0] <> BLANK () )\nVAR T2 =\n    ADDCOLUMNS (\n        T1,\n        \"@R0\",\n            RANKX ( T1, [0001_销售金额_单位_D_],, DESC )\n                + CALCULATE ( SUM ( 'T01_门店表'[F_00_自动编号] ) ) / 1000\n    )\nVAR T3 =\n    ADDCOLUMNS ( T2, \"@R1\", VAR R = [@R0] RETURN RANKX ( T2, [@R0], R, ASC ) )\nVAR T4 =\n    FILTER ( T3, [@R1] = RANK0 )\nVAR MD =\n    MAXX ( T4, [F_02_门店名称] )\nVAR FILTER0 =\n    TREATAS ( { MD }, 'T01_门店表'[F_02_门店名称] )\nVAR VALUE_MD =\n    CALCULATE ( [0006_毛利率_%_D_], KEEPFILTERS ( FILTER0 ) )\nVAR VALUE_TABLE_0 =\n    CALCULATETABLE ( 'T01_门店表', ALL ( 'T01_门店表'[F_01_门店编号], 'T01_门店表'[F_02_门店名称] ) )\nVAR VALUE_TABLE_1 =\n    SUMMARIZE (\n        VALUE_TABLE_0,\n        'T01_门店表'[F_02_门店名称],\n        \"@ML\", [0006_毛利率_%_D_]\n    )\nVAR VALUE_MD_MAX =\n    MAXX ( VALUE_TABLE_1, [@ML] )\nVAR VALUE_MD_0 = 0\nVAR VALUE_MD_MIN =\n    MINX ( VALUE_TABLE_1, [@ML] )\nVAR VALUE_DIFF_MAX_0 = ( VALUE_MD_MAX - VALUE_MD_0 ) //0是最浅颜色，max是最深good颜色。\nVAR VALUE_DIFF_MIN_0 = ( VALUE_MD_MIN - VALUE_MD_0 ) //0是最浅颜色，MIN是最深bad颜色；0包含在bad中。\nVAR VALUE_DIFF_MD_POSITIVE = ( VALUE_MD_MAX - VALUE_MD ) //正数=>positive\nVAR VALUE_DIFF_MD_NEGATIVE = ( VALUE_MD_MIN - VALUE_MD ) //负数=>negative\nVAR X =\n    IF (\n        VALUE_MD > 0,\n        VALUE_DIFF_MD_POSITIVE / VALUE_DIFF_MAX_0,\n        VALUE_DIFF_MD_NEGATIVE / VALUE_DIFF_MIN_0\n    ) --------------------------------\n//good:#188818 ; RGB:24,136,24 ; 色阶开始：#CCFFCC , RGB:204,255,204\nVAR R_GOOD =\n    INT ( 180 * X ) + 24 //204-24=180\nVAR G_GOOD =\n    INT ( 119 * X ) + 136 //255-136=119\nVAR B_GOOD =\n    INT ( 180 * X ) + 24 //204-24=180\n--------------------------------\n--------------------------------\n//bad:#BB1818 ; RGB:187,24,24；色阶开始：#FFCCCC , RGB:255,204,204\nVAR R_BAD =\n    INT ( 68 * X ) + 187 //255-187=68\nVAR G_BAD =\n    INT ( 180 * X ) + 24 //204-24=180\nVAR B_BAD =\n    INT ( 180 * X ) + 24 //204-24=180\n--------------------------------\nVAR R =\n    IF ( VALUE_MD > 0, R_GOOD, R_BAD )\nVAR G =\n    IF ( VALUE_MD > 0, G_GOOD, G_BAD )\nVAR B =\n    IF ( VALUE_MD > 0, B_GOOD, B_BAD )\nVAR D = \",\"\nVAR TF =\n    VALUE_MD = BLANK ()\nRETURN\n    IF ( TF, \"#dddddd\", \"RGB(\" & R & D & G & D & B & \")\" )",
+      "OracleMeasure =\n\"#CCCCCC\"\n/*\n    good:#188818 ; RGB:24,136,24 ; 色阶开始：#CCFFCC , RGB:204,255,204\n    neutral:#DD8800 ; RGB:221,136,0\n    bad:#BB1818 ; RGB:187,24,24；色阶开始：#FFCCCC , RGB:255,204,204\n    字体颜色：#EEEEEE ; RGB:238,238,238\n*/",
+      "OracleMeasure =\nVAR DATE_START0 =\n    CALCULATE ( FIRSTDATE ( '01_Calendar'[dates] ), ALL ( '01_Calendar' ) )\nVAR DATE_END0 =\n    LASTDATE ( '01_Calendar'[dates] )\nVAR TF0 =\n    HASONEVALUE ( '01_Calendar'[dates] ) //日\nVAR TF1 =\n    HASONEVALUE ( '01_Calendar'[YW] ) //周\nVAR TF2 =\n    HASONEVALUE ( '01_Calendar'[YM] ) //月\nVAR TF3 =\n    HASONEVALUE ( '01_Calendar'[YQ] ) //季度\nVAR TF4 =\n    HASONEVALUE ( '01_Calendar'[YH] ) //半年度\nVAR TF5 =\n    HASONEVALUE ( '01_Calendar'[FY00] ) //年度\nVAR N0 =\n    SWITCH (\n        TRUE (),\n        TF0, 0,\n        TF1,\n            DATEDIFF (\n                FIRSTDATE ( '01_Calendar'[StartOfWeek] ),\n                LASTDATE ( '01_Calendar'[EndOfWeek] ),\n                DAY\n            ),\n        TF2,\n            DATEDIFF (\n                FIRSTDATE ( '01_Calendar'[StartOfMonth] ),\n                LASTDATE ( '01_Calendar'[EndOfMonth] ),\n                DAY\n            ),\n        TF3,\n            DATEDIFF (\n                FIRSTDATE ( '01_Calendar'[StartOfQuarter] ),\n                LASTDATE ( '01_Calendar'[EndOfQuarter] ),\n                DAY\n            ),\n        TF4,\n            DATEDIFF (\n                FIRSTDATE ( '01_Calendar'[StartOfHalfYear] ),\n                LASTDATE ( '01_Calendar'[EndOfHalfYear] ),\n                DAY\n            ),\n        TF5,\n            DATEDIFF (\n                FIRSTDATE ( '01_Calendar'[StartOfYear] ),\n                LASTDATE ( '01_Calendar'[EndOfYear] ),\n                DAY\n            ),\n        0\n    ) + 1\nVAR DATE_END1 =\n    SWITCH (\n        TRUE (),\n        TF0, DATEADD ( DATE_END0, - N0, DAY ),\n        TF1, DATEADD ( LASTDATE ( '01_Calendar'[EndOfWeek] ), - N0, DAY ),\n        TF2, DATEADD ( LASTDATE ( '01_Calendar'[EndOfMonth] ), - N0, DAY ),\n        TF3, DATEADD ( LASTDATE ( '01_Calendar'[EndOfQuarter] ), - N0, DAY ),\n        TF4, DATEADD ( LASTDATE ( '01_Calendar'[EndOfHalfYear] ), - N0, DAY ),\n        TF5, DATEADD ( LASTDATE ( '01_Calendar'[EndOfYear] ), - N0, DAY ),\n        DATE_START0 //无筛选的时，默认日期表期初。\n    )\nVAR DATE_END2 =\n    IF ( ISBLANK ( DATE_END1 ), DATE_START0, DATE_END1 ) //兼容dateadd后的空值，注意日期表的两个端点。\nVAR DATE_TABLE0 =\n    DATESBETWEEN ( '01_Calendar'[dates], DATE_START0, DATE_END2 )\nVAR IN0 =\n    CALCULATE ( [0018_产品数量_入库_单位_D_], DATE_TABLE0 )\nVAR OUT0 =\n    CALCULATE ( [0019_产品数量_出库_单位_D_], DATE_TABLE0 )\nVAR DATE_START_ABS0 =\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_04_送货日期] ), ALL () ) //兼容显示到事实表最后日期。\nRETURN\n    IN0 - OUT0\n//IF ( DATE_START_ABS0 >= DATE_END2, IN0 - OUT0, BLANK () )",
+      "OracleMeasure =\nVAR DATE_START0 =\n    CALCULATE ( FIRSTDATE ( '01_Calendar'[dates] ), ALL ( '01_Calendar' ) )\nVAR DATE_END0 =\n    LASTDATE ( '01_Calendar'[dates] )\nVAR DATE_TABLE0 =\n    DATESBETWEEN ( '01_Calendar'[dates], DATE_START0, DATE_END0 )\nVAR IN0 =\n    CALCULATE ( [0018_产品数量_入库_单位_D_], DATE_TABLE0 )\nVAR OUT0 =\n    CALCULATE ( [0019_产品数量_出库_单位_D_], DATE_TABLE0 )\nVAR DATE_START_ABS0 =\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_04_送货日期] ), ALL () ) //兼容显示到事实表最后日期。\nRETURN\n    IN0 - OUT0\n//IF(DATE_START_ABS0>=DATE_END0,IN0 - OUT0,BLANK())",
+      "OracleMeasure =\n/*\n----------------------------------------------------------------------------------------------------\n存货周转天数（Days Sales Of Inventory），参考值=>年度：120;半年：60;季度：30;月度：9;周度：2;单日：1。\n存货周转率（Inventory Turnover），越大表示周转越快。\n----------------------------------------------------------------------------------------------------\n年度：N = 360\n半年：N = 180\n季度：N = 90\n月度：N = 30\n周度：N = 7\n单日: N = 1\n----------------------------------------------------------------------------------------------------\n库存周转天数 = N / 期间存货周转率\n库存周转率 = 期间出库数量 / 期间平均库存 \n期间平均库存 =（ 期初库存 + 期末库存）÷ 2\n----------------------------------------------------------------------------------------------------\n*/\n//1、期初期末平均法\n( [0800_产品数量_库存_期初_单位_] + [0801_产品数量_库存_期末_单位_] ) / 2\n//2、日平均法\n// VAR T0 =\n//     SUMMARIZE ( '01_Calendar', '01_Calendar'[dates] )\n// VAR T1 =\n//     ADDCOLUMNS ( T0, \"@KC\", [0801_产品数量_库存_期末_单位_D_] )\n// VAR FM =\n//     COUNTROWS ( T0 )\n// VAR FZ =\n//     SUMX ( T1, [@KC] )\n// RETURN\n//     DIVIDE ( FZ, FM, BLANK () )",
+      "OracleMeasure =\n/*\n----------------------------------------------------------------------------------------------------\n存货周转天数（Days Sales Of Inventory），参考值=>年度：120;半年：60;季度：30;月度：9;周度：2;单日：1。\n存货周转率（Inventory Turnover），越大表示周转越快。\n----------------------------------------------------------------------------------------------------\n年度：N = 360\n半年：N = 180\n季度：N = 90\n月度：N = 30\n周度：N = 7\n单日: N = 1\n----------------------------------------------------------------------------------------------------\n库存周转天数 = N / 期间存货周转率\n库存周转率 = 期间出库数量 / 期间平均库存 \n期间平均库存 =（ 期初库存 + 期末库存）÷ 2\n----------------------------------------------------------------------------------------------------\n*/\nVAR FM = ( [0800_产品数量_库存_期初_单位_] + [0801_产品数量_库存_期末_单位_] ) / 2\nVAR FZ = [0019_产品数量_出库_单位_D_]\nVAR InventoryTurnover =\n    DIVIDE ( FZ, FM, BLANK () )\nRETURN\n    InventoryTurnover",
+      "OracleMeasure =\n/*\n----------------------------------------------------------------------------------------------------\n存货周转天数（Days Sales Of Inventory），参考值=>年度：120;半年：60;季度：30;月度：9;周度：2;单日：1。\n存货周转率（Inventory Turnover），越大表示周转越快。\n----------------------------------------------------------------------------------------------------\n年度：N = 360\n半年：N = 180\n季度：N = 90\n月度：N = 30\n周度：N = 7\n单日: N = 1\n----------------------------------------------------------------------------------------------------\n库存周转天数 = N / 期间存货周转率\n库存周转率 = 期间出库数量 / 期间平均库存 \n期间平均库存 =（ 期初库存 + 期末库存）÷ 2\n----------------------------------------------------------------------------------------------------\n*/\nVAR TF0 =\n    HASONEVALUE ( '01_Calendar'[dates] ) //日\nVAR TF1 =\n    HASONEVALUE ( '01_Calendar'[YW] ) //周\nVAR TF2 =\n    HASONEVALUE ( '01_Calendar'[YM] ) //月\nVAR TF3 =\n    HASONEVALUE ( '01_Calendar'[YQ] ) //季度\nVAR TF4 =\n    HASONEVALUE ( '01_Calendar'[YH] ) //半年度\nVAR TF5 =\n    HASONEVALUE ( '01_Calendar'[FY00] ) //年度\nVAR N =\n    SWITCH (\n        TRUE (),\n        TF0, 1,\n        TF1, 7,\n        TF2, 30,\n        TF3, 90,\n        TF4, 180,\n        TF5, 360,\n        COUNTROWS ( '01_Calendar' )\n    )\nVAR DaysSalesOfInventory =\n    DIVIDE ( N, [0803_产品数量_库存_期间周转率_单位_] )\nRETURN\n    DaysSalesOfInventory",
+      "OracleMeasure =\nVAR C_TBALE0 =\n    CALCULATETABLE (\n        VALUES ( 'T02_客户表'[F_01_客户编号] ),\n        USERELATIONSHIP ( 'T02_客户表'[F_05_注册日期], '01_Calendar'[dates] )\n    )\nRETURN\n    COUNTROWS ( C_TBALE0 )",
+      "OracleMeasure =\nVAR C_TBALE0 =\n    CALCULATETABLE (\n        VALUES ( 'T02_客户表'[F_01_客户编号] ),\n        USERELATIONSHIP ( 'T02_客户表'[F_05_注册日期], '01_Calendar'[dates] )\n    )\nVAR C_TBALE1 =\n    ALL ( 'T04_订单主表'[F_05_客户编号] )\nVAR C_TBALE2 =\n    FILTER ( C_TBALE0, [F_01_客户编号] IN C_TBALE1 )\nRETURN\n    COUNTROWS ( C_TBALE2 )",
+      "OracleMeasure =\n[0900_客户_客户数量_注册_单位_D_] - [0901_客户_客户数量_已购买_注册日期_单位_D_]",
+      "OracleMeasure =\nDIVIDE (\n    [0901_客户_客户数量_已购买_注册日期_单位_D_],\n    [0900_客户_客户数量_注册_单位_D_]\n)",
+      "OracleMeasure =\nDIVIDE (\n    [0902_客户_客户数量_零购买_注册日期_单位_D_],\n    [0900_客户_客户数量_注册_单位_D_]\n)",
+      "OracleMeasure =\n// 新客户定义：只有一次购买记录。\nVAR USER_TABLE0 =\n    CALCULATETABLE (\n        ADDCOLUMNS (\n            ALLSELECTED ( 'T02_客户表'[F_01_客户编号] ),\n            \"@购买次数\", CALCULATE ( COUNTROWS ( 'T04_订单主表' ) )\n        ),\n        'T04_订单主表',\n        'T05_订单子表'\n    )\nVAR USER_TABLE_NEW =\n    FILTER ( USER_TABLE0, [@购买次数] = 1 )\nRETURN\n    COUNTROWS ( USER_TABLE_NEW )",
+      "OracleMeasure =\n// 老客户定义：有大于一次购买记录。\nVAR USER_TABLE0 =\n    CALCULATETABLE (\n        ADDCOLUMNS (\n            ALLSELECTED ( 'T02_客户表'[F_01_客户编号] ),\n            \"@购买次数\", CALCULATE ( COUNTROWS ( 'T04_订单主表' ) )\n        ),\n        'T04_订单主表',\n        'T05_订单子表'\n    )\nVAR USER_TABLE_OLD =\n    FILTER ( USER_TABLE0, [@购买次数] > 1 )\nRETURN\n    COUNTROWS ( USER_TABLE_OLD )",
+      "OracleMeasure =\nVAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_06_客户行业] ) )\nVAR P =\n    DIVIDE ( FZ, FM, BLANK () )\nRETURN\n    P",
+      "OracleMeasure =\nVAR R =\n    RANKX ( ALL ( 'T02_客户表'[F_06_客户行业] ), [0001_销售金额_单位_D_],, DESC )\nVAR T =\n    ADDCOLUMNS (\n        ALL ( 'T02_客户表'[F_06_客户行业] ),\n        \"R\", RANKX ( ALL ( 'T02_客户表'[F_06_客户行业] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR LJ =\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_06_客户行业] ) )\nVAR P =\n    DIVIDE ( LJ, FM, BLANK () )\nRETURN\n    P",
+      "OracleMeasure =\nVAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'T02_客户表'[F_06_客户行业] ),\n        \"R\", RANKX ( ALL ( 'T02_客户表'[F_06_客户行业] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR T1 =\n    ADDCOLUMNS (\n        T0,\n        \"@P%\",\n            VAR R =\n                RANKX ( ALL ( 'T02_客户表'[F_06_客户行业] ), [0001_销售金额_单位_D_],, DESC )\n            VAR LJ =\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\n            VAR FM =\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_06_客户行业] ) )\n            VAR P =\n                DIVIDE ( LJ, FM, BLANK () )\n            RETURN\n                P\n    )\nVAR T2 =\n    FILTER ( T1, [@P%] >= 0.8 )\nVAR MINRANK =\n    MINX ( T2, [@P%] )\nRETURN\n    MINRANK",
+      "OracleMeasure =\nVAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_07_客户职业] ) )\nVAR P =\n    DIVIDE ( FZ, FM, BLANK () )\nRETURN\n    P",
+      "OracleMeasure =\nVAR R =\n    RANKX ( ALL ( 'T02_客户表'[F_07_客户职业] ), [0001_销售金额_单位_D_],, DESC )\nVAR T =\n    ADDCOLUMNS (\n        ALL ( 'T02_客户表'[F_07_客户职业] ),\n        \"R\", RANKX ( ALL ( 'T02_客户表'[F_07_客户职业] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR LJ =\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_07_客户职业] ) )\nVAR P =\n    DIVIDE ( LJ, FM, BLANK () )\nRETURN\n    P",
+      "OracleMeasure =\nVAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'T02_客户表'[F_07_客户职业] ),\n        \"R\", RANKX ( ALL ( 'T02_客户表'[F_07_客户职业] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR T1 =\n    ADDCOLUMNS (\n        T0,\n        \"@P%\",\n            VAR R =\n                RANKX ( ALL ( 'T02_客户表'[F_07_客户职业] ), [0001_销售金额_单位_D_],, DESC )\n            VAR LJ =\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\n            VAR FM =\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_07_客户职业] ) )\n            VAR P =\n                DIVIDE ( LJ, FM, BLANK () )\n            RETURN\n                P\n    )\nVAR T2 =\n    FILTER ( T1, [@P%] >= 0.8 )\nVAR MINRANK =\n    MINX ( T2, [@P%] )\nRETURN\n    MINRANK",
+      "OracleMeasure =\nVAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[@年龄段] ) )\nVAR P =\n    DIVIDE ( FZ, FM, BLANK () )\nRETURN\n    P",
+      "OracleMeasure =\nVAR R =\n    RANKX ( ALL ( 'T02_客户表'[@年龄段] ), [0001_销售金额_单位_D_],, DESC )\nVAR T =\n    ADDCOLUMNS (\n        ALL ( 'T02_客户表'[@年龄段] ),\n        \"R\", RANKX ( ALL ( 'T02_客户表'[@年龄段] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR LJ =\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[@年龄段] ) )\nVAR P =\n    DIVIDE ( LJ, FM, BLANK () )\nRETURN\n    P",
+      "OracleMeasure =\nVAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'T02_客户表'[@年龄段] ),\n        \"R\", RANKX ( ALL ( 'T02_客户表'[@年龄段] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR T1 =\n    ADDCOLUMNS (\n        T0,\n        \"@P%\",\n            VAR R =\n                RANKX ( ALL ( 'T02_客户表'[@年龄段] ), [0001_销售金额_单位_D_],, DESC )\n            VAR LJ =\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\n            VAR FM =\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[@年龄段] ) )\n            VAR P =\n                DIVIDE ( LJ, FM, BLANK () )\n            RETURN\n                P\n    )\nVAR T2 =\n    FILTER ( T1, [@P%] >= 0.8 )\nVAR MINRANK =\n    MINX ( T2, [@P%] )\nRETURN\n    MINRANK",
+      "OracleMeasure =\n// 新客户定义：只有一次购买记录。\nVAR USER_TABLE0 =\n    CALCULATETABLE (\n        ADDCOLUMNS (\n            ALLSELECTED ( 'T02_客户表'[F_01_客户编号] ),\n            \"@购买次数\", CALCULATE ( COUNTROWS ( 'T04_订单主表' ) )\n        ),\n        KEEPFILTERS ( 'T04_订单主表' ),\n        KEEPFILTERS ( 'T05_订单子表' )\n    )\nVAR USER_TABLE_NEW =\n    FILTER ( USER_TABLE0, [@购买次数] = 1 )\nRETURN\n    CALCULATE ( [0001_销售金额_单位_D_], USER_TABLE_NEW )",
+      "OracleMeasure =\n// 老客户定义：有大于一次购买记录。\nVAR USER_TABLE0 =\n    CALCULATETABLE (\n        ADDCOLUMNS (\n            ALLSELECTED ( 'T02_客户表'[F_01_客户编号] ),\n            \"@购买次数\", CALCULATE ( COUNTROWS ( 'T04_订单主表' ) )\n        ),\n        KEEPFILTERS ( 'T04_订单主表' ),\n        KEEPFILTERS ( 'T05_订单子表' )\n    )\nVAR USER_TABLE_OLD =\n    FILTER ( USER_TABLE0, [@购买次数] > 1 )\nRETURN\n    CALCULATE ( [0001_销售金额_单位_D_], USER_TABLE_OLD )",
+      "OracleMeasure =\nVAR FZ = [0001_销售金额_单位_D_]\nVAR FM = [0002_订单数量_单位_D_]\nRETURN\n    DIVIDE ( FZ, FM, BLANK () )",
+      "OracleMeasure =\nVAR FZ = [0005_毛利_单位_D_]\nVAR FM = [0002_订单数量_单位_D_]\nRETURN\n    DIVIDE ( FZ, FM, BLANK () )",
+      "OracleMeasure =\nVAR FZ = [0001_销售金额_单位_D_]\nVAR FM = [0016_订单件数_单位_D_]\nRETURN\n    DIVIDE ( FZ, FM, BLANK () )",
+      "OracleMeasure =\nVAR FZ = [0005_毛利_单位_D_]\nVAR FM = [0016_订单件数_单位_D_]\nRETURN\n    DIVIDE ( FZ, FM, BLANK () )",
+      "OracleMeasure =\nVAR FZ = [0016_订单件数_单位_D_]\nVAR FM = [0002_订单数量_单位_D_]\nRETURN\n    DIVIDE ( FZ, FM, BLANK () )",
+      "OracleMeasure =\nVAR DAY_MAX =\n    CALCULATETABLE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL ( '01_Calendar' ) )\nVAR DAY_MIN =\n    CALCULATETABLE (\n        STARTOFYEAR ( '01_Calendar'[dates] ),\n        ALLSELECTED ( '01_Calendar' )\n    )\nVAR DATE_AC =\n    DATESBETWEEN ( '01_Calendar'[dates], DAY_MIN, DAY_MAX )\nVAR DATE_PRE =\n    DATESBETWEEN (\n        '01_Calendar'[dates],\n        DATEADD ( DAY_MIN, -1, YEAR ),\n        DATEADD ( DAY_MAX, -1, YEAR )\n    )\nVAR YTD_AC =\n    CALCULATE ( [0001_销售金额_单位_D_], DATE_AC )\nVAR YTD_PRE =\n    CALCULATE ( [0001_销售金额_单位_D_], DATE_PRE )\nVAR YOY =\n    DIVIDE ( YTD_AC, YTD_PRE )\nVAR DAY_AC =\n    MAX ( '01_Calendar'[dates] )\nVAR PRE =\n    CALCULATE (\n        [0001_销售金额_单位_D_],\n        DATEADD ( '01_Calendar'[dates], -1, YEAR )\n    )\nRETURN\n    IF ( DAY_AC <= DAY_MAX, BLANK (), PRE * YOY )",
+      "OracleMeasure =\nVAR DAY_MAX =\n    CALCULATETABLE (\n        LASTDATE ( 'T04_订单主表'[F_03_下单日期] ),\n        ALLSELECTED ( '01_Calendar' )\n    )\nVAR DAY_AC =\n    LASTDATE ( '01_Calendar'[dates] )\nRETURN\n    IF (\n        DAY_AC > DAY_MAX,\n        BLANK (),\n        CALCULATE ( [0001_销售金额_单位_D_], DATESMTD ( '01_Calendar'[dates] ) )\n    )",
+      "OracleMeasure =\nVAR DAY_MAX =\n    CALCULATETABLE (\n        LASTDATE ( 'T04_订单主表'[F_03_下单日期] ),\n        ALLSELECTED ( '01_Calendar' )\n    )\nVAR DAY_AC =\n    LASTDATE ( '01_Calendar'[dates] )\nVAR DATE_EDN =\n    ENDOFMONTH ( '01_Calendar'[dates] )\nRETURN\n    IF (\n        DAY_AC = DAY_MAX\n            && DAY_AC < DATE_EDN,\n        //DAY_AC < DATE_EDN兼容实际月末两个端点（1502，1504）出现。\n        CALCULATE (\n            [0001_销售金额_单位_D_],\n            DATESMTD ( '01_Calendar'[dates] )\n        ),\n        BLANK ()\n    )",
+      "OracleMeasure =\nVAR DAY_MAX0 =\n    CALCULATETABLE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL ( '01_Calendar' ) )\nVAR DAY_MAX1 =\n    CALCULATETABLE (\n        LASTDATE ( '01_Calendar'[dates] ),\n        TREATAS ( DAY_MAX0, '01_Calendar'[dates] )\n    ) //由于'T04_订单主表'[F_03_下单日期]最大日期后在无日期，DATEADD后为空，需要转化到'01_Calendar'[dates]\nVAR DAY_MAX2 =\n    DATEADD ( DAY_MAX1, 1, DAY )\nVAR DAY_MIN =\n    CALCULATETABLE (\n        STARTOFMONTH ( '01_Calendar'[dates] ),\n        ALLSELECTED ( '01_Calendar' )\n    )\nVAR DAY_AC =\n    LASTDATE ( '01_Calendar'[dates] )\nVAR MTD_FORE0 =\n    CALCULATE (\n        [1500_预测_预测达成_单位_],\n        DATESBETWEEN ( '01_Calendar'[dates], DAY_MAX2, DAY_AC )\n    )\nVAR MTD_FORE1 =\n    CALCULATE (\n        [1500_预测_预测达成_单位_],\n        DATESMTD ( '01_Calendar'[dates] )\n    )\nVAR MTD_AC =\n    CALCULATE ( [0001_销售金额_单位_D_], DATESMTD ( '01_Calendar'[dates] ) )\nRETURN\n    SWITCH (\n        TRUE (),\n        DAY_AC >= DAY_MAX0\n            && DAY_MIN > DAY_MAX0, MTD_FORE1,\n        DAY_AC >= DAY_MAX0\n            && DAY_MIN <= DAY_MAX0, MTD_AC + MTD_FORE0,\n        BLANK ()\n    )",
+      "OracleMeasure =\nVAR DAY_MAX_M =\n    CALCULATETABLE (\n        LASTDATE ( '01_Calendar'[dates] ),\n        ALLSELECTED ( '01_Calendar' )\n    )\nVAR DAY_MAX0 =\n    CALCULATETABLE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL ( '01_Calendar' ) )\nVAR DAY_MAX1 =\n    CALCULATETABLE (\n        LASTDATE ( '01_Calendar'[dates] ),\n        TREATAS ( DAY_MAX0, '01_Calendar'[dates] )\n    )\nVAR DAY_MAX2 =\n    DATEADD ( DAY_MAX1, 1, DAY )\nVAR DAY_MIN =\n    CALCULATETABLE (\n        STARTOFMONTH ( '01_Calendar'[dates] ),\n        ALLSELECTED ( '01_Calendar' )\n    )\nVAR DAY_AC =\n    LASTDATE ( '01_Calendar'[dates] )\nVAR MTD_FORE0 =\n    CALCULATE (\n        [1500_预测_预测达成_单位_],\n        DATESBETWEEN ( '01_Calendar'[dates], DAY_MAX2, DAY_AC )\n    )\nVAR MTD_FORE1 =\n    CALCULATE (\n        [1500_预测_预测达成_单位_],\n        DATESMTD ( '01_Calendar'[dates] )\n    )\nVAR MTD_AC =\n    CALCULATE ( [0001_销售金额_单位_D_], DATESMTD ( '01_Calendar'[dates] ) )\nRETURN\n    SWITCH (\n        TRUE (),\n        DAY_AC = DAY_MAX_M\n            && DAY_MIN > DAY_MAX0, MTD_FORE1,\n        DAY_AC = DAY_MAX_M\n            && DAY_MIN <= DAY_MAX0, MTD_AC + MTD_FORE0,\n        BLANK ()\n    )",
+      "OracleMeasure =\nCALCULATE (\n    [0003_销售目标_单位_D_],\n    ALL ( '01_Calendar'[dates], '01_Calendar'[day] )\n)",
+      "OracleMeasure =\nVAR DATE0 =\n    STARTOFMONTH ( '01_Calendar'[dates] )\nVAR DATE1 =\n    LASTDATE ( '01_Calendar'[dates] )\nVAR DOT =\n    IF ( DATE0 = DATE1, [1505_预测_目标线_单位_], BLANK () )\nRETURN\n    DOT",
+      "OracleMeasure =\nCALCULATE (\n    [0001_销售金额_单位_D_],\n    SAMEPERIODLASTYEAR ( DATESMTD ( '01_Calendar'[dates] ) )\n)",
+      "OracleMeasure =\nCALCULATE (\n    [1507_预测_AC_MTD_PY_单位_],\n    ALL ( '01_Calendar'[dates], '01_Calendar'[day] )\n)",
+      "OracleMeasure =\nVAR DATE0 =\n    STARTOFMONTH ( '01_Calendar'[dates] )\nVAR DATE1 =\n    LASTDATE ( '01_Calendar'[dates] )\nVAR DOT =\n    IF ( DATE0 = DATE1, [1508_预测_AC_MTD线_PY_单位_], BLANK () )\nRETURN\n    DOT",
+      "OracleMeasure =\nVAR DAY_MAX =\n    CALCULATETABLE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL ( '01_Calendar' ) )\nVAR DAY_AC =\n    LASTDATE ( '01_Calendar'[dates] )\nRETURN\n    IF ( DAY_AC <= DAY_MAX, [1501_预测_AC_MTD_单位_], [1503_预测_预测达成_MTD_单位_] )",
+      "OracleMeasure =\nDIVIDE ( [1510_预测_实际&预测_MTD_工具提示_单位_], [1505_预测_目标线_单位_] )",
+      "OracleMeasure =\n//用最后一天的MTD\nVAR DATE_START_MONTH_AC =\n    STARTOFMONTH ( '01_Calendar'[dates] ) //兼容闰月及月份天数不一致。\nVAR DATE_END_MONTH_LASTYEAR =\n    ENDOFMONTH ( DATEADD ( DATE_START_MONTH_AC, -1, YEAR ) )\nVAR DATE_END_MONTH_LAST =\n    ENDOFMONTH ( DATEADD ( DATE_START_MONTH_AC, -1, MONTH ) )\nVAR FZ = [1510_预测_实际&预测_MTD_工具提示_单位_]\nVAR FM_YOY =\n    CALCULATE ( [1510_预测_实际&预测_MTD_工具提示_单位_], DATE_END_MONTH_LASTYEAR )\nVAR FM_MOM =\n    CALCULATE ( [1510_预测_实际&预测_MTD_工具提示_单位_], DATE_END_MONTH_LAST )\nVAR _YOY =\n    DIVIDE ( FZ, FM_YOY, BLANK () ) - 1\nVAR _MOM =\n    DIVIDE ( FZ, FM_MOM, BLANK () ) - 1\nVAR _TARGET = [1511_预测_目标完成_单位_%_]\nVAR YM =\n    FORMAT ( DATE_START_MONTH_AC, \"YYYY年MM月\" )\nRETURN\n    YM & \" 同比去年：\"\n        & FORMAT ( _YOY, \"0.0%\" ) & \"，环比上月：\"\n        & FORMAT ( _MOM, \"0.0%\" ) & \"，目标完成率：\"\n        & FORMAT ( _TARGET, \"0.0%\" ) & \"。\"",
+      "OracleMeasure =\nVAR DATE_ALLSELECTED =\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALLSELECTED () )\nVAR DATE_ALL =\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL () )\nVAR DATE_MAX =\n    ENDOFMONTH ( '01_Calendar'[dates] )\nVAR DATE0 =\n    IF ( DATE_MAX > DATE_ALL, DATE_ALL, DATE_ALLSELECTED ) //兼容大约当月预测。\nVAR FM = 60\nVAR DATETABLE0 =\n    DATESINPERIOD ( '01_Calendar'[dates], DATE0, - FM, DAY )\nVAR FZ =\n    CALCULATE ( [0001_销售金额_单位_D_], DATETABLE0 )\nRETURN\n    DIVIDE ( FZ, FM ) * FM",
+      "OracleMeasure =\nVAR DATE_ALLSELECTED =\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALLSELECTED () )\nVAR DATE_ALL =\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL () )\nVAR DATE_MAX =\n    ENDOFMONTH ( '01_Calendar'[dates] )\nVAR DATE0 =\n    IF ( DATE_MAX > DATE_ALL, DATE_ALL, DATE_ALLSELECTED )\nVAR FM = 60\nVAR DATETABLE0 =\n    DATESINPERIOD ( '01_Calendar'[dates], DATE0, - FM, DAY )\nVAR FZ =\n    CALCULATE ( [0001_销售金额_单位_D_], DATETABLE0 )\nRETURN\n    DIVIDE ( FZ, FM ) * 10",
+      "OracleMeasure =\n\"https://jiaopengzi.com/video/video-101\"",
+      "OracleMeasure =\n\"点击前往项目页面。\"",
+      "OracleMeasure =\n/*\n说明：因理想为标准正太分布，安全库存仅作为参考点，需要加入业务的理解。\nSS= z * SQRT( σd^2* μL + σL^2 * μd^2 )\n其中\nSS：安全库存（Safe Stock）\nz : 服务水平系数，服务水平（现货率）为0.95，在标准正太分布下对应的z=1.65。\nL : 采购提前期\nμL: 平均提前期\nσL: 提前期L的标准差\nd : 日出库量\nμd: 平均日出库量\nσd: 日出库量d的标准差\n*/\n1",
+      "OracleMeasure =\nVAR SvgStartImage =\n    \"data:image/svg+xml;utf8,\"\n\nVAR ConfigTable =\n    FILTER (\n        'PbiUtilsTemplateMeasures',\n        'PbiUtilsTemplateMeasures'[name] = \"logo_image2\"\n    )\n\nVAR ConfigValue =\n    CONCATENATEX (\n        ConfigTable,\n        'PbiUtilsTemplateMeasures'[value]\n    )\n\nVAR SvgMatchPosition =\n    COALESCE (\n        SEARCH (\n            \"<svg*</svg>\",\n            ConfigValue,\n            1,\n            BLANK ()\n        ),\n        SEARCH (\n            \"<svg*/>\",\n            ConfigValue,\n            1,\n            BLANK ()\n        )\n    )\n\nVAR Result =\n    IF (\n        ISBLANK ( SvgMatchPosition )\n            || LEFT (\n                ConfigValue,\n                5\n            )\n            = \"data:\"\n            || LEFT (\n                ConfigValue,\n                7\n            )\n            = \"http://\"\n            || LEFT (\n                ConfigValue,\n                8\n            )\n            = \"https://\",\n        ConfigValue,\n        SvgStartImage & ConfigValue\n    )\n\nRETURN\n    Result",
+      "OracleMeasure =\nDIVIDE(1,2,BLANK())",
+      "OracleMeasure =\nABS(SUM(Sales[Amount]))",
+      "OracleMeasure =\nSWITCH(TRUE(),[Amount]>100,\"Large\",[Amount]>0,\"Small\",\"None\")",
+      "OracleMeasure =\nROW(\"First\",1,\"Second\",DIVIDE(4,2))",
+      "OracleMeasure =\nADDCOLUMNS(Sales,\"Net\",Sales[Amount]-Sales[Cost],\"Rate\",DIVIDE(Sales[Cost],Sales[Amount]))",
+      "OracleMeasure =\nSUMMARIZE(Sales,Sales[Category],\"Amount\",SUM(Sales[Amount]),\"Quantity\",SUM(Sales[Quantity]))",
+      "OracleMeasure =\nRANKX(ALL(Sales[Category]),[Amount],,DESC,DENSE)",
+      "OracleMeasure =\n-1 + 1e-3 - -2",
+      "OracleMeasure =\nSUM('O''Brien'[A]]B])",
+      "OracleMeasure =\nIF([Amount]>0,\"a  b\",\"x\"\"y\")",
+      "OracleMeasure =\nSUM('中文 表'[金额])+[利润]",
+      "OracleMeasure =\ndt\"2026-10-30T13:45:00\"",
+      "OracleMeasure =\nVAR Total=1 // keep  two spaces  \nRETURN Total+2",
+      "OracleMeasure =\n/* config  value */\nVAR Total=1\n/* final  value */\nRETURN Total",
+      "OracleMeasure =\n/* first\n  second  line\n*/\nVAR Total=1 RETURN Total",
+      "OracleMeasure =\nVAR Message=\"first\n second\" RETURN Message",
+      "OracleMeasure =\nVAR OuterTotal=VAR InnerTotal=1 RETURN InnerTotal+2 VAR OtherTotal=3 RETURN OuterTotal+OtherTotal",
+      "OracleMeasure =\nSUMX(Sales,VAR Net=Sales[Amount]-Sales[Cost] RETURN Net*2)",
+      "OracleMeasure =\n{(1,\"One\"),(2,\"Two\"),(3,\"Three\")}",
+      "OracleMeasure =\nIF(ISBLANK([Amount])||LEFT([Label],5)=\"data:\"||LEFT([Label],7)=\"http://\"||LEFT([Label],8)=\"https://\",[Amount],0)",
+      "OracleMeasure =\nDIVIDE([Amount],[Quantity])+SUM(Sales[Tax])-1",
+      "OracleMeasure =\nIF([Category] IN {\"A\",\"B\",\"C\"},1,0)",
+      "OracleMeasure =\nvar lower_case=sum(Sales[Amount]) return divide(lower_case,2)",
+      "OracleMeasure =\nSUM('Sales'[Amount])"
+    ],
+    "maxLineLength": 0,
+    "skipSpaceAfterFunctionName": false,
+    "listSeparator": ",",
+    "decimalSeparator": ".",
+    "callerApp": "pbi-utils-formatting-regression",
+    "callerVersion": "1"
+  },
+  "responses": [
+    {
+      "formatted": "OracleMeasure =\r\nSELECTEDVALUE ( '04_RefreshTime'[RefreshTime] )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nSUM ( 'T05_订单子表'[F_06_产品销售金额] )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nCOUNTROWS ( 'T04_订单主表' )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nSUM ( 'T06_销售目标表'[F_04_每日目标] )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nSUMX (\r\n    'T05_订单子表',\r\n    RELATED ( 'T00_产品表'[F_05_产品成本价格] ) * 'T05_订单子表'[F_05_产品销售数量]\r\n)\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n[0001_销售金额_单位_D_] - [0004_产品成本金额_单位_D_]\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nDIVIDE ( [0005_毛利_单位_D_], [0001_销售金额_单位_D_], BLANK () )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nDIVIDE ( [0001_销售金额_单位_D_], [0003_销售目标_单位_D_] )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nCALCULATE ( COUNTROWS ( 'T00_产品表' ), KEEPFILTERS ( 'T05_订单子表' ) )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR DATE_AC_A =\r\n    LASTDATE ( '01_Calendar'[dates] )\r\nVAR TABLE_OPEN =\r\n    FILTER ( 'T01_门店表', 'T01_门店表'[F_04_开店日期] <= DATE_AC_A )\r\nVAR TABLE_CLOSE =\r\n    FILTER ( TABLE_OPEN, [F_09_关店日期] > DATE_AC_A || [F_09_关店日期] = BLANK () )\r\nRETURN\r\n    COUNTROWS ( TABLE_CLOSE )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nCALCULATE (\r\n    COUNTROWS ( 'T02_客户表' ),\r\n    KEEPFILTERS ( 'T04_订单主表' ),\r\n    KEEPFILTERS ( 'T05_订单子表' )\r\n)\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR U = \"https://demo.jiaopengzi.com/idphoto/\"\r\nVAR R =\r\n    SELECTEDVALUE ( 'D00_大区表'[F_01_大区ID] )\r\nVAR L = \".png\"\r\nRETURN\r\n    IF ( HASONEVALUE ( 'D00_大区表'[F_03_大区负责人] ), U & R & L, BLANK () )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nSELECTEDVALUE ( 'D00_大区表'[F_03_大区负责人] )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nSELECTEDVALUE ( 'D00_大区表'[F_02_大区] )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR TF0 =\r\n    HASONEFILTER ( 'D01_省份表'[F_04_省简称] )\r\nVAR TF1 =\r\n    HASONEFILTER ( 'D01_省份表_对比'[F_04_省简称] )\r\nVAR R0 =\r\n    SELECTEDVALUE ( 'D01_省份表'[F_04_省简称] )\r\nVAR R1 =\r\n    COUNTROWS ( 'D01_省份表' )\r\nVAR R_DB0 =\r\n    SELECTEDVALUE ( 'D01_省份表_对比'[F_04_省简称] )\r\nVAR R_DB1 =\r\n    COUNTROWS ( 'D01_省份表_对比' )\r\nVAR D =\r\n    SELECTEDVALUE ( 'G02_P50_AB对比分析'[对比维度] )\r\nRETURN\r\n    SWITCH (\r\n        TRUE (),\r\n        D = \"A\" && TF0 = TRUE (), R0,\r\n        D = \"A\" && TF0 = FALSE (), \"省：\" & R1,\r\n        D = \"B\" && TF1 = TRUE (), R_DB0,\r\n        D = \"B\" && TF1 = FALSE (), \"省：\" & R_DB1,\r\n        R0\r\n    )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR FZ = [0001_销售金额_单位_D_]\r\nVAR FM =\r\n    SUMX ( 'T05_订单子表', 'T05_订单子表'[F_03_产品销售价格] * 'T05_订单子表'[F_05_产品销售数量] )\r\nRETURN\r\n    DIVIDE ( FZ, FM, BLANK () )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nSUM ( 'T05_订单子表'[F_05_产品销售数量] )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR FZ = [0001_销售金额_单位_D_]\r\nVAR FM =\r\n    CALCULATE (\r\n        [0001_销售金额_单位_D_],\r\n        ALL ( 'T01_门店表'[F_02_门店名称], 'T01_门店表'[F_00_自动编号] )\r\n    )\r\nRETURN\r\n    DIVIDE ( FZ, FM, BLANK () )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nSUM ( 'T03_入库信息表'[F_02_入库产品数量] )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nCALCULATE (\r\n    SUM ( 'T05_订单子表'[F_05_产品销售数量] ),\r\n    USERELATIONSHIP ( 'T04_订单主表'[F_04_送货日期], '01_Calendar'[dates] )\r\n)\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nSELECTEDVALUE ( '01_Calendar'[day] )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR VALUE_DAY = [0001_销售金额_单位_D_]\r\nVAR VALUE_TABLE_0 =\r\n    CALCULATETABLE (\r\n        '01_Calendar',\r\n        ALL (\r\n            '01_Calendar'[dates],\r\n            '01_Calendar'[day],\r\n            '01_Calendar'[weeknumber],\r\n            '01_Calendar'[weekday],\r\n            '01_Calendar'[weekcna] //易错点：注意清除筛选的时候，按列排序的列都要加上；weekcna按照weekday排序的。\r\n        )\r\n    )\r\nVAR VALUE_TABLE_1 =\r\n    SUMMARIZE ( VALUE_TABLE_0, '01_Calendar'[day], \"@DAY\", [0001_销售金额_单位_D_] )\r\nVAR VALUE_DAY_MAX =\r\n    MAXX ( VALUE_TABLE_1, [@DAY] )\r\nVAR VALUE_DAY_MIN =\r\n    MINX ( VALUE_TABLE_1, [@DAY] )\r\nVAR VALUE_DIFF_MAX = ( VALUE_DAY_MAX - VALUE_DAY_MIN ) //min是最浅颜色，max是最深颜色。\r\nVAR VALUE_DIFF_DAY = ( VALUE_DAY_MAX - VALUE_DAY )\r\nVAR X = VALUE_DIFF_DAY / VALUE_DIFF_MAX\r\nVAR R =\r\n    INT ( 200 * X ) + 20\r\nVAR G =\r\n    INT ( 100 * X ) + 140 //222,239\r\nVAR B = 250\r\nVAR D = \",\"\r\nVAR TF =\r\n    VALUE_DAY = BLANK ()\r\nRETURN\r\n    IF ( TF, \"#dddddd\", \"RGB(\" & R & D & G & D & B & \")\" )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n/*\n    good:#188818\n    neutral:#DD8800\n    bad:#BB1818\n    1、YTD>=1,MTD>=1 =>good\n    2、YTD>=1,MTD< 1 =>neutral\n    3、YTD< 1,MTD>=1 =>neutral\n    4、YTD< 1,MTD< 1=>bad\n*/\r\nVAR MTD0 =\r\n    VAR DATE_END_AC =\r\n        LASTDATE ( '01_Calendar'[dates] )\r\n    VAR DATE_SATRT_AC =\r\n        STARTOFMONTH ( DATE_END_AC )\r\n    VAR DATE_TABLE_AC =\r\n        DATESBETWEEN ( '01_Calendar'[dates], DATE_SATRT_AC, DATE_END_AC )\r\n    RETURN\r\n        CALCULATE ( [0007_目标完成率_%_D_], DATE_TABLE_AC )\r\nVAR YTD0 =\r\n    VAR DATE_END_AC =\r\n        LASTDATE ( '01_Calendar'[dates] )\r\n    VAR DATE_SATRT_AC =\r\n        STARTOFYEAR ( DATE_END_AC )\r\n    VAR DATE_TABLE_AC =\r\n        DATESBETWEEN ( '01_Calendar'[dates], DATE_SATRT_AC, DATE_END_AC )\r\n    RETURN\r\n        CALCULATE ( [0007_目标完成率_%_D_], DATE_TABLE_AC )\r\nVAR COLOR0 =\r\n    SWITCH (\r\n        TRUE (),\r\n        YTD0 >= 1 && MTD0 >= 1, \"#188818\",\r\n        YTD0 >= 1 && MTD0 < 1, \"#DD8800\",\r\n        YTD0 < 1 && MTD0 >= 1, \"#DD8800\",\r\n        YTD0 < 1 && MTD0 < 1, \"#BB1818\"\r\n    )\r\nVAR LIST0 = { \"AC\", \"MTD\", \"YTD\" }\r\nVAR ROW_VALUE =\r\n    SELECTEDVALUE ( 'G03_P60_DWMQHY'[F_07_指标] )\r\nVAR COLOR_AC_TF =\r\n    IF ( ROW_VALUE IN LIST0, COLOR0, BLANK () )\r\nRETURN\r\n    COLOR_AC_TF\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n/*\n    good:#188818\n    neutral:#DD8800\n    bad:#BB1818\n    字体颜色：#EEEEEE\n*/\r\nVAR LIST0 = { \"AC\", \"MTD\", \"YTD\" }\r\nVAR ROW_VALUE =\r\n    SELECTEDVALUE ( 'G03_P60_DWMQHY'[F_07_指标] )\r\nVAR COLOR_AC_TF =\r\n    IF ( ROW_VALUE IN LIST0, \"#EEEEEE\", BLANK () )\r\nRETURN\r\n    COLOR_AC_TF\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nSELECTEDVALUE ( 'G03_P60_DWMQHY'[F_07_指标] )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n\"开始日期\"\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n\"结束日期\"\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nSELECTEDVALUE ( 'G03_P60_DWMQHY'[F_08_说明] )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n50\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR DQ =\r\n    SELECTEDVALUE ( 'D00_大区表'[F_01_大区ID] )\r\nVAR TABLE0 =\r\n    ADDCOLUMNS ( ALL ( 'D01_省份表' ), \"@销售额\", [0001_销售金额_单位_D_] )\r\nVAR TABLE1 =\r\n    FILTER ( TABLE0, [F_01_大区ID] = DQ )\r\nVAR TABLE2 =\r\n    ADDCOLUMNS (\r\n        TABLE1,\r\n        \"@RANK\", RANKX ( TABLE1, [0001_销售金额_单位_D_], [@销售额], DESC )\r\n    )\r\nVAR N =\r\n    SUM ( 'T71_大区_排名辅助'[ID] )\r\nVAR TABLE3 =\r\n    FILTER ( TABLE2, [@RANK] = N )\r\nRETURN\r\n    CALCULATE ( MAXX ( TABLE3, [F_04_省简称] ), ALL ( 'D00_大区表' ) )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR FZ = [0001_销售金额_单位_D_]\r\nVAR FM =\r\n    CALCULATE (\r\n        [0001_销售金额_单位_D_],\r\n        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] )\r\n    )\r\nVAR P =\r\n    DIVIDE ( FZ, FM, BLANK () )\r\nRETURN\r\n    P\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR R =\r\n    RANKX (\r\n        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\r\n        [0001_销售金额_单位_D_],\r\n        ,\r\n        DESC\r\n    )\r\n        + CALCULATE ( SUM ( 'D01_省份表'[F_02_省ID] ) ) / 100\r\nVAR T =\r\n    ADDCOLUMNS (\r\n        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\r\n        \"R\",\r\n            RANKX (\r\n                ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\r\n                [0001_销售金额_单位_D_],\r\n                ,\r\n                DESC\r\n            )\r\n                + CALCULATE ( SUM ( 'D01_省份表'[F_02_省ID] ) ) / 100\r\n    )\r\nVAR LJ =\r\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\r\nVAR FM =\r\n    CALCULATE (\r\n        [0001_销售金额_单位_D_],\r\n        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] )\r\n    )\r\nVAR P =\r\n    DIVIDE ( LJ, FM, BLANK () )\r\nRETURN\r\n    P\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR T0 =\r\n    ADDCOLUMNS (\r\n        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\r\n        \"R\",\r\n            RANKX (\r\n                ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\r\n                [0001_销售金额_单位_D_],\r\n                ,\r\n                DESC\r\n            )\r\n                + CALCULATE ( SUM ( 'D01_省份表'[F_02_省ID] ) ) / 100\r\n    )\r\nVAR T1 =\r\n    ADDCOLUMNS (\r\n        T0,\r\n        \"@P%\",\r\n            VAR R =\r\n                RANKX (\r\n                    ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\r\n                    [0001_销售金额_单位_D_],\r\n                    ,\r\n                    DESC\r\n                )\r\n                    + CALCULATE ( SUM ( 'D01_省份表'[F_02_省ID] ) ) / 100\r\n            VAR LJ =\r\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\r\n            VAR FM =\r\n                CALCULATE (\r\n                    [0001_销售金额_单位_D_],\r\n                    ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] )\r\n                )\r\n            VAR P =\r\n                DIVIDE ( LJ, FM, BLANK () )\r\n            RETURN\r\n                P\r\n    )\r\nVAR T2 =\r\n    FILTER ( T1, [@P%] >= 0.8 )\r\nVAR MINRANK =\r\n    MINX ( T2, [@P%] )\r\nRETURN\r\n    MINRANK\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR DQ =\r\n    CALCULATE ( SUM ( 'D00_大区表'[F_01_大区ID] ), 'D01_省份表' )\r\nVAR TABLE0 =\r\n    FILTER ( 'T70_主题颜色', [ID] = DQ )\r\nVAR COLOR =\r\n    CONCATENATEX ( TABLE0, [颜色值] )\r\nRETURN\r\n    COLOR\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR FZ = [0001_销售金额_单位_D_]\r\nVAR FM =\r\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[F_02_产品分类] ) )\r\nVAR P =\r\n    DIVIDE ( FZ, FM, BLANK () )\r\nRETURN\r\n    P\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR R =\r\n    RANKX ( ALL ( 'T00_产品表'[F_02_产品分类] ), [0001_销售金额_单位_D_],, DESC )\r\nVAR T =\r\n    ADDCOLUMNS (\r\n        ALL ( 'T00_产品表'[F_02_产品分类] ),\r\n        \"R\", RANKX ( ALL ( 'T00_产品表'[F_02_产品分类] ), [0001_销售金额_单位_D_],, DESC )\r\n    )\r\nVAR LJ =\r\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\r\nVAR FM =\r\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[F_02_产品分类] ) )\r\nVAR P =\r\n    DIVIDE ( LJ, FM, BLANK () )\r\nRETURN\r\n    P\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR T0 =\r\n    ADDCOLUMNS (\r\n        ALL ( 'T00_产品表'[F_02_产品分类] ),\r\n        \"R\", RANKX ( ALL ( 'T00_产品表'[F_02_产品分类] ), [0001_销售金额_单位_D_],, DESC )\r\n    )\r\nVAR T1 =\r\n    ADDCOLUMNS (\r\n        T0,\r\n        \"@P%\",\r\n            VAR R =\r\n                RANKX ( ALL ( 'T00_产品表'[F_02_产品分类] ), [0001_销售金额_单位_D_],, DESC )\r\n            VAR LJ =\r\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\r\n            VAR FM =\r\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[F_02_产品分类] ) )\r\n            VAR P =\r\n                DIVIDE ( LJ, FM, BLANK () )\r\n            RETURN\r\n                P\r\n    )\r\nVAR T2 =\r\n    FILTER ( T1, [@P%] >= 0.8 )\r\nVAR MINRANK =\r\n    MINX ( T2, [@P%] )\r\nRETURN\r\n    MINRANK\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR FZ = [0001_销售金额_单位_D_]\r\nVAR FM =\r\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T72_折扣分组'[折扣分类] ) )\r\nVAR P =\r\n    DIVIDE ( FZ, FM, BLANK () )\r\nRETURN\r\n    P\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR R =\r\n    RANKX ( ALL ( 'T72_折扣分组'[折扣分类] ), [0001_销售金额_单位_D_],, DESC )\r\nVAR T =\r\n    ADDCOLUMNS (\r\n        ALL ( 'T72_折扣分组'[折扣分类] ),\r\n        \"R\", RANKX ( ALL ( 'T72_折扣分组'[折扣分类] ), [0001_销售金额_单位_D_],, DESC )\r\n    )\r\nVAR LJ =\r\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\r\nVAR FM =\r\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T72_折扣分组'[折扣分类] ) )\r\nVAR P =\r\n    DIVIDE ( LJ, FM, BLANK () )\r\nRETURN\r\n    P\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR T0 =\r\n    ADDCOLUMNS (\r\n        ALL ( 'T72_折扣分组'[折扣分类] ),\r\n        \"R\", RANKX ( ALL ( 'T72_折扣分组'[折扣分类] ), [0001_销售金额_单位_D_],, DESC )\r\n    )\r\nVAR T1 =\r\n    ADDCOLUMNS (\r\n        T0,\r\n        \"@P%\",\r\n            VAR R =\r\n                RANKX ( ALL ( 'T72_折扣分组'[折扣分类] ), [0001_销售金额_单位_D_],, DESC )\r\n            VAR LJ =\r\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\r\n            VAR FM =\r\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T72_折扣分组'[折扣分类] ) )\r\n            VAR P =\r\n                DIVIDE ( LJ, FM, BLANK () )\r\n            RETURN\r\n                P\r\n    )\r\nVAR T2 =\r\n    FILTER ( T1, [@P%] >= 0.8 )\r\nVAR MINRANK =\r\n    MINX ( T2, [@P%] )\r\nRETURN\r\n    MINRANK\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR FZ = [0001_销售金额_单位_D_]\r\nVAR FM =\r\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[@价格段] ) )\r\nVAR P =\r\n    DIVIDE ( FZ, FM, BLANK () )\r\nRETURN\r\n    P\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR R =\r\n    RANKX ( ALL ( 'T00_产品表'[@价格段] ), [0001_销售金额_单位_D_],, DESC )\r\nVAR T =\r\n    ADDCOLUMNS (\r\n        ALL ( 'T00_产品表'[@价格段] ),\r\n        \"R\", RANKX ( ALL ( 'T00_产品表'[@价格段] ), [0001_销售金额_单位_D_],, DESC )\r\n    )\r\nVAR LJ =\r\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\r\nVAR FM =\r\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[@价格段] ) )\r\nVAR P =\r\n    DIVIDE ( LJ, FM, BLANK () )\r\nRETURN\r\n    P\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR T0 =\r\n    ADDCOLUMNS (\r\n        ALL ( 'T00_产品表'[@价格段] ),\r\n        \"R\", RANKX ( ALL ( 'T00_产品表'[@价格段] ), [0001_销售金额_单位_D_],, DESC )\r\n    )\r\nVAR T1 =\r\n    ADDCOLUMNS (\r\n        T0,\r\n        \"@P%\",\r\n            VAR R =\r\n                RANKX ( ALL ( 'T00_产品表'[@价格段] ), [0001_销售金额_单位_D_],, DESC )\r\n            VAR LJ =\r\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\r\n            VAR FM =\r\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[@价格段] ) )\r\n            VAR P =\r\n                DIVIDE ( LJ, FM, BLANK () )\r\n            RETURN\r\n                P\r\n    )\r\nVAR T2 =\r\n    FILTER ( T1, [@P%] >= 0.8 )\r\nVAR MINRANK =\r\n    MINX ( T2, [@P%] )\r\nRETURN\r\n    MINRANK\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR ROW0 =\r\n    SELECTEDVALUE ( 'T74_ROW'[ROW] ) - 1\r\nVAR COLUMN0 =\r\n    SELECTEDVALUE ( T75_COLUMN[COLUMN] )\r\nVAR RANK0 = ROW0 * 10 + COLUMN0\r\nVAR T0 =\r\n    ADDCOLUMNS ( ALL ( 'T01_门店表'[F_02_门店名称] ), \"@VALUE0\", [0001_销售金额_单位_D_] )\r\nVAR T1 =\r\n    FILTER ( T0, [@VALUE0] <> BLANK () )\r\nVAR T2 =\r\n    ADDCOLUMNS (\r\n        T1,\r\n        \"@R0\",\r\n            RANKX ( T1, [0001_销售金额_单位_D_],, DESC )\r\n                + CALCULATE ( SUM ( 'T01_门店表'[F_00_自动编号] ) ) / 1000\r\n    )\r\nVAR T3 =\r\n    ADDCOLUMNS ( T2, \"@R1\", VAR R = [@R0] RETURN RANKX ( T2, [@R0], R, ASC ) )\r\nVAR T4 =\r\n    FILTER ( T3, [@R1] = RANK0 )\r\nRETURN\r\n    MAXX ( T4, [@R1] & \"-\" & [F_02_门店名称] )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n/*\n    good:#188818 ; RGB:24,136,24 ; 色阶开始：#CCFFCC , RGB:204,255,204\n    neutral:#DD8800 ; RGB:221,136,0\n    bad:#BB1818 ; RGB:187,24,24；色阶开始：#FFCCCC , RGB:255,204,204\n    字体颜色：#EEEEEE ; RGB:238,238,238\n*/\r\nVAR ROW0 =\r\n    SELECTEDVALUE ( 'T74_ROW'[ROW] ) - 1\r\nVAR COLUMN0 =\r\n    SELECTEDVALUE ( T75_COLUMN[COLUMN] )\r\nVAR RANK0 = ROW0 * 10 + COLUMN0\r\nVAR T0 =\r\n    ADDCOLUMNS ( ALL ( 'T01_门店表'[F_02_门店名称] ), \"@VALUE0\", [0001_销售金额_单位_D_] )\r\nVAR T1 =\r\n    FILTER ( T0, [@VALUE0] <> BLANK () )\r\nVAR T2 =\r\n    ADDCOLUMNS (\r\n        T1,\r\n        \"@R0\",\r\n            RANKX ( T1, [0001_销售金额_单位_D_],, DESC )\r\n                + CALCULATE ( SUM ( 'T01_门店表'[F_00_自动编号] ) ) / 1000\r\n    )\r\nVAR T3 =\r\n    ADDCOLUMNS ( T2, \"@R1\", VAR R = [@R0] RETURN RANKX ( T2, [@R0], R, ASC ) )\r\nVAR T4 =\r\n    FILTER ( T3, [@R1] = RANK0 )\r\nVAR MD =\r\n    MAXX ( T4, [F_02_门店名称] )\r\nVAR FILTER0 =\r\n    TREATAS ( { MD }, 'T01_门店表'[F_02_门店名称] )\r\nVAR VALUE_MD =\r\n    CALCULATE ( [0006_毛利率_%_D_], KEEPFILTERS ( FILTER0 ) )\r\nVAR VALUE_TABLE_0 =\r\n    CALCULATETABLE ( 'T01_门店表', ALL ( 'T01_门店表'[F_01_门店编号], 'T01_门店表'[F_02_门店名称] ) )\r\nVAR VALUE_TABLE_1 =\r\n    SUMMARIZE ( VALUE_TABLE_0, 'T01_门店表'[F_02_门店名称], \"@ML\", [0006_毛利率_%_D_] )\r\nVAR VALUE_MD_MAX =\r\n    MAXX ( VALUE_TABLE_1, [@ML] )\r\nVAR VALUE_MD_0 = 0\r\nVAR VALUE_MD_MIN =\r\n    MINX ( VALUE_TABLE_1, [@ML] )\r\nVAR VALUE_DIFF_MAX_0 = ( VALUE_MD_MAX - VALUE_MD_0 ) //0是最浅颜色，max是最深good颜色。\r\nVAR VALUE_DIFF_MIN_0 = ( VALUE_MD_MIN - VALUE_MD_0 ) //0是最浅颜色，MIN是最深bad颜色；0包含在bad中。\r\nVAR VALUE_DIFF_MD_POSITIVE = ( VALUE_MD_MAX - VALUE_MD ) //正数=>positive\r\nVAR VALUE_DIFF_MD_NEGATIVE = ( VALUE_MD_MIN - VALUE_MD ) //负数=>negative\r\nVAR X =\r\n    IF (\r\n        VALUE_MD > 0,\r\n        VALUE_DIFF_MD_POSITIVE / VALUE_DIFF_MAX_0,\r\n        VALUE_DIFF_MD_NEGATIVE / VALUE_DIFF_MIN_0\r\n    ) --------------------------------\r\n//good:#188818 ; RGB:24,136,24 ; 色阶开始：#CCFFCC , RGB:204,255,204\r\nVAR R_GOOD =\r\n    INT ( 180 * X ) + 24 //204-24=180\r\nVAR G_GOOD =\r\n    INT ( 119 * X ) + 136 //255-136=119\r\nVAR B_GOOD =\r\n    INT ( 180 * X ) + 24 //204-24=180\r\n--------------------------------\r\n--------------------------------\r\n//bad:#BB1818 ; RGB:187,24,24；色阶开始：#FFCCCC , RGB:255,204,204\r\nVAR R_BAD =\r\n    INT ( 68 * X ) + 187 //255-187=68\r\nVAR G_BAD =\r\n    INT ( 180 * X ) + 24 //204-24=180\r\nVAR B_BAD =\r\n    INT ( 180 * X ) + 24 //204-24=180\r\n--------------------------------\r\nVAR R =\r\n    IF ( VALUE_MD > 0, R_GOOD, R_BAD )\r\nVAR G =\r\n    IF ( VALUE_MD > 0, G_GOOD, G_BAD )\r\nVAR B =\r\n    IF ( VALUE_MD > 0, B_GOOD, B_BAD )\r\nVAR D = \",\"\r\nVAR TF =\r\n    VALUE_MD = BLANK ()\r\nRETURN\r\n    IF ( TF, \"#dddddd\", \"RGB(\" & R & D & G & D & B & \")\" )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n\"#CCCCCC\"\r\n/*\n    good:#188818 ; RGB:24,136,24 ; 色阶开始：#CCFFCC , RGB:204,255,204\n    neutral:#DD8800 ; RGB:221,136,0\n    bad:#BB1818 ; RGB:187,24,24；色阶开始：#FFCCCC , RGB:255,204,204\n    字体颜色：#EEEEEE ; RGB:238,238,238\n*/\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR DATE_START0 =\r\n    CALCULATE ( FIRSTDATE ( '01_Calendar'[dates] ), ALL ( '01_Calendar' ) )\r\nVAR DATE_END0 =\r\n    LASTDATE ( '01_Calendar'[dates] )\r\nVAR TF0 =\r\n    HASONEVALUE ( '01_Calendar'[dates] ) //日\r\nVAR TF1 =\r\n    HASONEVALUE ( '01_Calendar'[YW] ) //周\r\nVAR TF2 =\r\n    HASONEVALUE ( '01_Calendar'[YM] ) //月\r\nVAR TF3 =\r\n    HASONEVALUE ( '01_Calendar'[YQ] ) //季度\r\nVAR TF4 =\r\n    HASONEVALUE ( '01_Calendar'[YH] ) //半年度\r\nVAR TF5 =\r\n    HASONEVALUE ( '01_Calendar'[FY00] ) //年度\r\nVAR N0 =\r\n    SWITCH (\r\n        TRUE (),\r\n        TF0, 0,\r\n        TF1,\r\n            DATEDIFF (\r\n                FIRSTDATE ( '01_Calendar'[StartOfWeek] ),\r\n                LASTDATE ( '01_Calendar'[EndOfWeek] ),\r\n                DAY\r\n            ),\r\n        TF2,\r\n            DATEDIFF (\r\n                FIRSTDATE ( '01_Calendar'[StartOfMonth] ),\r\n                LASTDATE ( '01_Calendar'[EndOfMonth] ),\r\n                DAY\r\n            ),\r\n        TF3,\r\n            DATEDIFF (\r\n                FIRSTDATE ( '01_Calendar'[StartOfQuarter] ),\r\n                LASTDATE ( '01_Calendar'[EndOfQuarter] ),\r\n                DAY\r\n            ),\r\n        TF4,\r\n            DATEDIFF (\r\n                FIRSTDATE ( '01_Calendar'[StartOfHalfYear] ),\r\n                LASTDATE ( '01_Calendar'[EndOfHalfYear] ),\r\n                DAY\r\n            ),\r\n        TF5,\r\n            DATEDIFF (\r\n                FIRSTDATE ( '01_Calendar'[StartOfYear] ),\r\n                LASTDATE ( '01_Calendar'[EndOfYear] ),\r\n                DAY\r\n            ),\r\n        0\r\n    ) + 1\r\nVAR DATE_END1 =\r\n    SWITCH (\r\n        TRUE (),\r\n        TF0, DATEADD ( DATE_END0, - N0, DAY ),\r\n        TF1, DATEADD ( LASTDATE ( '01_Calendar'[EndOfWeek] ), - N0, DAY ),\r\n        TF2, DATEADD ( LASTDATE ( '01_Calendar'[EndOfMonth] ), - N0, DAY ),\r\n        TF3, DATEADD ( LASTDATE ( '01_Calendar'[EndOfQuarter] ), - N0, DAY ),\r\n        TF4, DATEADD ( LASTDATE ( '01_Calendar'[EndOfHalfYear] ), - N0, DAY ),\r\n        TF5, DATEADD ( LASTDATE ( '01_Calendar'[EndOfYear] ), - N0, DAY ),\r\n        DATE_START0 //无筛选的时，默认日期表期初。\r\n    )\r\nVAR DATE_END2 =\r\n    IF ( ISBLANK ( DATE_END1 ), DATE_START0, DATE_END1 ) //兼容dateadd后的空值，注意日期表的两个端点。\r\nVAR DATE_TABLE0 =\r\n    DATESBETWEEN ( '01_Calendar'[dates], DATE_START0, DATE_END2 )\r\nVAR IN0 =\r\n    CALCULATE ( [0018_产品数量_入库_单位_D_], DATE_TABLE0 )\r\nVAR OUT0 =\r\n    CALCULATE ( [0019_产品数量_出库_单位_D_], DATE_TABLE0 )\r\nVAR DATE_START_ABS0 =\r\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_04_送货日期] ), ALL () ) //兼容显示到事实表最后日期。\r\nRETURN\r\n    IN0 - OUT0\r\n//IF ( DATE_START_ABS0 >= DATE_END2, IN0 - OUT0, BLANK () )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR DATE_START0 =\r\n    CALCULATE ( FIRSTDATE ( '01_Calendar'[dates] ), ALL ( '01_Calendar' ) )\r\nVAR DATE_END0 =\r\n    LASTDATE ( '01_Calendar'[dates] )\r\nVAR DATE_TABLE0 =\r\n    DATESBETWEEN ( '01_Calendar'[dates], DATE_START0, DATE_END0 )\r\nVAR IN0 =\r\n    CALCULATE ( [0018_产品数量_入库_单位_D_], DATE_TABLE0 )\r\nVAR OUT0 =\r\n    CALCULATE ( [0019_产品数量_出库_单位_D_], DATE_TABLE0 )\r\nVAR DATE_START_ABS0 =\r\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_04_送货日期] ), ALL () ) //兼容显示到事实表最后日期。\r\nRETURN\r\n    IN0 - OUT0\r\n//IF(DATE_START_ABS0>=DATE_END0,IN0 - OUT0,BLANK())\r\n",
+      "errors": []
+    },
+    {
+      "formatted": " =\r\n/*\n----------------------------------------------------------------------------------------------------\n存货周转天数（Days Sales Of Inventory），参考值=>年度：120;半年：60;季度：30;月度：9;周度：2;单日：1。\n存货周转率（Inventory Turnover），越大表示周转越快。\n----------------------------------------------------------------------------------------------------\n年度：N = 360\n半年：N = 180\n季度：N = 90\n月度：N = 30\n周度：N = 7\n单日: N = 1\n----------------------------------------------------------------------------------------------------\n库存周转天数 = N / 期间存货周转率\n库存周转率 = 期间出库数量 / 期间平均库存 \n期间平均库存 =（ 期初库存 + 期末库存）÷ 2\n----------------------------------------------------------------------------------------------------\n*/\r\n//1、期初期末平均法\r\n( [0800_产品数量_库存_期初_单位_] + [0801_产品数量_库存_期末_单位_] ) / 2\r\n//2、日平均法\r\n// VAR T0 =\r\n//     SUMMARIZE ( '01_Calendar', '01_Calendar'[dates] )\r\n// VAR T1 =\r\n//     ADDCOLUMNS ( T0, \"@KC\", [0801_产品数量_库存_期末_单位_D_] )\r\n// VAR FM =\r\n//     COUNTROWS ( T0 )\r\n// VAR FZ =\r\n//     SUMX ( T1, [@KC] )\r\n// RETURN\r\n//     DIVIDE ( FZ, FM, BLANK () )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": " =\r\n/*\n----------------------------------------------------------------------------------------------------\n存货周转天数（Days Sales Of Inventory），参考值=>年度：120;半年：60;季度：30;月度：9;周度：2;单日：1。\n存货周转率（Inventory Turnover），越大表示周转越快。\n----------------------------------------------------------------------------------------------------\n年度：N = 360\n半年：N = 180\n季度：N = 90\n月度：N = 30\n周度：N = 7\n单日: N = 1\n----------------------------------------------------------------------------------------------------\n库存周转天数 = N / 期间存货周转率\n库存周转率 = 期间出库数量 / 期间平均库存 \n期间平均库存 =（ 期初库存 + 期末库存）÷ 2\n----------------------------------------------------------------------------------------------------\n*/\r\nVAR FM = ( [0800_产品数量_库存_期初_单位_] + [0801_产品数量_库存_期末_单位_] ) / 2\r\nVAR FZ = [0019_产品数量_出库_单位_D_]\r\nVAR InventoryTurnover =\r\n    DIVIDE ( FZ, FM, BLANK () )\r\nRETURN\r\n    InventoryTurnover\r\n",
+      "errors": []
+    },
+    {
+      "formatted": " =\r\n/*\n----------------------------------------------------------------------------------------------------\n存货周转天数（Days Sales Of Inventory），参考值=>年度：120;半年：60;季度：30;月度：9;周度：2;单日：1。\n存货周转率（Inventory Turnover），越大表示周转越快。\n----------------------------------------------------------------------------------------------------\n年度：N = 360\n半年：N = 180\n季度：N = 90\n月度：N = 30\n周度：N = 7\n单日: N = 1\n----------------------------------------------------------------------------------------------------\n库存周转天数 = N / 期间存货周转率\n库存周转率 = 期间出库数量 / 期间平均库存 \n期间平均库存 =（ 期初库存 + 期末库存）÷ 2\n----------------------------------------------------------------------------------------------------\n*/\r\nVAR TF0 =\r\n    HASONEVALUE ( '01_Calendar'[dates] ) //日\r\nVAR TF1 =\r\n    HASONEVALUE ( '01_Calendar'[YW] ) //周\r\nVAR TF2 =\r\n    HASONEVALUE ( '01_Calendar'[YM] ) //月\r\nVAR TF3 =\r\n    HASONEVALUE ( '01_Calendar'[YQ] ) //季度\r\nVAR TF4 =\r\n    HASONEVALUE ( '01_Calendar'[YH] ) //半年度\r\nVAR TF5 =\r\n    HASONEVALUE ( '01_Calendar'[FY00] ) //年度\r\nVAR N =\r\n    SWITCH (\r\n        TRUE (),\r\n        TF0, 1,\r\n        TF1, 7,\r\n        TF2, 30,\r\n        TF3, 90,\r\n        TF4, 180,\r\n        TF5, 360,\r\n        COUNTROWS ( '01_Calendar' )\r\n    )\r\nVAR DaysSalesOfInventory =\r\n    DIVIDE ( N, [0803_产品数量_库存_期间周转率_单位_] )\r\nRETURN\r\n    DaysSalesOfInventory\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR C_TBALE0 =\r\n    CALCULATETABLE (\r\n        VALUES ( 'T02_客户表'[F_01_客户编号] ),\r\n        USERELATIONSHIP ( 'T02_客户表'[F_05_注册日期], '01_Calendar'[dates] )\r\n    )\r\nRETURN\r\n    COUNTROWS ( C_TBALE0 )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR C_TBALE0 =\r\n    CALCULATETABLE (\r\n        VALUES ( 'T02_客户表'[F_01_客户编号] ),\r\n        USERELATIONSHIP ( 'T02_客户表'[F_05_注册日期], '01_Calendar'[dates] )\r\n    )\r\nVAR C_TBALE1 =\r\n    ALL ( 'T04_订单主表'[F_05_客户编号] )\r\nVAR C_TBALE2 =\r\n    FILTER ( C_TBALE0, [F_01_客户编号] IN C_TBALE1 )\r\nRETURN\r\n    COUNTROWS ( C_TBALE2 )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n[0900_客户_客户数量_注册_单位_D_] - [0901_客户_客户数量_已购买_注册日期_单位_D_]\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nDIVIDE ( [0901_客户_客户数量_已购买_注册日期_单位_D_], [0900_客户_客户数量_注册_单位_D_] )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nDIVIDE ( [0902_客户_客户数量_零购买_注册日期_单位_D_], [0900_客户_客户数量_注册_单位_D_] )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n// 新客户定义：只有一次购买记录。\r\nVAR USER_TABLE0 =\r\n    CALCULATETABLE (\r\n        ADDCOLUMNS (\r\n            ALLSELECTED ( 'T02_客户表'[F_01_客户编号] ),\r\n            \"@购买次数\", CALCULATE ( COUNTROWS ( 'T04_订单主表' ) )\r\n        ),\r\n        'T04_订单主表',\r\n        'T05_订单子表'\r\n    )\r\nVAR USER_TABLE_NEW =\r\n    FILTER ( USER_TABLE0, [@购买次数] = 1 )\r\nRETURN\r\n    COUNTROWS ( USER_TABLE_NEW )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n// 老客户定义：有大于一次购买记录。\r\nVAR USER_TABLE0 =\r\n    CALCULATETABLE (\r\n        ADDCOLUMNS (\r\n            ALLSELECTED ( 'T02_客户表'[F_01_客户编号] ),\r\n            \"@购买次数\", CALCULATE ( COUNTROWS ( 'T04_订单主表' ) )\r\n        ),\r\n        'T04_订单主表',\r\n        'T05_订单子表'\r\n    )\r\nVAR USER_TABLE_OLD =\r\n    FILTER ( USER_TABLE0, [@购买次数] > 1 )\r\nRETURN\r\n    COUNTROWS ( USER_TABLE_OLD )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR FZ = [0001_销售金额_单位_D_]\r\nVAR FM =\r\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_06_客户行业] ) )\r\nVAR P =\r\n    DIVIDE ( FZ, FM, BLANK () )\r\nRETURN\r\n    P\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR R =\r\n    RANKX ( ALL ( 'T02_客户表'[F_06_客户行业] ), [0001_销售金额_单位_D_],, DESC )\r\nVAR T =\r\n    ADDCOLUMNS (\r\n        ALL ( 'T02_客户表'[F_06_客户行业] ),\r\n        \"R\", RANKX ( ALL ( 'T02_客户表'[F_06_客户行业] ), [0001_销售金额_单位_D_],, DESC )\r\n    )\r\nVAR LJ =\r\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\r\nVAR FM =\r\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_06_客户行业] ) )\r\nVAR P =\r\n    DIVIDE ( LJ, FM, BLANK () )\r\nRETURN\r\n    P\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR T0 =\r\n    ADDCOLUMNS (\r\n        ALL ( 'T02_客户表'[F_06_客户行业] ),\r\n        \"R\", RANKX ( ALL ( 'T02_客户表'[F_06_客户行业] ), [0001_销售金额_单位_D_],, DESC )\r\n    )\r\nVAR T1 =\r\n    ADDCOLUMNS (\r\n        T0,\r\n        \"@P%\",\r\n            VAR R =\r\n                RANKX ( ALL ( 'T02_客户表'[F_06_客户行业] ), [0001_销售金额_单位_D_],, DESC )\r\n            VAR LJ =\r\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\r\n            VAR FM =\r\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_06_客户行业] ) )\r\n            VAR P =\r\n                DIVIDE ( LJ, FM, BLANK () )\r\n            RETURN\r\n                P\r\n    )\r\nVAR T2 =\r\n    FILTER ( T1, [@P%] >= 0.8 )\r\nVAR MINRANK =\r\n    MINX ( T2, [@P%] )\r\nRETURN\r\n    MINRANK\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR FZ = [0001_销售金额_单位_D_]\r\nVAR FM =\r\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_07_客户职业] ) )\r\nVAR P =\r\n    DIVIDE ( FZ, FM, BLANK () )\r\nRETURN\r\n    P\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR R =\r\n    RANKX ( ALL ( 'T02_客户表'[F_07_客户职业] ), [0001_销售金额_单位_D_],, DESC )\r\nVAR T =\r\n    ADDCOLUMNS (\r\n        ALL ( 'T02_客户表'[F_07_客户职业] ),\r\n        \"R\", RANKX ( ALL ( 'T02_客户表'[F_07_客户职业] ), [0001_销售金额_单位_D_],, DESC )\r\n    )\r\nVAR LJ =\r\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\r\nVAR FM =\r\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_07_客户职业] ) )\r\nVAR P =\r\n    DIVIDE ( LJ, FM, BLANK () )\r\nRETURN\r\n    P\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR T0 =\r\n    ADDCOLUMNS (\r\n        ALL ( 'T02_客户表'[F_07_客户职业] ),\r\n        \"R\", RANKX ( ALL ( 'T02_客户表'[F_07_客户职业] ), [0001_销售金额_单位_D_],, DESC )\r\n    )\r\nVAR T1 =\r\n    ADDCOLUMNS (\r\n        T0,\r\n        \"@P%\",\r\n            VAR R =\r\n                RANKX ( ALL ( 'T02_客户表'[F_07_客户职业] ), [0001_销售金额_单位_D_],, DESC )\r\n            VAR LJ =\r\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\r\n            VAR FM =\r\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_07_客户职业] ) )\r\n            VAR P =\r\n                DIVIDE ( LJ, FM, BLANK () )\r\n            RETURN\r\n                P\r\n    )\r\nVAR T2 =\r\n    FILTER ( T1, [@P%] >= 0.8 )\r\nVAR MINRANK =\r\n    MINX ( T2, [@P%] )\r\nRETURN\r\n    MINRANK\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR FZ = [0001_销售金额_单位_D_]\r\nVAR FM =\r\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[@年龄段] ) )\r\nVAR P =\r\n    DIVIDE ( FZ, FM, BLANK () )\r\nRETURN\r\n    P\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR R =\r\n    RANKX ( ALL ( 'T02_客户表'[@年龄段] ), [0001_销售金额_单位_D_],, DESC )\r\nVAR T =\r\n    ADDCOLUMNS (\r\n        ALL ( 'T02_客户表'[@年龄段] ),\r\n        \"R\", RANKX ( ALL ( 'T02_客户表'[@年龄段] ), [0001_销售金额_单位_D_],, DESC )\r\n    )\r\nVAR LJ =\r\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\r\nVAR FM =\r\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[@年龄段] ) )\r\nVAR P =\r\n    DIVIDE ( LJ, FM, BLANK () )\r\nRETURN\r\n    P\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR T0 =\r\n    ADDCOLUMNS (\r\n        ALL ( 'T02_客户表'[@年龄段] ),\r\n        \"R\", RANKX ( ALL ( 'T02_客户表'[@年龄段] ), [0001_销售金额_单位_D_],, DESC )\r\n    )\r\nVAR T1 =\r\n    ADDCOLUMNS (\r\n        T0,\r\n        \"@P%\",\r\n            VAR R =\r\n                RANKX ( ALL ( 'T02_客户表'[@年龄段] ), [0001_销售金额_单位_D_],, DESC )\r\n            VAR LJ =\r\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\r\n            VAR FM =\r\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[@年龄段] ) )\r\n            VAR P =\r\n                DIVIDE ( LJ, FM, BLANK () )\r\n            RETURN\r\n                P\r\n    )\r\nVAR T2 =\r\n    FILTER ( T1, [@P%] >= 0.8 )\r\nVAR MINRANK =\r\n    MINX ( T2, [@P%] )\r\nRETURN\r\n    MINRANK\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n// 新客户定义：只有一次购买记录。\r\nVAR USER_TABLE0 =\r\n    CALCULATETABLE (\r\n        ADDCOLUMNS (\r\n            ALLSELECTED ( 'T02_客户表'[F_01_客户编号] ),\r\n            \"@购买次数\", CALCULATE ( COUNTROWS ( 'T04_订单主表' ) )\r\n        ),\r\n        KEEPFILTERS ( 'T04_订单主表' ),\r\n        KEEPFILTERS ( 'T05_订单子表' )\r\n    )\r\nVAR USER_TABLE_NEW =\r\n    FILTER ( USER_TABLE0, [@购买次数] = 1 )\r\nRETURN\r\n    CALCULATE ( [0001_销售金额_单位_D_], USER_TABLE_NEW )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n// 老客户定义：有大于一次购买记录。\r\nVAR USER_TABLE0 =\r\n    CALCULATETABLE (\r\n        ADDCOLUMNS (\r\n            ALLSELECTED ( 'T02_客户表'[F_01_客户编号] ),\r\n            \"@购买次数\", CALCULATE ( COUNTROWS ( 'T04_订单主表' ) )\r\n        ),\r\n        KEEPFILTERS ( 'T04_订单主表' ),\r\n        KEEPFILTERS ( 'T05_订单子表' )\r\n    )\r\nVAR USER_TABLE_OLD =\r\n    FILTER ( USER_TABLE0, [@购买次数] > 1 )\r\nRETURN\r\n    CALCULATE ( [0001_销售金额_单位_D_], USER_TABLE_OLD )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR FZ = [0001_销售金额_单位_D_]\r\nVAR FM = [0002_订单数量_单位_D_]\r\nRETURN\r\n    DIVIDE ( FZ, FM, BLANK () )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR FZ = [0005_毛利_单位_D_]\r\nVAR FM = [0002_订单数量_单位_D_]\r\nRETURN\r\n    DIVIDE ( FZ, FM, BLANK () )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR FZ = [0001_销售金额_单位_D_]\r\nVAR FM = [0016_订单件数_单位_D_]\r\nRETURN\r\n    DIVIDE ( FZ, FM, BLANK () )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR FZ = [0005_毛利_单位_D_]\r\nVAR FM = [0016_订单件数_单位_D_]\r\nRETURN\r\n    DIVIDE ( FZ, FM, BLANK () )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR FZ = [0016_订单件数_单位_D_]\r\nVAR FM = [0002_订单数量_单位_D_]\r\nRETURN\r\n    DIVIDE ( FZ, FM, BLANK () )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR DAY_MAX =\r\n    CALCULATETABLE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL ( '01_Calendar' ) )\r\nVAR DAY_MIN =\r\n    CALCULATETABLE (\r\n        STARTOFYEAR ( '01_Calendar'[dates] ),\r\n        ALLSELECTED ( '01_Calendar' )\r\n    )\r\nVAR DATE_AC =\r\n    DATESBETWEEN ( '01_Calendar'[dates], DAY_MIN, DAY_MAX )\r\nVAR DATE_PRE =\r\n    DATESBETWEEN (\r\n        '01_Calendar'[dates],\r\n        DATEADD ( DAY_MIN, -1, YEAR ),\r\n        DATEADD ( DAY_MAX, -1, YEAR )\r\n    )\r\nVAR YTD_AC =\r\n    CALCULATE ( [0001_销售金额_单位_D_], DATE_AC )\r\nVAR YTD_PRE =\r\n    CALCULATE ( [0001_销售金额_单位_D_], DATE_PRE )\r\nVAR YOY =\r\n    DIVIDE ( YTD_AC, YTD_PRE )\r\nVAR DAY_AC =\r\n    MAX ( '01_Calendar'[dates] )\r\nVAR PRE =\r\n    CALCULATE ( [0001_销售金额_单位_D_], DATEADD ( '01_Calendar'[dates], -1, YEAR ) )\r\nRETURN\r\n    IF ( DAY_AC <= DAY_MAX, BLANK (), PRE * YOY )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR DAY_MAX =\r\n    CALCULATETABLE (\r\n        LASTDATE ( 'T04_订单主表'[F_03_下单日期] ),\r\n        ALLSELECTED ( '01_Calendar' )\r\n    )\r\nVAR DAY_AC =\r\n    LASTDATE ( '01_Calendar'[dates] )\r\nRETURN\r\n    IF (\r\n        DAY_AC > DAY_MAX,\r\n        BLANK (),\r\n        CALCULATE ( [0001_销售金额_单位_D_], DATESMTD ( '01_Calendar'[dates] ) )\r\n    )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR DAY_MAX =\r\n    CALCULATETABLE (\r\n        LASTDATE ( 'T04_订单主表'[F_03_下单日期] ),\r\n        ALLSELECTED ( '01_Calendar' )\r\n    )\r\nVAR DAY_AC =\r\n    LASTDATE ( '01_Calendar'[dates] )\r\nVAR DATE_EDN =\r\n    ENDOFMONTH ( '01_Calendar'[dates] )\r\nRETURN\r\n    IF (\r\n        DAY_AC = DAY_MAX && DAY_AC < DATE_EDN,\r\n        //DAY_AC < DATE_EDN兼容实际月末两个端点（1502，1504）出现。\r\n        CALCULATE (\r\n            [0001_销售金额_单位_D_],\r\n            DATESMTD ( '01_Calendar'[dates] )\r\n        ),\r\n        BLANK ()\r\n    )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR DAY_MAX0 =\r\n    CALCULATETABLE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL ( '01_Calendar' ) )\r\nVAR DAY_MAX1 =\r\n    CALCULATETABLE (\r\n        LASTDATE ( '01_Calendar'[dates] ),\r\n        TREATAS ( DAY_MAX0, '01_Calendar'[dates] )\r\n    ) //由于'T04_订单主表'[F_03_下单日期]最大日期后在无日期，DATEADD后为空，需要转化到'01_Calendar'[dates]\r\nVAR DAY_MAX2 =\r\n    DATEADD ( DAY_MAX1, 1, DAY )\r\nVAR DAY_MIN =\r\n    CALCULATETABLE (\r\n        STARTOFMONTH ( '01_Calendar'[dates] ),\r\n        ALLSELECTED ( '01_Calendar' )\r\n    )\r\nVAR DAY_AC =\r\n    LASTDATE ( '01_Calendar'[dates] )\r\nVAR MTD_FORE0 =\r\n    CALCULATE (\r\n        [1500_预测_预测达成_单位_],\r\n        DATESBETWEEN ( '01_Calendar'[dates], DAY_MAX2, DAY_AC )\r\n    )\r\nVAR MTD_FORE1 =\r\n    CALCULATE ( [1500_预测_预测达成_单位_], DATESMTD ( '01_Calendar'[dates] ) )\r\nVAR MTD_AC =\r\n    CALCULATE ( [0001_销售金额_单位_D_], DATESMTD ( '01_Calendar'[dates] ) )\r\nRETURN\r\n    SWITCH (\r\n        TRUE (),\r\n        DAY_AC >= DAY_MAX0 && DAY_MIN > DAY_MAX0, MTD_FORE1,\r\n        DAY_AC >= DAY_MAX0 && DAY_MIN <= DAY_MAX0, MTD_AC + MTD_FORE0,\r\n        BLANK ()\r\n    )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR DAY_MAX_M =\r\n    CALCULATETABLE (\r\n        LASTDATE ( '01_Calendar'[dates] ),\r\n        ALLSELECTED ( '01_Calendar' )\r\n    )\r\nVAR DAY_MAX0 =\r\n    CALCULATETABLE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL ( '01_Calendar' ) )\r\nVAR DAY_MAX1 =\r\n    CALCULATETABLE (\r\n        LASTDATE ( '01_Calendar'[dates] ),\r\n        TREATAS ( DAY_MAX0, '01_Calendar'[dates] )\r\n    )\r\nVAR DAY_MAX2 =\r\n    DATEADD ( DAY_MAX1, 1, DAY )\r\nVAR DAY_MIN =\r\n    CALCULATETABLE (\r\n        STARTOFMONTH ( '01_Calendar'[dates] ),\r\n        ALLSELECTED ( '01_Calendar' )\r\n    )\r\nVAR DAY_AC =\r\n    LASTDATE ( '01_Calendar'[dates] )\r\nVAR MTD_FORE0 =\r\n    CALCULATE (\r\n        [1500_预测_预测达成_单位_],\r\n        DATESBETWEEN ( '01_Calendar'[dates], DAY_MAX2, DAY_AC )\r\n    )\r\nVAR MTD_FORE1 =\r\n    CALCULATE ( [1500_预测_预测达成_单位_], DATESMTD ( '01_Calendar'[dates] ) )\r\nVAR MTD_AC =\r\n    CALCULATE ( [0001_销售金额_单位_D_], DATESMTD ( '01_Calendar'[dates] ) )\r\nRETURN\r\n    SWITCH (\r\n        TRUE (),\r\n        DAY_AC = DAY_MAX_M && DAY_MIN > DAY_MAX0, MTD_FORE1,\r\n        DAY_AC = DAY_MAX_M && DAY_MIN <= DAY_MAX0, MTD_AC + MTD_FORE0,\r\n        BLANK ()\r\n    )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nCALCULATE (\r\n    [0003_销售目标_单位_D_],\r\n    ALL ( '01_Calendar'[dates], '01_Calendar'[day] )\r\n)\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR DATE0 =\r\n    STARTOFMONTH ( '01_Calendar'[dates] )\r\nVAR DATE1 =\r\n    LASTDATE ( '01_Calendar'[dates] )\r\nVAR DOT =\r\n    IF ( DATE0 = DATE1, [1505_预测_目标线_单位_], BLANK () )\r\nRETURN\r\n    DOT\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nCALCULATE (\r\n    [0001_销售金额_单位_D_],\r\n    SAMEPERIODLASTYEAR ( DATESMTD ( '01_Calendar'[dates] ) )\r\n)\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nCALCULATE (\r\n    [1507_预测_AC_MTD_PY_单位_],\r\n    ALL ( '01_Calendar'[dates], '01_Calendar'[day] )\r\n)\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR DATE0 =\r\n    STARTOFMONTH ( '01_Calendar'[dates] )\r\nVAR DATE1 =\r\n    LASTDATE ( '01_Calendar'[dates] )\r\nVAR DOT =\r\n    IF ( DATE0 = DATE1, [1508_预测_AC_MTD线_PY_单位_], BLANK () )\r\nRETURN\r\n    DOT\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR DAY_MAX =\r\n    CALCULATETABLE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL ( '01_Calendar' ) )\r\nVAR DAY_AC =\r\n    LASTDATE ( '01_Calendar'[dates] )\r\nRETURN\r\n    IF ( DAY_AC <= DAY_MAX, [1501_预测_AC_MTD_单位_], [1503_预测_预测达成_MTD_单位_] )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nDIVIDE ( [1510_预测_实际&预测_MTD_工具提示_单位_], [1505_预测_目标线_单位_] )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n//用最后一天的MTD\r\nVAR DATE_START_MONTH_AC =\r\n    STARTOFMONTH ( '01_Calendar'[dates] ) //兼容闰月及月份天数不一致。\r\nVAR DATE_END_MONTH_LASTYEAR =\r\n    ENDOFMONTH ( DATEADD ( DATE_START_MONTH_AC, -1, YEAR ) )\r\nVAR DATE_END_MONTH_LAST =\r\n    ENDOFMONTH ( DATEADD ( DATE_START_MONTH_AC, -1, MONTH ) )\r\nVAR FZ = [1510_预测_实际&预测_MTD_工具提示_单位_]\r\nVAR FM_YOY =\r\n    CALCULATE ( [1510_预测_实际&预测_MTD_工具提示_单位_], DATE_END_MONTH_LASTYEAR )\r\nVAR FM_MOM =\r\n    CALCULATE ( [1510_预测_实际&预测_MTD_工具提示_单位_], DATE_END_MONTH_LAST )\r\nVAR _YOY =\r\n    DIVIDE ( FZ, FM_YOY, BLANK () ) - 1\r\nVAR _MOM =\r\n    DIVIDE ( FZ, FM_MOM, BLANK () ) - 1\r\nVAR _TARGET = [1511_预测_目标完成_单位_%_]\r\nVAR YM =\r\n    FORMAT ( DATE_START_MONTH_AC, \"YYYY年MM月\" )\r\nRETURN\r\n    YM & \" 同比去年：\" & FORMAT ( _YOY, \"0.0%\" ) & \"，环比上月：\" & FORMAT ( _MOM, \"0.0%\" ) & \"，目标完成率：\"\r\n        & FORMAT ( _TARGET, \"0.0%\" ) & \"。\"\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR DATE_ALLSELECTED =\r\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALLSELECTED () )\r\nVAR DATE_ALL =\r\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL () )\r\nVAR DATE_MAX =\r\n    ENDOFMONTH ( '01_Calendar'[dates] )\r\nVAR DATE0 =\r\n    IF ( DATE_MAX > DATE_ALL, DATE_ALL, DATE_ALLSELECTED ) //兼容大约当月预测。\r\nVAR FM = 60\r\nVAR DATETABLE0 =\r\n    DATESINPERIOD ( '01_Calendar'[dates], DATE0, - FM, DAY )\r\nVAR FZ =\r\n    CALCULATE ( [0001_销售金额_单位_D_], DATETABLE0 )\r\nRETURN\r\n    DIVIDE ( FZ, FM ) * FM\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR DATE_ALLSELECTED =\r\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALLSELECTED () )\r\nVAR DATE_ALL =\r\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL () )\r\nVAR DATE_MAX =\r\n    ENDOFMONTH ( '01_Calendar'[dates] )\r\nVAR DATE0 =\r\n    IF ( DATE_MAX > DATE_ALL, DATE_ALL, DATE_ALLSELECTED )\r\nVAR FM = 60\r\nVAR DATETABLE0 =\r\n    DATESINPERIOD ( '01_Calendar'[dates], DATE0, - FM, DAY )\r\nVAR FZ =\r\n    CALCULATE ( [0001_销售金额_单位_D_], DATETABLE0 )\r\nRETURN\r\n    DIVIDE ( FZ, FM ) * 10\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n\"https://jiaopengzi.com/video/video-101\"\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n\"点击前往项目页面。\"\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n/*\n说明：因理想为标准正太分布，安全库存仅作为参考点，需要加入业务的理解。\nSS= z * SQRT( σd^2* μL + σL^2 * μd^2 )\n其中\nSS：安全库存（Safe Stock）\nz : 服务水平系数，服务水平（现货率）为0.95，在标准正太分布下对应的z=1.65。\nL : 采购提前期\nμL: 平均提前期\nσL: 提前期L的标准差\nd : 日出库量\nμd: 平均日出库量\nσd: 日出库量d的标准差\n*/\r\n1\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR SvgStartImage = \"data:image/svg+xml;utf8,\"\r\nVAR ConfigTable =\r\n    FILTER (\r\n        'PbiUtilsTemplateMeasures',\r\n        'PbiUtilsTemplateMeasures'[name] = \"logo_image2\"\r\n    )\r\nVAR ConfigValue =\r\n    CONCATENATEX ( ConfigTable, 'PbiUtilsTemplateMeasures'[value] )\r\nVAR SvgMatchPosition =\r\n    COALESCE (\r\n        SEARCH ( \"<svg*</svg>\", ConfigValue, 1, BLANK () ),\r\n        SEARCH ( \"<svg*/>\", ConfigValue, 1, BLANK () )\r\n    )\r\nVAR Result =\r\n    IF (\r\n        ISBLANK ( SvgMatchPosition ) || LEFT ( ConfigValue, 5 ) = \"data:\"\r\n            || LEFT ( ConfigValue, 7 ) = \"http://\"\r\n            || LEFT ( ConfigValue, 8 ) = \"https://\",\r\n        ConfigValue,\r\n        SvgStartImage & ConfigValue\r\n    )\r\nRETURN\r\n    Result\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nDIVIDE ( 1, 2, BLANK () )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nABS ( SUM ( Sales[Amount] ) )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nSWITCH ( TRUE (), [Amount] > 100, \"Large\", [Amount] > 0, \"Small\", \"None\" )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nROW ( \"First\", 1, \"Second\", DIVIDE ( 4, 2 ) )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nADDCOLUMNS (\r\n    Sales,\r\n    \"Net\", Sales[Amount] - Sales[Cost],\r\n    \"Rate\", DIVIDE ( Sales[Cost], Sales[Amount] )\r\n)\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nSUMMARIZE (\r\n    Sales,\r\n    Sales[Category],\r\n    \"Amount\", SUM ( Sales[Amount] ),\r\n    \"Quantity\", SUM ( Sales[Quantity] )\r\n)\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nRANKX ( ALL ( Sales[Category] ), [Amount],, DESC, DENSE )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n-1 + 1e-3 - -2\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nSUM ( 'O''Brien'[A]]B] )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nIF ( [Amount] > 0, \"a  b\", \"x\"\"y\" )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nSUM ( '中文 表'[金额] ) + [利润]\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\ndt\"2026-10-30T13:45:00\"\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR Total = 1 // keep  two spaces  \r\nRETURN Total + 2\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n/* config  value */\r\nVAR Total = 1 /* final  value */\r\nRETURN Total\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n/* first\n  second  line\n*/\r\nVAR Total = 1 RETURN Total\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR Message = \"first\n second\" RETURN Message\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR OuterTotal = VAR InnerTotal = 1 RETURN InnerTotal + 2\r\nVAR OtherTotal = 3\r\nRETURN\r\n    OuterTotal + OtherTotal\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nSUMX ( Sales, VAR Net = Sales[Amount] - Sales[Cost] RETURN Net * 2 )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\n{ ( 1, \"One\" ), ( 2, \"Two\" ), ( 3, \"Three\" ) }\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nIF (\r\n    ISBLANK ( [Amount] ) || LEFT ( [Label], 5 ) = \"data:\"\r\n        || LEFT ( [Label], 7 ) = \"http://\"\r\n        || LEFT ( [Label], 8 ) = \"https://\",\r\n    [Amount],\r\n    0\r\n)\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nDIVIDE ( [Amount], [Quantity] ) + SUM ( Sales[Tax] ) - 1\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nIF ( [Category] IN { \"A\", \"B\", \"C\" }, 1, 0 )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nVAR lower_case = SUM ( Sales[Amount] ) RETURN DIVIDE ( lower_case, 2 )\r\n",
+      "errors": []
+    },
+    {
+      "formatted": "OracleMeasure =\r\nSUM ( 'Sales'[Amount] )\r\n",
+      "errors": []
+    }
+  ]
+}

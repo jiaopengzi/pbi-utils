@@ -1,0 +1,514 @@
+{
+  "resources": [
+    {
+      "license": "MIT",
+      "files": [
+        {
+          "sha256": "DD50E5C19EFCF0A482FFA2BE24B58FFC1D613C01E5678D5986AB26F9C0E3B4BA",
+          "source": "https://raw.githubusercontent.com/sql-bi/Bravo/fbc2b12950ddb4344ae71f16de8861407c32050e/LICENSE",
+          "path": "licenses/source/Bravo-MIT.txt"
+        }
+      ],
+      "version": "fbc2b12950ddb4344ae71f16de8861407c32050e",
+      "name": "Bravo-MIT",
+      "scope": "Core",
+      "source": "https://raw.githubusercontent.com/sql-bi/Bravo/fbc2b12950ddb4344ae71f16de8861407c32050e/LICENSE"
+    },
+    {
+      "license": "ISC AND MIT",
+      "files": [
+        {
+          "sha256": "1E7290B35280A048667BBF0EBABAC1C7FD52A75300E8B2946AC165715997F2BC",
+          "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/LICENSE",
+          "path": "licenses/source/Lucide-ISC.txt"
+        }
+      ],
+      "version": "0.468.0",
+      "name": "Lucide-ISC",
+      "scope": "All",
+      "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/LICENSE"
+    },
+    {
+      "license": "MIT",
+      "files": [
+        {
+          "sha256": "308028E93FCF84972523CDF6E616F73168546B4953895F516D01287F16FE7BEE",
+          "source": "https://raw.githubusercontent.com/feathericons/feather/v4.29.2/LICENSE",
+          "path": "licenses/source/Feather-MIT.txt"
+        }
+      ],
+      "version": "4.29.2",
+      "name": "Feather-MIT",
+      "scope": "All",
+      "source": "https://raw.githubusercontent.com/feathericons/feather/v4.29.2/LICENSE"
+    },
+    {
+      "license": "MIT",
+      "files": [
+        {
+          "sha256": "014FC3C610FD0F63137E3A7B82C0008E766F2DD61224A8057A5AC211330208B0",
+          "source": "https://raw.githubusercontent.com/jiaopengzi/Power-BI-custom-sample-data/197aaf4b6c3fac28990814851640c21796d49263/LICENSE",
+          "path": "licenses/source/Power-BI-custom-sample-data-MIT.txt"
+        }
+      ],
+      "version": "197aaf4b6c3fac28990814851640c21796d49263",
+      "name": "Power-BI-custom-sample-data-MIT",
+      "scope": "Core",
+      "source": "https://raw.githubusercontent.com/jiaopengzi/Power-BI-custom-sample-data/197aaf4b6c3fac28990814851640c21796d49263/LICENSE"
+    },
+    {
+      "license": "MIT",
+      "files": [
+        {
+          "sha256": "4D83B2FF4020D7A8DB41F2656DAD5C19140809BD3E57A8B7D9C0C4E18647543D",
+          "source": "repository:src/PbiUtils.Application/Calendar/Resources/calendar-LICENSE.txt",
+          "path": "licenses/source/calendar-MIT.txt"
+        }
+      ],
+      "version": "MIT Copyright 2023 焦棚子",
+      "name": "calendar-MIT",
+      "scope": "Core",
+      "source": "repository:src/PbiUtils.Application/Calendar/Resources/calendar-LICENSE.txt"
+    },
+    {
+      "license": "Zlib; bzip2; CPL-1.0 with LZMA exception",
+      "files": [
+        {
+          "sha256": "388357C1215FF403C5EBDE3A5ECD273E68F8B79A579996775245D1EE65442ABA",
+          "source": "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.13/nsis-3.13.zip",
+          "path": "licenses/source/NSIS-COPYING.txt"
+        }
+      ],
+      "version": "3.13",
+      "name": "NSIS-COPYING",
+      "scope": "All",
+      "source": "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.13/nsis-3.13.zip"
+    },
+    {
+      "license": "OFL-1.1",
+      "files": [
+        {
+          "sha256": "A76ABF002C49097D146E86740A3105A5D00450B1592E820A1109A8C5680CD697",
+          "source": "https://github.com/JetBrains/JetBrainsMono",
+          "path": "web/public/licenses/JetBrainsMono-OFL.txt"
+        }
+      ],
+      "version": "SHA256-086c48dfbea9ddaff1320f7e09399b8e2924e88ce67453721255db3bdbb5a353",
+      "name": "JetBrains Mono Medium",
+      "scope": "All",
+      "source": "https://github.com/JetBrains/JetBrainsMono"
+    },
+    {
+      "license": "MIT",
+      "files": [
+        {
+          "sha256": "AF35ADB2B12CA2F9F9613BC8618AA055F5E9D1FAADB890EB0000FB9D15EBAF03",
+          "source": "https://www.npmjs.com/package/highlightjs-dax/v/1.1.0",
+          "path": "web/public/licenses/highlightjs-dax-MIT.txt"
+        }
+      ],
+      "version": "1.1.0",
+      "name": "highlightjs-dax theme adaptation",
+      "scope": "All",
+      "source": "https://www.npmjs.com/package/highlightjs-dax/v/1.1.0"
+    },
+    {
+      "license": "MIT",
+      "files": [
+        {
+          "sha256": "AF35ADB2B12CA2F9F9613BC8618AA055F5E9D1FAADB890EB0000FB9D15EBAF03",
+          "source": "https://www.npmjs.com/package/highlightjs-m/v/1.0.0",
+          "path": "web/public/licenses/highlightjs-m-MIT.txt"
+        }
+      ],
+      "version": "1.0.0",
+      "name": "highlightjs-m theme adaptation",
+      "scope": "All",
+      "source": "https://www.npmjs.com/package/highlightjs-m/v/1.0.0"
+    },
+    {
+      "license": "MIT",
+      "files": [
+        {
+          "sha256": "C0878418702A1C58790FFBE6B0A4663E62DFD76B693FACE439A516C80B7514E8",
+          "source": "https://github.com/vscode-icons/vscode-icons/tree/e397afa6e0e4a0d6a892d31a001a1df5efe8b436",
+          "path": "web/public/licenses/vscode-icons-MIT.txt"
+        }
+      ],
+      "version": "e397afa6e0e4a0d6a892d31a001a1df5efe8b436",
+      "name": "VSCode Icons Power BI icon",
+      "scope": "All",
+      "source": "https://github.com/vscode-icons/vscode-icons/tree/e397afa6e0e4a0d6a892d31a001a1df5efe8b436"
+    },
+    {
+      "license": "ISC AND MIT",
+      "files": [
+        {
+          "sha256": "68C97223AFE0786215D318AD944C4AD2344C3B0B0F0D9A36F24BC70342D09328",
+          "source": "repository:THIRD-PARTY-NOTICES.md",
+          "path": "web/public/icons/LICENSE.txt"
+        }
+      ],
+      "version": "2026-11-03",
+      "name": "Local icon provenance",
+      "scope": "All",
+      "source": "repository:THIRD-PARTY-NOTICES.md"
+    }
+  ],
+  "schemaVersion": 1,
+  "packages": [
+    {
+      "declaredLicense": "MIT",
+      "license": "MIT",
+      "ecosystem": "nuget",
+      "version": "10.11.0",
+      "name": "Microsoft.Extensions.AI.Abstractions",
+      "files": [
+        {
+          "sha256": "47F0AD8BA753EAE5DE6178291CD8F38BBB42D2368B177F8E11714AD17C701275",
+          "source": "https://raw.githubusercontent.com/dotnet/extensions/25f07afa51034e37b334210642d7dc5f191c142d/LICENSE",
+          "path": "licenses/source/Microsoft.Extensions.AI.Abstractions-10.11.0.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "MIT",
+      "license": "MIT",
+      "ecosystem": "nuget",
+      "version": "10.0.13",
+      "name": "Microsoft.Extensions.DependencyInjection.Abstractions",
+      "files": [
+        {
+          "sha256": "AE48DF11A335DC1A615F4F938B69CBA73BCF4485C4F97AF49B38EFB0F216353B",
+          "source": "https://raw.githubusercontent.com/dotnet/dotnet/4099f83977f4d29604a9aeb971fb0a7bc1d5f699/LICENSE.TXT",
+          "path": "licenses/source/Microsoft.Extensions.DependencyInjection.Abstractions-10.0.13.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "MIT",
+      "license": "MIT",
+      "ecosystem": "nuget",
+      "version": "10.0.0",
+      "name": "Microsoft.Extensions.DependencyInjection",
+      "files": [
+        {
+          "sha256": "AE48DF11A335DC1A615F4F938B69CBA73BCF4485C4F97AF49B38EFB0F216353B",
+          "source": "https://raw.githubusercontent.com/dotnet/dotnet/b0f34d51fccc69fd334253924abd8d6853fad7aa/LICENSE.TXT",
+          "path": "licenses/source/Microsoft.Extensions.DependencyInjection-10.0.0.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "MIT",
+      "license": "MIT",
+      "ecosystem": "nuget",
+      "version": "10.0.13",
+      "name": "Microsoft.Extensions.Logging.Abstractions",
+      "files": [
+        {
+          "sha256": "AE48DF11A335DC1A615F4F938B69CBA73BCF4485C4F97AF49B38EFB0F216353B",
+          "source": "https://raw.githubusercontent.com/dotnet/dotnet/4099f83977f4d29604a9aeb971fb0a7bc1d5f699/LICENSE.TXT",
+          "path": "licenses/source/Microsoft.Extensions.Logging.Abstractions-10.0.13.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "MIT",
+      "license": "MIT",
+      "ecosystem": "nuget",
+      "version": "10.0.0",
+      "name": "Microsoft.Extensions.Logging",
+      "files": [
+        {
+          "sha256": "AE48DF11A335DC1A615F4F938B69CBA73BCF4485C4F97AF49B38EFB0F216353B",
+          "source": "https://raw.githubusercontent.com/dotnet/dotnet/b0f34d51fccc69fd334253924abd8d6853fad7aa/LICENSE.TXT",
+          "path": "licenses/source/Microsoft.Extensions.Logging-10.0.0.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "MIT",
+      "license": "MIT",
+      "ecosystem": "nuget",
+      "version": "10.0.0",
+      "name": "Microsoft.Extensions.Options",
+      "files": [
+        {
+          "sha256": "AE48DF11A335DC1A615F4F938B69CBA73BCF4485C4F97AF49B38EFB0F216353B",
+          "source": "https://raw.githubusercontent.com/dotnet/dotnet/b0f34d51fccc69fd334253924abd8d6853fad7aa/LICENSE.TXT",
+          "path": "licenses/source/Microsoft.Extensions.Options-10.0.0.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "MIT",
+      "license": "MIT",
+      "ecosystem": "nuget",
+      "version": "10.0.0",
+      "name": "Microsoft.Extensions.Primitives",
+      "files": [
+        {
+          "sha256": "AE48DF11A335DC1A615F4F938B69CBA73BCF4485C4F97AF49B38EFB0F216353B",
+          "source": "https://raw.githubusercontent.com/dotnet/dotnet/b0f34d51fccc69fd334253924abd8d6853fad7aa/LICENSE.TXT",
+          "path": "licenses/source/Microsoft.Extensions.Primitives-10.0.0.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "MIT",
+      "license": "MIT",
+      "ecosystem": "nuget",
+      "version": "4.83.3",
+      "name": "Microsoft.Identity.Client.Broker",
+      "files": [
+        {
+          "sha256": "2F07C72751AED99790B8A4869CF2311DF85A860B22DED05FA22803587A48922C",
+          "source": "https://raw.githubusercontent.com/AzureAD/microsoft-authentication-library-for-dotnet/64076eedf396c11d046c63be068a92f6fa10aaf2/LICENSE",
+          "path": "licenses/source/Microsoft.Identity.Client.Broker-4.83.3.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "MIT",
+      "license": "MIT",
+      "ecosystem": "nuget",
+      "version": "0.20.4",
+      "name": "Microsoft.Identity.Client.NativeInterop",
+      "files": [
+        {
+          "sha256": "7BB8E7067335C96CD9EB31FD2C1B00C3EDFFD34A4FEA32C2A598F6DFEC43CCA5",
+          "source": "https://www.nuget.org/packages/Microsoft.Identity.Client.NativeInterop/0.20.4; nuspec MIT declaration and copyright; standard text https://licenses.nuget.org/MIT",
+          "path": "licenses/source/Microsoft.Identity.Client.NativeInterop-0.20.4.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "MIT",
+      "license": "MIT",
+      "ecosystem": "nuget",
+      "version": "4.90.1",
+      "name": "Microsoft.Identity.Client",
+      "files": [
+        {
+          "sha256": "2F07C72751AED99790B8A4869CF2311DF85A860B22DED05FA22803587A48922C",
+          "source": "https://raw.githubusercontent.com/AzureAD/microsoft-authentication-library-for-dotnet/2e5ecc708f00ff3db93d823cf3d802cba945090f/LICENSE",
+          "path": "licenses/source/Microsoft.Identity.Client-4.90.1.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "MIT",
+      "license": "MIT",
+      "ecosystem": "nuget",
+      "version": "8.14.0",
+      "name": "Microsoft.IdentityModel.Abstractions",
+      "files": [
+        {
+          "sha256": "CBA03F5387B05405E56B688376421ACAE396136AF4B5116738DC6E5160F87DDD",
+          "source": "https://raw.githubusercontent.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/c8f7d87bcda35557a68f6cb9c55856a2ee733856/LICENSE.txt",
+          "path": "licenses/source/Microsoft.IdentityModel.Abstractions-8.14.0.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "Apache-2.0",
+      "license": "Apache-2.0",
+      "ecosystem": "nuget",
+      "version": "10.0.0",
+      "name": "Serilog.Extensions.Logging",
+      "files": [
+        {
+          "sha256": "C6596EB7BE8581C18BE736C846FB9173B69ECCF6EF94C5135893EC56BD92BA08",
+          "source": "https://raw.githubusercontent.com/serilog/serilog-extensions-logging/538cf2fd64baf760950e202a00dd426c6b76e18c/LICENSE",
+          "path": "licenses/source/Serilog.Extensions.Logging-10.0.0.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "Apache-2.0",
+      "license": "Apache-2.0",
+      "ecosystem": "nuget",
+      "version": "3.0.0",
+      "name": "Serilog.Formatting.Compact",
+      "files": [
+        {
+          "sha256": "B40930BBCF80744C86C46A12BC9DA056641D722716C378F5659B9E555EF833E1",
+          "source": "https://raw.githubusercontent.com/serilog/serilog-formatting-compact/8472ad8ccb97432ca7efbe78d8bc0eaf61db5356/LICENSE",
+          "path": "licenses/source/Serilog.Formatting.Compact-3.0.0.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "Apache-2.0",
+      "license": "Apache-2.0",
+      "ecosystem": "nuget",
+      "version": "7.0.0",
+      "name": "Serilog.Sinks.File",
+      "files": [
+        {
+          "sha256": "B40930BBCF80744C86C46A12BC9DA056641D722716C378F5659B9E555EF833E1",
+          "source": "https://raw.githubusercontent.com/serilog/serilog-sinks-file/23c732a8658a0df2a5434fe69b0011800b14f0da/LICENSE",
+          "path": "licenses/source/Serilog.Sinks.File-7.0.0.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "Apache-2.0",
+      "license": "Apache-2.0",
+      "ecosystem": "nuget",
+      "version": "4.4.0",
+      "name": "Serilog",
+      "files": [
+        {
+          "sha256": "73BA74DFAA520B49A401B5D21459A8523A146F3B7518A833EEA5EFA85130BF68",
+          "source": "https://raw.githubusercontent.com/serilog/serilog/497f80fda4f9e8f98b9c13ba34b1f0530f8c4449/LICENSE",
+          "path": "licenses/source/Serilog-4.4.0.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "MIT",
+      "license": "MIT",
+      "ecosystem": "nuget",
+      "version": "10.0.12",
+      "name": "System.Security.Cryptography.ProtectedData",
+      "files": [
+        {
+          "sha256": "AE48DF11A335DC1A615F4F938B69CBA73BCF4485C4F97AF49B38EFB0F216353B",
+          "source": "https://raw.githubusercontent.com/dotnet/dotnet/95017c711e6afc1085133d440e42b4bd78155701/LICENSE.TXT",
+          "path": "licenses/source/System.Security.Cryptography.ProtectedData-10.0.12.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "",
+      "license": "LicenseRef-Microsoft-AnalysisServices",
+      "ecosystem": "nuget",
+      "version": "19.118.3",
+      "name": "Microsoft.AnalysisServices",
+      "files": [
+        {
+          "path": "licenses/source/AnalysisServices-19.118.3.rtf",
+          "archiveEntry": "Eula/EulaText_1033.rtf",
+          "finalUrl": "https://download.microsoft.com/download/5/9/B/59B84425-7CD4-469D-8044-C8047A46F651/AMO_Eula.zip",
+          "source": "https://go.microsoft.com/fwlink/?linkid=852989",
+          "transformation": "unmodified archive entry bytes",
+          "sha256": "8C95C83DCB9C512B089BCBDD5701C04045C26C823CEF60A2D7B4E77ABD32C7DD"
+        },
+        {
+          "path": "licenses/source/AnalysisServices-19.118.3.txt",
+          "archiveEntry": "Eula/EulaText_1033.rtf",
+          "finalUrl": "https://download.microsoft.com/download/5/9/B/59B84425-7CD4-469D-8044-C8047A46F651/AMO_Eula.zip",
+          "source": "https://go.microsoft.com/fwlink/?linkid=852989",
+          "transformation": "RTF text export; RichTextBox LoadFile/Text; UTF-8 LF",
+          "sha256": "29A63BAC6DAF6F9C3E2A01A11BF5C3840B2A0EA50CDF451CC8B1ADA724804781"
+        },
+        {
+          "path": "licenses/source/AnalysisServices-19.118.3.zh-CN.rtf",
+          "archiveEntry": "Eula/EulaText_2052.rtf",
+          "finalUrl": "https://download.microsoft.com/download/5/9/B/59B84425-7CD4-469D-8044-C8047A46F651/AMO_Eula.zip",
+          "source": "https://go.microsoft.com/fwlink/?linkid=852989",
+          "transformation": "unmodified archive entry bytes",
+          "sha256": "9739160E5618CA71CD1889B584EB7ECC640322C668816096467B8057D09F0842"
+        },
+        {
+          "path": "licenses/source/AnalysisServices-19.118.3.zh-CN.txt",
+          "archiveEntry": "Eula/EulaText_2052.rtf",
+          "finalUrl": "https://download.microsoft.com/download/5/9/B/59B84425-7CD4-469D-8044-C8047A46F651/AMO_Eula.zip",
+          "source": "https://go.microsoft.com/fwlink/?linkid=852989",
+          "transformation": "RTF text export; RichTextBox LoadFile/Text; UTF-8 LF",
+          "sha256": "AC004EC1239CE597F9F0D4F17182C5106B8B90B9E01FFCBA38CE16D94836745A"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "",
+      "license": "LicenseRef-Microsoft-AnalysisServices",
+      "ecosystem": "nuget",
+      "version": "19.118.3",
+      "name": "Microsoft.AnalysisServices.AdomdClient",
+      "files": [
+        {
+          "path": "licenses/source/AnalysisServices.AdomdClient-19.118.3.rtf",
+          "archiveEntry": "Eula/EulaText_1033.rtf",
+          "finalUrl": "https://download.microsoft.com/download/E/C/8/EC87239D-30D1-4063-918D-CB0FE586643F/ADOMD_Eula.zip",
+          "source": "https://go.microsoft.com/fwlink/?linkid=852895",
+          "transformation": "unmodified archive entry bytes",
+          "sha256": "45F9C82EB6130A14774735547281E11D63EE94D8067AE831FD616B77AA109115"
+        },
+        {
+          "path": "licenses/source/AnalysisServices.AdomdClient-19.118.3.txt",
+          "archiveEntry": "Eula/EulaText_1033.rtf",
+          "finalUrl": "https://download.microsoft.com/download/E/C/8/EC87239D-30D1-4063-918D-CB0FE586643F/ADOMD_Eula.zip",
+          "source": "https://go.microsoft.com/fwlink/?linkid=852895",
+          "transformation": "RTF text export; RichTextBox LoadFile/Text; UTF-8 LF",
+          "sha256": "D2E79A5C975AAF2612225740396024F89D4E460A8EC5FB986A16E6959A4D5C70"
+        },
+        {
+          "path": "licenses/source/AnalysisServices.AdomdClient-19.118.3.zh-CN.rtf",
+          "archiveEntry": "Eula/EulaText_2052.rtf",
+          "finalUrl": "https://download.microsoft.com/download/E/C/8/EC87239D-30D1-4063-918D-CB0FE586643F/ADOMD_Eula.zip",
+          "source": "https://go.microsoft.com/fwlink/?linkid=852895",
+          "transformation": "unmodified archive entry bytes",
+          "sha256": "E0858D2D171C704B88AE5D36A76F9DA8B0E87936882CB426585FC91F235BFAA5"
+        },
+        {
+          "path": "licenses/source/AnalysisServices.AdomdClient-19.118.3.zh-CN.txt",
+          "archiveEntry": "Eula/EulaText_2052.rtf",
+          "finalUrl": "https://download.microsoft.com/download/E/C/8/EC87239D-30D1-4063-918D-CB0FE586643F/ADOMD_Eula.zip",
+          "source": "https://go.microsoft.com/fwlink/?linkid=852895",
+          "transformation": "RTF text export; RichTextBox LoadFile/Text; UTF-8 LF",
+          "sha256": "262046E0237D15867B654C2E4DD2370305B41FB2DB2A4ED713C899AB17F4203C"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "Apache-2.0",
+      "license": "Apache-2.0 (upstream LICENSE also retains earlier MIT and documentation terms)",
+      "ecosystem": "nuget",
+      "version": "2.3.0",
+      "name": "ModelContextProtocol.Core",
+      "files": [
+        {
+          "sha256": "7C6A686D2B34B86AD8C726E0AC4D76903B525F251D73E617F8DB3879FA8F11FC",
+          "source": "https://raw.githubusercontent.com/modelcontextprotocol/csharp-sdk/9a327829ef066c44a0d737c58bf3c7617d7c701c/LICENSE",
+          "path": "licenses/source/ModelContextProtocol-2.3.0.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "MIT",
+      "license": "MIT",
+      "ecosystem": "nuget",
+      "version": "10.0.14",
+      "name": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
+      "files": [
+        {
+          "sha256": "D23DBA2FEE20C6B59D8F7088EE9ED372459C952A319B7CA90F3EEC370CC76EB9",
+          "source": "https://raw.githubusercontent.com/dotnet/dotnet/0427b9abbead3fa64c6655eb4290c537397131fa/src/wpf/THIRD-PARTY-NOTICES.TXT",
+          "path": "licenses/source/WindowsDesktop-10.0.14-WPF-NOTICES.txt"
+        },
+        {
+          "sha256": "5A412B38EFAE0B162DC0893B319023F4CD14A8985A0F9F9AE01AC052B37A36EB",
+          "source": "https://raw.githubusercontent.com/dotnet/dotnet/0427b9abbead3fa64c6655eb4290c537397131fa/src/winforms/THIRD-PARTY-NOTICES.TXT",
+          "path": "licenses/source/WindowsDesktop-10.0.14-WinForms-NOTICES.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "MIT",
+      "license": "MIT",
+      "ecosystem": "npm",
+      "version": "1.0.3",
+      "name": "lodash-unified",
+      "files": [
+        {
+          "sha256": "3DB2B59ED3E42AD2B8360F34208CB8908EBC50F6198FEA693B35867815893AAD",
+          "source": "https://registry.npmjs.org/lodash-unified/1.0.3; package MIT declaration and author; standard text https://licenses.nuget.org/MIT",
+          "path": "licenses/source/lodash-unified-1.0.3-MIT.txt"
+        }
+      ]
+    }
+  ]
+}

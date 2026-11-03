@@ -1,0 +1,20 @@
+<!--
+ * FilePath    : pbi-utils\src\PbiUtils.Cli\PbiUtils.Cli.csproj
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 配置独立控制台产品入口及共享服务依赖.
+-->
+
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>pbi-utils</AssemblyName>
+    <ApplicationIcon>../../web/public/branding/logo.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="PbiUtils.Cli.Tests" />
+    <ProjectReference Include="../PbiUtils.Infrastructure/PbiUtils.Infrastructure.csproj" />
+    <PackageReference Include="ModelContextProtocol.Core" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,28 @@
+<!--
+ * FilePath    : pbi-utils\tests\PbiUtils.Cli.Tests\PbiUtils.Cli.Tests.csproj
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 配置 CLI 进程测试及 PowerShell 入口契约测试.
+-->
+
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><IsTestProject>true</IsTestProject><IsPackable>false</IsPackable></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <ProjectReference Include="../../src/PbiUtils.Cli/PbiUtils.Cli.csproj" />
+    <ProjectReference Include="../../src/PbiUtils.Host/PbiUtils.Host.csproj" ReferenceOutputAssembly="false" />
+    <Compile Include="../../scripts/tests/*.cs" Link="Scripts/%(Filename)%(Extension)" />
+    <Compile Include="../Support/UdfPackageFixture.cs" Link="Support/UdfPackageFixture.cs" />
+    <Compile Include="../PbiUtils.UnitTests/GitSmartUdfFixture.cs" Link="Support/GitSmartUdfFixture.cs" />
+  </ItemGroup>
+  <!-- 进程测试执行正式apphost并使用同目录共享后台, 不放宽产品OS身份校验以接受dotnet宿主. -->
+  <Target Name="CopyBusinessHostForProcessTests" AfterTargets="Build">
+    <ItemGroup>
+      <BusinessHostTestFile Include="../../src/PbiUtils.Host/bin/$(Configuration)/$(TargetFramework)/**/*" Exclude="../../src/PbiUtils.Host/bin/$(Configuration)/$(TargetFramework)/**/*.pdb" />
+    </ItemGroup>
+    <Copy SourceFiles="@(BusinessHostTestFile)" DestinationFiles="@(BusinessHostTestFile->'$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

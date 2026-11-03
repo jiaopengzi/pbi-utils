@@ -1,0 +1,28 @@
+<!--
+ * FilePath    : pbi-utils\Directory.Packages.props
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 集中管理项目实际使用的 NuGet 精确依赖版本.
+-->
+
+<Project>
+  <PropertyGroup><ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally></PropertyGroup>
+  <ItemGroup>
+    <!-- CLI MCP SDK 与 Desktop 共享发布目录, 此版本须满足 SDK 的日志依赖下限以统一实际运行资产. -->
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
+    <PackageVersion Include="Serilog" Version="4.4.0" />
+    <PackageVersion Include="Serilog.Extensions.Logging" Version="10.0.0" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageVersion Include="Serilog.Formatting.Compact" Version="3.0.0" />
+    <PackageVersion Include="Microsoft.Identity.Client" Version="4.90.1" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
+    <PackageVersion Include="ModelContextProtocol.Core" Version="2.3.0" />
+    <PackageVersion Include="Microsoft.AnalysisServices" Version="19.118.3" />
+    <PackageVersion Include="Microsoft.AnalysisServices.AdomdClient" Version="19.118.3" />
+    <PackageVersion Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
+  </ItemGroup>
+</Project>

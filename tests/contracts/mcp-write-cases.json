@@ -1,0 +1,786 @@
+{
+  "schemaVersion": 1,
+  "description": "写权限开启后的正向业务映射; 不将只读默认拒绝、参数拒绝或测试替身视为真实外部验收。",
+  "boundaries": {
+    "realDesktopCommit": "UNRUN",
+    "realCloudAuthentication": "UNRUN",
+    "realExternalBrowser": "UNRUN",
+    "physicalOtherMachine": "UNRUN"
+  },
+  "cases": [
+    {
+      "name": "change_apply",
+      "readOnly": false,
+      "project": "tests/PbiUtils.Cli.Tests/PbiUtils.Cli.Tests.csproj",
+      "testMethod": "PbiUtils.Cli.Tests.McpToolCoverageTests.CopyChangeRequiresExactOneTimeApprovalAndPreservesSource",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "精确一次计划实际编辑副本并读取改变的度量说明",
+        "拒绝错误摘要和重放; 原始文件逐字不变"
+      ],
+      "validationLevel": "isolated-runtime-and-filesystem"
+    },
+    {
+      "name": "configuration_apply",
+      "readOnly": false,
+      "project": "tests/PbiUtils.Cli.Tests/PbiUtils.Cli.Tests.csproj",
+      "testMethod": "PbiUtils.Cli.Tests.McpBusinessTests.CreatesProjectAndAppliesCalendarWithExactOneTimePlan",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实 stdio MCP 创建隔离 PBIP 后配置日期表并独立 inspect",
+        "预览无发布, 精确摘要和一次计划, 基线及日期表实际改变"
+      ],
+      "validationLevel": "isolated-stdio-and-filesystem"
+    },
+    {
+      "name": "desktop_calendar_savePreferences",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldTests.CalendarPreferencesPersistThroughMcpAndIndependentReadback",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "调用前无偏好文件, MCP 无通用弹窗",
+        "保存字段及编号设置后以新存储实例和 MCP 回读"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_configuration_apply",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteModelTests.ConfigurationApplyPersistsMeasureAndCompletedReceipt",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实配置编译及 PBIP 文件事务",
+        "回读新增度量、保存基线、代际和 completed 回执"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_configuration_complete",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteModelTests.ConfigurationRecoveryResolvesUncommittedConfiguration",
+      "expectedCases": [
+        "(discard: False)"
+      ],
+      "assertions": [
+        "首次提交前受控故障留下真实草稿",
+        "complete 保存原草稿并独立文件回读, 不新建替代草稿"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_configuration_discard",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteModelTests.ConfigurationRecoveryResolvesUncommittedConfiguration",
+      "expectedCases": [
+        "(discard: True)"
+      ],
+      "assertions": [
+        "首次提交前受控故障留下真实草稿",
+        "discard 释放草稿并回读未修改原文件和原基线"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_learning_open",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteConnectionsSettingsTests.LearningOpenInvokesOwnedBrowserAdapterWithoutConfirmation",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "调用前浏览器适配器未调用, 执行后可靠回执已完成",
+        "commit_started 已落盘后调用固定宿主入口并记录 completed"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_logging_openDirectory",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteConnectionsSettingsTests.LoggingSaveAndOpenDirectoryUsePersistedSettingsAndOwnedDirectory",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "调用前日志级别不变且目录适配器未调用, MCP 无通用弹窗",
+        "真实日志设置重建运行时回读; 打开宿主固定隔离目录"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_logging_save",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteConnectionsSettingsTests.LoggingSaveAndOpenDirectoryUsePersistedSettingsAndOwnedDirectory",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "调用前日志级别不变且目录适配器未调用, MCP 无通用弹窗",
+        "真实日志设置重建运行时回读; 打开宿主固定隔离目录"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_model_discard",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteModelTests.ModelSaveOrDiscardResolvesRealDraft",
+      "expectedCases": [
+        "(discard: True)"
+      ],
+      "assertions": [
+        "真实未提交草稿被放弃",
+        "原 PBIP 内容及基线不变, 权威回读且草稿释放"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_model_edit",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteModelTests.ModelEditPersistsAuthorizedChangeAndCompletedReceipt",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实 before/after 精确授权、目标及基线绑定",
+        "临时 PBIP 文件事务后独立回读内容、新基线及 completed 回执"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_model_exportTables",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteModelExportTests.ExportTablesPublishesContentAndOpensRecordedDirectory",
+      "expectedCases": [
+        "(format: \"csv\")",
+        "(format: \"xlsx\")"
+      ],
+      "assertions": [
+        "调用前无文件发布/选择器/打开目录副作用, 直接执行无通用弹窗",
+        "真实 CSV/XLSX 文件内容、导出位置持久化和宿主目录回调"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_model_openExportDirectory",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteModelExportTests.ExportTablesPublishesContentAndOpensRecordedDirectory",
+      "expectedCases": [
+        "(format: \"csv\")",
+        "(format: \"xlsx\")"
+      ],
+      "assertions": [
+        "调用前无文件发布/选择器/打开目录副作用, 直接执行无通用弹窗",
+        "真实 CSV/XLSX 文件内容、导出位置持久化和宿主目录回调"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_model_save",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteModelTests.ModelSaveOrDiscardResolvesRealDraft",
+      "expectedCases": [
+        "(discard: False)"
+      ],
+      "assertions": [
+        "真实未提交草稿保存到隔离 PBIP",
+        "独立文件回读新基线且草稿被释放"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_powerbi_serviceDeleteLogin",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteConnectionsServiceTests.ServiceLoginConnectDeleteHistoryAndSignOutHaveDurableEffects",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "调用前无认证或文件改变, 精确参数和持久回执, 无通用确认",
+        "实际隔离登录/模型历史读写, 删除保持其他账号及云分区, 退出断开服务目标"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_powerbi_serviceDeleteRecentModel",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteConnectionsServiceTests.ServiceLoginConnectDeleteHistoryAndSignOutHaveDurableEffects",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "调用前无认证或文件改变, 精确参数和持久回执, 无通用确认",
+        "实际隔离登录/模型历史读写, 删除保持其他账号及云分区, 退出断开服务目标"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_powerbi_serviceSignIn",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteConnectionsServiceTests.ServiceLoginConnectDeleteHistoryAndSignOutHaveDurableEffects",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "调用前无认证或文件改变, 精确参数和持久回执, 无通用确认",
+        "实际隔离登录/模型历史读写, 删除保持其他账号及云分区, 退出断开服务目标"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_powerbi_serviceSignOut",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteConnectionsServiceTests.ServiceLoginConnectDeleteHistoryAndSignOutHaveDurableEffects",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "调用前无认证或文件改变, 精确参数和持久回执, 无通用确认",
+        "实际隔离登录/模型历史读写, 删除保持其他账号及云分区, 退出断开服务目标"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_project_connectLocal",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteConnectionsTests.LocalConnectAndDisconnectPublishActualWorkspaceWithoutConfirmation",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "免二次确认; 精确进程参数、连接代际和实际断开状态",
+        "独立读取 completed 回执及请求摘要"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_project_connectRemote",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteConnectionsTests.RemoteConnectionUsesCurrentIdentityWithoutSavingConnection",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "server/database 直接连接, 仅当前 Windows 身份, 无本地表单",
+        "精确地址、不保存最近记录、模型回读和 completed 回执"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_project_connectService",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteConnectionsServiceTests.ServiceLoginConnectDeleteHistoryAndSignOutHaveDurableEffects",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "调用前无认证或文件改变, 精确参数和持久回执, 无通用确认",
+        "实际隔离登录/模型历史读写, 删除保持其他账号及云分区, 退出断开服务目标"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_project_deleteRecent",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteConnectionsTests.FileOpenRecentReopenAndDeletePersistOnlyAuthorizedHistory",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "调用前选择器、历史和连接无副作用, 无通用确认",
+        "真实最近记录重开及删除, 原测试文件不变"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_project_disconnect",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteConnectionsTests.LocalConnectAndDisconnectPublishActualWorkspaceWithoutConfirmation",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "免二次确认; 精确进程参数、连接代际和实际断开状态",
+        "独立读取 completed 回执及请求摘要"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_project_open",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteConnectionsTests.FileOpenRecentReopenAndDeletePersistOnlyAuthorizedHistory",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "调用前选择器、历史和连接无副作用, 无通用确认",
+        "真实最近记录重开及删除, 原测试文件不变"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_project_openPath",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteConnectionsTests.ExactPathOpenUsesFileWorkflowWithoutPickerAndPublishesRevision",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "精确路径复用共享文件打开和身份复核, 不调用选择器",
+        "真实隔离历史和完成回执, 观察连接代际"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_project_openRecent",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteConnectionsTests.FileOpenRecentReopenAndDeletePersistOnlyAuthorizedHistory",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "调用前选择器、历史和连接无副作用, 无通用确认",
+        "真实最近记录重开及删除, 原测试文件不变"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_remote_mutate",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteConnectionsSettingsTests.RemoteMutationPersistsSelectedRecordChangeWithoutConfirmation",
+      "expectedCases": [
+        "(action: \"delete\")",
+        "(action: \"clearPassword\")"
+      ],
+      "assertions": [
+        "真实 DPAPI 仅加密夹具密码, 调用前密码与记录未变",
+        "删除/清除密码独立回读, 其他记录保留且响应不含秘密"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_sample_chooseDirectory",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldTests.SampleToolsGenerateIncrementOverwriteAndClearOwnedFiles",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实 CSV/PBIP 全量、增量、覆盖和清理后回读",
+        "显式 MCP 覆盖/清理无需弹窗, 无关文件保留, 固定目录回调及回执"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_sample_clear",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldTests.SampleToolsGenerateIncrementOverwriteAndClearOwnedFiles",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实 CSV/PBIP 全量、增量、覆盖和清理后回读",
+        "显式 MCP 覆盖/清理无需弹窗, 无关文件保留, 固定目录回调及回执"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_sample_generate",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldTests.SampleToolsGenerateIncrementOverwriteAndClearOwnedFiles",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实 CSV/PBIP 全量、增量、覆盖和清理后回读",
+        "显式 MCP 覆盖/清理无需弹窗, 无关文件保留, 固定目录回调及回执"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_sample_openDirectory",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldTests.SampleToolsGenerateIncrementOverwriteAndClearOwnedFiles",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实 CSV/PBIP 全量、增量、覆盖和清理后回读",
+        "显式 MCP 覆盖/清理无需弹窗, 无关文件保留, 固定目录回调及回执"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_scaffold_chooseOutput",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldTests.ScaffoldToolsCreateReadBackAndOpenOnlyVerifiedProject",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实模板目录、草稿修订、staging 预览和 PBIP 创建事务",
+        "独立 PBIP 回读内容和基线, 系统打开回调绑定已验证文件身份及回执"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_scaffold_create",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldTests.ScaffoldToolsCreateReadBackAndOpenOnlyVerifiedProject",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实模板目录、草稿修订、staging 预览和 PBIP 创建事务",
+        "独立 PBIP 回读内容和基线, 系统打开回调绑定已验证文件身份及回执"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_scaffold_discard",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldTests.ScaffoldDiscardRemovesOnlyPreparedFilesAndPersistsDiscardedPlan",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "丢弃冻结计划只清理自己的 staging",
+        "不发布工程, 保留无关文件并持久化 discarded 计划"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_scaffold_openDesktop",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldTests.ScaffoldToolsCreateReadBackAndOpenOnlyVerifiedProject",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实模板目录、草稿修订、staging 预览和 PBIP 创建事务",
+        "独立 PBIP 回读内容和基线, 系统打开回调绑定已验证文件身份及回执"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_scaffold_openDirectory",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldTests.ScaffoldToolsCreateReadBackAndOpenOnlyVerifiedProject",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实模板目录、草稿修订、staging 预览和 PBIP 创建事务",
+        "独立 PBIP 回读内容和基线, 系统打开回调绑定已验证文件身份及回执"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_scaffold_openTemplates",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldTests.ScaffoldToolsCreateReadBackAndOpenOnlyVerifiedProject",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实模板目录、草稿修订、staging 预览和 PBIP 创建事务",
+        "独立 PBIP 回读内容和基线, 系统打开回调绑定已验证文件身份及回执"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_scaffold_preview",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldTests.ScaffoldToolsCreateReadBackAndOpenOnlyVerifiedProject",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实模板目录、草稿修订、staging 预览和 PBIP 创建事务",
+        "独立 PBIP 回读内容和基线, 系统打开回调绑定已验证文件身份及回执"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_scaffold_updateDraft",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldTests.ScaffoldToolsCreateReadBackAndOpenOnlyVerifiedProject",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实模板目录、草稿修订、staging 预览和 PBIP 创建事务",
+        "独立 PBIP 回读内容和基线, 系统打开回调绑定已验证文件身份及回执"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_udf_catalogRefresh",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldUdfTests.CatalogRefreshParsesTransportAndPersistsReopenableSnapshot",
+      "expectedCases": [
+        "(custom: False)",
+        "(custom: True)"
+      ],
+      "assertions": [
+        "仅替换外部 HTTP 字节; 正式 Git 历史解析、校验和快照事务",
+        "官方及自定义来源刷新后独立缓存回读无隐式网络"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_udf_localDelete",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldUdfTests.LocalSaveUpdatesDefinitionAndDeleteRemovesOnlyExactEntry",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "本地函数创建及更新真实 JSON, ID 保持且基线改变",
+        "删除后文件移除并保持其他函数, 独立存储和 MCP 回读"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_udf_localSave",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldUdfTests.LocalSaveUpdatesDefinitionAndDeleteRemovesOnlyExactEntry",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "本地函数创建及更新真实 JSON, ID 保持且基线改变",
+        "删除后文件移除并保持其他函数, 独立存储和 MCP 回读"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_udf_sourceDelete",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldUdfTests.SourceSaveUpdatesExactBaselineAndDeletePreservesOtherSources",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "来源创建、精确基线更新和删除真实落盘",
+        "独立存储回读并保留其他来源和内置来源"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_udf_sourceSave",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldUdfTests.SourceSaveUpdatesExactBaselineAndDeletePreservesOtherSources",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "来源创建、精确基线更新和删除真实落盘",
+        "独立存储回读并保留其他来源和内置来源"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "desktop_ui_saveSettings",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteConnectionsSettingsTests.UiSettingsPersistExactPatchWithoutConfirmation",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "调用前默认设置不变, 写入不依赖对话框",
+        "全部偏好真实持久化后以新存储实例和只读 MCP 回读"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
+      "name": "sample_append",
+      "readOnly": false,
+      "project": "tests/PbiUtils.Cli.Tests/PbiUtils.Cli.Tests.csproj",
+      "testMethod": "PbiUtils.Cli.Tests.McpToolCoverageTests.SampleLifecyclePreservesUnrelatedFilesAndRequiresConfirmation",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实隔离样例生成和追加, inspect 返回有数据",
+        "清理需要确认, 实际生成文件被清理且无关文件保持"
+      ],
+      "validationLevel": "isolated-runtime-and-filesystem"
+    },
+    {
+      "name": "sample_clear",
+      "readOnly": false,
+      "project": "tests/PbiUtils.Cli.Tests/PbiUtils.Cli.Tests.csproj",
+      "testMethod": "PbiUtils.Cli.Tests.McpToolCoverageTests.SampleLifecyclePreservesUnrelatedFilesAndRequiresConfirmation",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实隔离样例生成和追加, inspect 返回有数据",
+        "清理需要确认, 实际生成文件被清理且无关文件保持"
+      ],
+      "validationLevel": "isolated-runtime-and-filesystem"
+    },
+    {
+      "name": "sample_generate",
+      "readOnly": false,
+      "project": "tests/PbiUtils.Cli.Tests/PbiUtils.Cli.Tests.csproj",
+      "testMethod": "PbiUtils.Cli.Tests.McpToolCoverageTests.SampleLifecyclePreservesUnrelatedFilesAndRequiresConfirmation",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实隔离样例生成和追加, inspect 返回有数据",
+        "清理需要确认, 实际生成文件被清理且无关文件保持"
+      ],
+      "validationLevel": "isolated-runtime-and-filesystem"
+    },
+    {
+      "name": "scaffold_create",
+      "readOnly": false,
+      "project": "tests/PbiUtils.Cli.Tests/PbiUtils.Cli.Tests.csproj",
+      "testMethod": "PbiUtils.Cli.Tests.McpBusinessTests.CreatesProjectAndAppliesCalendarWithExactOneTimePlan",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实 stdio MCP 创建隔离 PBIP 后配置日期表并独立 inspect",
+        "预览无发布, 精确摘要和一次计划, 基线及日期表实际改变"
+      ],
+      "validationLevel": "isolated-stdio-and-filesystem"
+    },
+    {
+      "name": "udf_catalog_refresh",
+      "readOnly": false,
+      "project": "tests/PbiUtils.Cli.Tests/PbiUtils.Cli.Tests.csproj",
+      "testMethod": "PbiUtils.Cli.Tests.McpCatalogWriteTests.RefreshPublishesReadableSnapshotAndFailedRefreshPreservesIt",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "受控 HTTP 字节进入正式 Git 解析与快照事务",
+        "成功目录可搜索和读取, 后续失败保留原快照及安全回执"
+      ],
+      "validationLevel": "isolated-runtime-and-filesystem-with-controlled-http"
+    },
+    {
+      "name": "udf_local_create",
+      "readOnly": false,
+      "project": "tests/PbiUtils.Cli.Tests/PbiUtils.Cli.Tests.csproj",
+      "testMethod": "PbiUtils.Cli.Tests.McpToolCoverageTests.LocalUdfLifecyclePreservesBaselineAndDeleteConfirmation",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实本地函数创建更新删除及回读",
+        "拒绝过期基线和缺失确认, 更新表达式可读取, 删除后列表为空"
+      ],
+      "validationLevel": "isolated-runtime-and-filesystem"
+    },
+    {
+      "name": "udf_local_delete",
+      "readOnly": false,
+      "project": "tests/PbiUtils.Cli.Tests/PbiUtils.Cli.Tests.csproj",
+      "testMethod": "PbiUtils.Cli.Tests.McpToolCoverageTests.LocalUdfLifecyclePreservesBaselineAndDeleteConfirmation",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实本地函数创建更新删除及回读",
+        "拒绝过期基线和缺失确认, 更新表达式可读取, 删除后列表为空"
+      ],
+      "validationLevel": "isolated-runtime-and-filesystem"
+    },
+    {
+      "name": "udf_local_update",
+      "readOnly": false,
+      "project": "tests/PbiUtils.Cli.Tests/PbiUtils.Cli.Tests.csproj",
+      "testMethod": "PbiUtils.Cli.Tests.McpToolCoverageTests.LocalUdfLifecyclePreservesBaselineAndDeleteConfirmation",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实本地函数创建更新删除及回读",
+        "拒绝过期基线和缺失确认, 更新表达式可读取, 删除后列表为空"
+      ],
+      "validationLevel": "isolated-runtime-and-filesystem"
+    },
+    {
+      "name": "udf_source_delete",
+      "readOnly": false,
+      "project": "tests/PbiUtils.Cli.Tests/PbiUtils.Cli.Tests.csproj",
+      "testMethod": "PbiUtils.Cli.Tests.McpToolCoverageTests.SourceLifecycleRequiresCurrentBaselineAndConfirmation",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实来源创建更新删除, 更新保持 ID 和新基线",
+        "拒绝过期基线与无确认, 删除后不再可见"
+      ],
+      "validationLevel": "isolated-runtime-and-filesystem"
+    },
+    {
+      "name": "udf_source_save",
+      "readOnly": false,
+      "project": "tests/PbiUtils.Cli.Tests/PbiUtils.Cli.Tests.csproj",
+      "testMethod": "PbiUtils.Cli.Tests.McpToolCoverageTests.SourceLifecycleRequiresCurrentBaselineAndConfirmation",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "真实来源创建更新删除, 更新保持 ID 和新基线",
+        "拒绝过期基线与无确认, 删除后不再可见"
+      ],
+      "validationLevel": "isolated-runtime-and-filesystem"
+    }
+  ]
+}

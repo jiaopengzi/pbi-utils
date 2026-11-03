@@ -1,0 +1,45 @@
+{
+  "test.pbip": {
+    "version": "1.0",
+    "artifacts": [
+      {
+        "report": {
+          "path": "report"
+        }
+      }
+    ]
+  },
+  "report/definition.pbir": {
+    "version": "4.0",
+    "datasetReference": {
+      "byPath": {
+        "path": "../model"
+      }
+    }
+  },
+  "report/definition/report.json": {},
+  "report/definition/pages/pages.json": {
+    "pageOrder": []
+  },
+  "model/definition.pbism": {
+    "version": "1.0"
+  },
+  "model/model.bim": {
+    "name": "test",
+    "compatibilityLevel": 1606,
+    "model": {
+      "culture": "en-US",
+      "tables": [
+        {
+          "name": "Sales",
+          "measures": [
+            {
+              "name": "Amount",
+              "expression": "1"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

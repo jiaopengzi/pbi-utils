@@ -1,0 +1,134 @@
+table Measure
+	excludeFromModelRefresh
+	lineageTag: 4c5fa3bc-c70e-4503-bb67-66d542f1b28a
+
+	measure 005_毛利_单位 = ```
+
+			[001_销售金额_单位] - [004_产品成本金额_单位]
+			```
+		formatString: #,0
+		lineageTag: 704fed73-6e07-4a21-94cd-25be5f874325
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 001_销售金额_单位 = ```
+
+			SUM ( 'T05_订单子表'[F_06_产品销售金额] )
+			```
+		formatString: #,0
+		lineageTag: a865d0c9-3112-45bf-8506-139a16a60917
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 002_订单数量_单位 = ```
+
+			COUNTROWS ( 'T04_订单主表' )
+			```
+		formatString: #,0
+		lineageTag: 8c2c6d13-bd87-4220-8df4-970c0af1ca2d
+
+	measure 003_销售目标_单位 = ```
+
+			SUM ( 'T06_销售目标表'[F_04_销售目标] )
+			```
+		formatString: #,0
+		lineageTag: 997425b1-2c47-4fdf-944a-3607b956c56c
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 004_产品成本金额_单位 = ```
+
+			SUMX (
+			    'T05_订单子表',
+			    RELATED ( 'T00_产品表'[F_05_产品成本价格] ) * 'T05_订单子表'[F_05_产品销售数量]
+			)
+			```
+		formatString: #,0
+		lineageTag: 618ba262-a820-4ba8-8114-45f4d8ca0dac
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 006_毛利率% = ```
+
+			DIVIDE ( [005_毛利_单位], [001_销售金额_单位], BLANK () )
+			```
+		formatString: 0.00%;-0.00%;0.00%
+		lineageTag: 1c069c77-cbe7-4574-ba66-8a77eaf97710
+
+	measure 007_目标完成率% = ```
+
+			DIVIDE ( [001_销售金额_单位], [003_销售目标_单位], BLANK () )
+			```
+		formatString: 0.00%;-0.00%;0.00%
+		lineageTag: 9659005c-adae-4a9b-a5b2-ae13dfeff34a
+
+	measure 008_产品数量_单位 = ```
+
+			CALCULATE ( COUNTROWS ( 'T00_产品表' ), 'T05_订单子表' )
+			```
+		formatString: #,0
+		lineageTag: 30ee9582-778e-47ac-b460-206992a6ec79
+
+	measure 000_刷新时间 = ```
+
+			SELECTEDVALUE ( RefreshTime[RefreshTime] )
+			```
+		lineageTag: 5426aa1e-70f4-4839-b39a-20053f127ba6
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	measure 009_门店数量_单位 = ```
+
+			COUNTROWS ( 'T01_门店表' )
+			```
+		formatString: #,0
+		lineageTag: b537a112-a17f-415f-b458-19eb19157ead
+
+	measure 011_大区idphotoURL = ```
+
+			VAR U = "https://demo.jiaopengzi.com/idphoto/"
+			VAR R =
+			    SELECTEDVALUE ( 'D00_大区表'[F_01_大区ID] )
+			VAR L = ".png"
+			VAR Result =
+			    IF ( HASONEVALUE ( 'D00_大区表'[F_03_大区负责人] ), U & R & L, BLANK () )
+			RETURN
+			    Result
+			```
+		lineageTag: a380b88f-6417-4c5d-96f9-2cb739a86305
+		dataCategory: ImageUrl
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 010_客户数量_单位 = ```
+
+			CALCULATE ( COUNTROWS ( 'T02_客户表' ), 'T04_订单主表' )
+			```
+		formatString: #,0
+		lineageTag: 917d263c-5423-4a7f-ae81-9b7ff0be3ec5
+
+	measure 012_大区负责人 = ```
+
+			SELECTEDVALUE ( 'D00_大区表'[F_03_大区负责人] )
+			```
+		lineageTag: e388c30a-2d84-433d-abd9-c39e13d4b0e0
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition Measure-31e5f0c9-e37e-47be-81d2-9eb6139d476e = m
+		mode: import
+		queryGroup: 基础必备
+		source =
+				let
+				    源 = #table({},{})
+				in
+				    源
+				
+				
+				// let
+				//     源 = #table({"temp"},{})
+				// in
+				//     源
+
+	annotation PBI_ResultType = Table
+

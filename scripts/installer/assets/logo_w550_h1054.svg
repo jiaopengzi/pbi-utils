@@ -1,0 +1,385 @@
+<!--
+ * FilePath    : logo\logo_w550_h1054.svg
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : NSIS 安装包欢迎页竖图, 金色底上方为 J 图标, 下方为 焦棚子 与 JIAOPENGZI 两行字标. 由 tools/gen-logo.mjs 生成.
+-->
+<svg id="jiaopengzi-logo-svg" width="550" height="1054" viewBox="0 0 550 1054" version="1.1"
+    xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+    role="img" aria-labelledby="jiaopengzi-logo_w550_h1054-title">
+    <title id="jiaopengzi-logo_w550_h1054-title">焦棚子 JIAOPENGZI</title>
+    <rect id="jiaopengzi-logo-svg-background" x="0" y="0" width="550" height="1054" fill="#C89828" />
+
+    <g fill="#1E2858">
+        <!-- J 图标与 logo.svg 同形, 底边约在高度 0.382 处 -->
+        <path id="jiaopengzi-logo-svg-j" transform="translate(230 302)" d="
+            M -10 10
+            L -59.372539 10
+            A 80,80 1 0,0 20,100
+            A 130,130 1 0,0 150,-30
+            L 150 -240
+            L 20 -240
+            L 20 -160
+            L 70 -160
+            L 70 -30
+            A 50,50 1 0,1 -10,10
+            Z" />
+
+        <!-- 字标: 两行左右对齐, 缩放 0.45 后水平居中, 顶边约在高度 0.618 处 -->
+        <g transform="translate(21.2 652) scale(0.45) translate(-652 -22)">
+            <!-- 焦 -->
+            <g id="jiaopengzi-text-jiao" transform="translate(652 22)">
+                <path id="jiaopengzi-text-jiao-danrenpang-pie" d="
+                    M 60.49 0
+                    A 20.8 20.8 0 0 1 78.65 30.92
+                    L 48.56 84.92
+                    A 48.87 48.87 0 0 1 5.87 110
+                    A 6 6 0 0 1 0.62 101.08
+                    L 55.25 3.08
+                    A 6 6 0 0 1 60.49 0
+                    Z" />
+                <path id="jiaopengzi-text-jiao-danrenpang-shu" d="
+                    M 28 60
+                    L 62 60
+                    L 62 266
+                    A 6 6 0 0 1 56 272
+                    A 28 28 0 0 1 28 244
+                    Z" />
+                <path id="jiaopengzi-text-jiao-dian" d="
+                    M 188 6
+                    A 6 6 0 0 1 194 0
+                    A 28 28 0 0 1 222 28
+                    L 222 46
+                    A 6 6 0 0 1 216 52
+                    A 28 28 0 0 1 188 24
+                    Z" />
+                <path id="jiaopengzi-text-jiao-heng1" d="
+                    M 90 76
+                    A 6 6 0 0 1 96 70
+                    L 297 70
+                    A 25 25 0 0 1 322 95
+                    A 6 6 0 0 1 316 101
+                    L 115 101
+                    A 25 25 0 0 1 90 76
+                    Z" />
+                <path id="jiaopengzi-text-jiao-heng2" d="
+                    M 90 131
+                    A 6 6 0 0 1 96 125
+                    L 277 125
+                    A 25 25 0 0 1 302 150
+                    A 6 6 0 0 1 296 156
+                    L 115 156
+                    A 25 25 0 0 1 90 131
+                    Z" />
+                <path id="jiaopengzi-text-jiao-heng3" d="
+                    M 90 186
+                    A 6 6 0 0 1 96 180
+                    L 277 180
+                    A 25 25 0 0 1 302 205
+                    A 6 6 0 0 1 296 211
+                    L 115 211
+                    A 25 25 0 0 1 90 186
+                    Z" />
+                <path id="jiaopengzi-text-jiao-heng4" d="
+                    M 90 241
+                    A 6 6 0 0 1 96 235
+                    L 320 235
+                    A 25 25 0 0 1 345 260
+                    A 6 6 0 0 1 339 266
+                    L 115 266
+                    A 25 25 0 0 1 90 241
+                    Z" />
+                <path id="jiaopengzi-text-jiao-shu" d="
+                    M 188 70
+                    L 222 70
+                    L 222 266
+                    L 188 266
+                    Z" />
+                <path id="jiaopengzi-text-jiao-sidian1" d="
+                    M 8 326
+                    A 28 28 0 0 1 36 298
+                    A 6 6 0 0 1 42 304
+                    L 42 322
+                    A 28 28 0 0 1 14 350
+                    A 6 6 0 0 1 8 344
+                    Z" />
+                <path id="jiaopengzi-text-jiao-sidian2" d="
+                    M 106 304
+                    A 6 6 0 0 1 112 298
+                    A 28 28 0 0 1 140 326
+                    L 140 344
+                    A 6 6 0 0 1 134 350
+                    A 28 28 0 0 1 106 322
+                    Z" />
+                <path id="jiaopengzi-text-jiao-sidian3" d="
+                    M 204 304
+                    A 6 6 0 0 1 210 298
+                    A 28 28 0 0 1 238 326
+                    L 238 344
+                    A 6 6 0 0 1 232 350
+                    A 28 28 0 0 1 204 322
+                    Z" />
+                <path id="jiaopengzi-text-jiao-sidian4" d="
+                    M 302 304
+                    A 6 6 0 0 1 308 298
+                    A 28 28 0 0 1 336 326
+                    L 336 344
+                    A 6 6 0 0 1 330 350
+                    A 28 28 0 0 1 302 322
+                    Z" />
+            </g>
+            <!-- 棚 -->
+            <g id="jiaopengzi-text-peng" transform="translate(1043.5 22)">
+                <path id="jiaopengzi-text-peng-mu-shu" d="
+                    M 36 6
+                    A 6 6 0 0 1 42 0
+                    A 27 27 0 0 1 69 27
+                    L 69 344
+                    A 6 6 0 0 1 63 350
+                    A 27 27 0 0 1 36 323
+                    Z" />
+                <path id="jiaopengzi-text-peng-mu-heng" d="
+                    M 0 82
+                    A 6 6 0 0 1 6 76
+                    L 77 76
+                    A 23 23 0 0 1 100 99
+                    A 6 6 0 0 1 94 105
+                    L 23 105
+                    A 23 23 0 0 1 0 82
+                    Z" />
+                <path id="jiaopengzi-text-peng-mu-pie" d="
+                    M 67.35 84.43
+                    L 30.9 206.71
+                    A 32.6 32.6 0 0 1 -0.34 230
+                    A 6 6 0 0 1 -6.09 222.29
+                    L 37.65 75.57
+                    Z" />
+                <path id="jiaopengzi-text-peng-mu-dian" d="
+                    M 65.56 77.71
+                    L 101.06 151.4
+                    A 6 6 0 0 1 95.65 160
+                    A 36.03 36.03 0 0 1 63.19 139.6
+                    L 39.44 90.29
+                    Z" />
+                <path id="jiaopengzi-text-peng-yue1-yue" d="
+                    M 187 51
+                    L 155 51
+                    L 155 323
+                    A 27 27 0 0 1 128 350
+                    A 6 6 0 0 1 122 344
+                    L 122 28
+                    A 6 6 0 0 1 128 22
+                    L 187 22
+                    A 33 33 0 0 1 220 55
+                    L 220 344
+                    A 6 6 0 0 1 214 350
+                    A 27 27 0 0 1 187 323
+                    Z" />
+                <path id="jiaopengzi-text-peng-yue1-heng1" d="
+                    M 147 110
+                    L 195 110
+                    L 195 138
+                    L 147 138
+                    Z" />
+                <path id="jiaopengzi-text-peng-yue1-heng2" d="
+                    M 147 194
+                    L 195 194
+                    L 195 222
+                    L 147 222
+                    Z" />
+                <path id="jiaopengzi-text-peng-yue2-yue" d="
+                    M 312 51
+                    L 277 51
+                    L 277 323
+                    A 27 27 0 0 1 250 350
+                    A 6 6 0 0 1 244 344
+                    L 244 28
+                    A 6 6 0 0 1 250 22
+                    L 312 22
+                    A 33 33 0 0 1 345 55
+                    L 345 344
+                    A 6 6 0 0 1 339 350
+                    A 27 27 0 0 1 312 323
+                    Z" />
+                <path id="jiaopengzi-text-peng-yue2-heng1" d="
+                    M 269 110
+                    L 320 110
+                    L 320 138
+                    L 269 138
+                    Z" />
+                <path id="jiaopengzi-text-peng-yue2-heng2" d="
+                    M 269 194
+                    L 320 194
+                    L 320 222
+                    L 269 222
+                    Z" />
+            </g>
+            <!-- 子 -->
+            <g id="jiaopengzi-text-zi" transform="translate(1435 22)">
+                <path id="jiaopengzi-text-zi-hengpie" d="
+                    M 191 137.71
+                    L 191 177.71
+                    L 155 177.71
+                    L 155 138.98
+                    A 40 40 0 0 1 162.23 116.04
+                    L 205.66 54
+                    L 88 54
+                    A 26 26 0 0 1 62 28
+                    A 6 6 0 0 1 68 22
+                    L 229.75 22
+                    A 22 22 0 0 1 247.77 56.62
+                    Z" />
+                <!-- 竖钩取字母 J 的碗形收尾等比缩小 -->
+                <path id="jiaopengzi-text-zi-wangou" d="
+                    M 155 137.71
+                    L 191 137.71
+                    L 191 291.5
+                    A 58.5 58.5 0 0 1 132.5 350
+                    A 36 36 0 0 1 96.55 315.8
+                    A 6 6 0 0 1 102.54 309.5
+                    L 119 309.5
+                    A 22.5 22.5 0 0 0 155 291.5
+                    Z" />
+                <path id="jiaopengzi-text-zi-heng" d="
+                    M 0 182
+                    A 6 6 0 0 1 6 176
+                    L 319 176
+                    A 26 26 0 0 1 345 202
+                    A 6 6 0 0 1 339 208
+                    L 26 208
+                    A 26 26 0 0 1 0 182
+                    Z" />
+            </g>
+
+            <g id="jiao-j" transform="translate(597.4 388.4) scale(0.32)">
+                <path d="
+                    M 220 355
+                    L 170.63 355
+                    A 80 80 1 0 0 250 445
+                    A 130 130 1 0 0 380 315
+                    L 380 105
+                    L 250 105
+                    L 250 185
+                    L 300 185
+                    L 300 315
+                    A 50 50 1 0 1 220 355
+                    Z" />
+            </g>
+            <g id="jiao-i" transform="translate(768.85 388.4) scale(0.32)">
+                <path d="
+                    M 0 105
+                    L 80 105
+                    L 80 440
+                    L 0 440
+                    Z" />
+            </g>
+            <g id="jiao-a" transform="translate(833.43 388.4) scale(0.32)">
+                <path fill-rule="evenodd" d="
+                    M 0 440
+                    L 120.63 124.29
+                    A 30 30 0 0 1 148.65 105
+                    L 167.35 105
+                    A 30 30 0 0 1 195.37 124.29
+                    L 316 440
+                    L 238 440
+                    L 215.07 380
+                    L 100.93 380
+                    L 78 440
+                    Z
+                    M 158 230.63
+                    L 124.61 318
+                    L 191.39 318
+                    Z" />
+            </g>
+            <g id="jiao-o" transform="translate(971.6 388.4) scale(0.32)">
+                <path fill-rule="evenodd" d="
+                    M 0 272.5
+                    A 168 173 0 1 1 336 272.5
+                    A 168 173 0 1 1 0 272.5
+                    Z
+                    M 82 272.5
+                    A 86 99 0 1 0 254 272.5
+                    A 86 99 0 1 0 82 272.5
+                    Z" />
+            </g>
+            <g id="peng-p" transform="translate(1124.49 388.4) scale(0.32)">
+                <path fill-rule="evenodd" d="
+                    M 0 105
+                    L 130 105
+                    A 107.5 107.5 0 0 1 130 320
+                    L 80 320
+                    L 80 440
+                    L 0 440
+                    Z
+                    M 80 175
+                    L 80 250
+                    L 130 250
+                    A 37.5 37.5 0 0 0 130 175
+                    Z" />
+            </g>
+            <g id="peng-e" transform="translate(1240.75 388.4) scale(0.32)">
+                <path d="
+                    M 0 105
+                    L 210 105
+                    L 210 175
+                    L 80 175
+                    L 80 238
+                    L 192 238
+                    L 192 306
+                    L 80 306
+                    L 80 370
+                    L 214 370
+                    L 214 440
+                    L 0 440
+                    Z" />
+            </g>
+            <g id="peng-n" transform="translate(1351.4 388.4) scale(0.32)">
+                <path d="
+                    M 0 105
+                    L 88 105
+                    L 192 294.35
+                    L 192 105
+                    L 272 105
+                    L 272 440
+                    L 184 440
+                    L 80 250.65
+                    L 80 440
+                    L 0 440
+                    Z" />
+            </g>
+            <g id="peng-g" transform="translate(1483.81 388.4) scale(0.32)">
+                <path d="
+                    M 288.52 151.98
+                    A 168 173 0 1 0 332.11 235.5
+                    L 168 235.5
+                    L 168 309.5
+                    L 247.77 309.5
+                    A 86 99 0 1 1 232.92 207.58
+                    Z" />
+            </g>
+            <g id="zi-z" transform="translate(1632.87 388.4) scale(0.32)">
+                <path d="
+                    M 0 105
+                    L 234 105
+                    L 234 175
+                    L 94 370
+                    L 240 370
+                    L 240 440
+                    L 0 440
+                    L 0 370
+                    L 140 175
+                    L 0 175
+                    Z" />
+            </g>
+            <g id="zi-i" transform="translate(1754.4 388.4) scale(0.32)">
+                <path d="
+                    M 0 105
+                    L 80 105
+                    L 80 440
+                    L 0 440
+                    Z" />
+            </g>
+        </g>
+    </g>
+</svg>

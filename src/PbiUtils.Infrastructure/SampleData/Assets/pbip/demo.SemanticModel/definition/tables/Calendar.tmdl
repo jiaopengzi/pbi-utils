@@ -1,0 +1,264 @@
+table Calendar
+	lineageTag: 6e2a2e83-4bae-4ec9-b7ca-e011c083f74e
+
+	column dates
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 5987290b-afd4-4e3a-9fe4-028c78cdc9a6
+		summarizeBy: none
+		sourceColumn: dates
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column year
+		dataType: int64
+		formatString: 0
+		lineageTag: 3ce8fb59-fb46-4174-9af2-9c2704bd5f03
+		summarizeBy: sum
+		sourceColumn: year
+
+		annotation SummarizationSetBy = Automatic
+
+	column month
+		dataType: int64
+		formatString: 0
+		lineageTag: 3c7261d3-d487-4c84-8cfc-5ac6eaa2619a
+		summarizeBy: sum
+		sourceColumn: month
+
+		annotation SummarizationSetBy = Automatic
+
+	column day
+		dataType: int64
+		formatString: 0
+		lineageTag: 0f16f853-6c83-4f41-8eae-17fbc2413b49
+		summarizeBy: sum
+		sourceColumn: day
+
+		annotation SummarizationSetBy = Automatic
+
+	column year_m
+		dataType: int64
+		formatString: 0
+		lineageTag: 07307808-21bd-4bd3-82ab-4f7ccb50005a
+		summarizeBy: sum
+		sourceColumn: year_m
+
+		annotation SummarizationSetBy = Automatic
+
+	column quarter
+		dataType: int64
+		formatString: 0
+		lineageTag: 63b39211-6b6a-4dd8-871f-55643f34c617
+		summarizeBy: sum
+		sourceColumn: quarter
+
+		annotation SummarizationSetBy = Automatic
+
+	column year_q
+		dataType: int64
+		formatString: 0
+		lineageTag: c09ac521-a1df-49a7-bf97-f5c7acdb458d
+		summarizeBy: sum
+		sourceColumn: year_q
+
+		annotation SummarizationSetBy = Automatic
+
+	column weeknumber
+		dataType: int64
+		formatString: 0
+		lineageTag: bf3c678d-ad47-4662-982a-6b3f3df10acc
+		summarizeBy: sum
+		sourceColumn: weeknumber
+
+		annotation SummarizationSetBy = Automatic
+
+	column weekday
+		dataType: int64
+		formatString: 0
+		lineageTag: 746fc042-fda4-4335-9f4a-cc2858aa41b0
+		summarizeBy: sum
+		sourceColumn: weekday
+
+		annotation SummarizationSetBy = Automatic
+
+	column weekus
+		dataType: string
+		lineageTag: 7301e57a-54b7-4e0e-8afb-abe754c0011d
+		summarizeBy: none
+		sourceColumn: weekus
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column weekcn
+		dataType: string
+		lineageTag: d40d1ecf-9569-475c-8997-369020e84b98
+		summarizeBy: none
+		sourceColumn: weekcn
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column weekcna
+		dataType: string
+		lineageTag: 74eba389-bd89-4207-9aa9-d391b6946c02
+		summarizeBy: none
+		sourceColumn: weekcna
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column M
+		dataType: string
+		lineageTag: 24ad2c6d-031d-4439-a97d-896f0e90fd14
+		summarizeBy: none
+		sourceColumn: M
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column YM
+		dataType: string
+		lineageTag: bbb938dd-54f6-430d-984b-3939577a29e8
+		summarizeBy: none
+		sourceColumn: YM
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column Q
+		dataType: string
+		lineageTag: 70ba1d90-e9b1-4de5-aa42-3ae10ae32c7b
+		summarizeBy: none
+		sourceColumn: Q
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column YQ
+		dataType: string
+		lineageTag: 37ac0f0b-777c-42c3-9a36-9721a3decce8
+		summarizeBy: none
+		sourceColumn: YQ
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column H
+		dataType: string
+		lineageTag: b8851340-cace-44b4-b8ad-27050a72d715
+		summarizeBy: none
+		sourceColumn: H
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column YH
+		dataType: string
+		lineageTag: 2d63f26c-04d2-49f5-bb41-75897fe57440
+		summarizeBy: none
+		sourceColumn: YH
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column FY
+		dataType: string
+		lineageTag: 6804aaee-e521-449f-a76d-36b906753b93
+		summarizeBy: none
+		sourceColumn: FY
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column FY00
+		dataType: string
+		lineageTag: 3ed2c635-128f-420d-b404-8b9650623e94
+		summarizeBy: none
+		sourceColumn: FY00
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	partition Calendar-49f3e331-89a0-4804-b0b1-3dd45f58cbdb = m
+		mode: import
+		queryGroup: 基础必备
+		source = ```
+				let
+				    date_start=#date(2017, 1, 1),//开始日期
+				    date_end=#date(2022, 12, 31),//结束日期
+				    count=Duration.Days(date_end-date_start),//间隔天数
+				    calendar = #table
+				        (
+				        type table
+				            [
+				                dates=date
+				                ,year=Int64.Type
+				                ,month=Int64.Type
+				                ,day=Int64.Type
+				                ,year_m=Int64.Type
+				                ,quarter=Int64.Type
+				                ,year_q=Int64.Type
+				                ,weeknumber=Int64.Type
+				                ,weekday=Int64.Type
+				                ,weekus=text
+				                ,weekcn=text
+				                ,weekcna=text
+				                ,M=text
+				                ,YM=text
+				                ,Q=text
+				                ,YQ=text
+				                ,H=text
+				                ,YH=text
+				                ,FY=text
+				                ,FY00=text
+				
+				            ]
+				        ,List.Transform({0..count},(n)=> 
+				            let d=Date.AddDays(date_start,n) in 
+				                    {
+				                        d//日期
+				                        ,Date.Year(d)//年
+				                        ,Date.Month(d)//月
+				                        ,Date.Day(d)//天
+				                        ,Date.Year(d)*100+Date.Month(d)//年月组合
+				                        ,Date.QuarterOfYear(d)//季度
+				                        ,Date.Year(d)*100+Date.QuarterOfYear(d)//年季度组合
+				                        ,Date.WeekOfYear(d,1)//周一开始的一年第几周
+				                        ,Date.DayOfWeek(d,1)//星期几
+				                        ,Date.DayOfWeekName(d, "en-US")//星期几英文
+				                        ,Date.DayOfWeekName(d, "zh-CN")//星期几中文
+				                        ,Text.End(Date.DayOfWeekName(d, "zh-CN"),1)//星期几简写
+				                        ,"M"&Date.ToText(d,"MM")
+				                        ,Date.ToText(d,"Yyy")&"M"&Date.ToText(d,"MM")
+				                        ,"Q"&Number.ToText(Date.QuarterOfYear(d))
+				                        ,Date.ToText(d,"Yyy")&"Q"&Number.ToText(Date.QuarterOfYear(d))
+				                        ,if Date.Month(d)<7 then "H1" else "H2"
+				                        ,if Date.Month(d)<7 then Date.ToText(d,"Yyy")&"H1" else Date.ToText(d,"Yyy")&"H2"
+				                        ,"FY"
+				                        ,"FY"&Date.ToText(d,"yy")
+				                    }
+				                        )
+				        )
+				in
+				    calendar
+				```
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = 导航
+

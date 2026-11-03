@@ -1,0 +1,23 @@
+<!--
+ * FilePath    : pbi-utils\src\PbiUtils.Desktop\PbiUtils.Desktop.csproj
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 配置 Windows 桌面宿主, WebView2 依赖与前端资源打包.
+-->
+
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>../../web/public/branding/logo.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../PbiUtils.Windows/PbiUtils.Windows.csproj" />
+    <ProjectReference Include="../PbiUtils.Infrastructure/PbiUtils.Infrastructure.csproj" />
+    <PackageReference Include="Microsoft.Web.WebView2" />
+    <EmbeddedResource Include="../../web/public/branding/logo.ico" LogicalName="PbiUtils.Desktop.logo.ico" />
+    <Content Include="../../web/dist/**/*" Condition="'$(IncludePbiFrontend)' != 'false'" Link="web/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

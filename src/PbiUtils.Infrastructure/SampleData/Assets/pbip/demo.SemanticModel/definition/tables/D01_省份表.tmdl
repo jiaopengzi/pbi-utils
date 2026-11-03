@@ -1,0 +1,94 @@
+table D01_省份表
+	lineageTag: 2f3316cc-c1ab-44a0-9880-9edbd29ce830
+
+	column F_00_自动编号
+		dataType: int64
+		formatString: 0
+		lineageTag: 1c7b7133-723c-4f20-97bc-1b0cc3395a4b
+		summarizeBy: sum
+		sourceColumn: F_00_自动编号
+
+		annotation SummarizationSetBy = Automatic
+
+	column F_01_大区ID
+		dataType: int64
+		formatString: 0
+		lineageTag: 7ee3ff06-35c8-46b5-b631-80dc3fb9c010
+		summarizeBy: none
+		sourceColumn: F_01_大区ID
+
+		annotation SummarizationSetBy = Automatic
+
+	column F_02_省ID
+		dataType: int64
+		formatString: 0
+		lineageTag: 01da6b34-0513-4aba-8d4c-4f817aac9fa8
+		summarizeBy: none
+		sourceColumn: F_02_省ID
+
+		annotation SummarizationSetBy = Automatic
+
+	column F_03_省全称
+		dataType: string
+		lineageTag: 14e28e94-2abd-4caf-82f7-5fafa81f2f23
+		dataCategory: Uncategorized
+		summarizeBy: none
+		sourceColumn: F_03_省全称
+		sortByColumn: F_02_省ID
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column F_04_省简称1
+		dataType: string
+		lineageTag: ae7f3548-be4e-488f-9be0-fb101dea7b4f
+		summarizeBy: none
+		sourceColumn: F_04_省简称1
+
+		annotation SummarizationSetBy = Automatic
+
+	column F_05_省简称2
+		dataType: string
+		lineageTag: 31312cbb-e5ea-4520-af87-a3f4d5f484d3
+		summarizeBy: none
+		sourceColumn: F_05_省简称2
+
+		annotation SummarizationSetBy = Automatic
+
+	column F_06_纬度
+		dataType: double
+		lineageTag: 49910f26-6d5f-4e5a-816a-c1be383125c0
+		dataCategory: Latitude
+		summarizeBy: sum
+		sourceColumn: F_06_纬度
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column F_07_经度
+		dataType: double
+		lineageTag: 8daacf5f-b35c-43a8-a65f-a5ac4df27b45
+		dataCategory: Longitude
+		summarizeBy: sum
+		sourceColumn: F_07_经度
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition D01_省份表-ed73a28f-b699-4b84-a3de-c48b852e7ed6 = m
+		mode: import
+		source =
+				let
+				  源 = Csv.Document(File.Contents(Path&"\D01_省份表.csv"), [Delimiter = ",", Columns = 8, Encoding = 65001, QuoteStyle = QuoteStyle.None]),
+				    提升的标题 = Table.PromoteHeaders(源, [PromoteAllScalars=true]),
+				    更改的类型 = Table.TransformColumnTypes(提升的标题,{{"F_00_自动编号", Int64.Type}, {"F_01_大区ID", Int64.Type}, {"F_02_省ID", Int64.Type}, {"F_06_纬度", type number}, {"F_07_经度", type number}})
+				in
+				    更改的类型
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = 导航
+

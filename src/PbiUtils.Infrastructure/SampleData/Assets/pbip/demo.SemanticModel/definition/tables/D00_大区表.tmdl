@@ -1,0 +1,98 @@
+table D00_大区表
+	lineageTag: bec159a4-53a0-482e-81c7-e84fe6ff029c
+
+	column F_00_自动编号
+		dataType: int64
+		formatString: 0
+		lineageTag: 052c9dc5-f464-4aa6-a035-7e04d0faf891
+		summarizeBy: none
+		sourceColumn: F_00_自动编号
+
+		annotation SummarizationSetBy = Automatic
+
+	column F_01_大区ID
+		dataType: int64
+		formatString: 0
+		lineageTag: 1cbd4c03-bc1c-475f-af57-5db8a0214d44
+		summarizeBy: none
+		sourceColumn: F_01_大区ID
+
+		annotation SummarizationSetBy = Automatic
+
+	column F_02_大区
+		dataType: string
+		lineageTag: 924b6a60-68cc-41cd-9c33-8134499af739
+		summarizeBy: none
+		sourceColumn: F_02_大区
+		sortByColumn: F_01_大区ID
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column F_03_大区负责人
+		dataType: string
+		lineageTag: 00882973-74cc-475e-813d-6ddeb290de91
+		summarizeBy: none
+		sourceColumn: F_03_大区负责人
+		sortByColumn: F_01_大区ID
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column F_04_办公地城市ID
+		dataType: int64
+		formatString: 0
+		lineageTag: ba3e7ab2-b867-4f55-8428-db9af79bfa62
+		summarizeBy: none
+		sourceColumn: F_04_办公地城市ID
+
+		annotation SummarizationSetBy = Automatic
+
+	column F_05_办公地城市
+		dataType: string
+		lineageTag: 0012ea97-882a-4b3b-a565-8c44a1868471
+		summarizeBy: none
+		sourceColumn: F_05_办公地城市
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column F_06_纬度
+		dataType: double
+		lineageTag: 24feec73-6537-4ace-b6c3-9b99fd833fc5
+		dataCategory: Latitude
+		summarizeBy: none
+		sourceColumn: F_06_纬度
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column F_07_经度
+		dataType: double
+		lineageTag: d1bde50f-57f4-4329-b09b-84dfcfda6ede
+		dataCategory: Longitude
+		summarizeBy: none
+		sourceColumn: F_07_经度
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition D00_大区表-611ace92-1ddd-4447-847d-708fb598d73e = m
+		mode: import
+		source =
+				let
+				  源 = Csv.Document(File.Contents(Path&"\D00_大区表.csv"), [Delimiter = ",", Columns = 8, Encoding = 65001, QuoteStyle = QuoteStyle.None]),
+				    提升的标题 = Table.PromoteHeaders(源, [PromoteAllScalars=true]),
+				    更改的类型 = Table.TransformColumnTypes(提升的标题,{{"F_00_自动编号", Int64.Type}, {"F_01_大区ID", Int64.Type}, {"F_04_办公地城市ID", Int64.Type}, {"F_06_纬度", type number}, {"F_07_经度", type number}})
+				in
+				  更改的类型
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = 导航
+

@@ -1,0 +1,77 @@
+table D02_城市表
+	lineageTag: 7095d2e1-7575-49b3-9e20-8f979d328324
+
+	column F_00_自动编号
+		dataType: int64
+		formatString: 0
+		lineageTag: d462459d-c3e0-4973-b6ef-ea4ada2ce7be
+		summarizeBy: sum
+		sourceColumn: F_00_自动编号
+
+		annotation SummarizationSetBy = Automatic
+
+	column F_01_省ID
+		dataType: int64
+		formatString: 0
+		lineageTag: 555a34fd-2b77-43c6-b751-fdc0c9327efd
+		summarizeBy: none
+		sourceColumn: F_01_省ID
+
+		annotation SummarizationSetBy = Automatic
+
+	column F_02_城市ID
+		dataType: int64
+		formatString: 0
+		lineageTag: f47476ea-e025-4f3f-ad5c-cc7cdb495270
+		summarizeBy: none
+		sourceColumn: F_02_城市ID
+
+		annotation SummarizationSetBy = Automatic
+
+	column F_03_城市
+		dataType: string
+		lineageTag: b98b8183-bae1-4189-be61-4431a37c3501
+		summarizeBy: none
+		sourceColumn: F_03_城市
+		sortByColumn: F_02_城市ID
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column F_04_纬度
+		dataType: double
+		lineageTag: 9ffd72e7-366b-47f9-82d9-819e057d5e50
+		dataCategory: Latitude
+		summarizeBy: sum
+		sourceColumn: F_04_纬度
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column F_05_经度
+		dataType: double
+		lineageTag: 1a605e61-ceeb-46d8-bf5c-cfdd799f174c
+		dataCategory: Longitude
+		summarizeBy: sum
+		sourceColumn: F_05_经度
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition D02_城市表-7a6f0aa1-c7dd-460a-b4b4-0d4305cf78a4 = m
+		mode: import
+		source =
+				let
+				  源 = Csv.Document(File.Contents(Path&"\D02_城市表.csv"), [Delimiter = ",", Columns = 6, Encoding = 65001, QuoteStyle = QuoteStyle.None]),
+				    提升的标题 = Table.PromoteHeaders(源, [PromoteAllScalars=true]),
+				    更改的类型 = Table.TransformColumnTypes(提升的标题,{{"F_00_自动编号", Int64.Type}, {"F_01_省ID", Int64.Type}, {"F_02_城市ID", Int64.Type}, {"F_04_纬度", type number}, {"F_05_经度", type number}})
+				in
+				    更改的类型
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = 导航
+

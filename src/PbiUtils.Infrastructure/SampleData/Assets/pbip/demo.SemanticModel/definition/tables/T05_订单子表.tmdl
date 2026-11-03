@@ -1,0 +1,85 @@
+table T05_订单子表
+	lineageTag: 831f420c-7f39-4e53-bc30-23a3ec87df0f
+
+	column F_00_自动编号
+		dataType: int64
+		formatString: 0
+		lineageTag: 1603665e-35b9-45a8-b2b5-3f47f039a79e
+		summarizeBy: sum
+		sourceColumn: F_00_自动编号
+
+		annotation SummarizationSetBy = Automatic
+
+	column F_01_订单编号
+		dataType: string
+		lineageTag: ca4e8a13-ae12-492a-b930-7ccc0fae5b64
+		summarizeBy: none
+		sourceColumn: F_01_订单编号
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column F_02_产品编号
+		dataType: string
+		lineageTag: 71ed366e-eda7-43ec-ab29-7be6e213f930
+		summarizeBy: none
+		sourceColumn: F_02_产品编号
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column F_03_产品销售价格
+		dataType: double
+		lineageTag: a5935dc7-a408-4ab5-b819-9be0a8d4ceed
+		summarizeBy: sum
+		sourceColumn: F_03_产品销售价格
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column F_04_折扣比例
+		dataType: double
+		lineageTag: 79e88b44-cc44-416c-964e-c83cd908577e
+		summarizeBy: sum
+		sourceColumn: F_04_折扣比例
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column F_05_产品销售数量
+		dataType: int64
+		formatString: 0
+		lineageTag: d06c0bcd-02dc-4c1a-acd1-768b7f9e5418
+		summarizeBy: sum
+		sourceColumn: F_05_产品销售数量
+
+		annotation SummarizationSetBy = Automatic
+
+	column F_06_产品销售金额
+		dataType: double
+		lineageTag: 62b9983c-b142-48ce-9078-039cf7fe4abf
+		summarizeBy: sum
+		sourceColumn: F_06_产品销售金额
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition T05_订单子表-ba447113-29ca-4356-8f18-c1c3757a66ee = m
+		mode: import
+		source =
+				let
+				  源 = Csv.Document(File.Contents(Path&"\T05_订单子表.csv"), [Delimiter = ",", Columns = 7, Encoding = 65001, QuoteStyle = QuoteStyle.None]),
+				    提升的标题 = Table.PromoteHeaders(源, [PromoteAllScalars=true]),
+				    更改的类型 = Table.TransformColumnTypes(提升的标题,{{"F_00_自动编号", Int64.Type}, {"F_03_产品销售价格", type number}, {"F_04_折扣比例", type number}, {"F_06_产品销售金额", type number}, {"F_05_产品销售数量", Int64.Type}})
+				in
+				    更改的类型
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = 导航
+

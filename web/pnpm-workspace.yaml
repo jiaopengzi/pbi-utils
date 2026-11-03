@@ -1,0 +1,12 @@
+# FilePath    : pbi-utils\web\pnpm-workspace.yaml
+# Author      : jiaopengzi
+# Blog        : https://jiaopengzi.com
+# Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+# Description : 记录所选精确依赖版本的 pnpm 发布时间策略例外.
+
+minimumReleaseAgeExclude:
+    - vite@8.3.4
+
+# Sass 使用已分发的运行时, 不需要 watcher 的本机编译脚本.
+allowBuilds:
+    "@parcel/watcher": false

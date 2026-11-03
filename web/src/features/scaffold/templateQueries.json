@@ -1,0 +1,22 @@
+[
+    {
+        "id": "Hour24",
+        "queryGroup": "model",
+        "expression": "let\n  源 = #table(\n    type table [ID = Int64.Type, 小时 = text, 小时L = Int64.Type, 小时R = Int64.Type],\n    List.Transform(\n      {1 .. 24},\n      (n) => {n, \"(\" & Text.From(n - 1) & \",\" & Text.From(n) & \"]\", n - 1, n}\n    )\n  )\nin\n  源"
+    },
+    {
+        "id": "MQHY",
+        "queryGroup": "model",
+        "expression": "let\n  dimension = #table(\n    type table [Index = Int64.Type, MQHY = text],\n    List.Transform(\n      {1 .. 19},\n      (n) => {\n        n,\n        if n < 13 then\n          \"M\" & Number.ToText(n, \"00\")\n        else if n < 17 then\n          \"Q\" & Number.ToText(n - 12, \"0\")\n        else if n < 19 then\n          \"H\" & Number.ToText(n - 16, \"0\")\n        else\n          \"FY\"\n      }\n    )\n  )\nin\n  dimension"
+    },
+    {
+        "id": "RefreshTime",
+        "queryGroup": "model",
+        "expression": "let\n  源 = #table(\n    type table [RefreshTime = text],\n    {{Text.Format(\"#(000021BB) #[date]\", [date = DateTime.LocalNow() + #duration(0, 0, 0, 0)], \"zh-CN\")}}\n  )\nin\n  源"
+    },
+    {
+        "id": "TypeDetails",
+        "queryGroup": "config",
+        "expression": "let\n  TypeDetails = #table(\n    type table [typeID = Int64.Type, typeName = text, typeValue = any],\n    {\n      {0, \"小数\", type number},\n      {1, \"定点小数\", Currency.Type},\n      {2, \"整数\", Int64.Type},\n      {3, \"百分比\", Percentage.Type},\n      {4, \"日期/时间\", type datetime},\n      {5, \"日期\", type date},\n      {6, \"时间\", type time},\n      {7, \"日期/时间/时区\", type datetimezone},\n      {8, \"持续时间\", type duration},\n      {9, \"文本\", type text},\n      {10, \"True/False\", type logical},\n      {11, \"二进制\", type binary}\n    }\n  )\nin\n  TypeDetails"
+    }
+]

@@ -1,0 +1,266 @@
+/**
+ * FilePath    : pbi-utils\web\src\features\code\editor.scss
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : CodeMirror 编辑框和代码预览共用品牌配色及本地 JBMono 字体.
+ */
+.pbi-code-keyword {
+    color: #2347a5;
+}
+.pbi-code-comment {
+    color: #68735d;
+}
+.pbi-code-string {
+    color: #a33b23;
+}
+.pbi-code-number,
+.pbi-code-literal,
+.pbi-code-null {
+    color: #775019;
+}
+.pbi-code-type {
+    color: #6c3ca0;
+}
+.pbi-code-function {
+    color: #795397;
+}
+.pbi-code-name {
+    color: #256874;
+}
+.pbi-code-operator,
+.pbi-code-punctuation {
+    color: #525a72;
+}
+
+// DAX/M 配色改编自 highlightjs-dax 1.1.0 与 highlightjs-m 1.0.0 的主题.
+// Copyright (c) 2026 焦棚子, MIT. 完整许可随 web/public/licenses 分发.
+// 使用零优先级语言作用域共享编辑器与静态预览的配色, 保留强制颜色模式的覆盖能力.
+// 同一词元上的语言类用于 Markdown 围栏, 祖先语言作用域用于独立编辑器和静态预览.
+:where([data-lang="dax"], code.language-dax, .pbi-code-dax) {
+    &.pbi-code-keyword,
+    .pbi-code-keyword,
+    &.pbi-code-literal,
+    .pbi-code-literal,
+    &.pbi-code-null,
+    .pbi-code-null {
+        color: #0000ff;
+        font-weight: 500;
+    }
+    &.pbi-code-comment,
+    .pbi-code-comment {
+        color: #398e00;
+    }
+    &.pbi-code-string,
+    .pbi-code-string {
+        color: #a31515;
+    }
+    &.pbi-code-number,
+    .pbi-code-number {
+        color: #390000;
+    }
+    &.pbi-code-function,
+    .pbi-code-function,
+    &.pbi-code-type,
+    .pbi-code-type {
+        color: #3165bb;
+    }
+    &.pbi-code-name,
+    .pbi-code-name {
+        color: #001084;
+        font-weight: 500;
+    }
+    &.pbi-code-identifier,
+    .pbi-code-identifier {
+        color: #009999;
+    }
+    &.pbi-code-operator,
+    .pbi-code-operator,
+    &.pbi-code-punctuation,
+    .pbi-code-punctuation {
+        color: #333333;
+    }
+}
+
+:where([data-lang="m"], code.language-m, .pbi-code-m) {
+    &.pbi-code-keyword,
+    .pbi-code-keyword,
+    &.pbi-code-literal,
+    .pbi-code-literal {
+        color: #0000ff;
+        font-weight: 500;
+    }
+    &.pbi-code-comment,
+    .pbi-code-comment {
+        color: #008000;
+    }
+    &.pbi-code-string,
+    .pbi-code-string {
+        color: #a31515;
+    }
+    &.pbi-code-number,
+    .pbi-code-number {
+        color: #098658;
+    }
+    &.pbi-code-null,
+    .pbi-code-null,
+    &.pbi-code-type,
+    .pbi-code-type {
+        color: #16706b;
+    }
+    &.pbi-code-function,
+    .pbi-code-function,
+    &.pbi-code-identifier,
+    .pbi-code-identifier {
+        color: #000000;
+    }
+    &.pbi-code-name,
+    .pbi-code-name {
+        color: #2b91af;
+    }
+    &.pbi-code-operator,
+    .pbi-code-operator,
+    &.pbi-code-punctuation,
+    .pbi-code-punctuation {
+        color: #333333;
+    }
+}
+
+// Markdown 仅为编辑原文补充排版语义, 不激活链接或改变现有编辑布局.
+:where(.code-editor [data-lang="markdown"]) {
+    // 本地 JBMono 仅提供 Medium 字重, 此处允许合成 Markdown 强调所需的粗体和斜体.
+    font-synthesis: weight style;
+    .pbi-code-heading {
+        color: var(--brand-primary);
+        font-weight: 700;
+    }
+    .pbi-code-strong {
+        font-weight: 700;
+    }
+    .pbi-code-emphasis {
+        font-style: italic;
+    }
+    .pbi-code-link {
+        color: var(--brand-primary);
+        text-decoration: underline;
+    }
+    .pbi-code-monospace {
+        color: #795397;
+        font-family: var(--font-code);
+        background: var(--canvas);
+    }
+    .pbi-code-quote {
+        color: var(--muted);
+        font-style: italic;
+    }
+    .pbi-code-list {
+        color: var(--accent-text);
+    }
+    .pbi-code-separator {
+        color: var(--muted);
+    }
+}
+
+.code-editor {
+    width: 100%;
+    min-width: 0;
+    .code-editor__surface {
+        height: calc(var(--editor-rows, 7) * 22px + 20px);
+        min-height: 130px;
+        max-height: 480px;
+        overflow: hidden;
+        resize: vertical;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--surface);
+        &:focus-within {
+            border-color: var(--brand-primary);
+            box-shadow: 0 0 0 1px var(--brand-primary);
+        }
+    }
+    .cm-editor {
+        height: 100%;
+        min-width: 0;
+        color: var(--text);
+        font-family: var(--font-code);
+        font-size: 13px;
+        font-weight: 500;
+        &.cm-focused {
+            outline: none;
+        }
+    }
+    .cm-scroller {
+        overflow: auto;
+        min-width: 0;
+        font: inherit;
+        line-height: 22px;
+        font-variant-ligatures: none;
+    }
+    .cm-content {
+        min-width: 0;
+        padding: 10px 0;
+        caret-color: var(--text);
+    }
+    .cm-line {
+        padding: 0 12px 0 8px;
+    }
+    .cm-gutters {
+        color: var(--muted);
+        background: var(--canvas);
+        border-right: 1px solid var(--border);
+    }
+    .cm-lineNumbers .cm-gutterElement {
+        padding: 0 8px;
+    }
+    .cm-cursor {
+        border-left-color: var(--text);
+    }
+    .cm-selectionBackground,
+    .cm-focused .cm-selectionBackground {
+        background: #b6ceef99;
+    }
+    .cm-content ::selection {
+        background: #b6ceef99;
+    }
+    .cm-matchingBracket {
+        background: var(--accent-soft);
+        outline: 1px solid var(--brand-accent);
+    }
+    .cm-panels {
+        min-width: 0;
+        color: var(--text);
+        background: var(--canvas);
+        .cm-search {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding-right: 28px;
+        }
+        .cm-textfield {
+            min-width: 0;
+            max-width: 100%;
+        }
+        .cm-textfield,
+        .cm-button {
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--surface);
+        }
+    }
+    &.is-disabled .code-editor__surface {
+        background: var(--canvas);
+        opacity: 0.75;
+    }
+}
+
+@media (forced-colors: active) {
+    .code-editor .cm-content,
+    .code-block code {
+        color: CanvasText;
+    }
+    [class*="pbi-code-"] {
+        color: inherit;
+    }
+}

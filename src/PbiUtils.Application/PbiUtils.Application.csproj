@@ -1,0 +1,14 @@
+<!--
+ * FilePath    : pbi-utils\src\PbiUtils.Application\PbiUtils.Application.csproj
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 配置依赖核心契约的共享应用服务项目.
+-->
+
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup><PackageReference Include="Microsoft.Extensions.Logging.Abstractions" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../PbiUtils.Core/PbiUtils.Core.csproj" /></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="Calendar/Resources/lunar-years-1999-2099-v1.bin"><LogicalName>PbiUtils.Scaffolding.Lunar.Years.v1</LogicalName></EmbeddedResource></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="../../web/src/features/scaffold/templateQueries.json"><LogicalName>PbiUtils.Scaffolding.TemplateQueries.v1</LogicalName></EmbeddedResource></ItemGroup>
+</Project>

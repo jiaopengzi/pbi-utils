@@ -1,0 +1,24 @@
+<!doctype html>
+<!--
+ * FilePath    : pbi-utils\web\index.html
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 提供前端挂载节点, 页面元数据与构建时 CSP 占位.
+-->
+
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta http-equiv="Content-Security-Policy" content="__CSP__" />
+        <meta name="theme-color" content="#1E2858" />
+        <link rel="icon" href="/branding/logo.ico" sizes="any" />
+        <link rel="icon" href="/branding/logo.svg" type="image/svg+xml" />
+        <title>pbi-utils</title>
+    </head>
+    <body>
+        <div id="app"></div>
+        <script type="module" src="/src/main.ts"></script>
+    </body>
+</html>

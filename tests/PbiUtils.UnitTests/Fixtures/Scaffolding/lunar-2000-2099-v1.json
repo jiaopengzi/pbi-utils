@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "resourceVersion": "lunar-2000-2099-v1",
+  "firstGregorianDate": "2000-01-01",
+  "lastGregorianDate": "2099-12-31",
+  "rows": 36525,
+  "bytesPerRow": 4,
+  "byteLayout": ["UInt16LE lunarYear", "UInt8 lunarMonth (0x80 means leap month)", "UInt8 lunarDay"],
+  "sha256": "1b1611c6f1a378c45ea073532126e26e7f1d0fac5581e198a26b50b3949ed4d0",
+  "generator": "System.Globalization.ChineseLunisolarCalendar",
+  "calendarFieldReference": "Power query fxCalendar.m (MIT Copyright 2023 焦棚子)",
+  "scope": "Astronomical lunar dates only; no official holiday or compensating workday schedule."
+}

@@ -1,0 +1,34 @@
+table RefreshTime
+	lineageTag: 61ee8155-986b-4375-87f4-e06cffcc84e5
+
+	column RefreshTime
+		dataType: string
+		lineageTag: 4f23b1b1-08cf-4104-aa9b-21838bbed13e
+		summarizeBy: none
+		sourceColumn: RefreshTime
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	partition RefreshTime-8a57e3b3-b526-4050-8fa8-c46b0ecce6f7 = m
+		mode: import
+		queryGroup: 基础必备
+		source =
+				let
+				    源=#table(
+				        type table
+				        [
+				            RefreshTime=text
+				        ]
+				        ,{
+				            {Text.Format("#(000021BB) #[date]", [date =  DateTime.LocalNow()+#duration(0,0,0,0)], "zh-CN")}
+				        }
+				    )
+				in
+				    源
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = 导航
+

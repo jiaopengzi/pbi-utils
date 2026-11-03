@@ -1,0 +1,18 @@
+<!--
+ * FilePath    : pbi-utils\tests\PbiUtils.Desktop.Tests\PbiUtils.Desktop.Tests.csproj
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 配置引用实际 Windows 桌面程序集的宿主边界测试.
+-->
+
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0-windows</TargetFramework><IsTestProject>true</IsTestProject><IsPackable>false</IsPackable></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <ProjectReference Include="../../src/PbiUtils.Desktop/PbiUtils.Desktop.csproj" />
+    <ProjectReference Include="../../src/PbiUtils.Host/PbiUtils.Host.csproj" />
+  </ItemGroup>
+</Project>

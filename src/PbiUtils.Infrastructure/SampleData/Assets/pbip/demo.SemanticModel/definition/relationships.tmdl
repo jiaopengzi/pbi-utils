@@ -1,0 +1,91 @@
+relationship aeb8a61e-3dc7-4538-8463-b73f45de9850
+	fromColumn: T03_入库信息表.F_01_入库产品编号
+	toColumn: T00_产品表.F_01_产品编号
+
+relationship 494b5d0e-4faf-4d0b-a4a5-3dfd11237e8f
+	fromColumn: T05_订单子表.F_02_产品编号
+	toColumn: T00_产品表.F_01_产品编号
+
+relationship 353a3662-49db-4b07-972f-36ca6a3593d9
+	fromColumn: T03_入库信息表.F_03_入库门店编号
+	toColumn: T01_门店表.F_01_门店编号
+
+relationship 4e1d08b4-e8c9-4dbe-a686-952449160cd3
+	fromColumn: T04_订单主表.F_02_门店编号
+	toColumn: T01_门店表.F_01_门店编号
+
+relationship be777c9c-e92e-4e1a-b414-5861ac40ff58
+	fromColumn: D02_城市表.F_01_省ID
+	toColumn: D01_省份表.F_02_省ID
+
+relationship 42688c22-cafd-4dc3-99b8-e2408ea79361
+	fromColumn: D01_省份表.F_01_大区ID
+	toColumn: D00_大区表.F_01_大区ID
+
+relationship b0515255-f62b-4094-bfda-58cc332d78e6
+	fromColumn: T04_订单主表.F_05_客户编号
+	toColumn: T02_客户表.F_01_客户编号
+
+relationship d4c52448-66e8-42a0-950c-228cdb9a35c0
+	fromColumn: T04_订单主表.F_03_下单日期
+	toColumn: Calendar.dates
+
+relationship bc43cf96-dd49-4fe6-bae9-a7a96ed33a97
+	isActive: false
+	fromColumn: T04_订单主表.F_04_送货日期
+	toColumn: Calendar.dates
+
+relationship aa497eb9-76ba-4395-825f-f1d1b4723e33
+	isActive: false
+	fromColumn: T01_门店表.F_04_开店日期
+	toColumn: Calendar.dates
+
+relationship 3a7800c6-33f6-423d-8173-cc14048febc6
+	isActive: false
+	fromColumn: T01_门店表.F_09_关店日期
+	toColumn: Calendar.dates
+
+relationship 4855a1d7-c599-4dee-9615-88b80700b888
+	isActive: false
+	fromColumn: T02_客户表.F_05_注册日期
+	toColumn: Calendar.dates
+
+relationship 3ce40630-1ff4-4e1d-8a62-837eed1e3280
+	fromColumn: T03_入库信息表.F_04_入库日期
+	toColumn: Calendar.dates
+
+relationship d90a526a-7208-4c6b-8ee9-004433988b16
+	fromColumn: T05_订单子表.F_01_订单编号
+	toColumn: T04_订单主表.F_01_订单编号
+
+relationship 4ddeb43b-121f-40a7-8d98-2710fa3db7c5
+	fromColumn: Calendar.M
+	toColumn: MQHY.MQHY
+
+relationship 792ad695-70f2-4333-a353-39b9c53b99fa
+	isActive: false
+	fromColumn: Calendar.Q
+	toColumn: MQHY.MQHY
+
+relationship 00ecafd7-a2be-473a-8ae2-3fb58be56a29
+	isActive: false
+	fromColumn: Calendar.H
+	toColumn: MQHY.MQHY
+
+relationship 522e03e4-11cf-41f3-8979-50cb2c44ef96
+	isActive: false
+	fromColumn: Calendar.FY
+	toColumn: MQHY.MQHY
+
+relationship 5e55031c-00ec-f245-4c44-d44b700c1066
+	fromColumn: T06_销售目标表.F_01_省ID
+	toColumn: D01_省份表.F_02_省ID
+
+relationship 1e5a3bfc-db1f-606d-ff74-92b092d9662f
+	fromColumn: T01_门店表.F_05_城市ID
+	toColumn: D02_城市表.F_02_城市ID
+
+relationship 64cb718b-943f-cbc9-c470-d4b046f109ee
+	fromColumn: T06_销售目标表.F_03_月份
+	toColumn: Calendar.dates
+

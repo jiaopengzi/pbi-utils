@@ -1,0 +1,286 @@
+{
+  "files": [
+    {
+      "sha256": "ffbdd271ddbd1b74636c704725e7da1b0d0ed4d587abe1e4167f1dc90c27eac5",
+      "bytes": 15687,
+      "path": "city.csv"
+    },
+    {
+      "sha256": "683290cd9df88d7b2855212e4a997c60407eedf2b0f5118e229e8603e53f4f28",
+      "bytes": 123147,
+      "path": "district.csv"
+    },
+    {
+      "sha256": "32b005262926612c6c5f063c7eb932108833185e675140d7f8e08f278f9af38b",
+      "bytes": 5471,
+      "path": "first_name.txt"
+    },
+    {
+      "sha256": "379300bb3b0622e93cea4b5a88701060e52c9a7660caac74ac139fae7ef0cbc2",
+      "bytes": 2179,
+      "path": "last_name.txt"
+    },
+    {
+      "sha256": "dd575e65a84f57dc7552b819f0cc529ee5f374f88151db26504b7aa8d9933696",
+      "bytes": 298,
+      "path": "pbip/demo.Report/.platform"
+    },
+    {
+      "sha256": "8e1a2c56289cad9daccab0534ee27a45cb6943727a3442bd79d240b97f400e25",
+      "bytes": 11955,
+      "path": "pbip/demo.Report/StaticResources/RegisteredResources/jiaopengzi8100348133741206.json"
+    },
+    {
+      "sha256": "6038083dc0aa7cfa6cd9f65a95bdadaa6a92683c7959dfbeead79cfe39a46e8b",
+      "bytes": 4143,
+      "path": "pbip/demo.Report/StaticResources/RegisteredResources/logo-1006654521385949771.png"
+    },
+    {
+      "sha256": "ef2a5fdd68874fc40ceb6ece4847233539b27335c519ac63b6948aa243efb225",
+      "bytes": 11736,
+      "path": "pbip/demo.Report/StaticResources/SharedResources/BaseThemes/CY21SU07.json"
+    },
+    {
+      "sha256": "ea6c27ea07dc4b64bbb60c65d01d1b2cea15dc065075a75474f8c6fb0a183435",
+      "bytes": 238,
+      "path": "pbip/demo.Report/definition.pbir"
+    },
+    {
+      "sha256": "5e266a28056a806dc4e427dc9ef205bac091eb406c61ae3490f5defea7c2aca2",
+      "bytes": 750,
+      "path": "pbip/demo.Report/definition/pages/ReportSection/page.json"
+    },
+    {
+      "sha256": "51866513b49e29c8a4c7111838e967c985dc0c6e5cba168ba5e01a9eb790069f",
+      "bytes": 2503,
+      "path": "pbip/demo.Report/definition/pages/ReportSection/visuals/27db28911d3a7a267080/visual.json"
+    },
+    {
+      "sha256": "b414e49170c9a7c0e407b34b2fc8e3f6d097c305b353aacb46f473fada421644",
+      "bytes": 5367,
+      "path": "pbip/demo.Report/definition/pages/ReportSection/visuals/3a955f2d1a519d3e2e22/visual.json"
+    },
+    {
+      "sha256": "3b351fdece20807db76e886853968309222589155cc7b1bc21ffb27a894e8485",
+      "bytes": 2503,
+      "path": "pbip/demo.Report/definition/pages/ReportSection/visuals/3f4c7fa4b304a601d743/visual.json"
+    },
+    {
+      "sha256": "2530bca4b4f925d085707737b4cd41a4c8822b7f1dd6ff1c329ddec3fc3422a1",
+      "bytes": 11083,
+      "path": "pbip/demo.Report/definition/pages/ReportSection/visuals/489cc4d29b2f2e6b31d6/visual.json"
+    },
+    {
+      "sha256": "6fa11fb50500d350785cf30715fe9ac9db22077aadf7bc8ca37e1d22a1a100d1",
+      "bytes": 2510,
+      "path": "pbip/demo.Report/definition/pages/ReportSection/visuals/52b52e000be6d9194501/visual.json"
+    },
+    {
+      "sha256": "e90fac89d09a3e8458427da08df79100991bcecd6a5c2be155fe30afb9b9ac2c",
+      "bytes": 12018,
+      "path": "pbip/demo.Report/definition/pages/ReportSection/visuals/54d2a5ffc43f7c6cf201/visual.json"
+    },
+    {
+      "sha256": "ff35f799363c8d7789895b9b2517c3d81301f6bd363b7ee2ceb7248112ad0b47",
+      "bytes": 11562,
+      "path": "pbip/demo.Report/definition/pages/ReportSection/visuals/558f930c54ac661522c9/visual.json"
+    },
+    {
+      "sha256": "62bdedf9750b13f167ae1345b837bc20f4c4749aaa32af9c34d0ae9244246019",
+      "bytes": 2509,
+      "path": "pbip/demo.Report/definition/pages/ReportSection/visuals/73f12e93892e61e761db/visual.json"
+    },
+    {
+      "sha256": "1dd0b8a6c027d279943abbcb717c25ad68d098cc7133c9a01d873209e6b9cf2c",
+      "bytes": 2216,
+      "path": "pbip/demo.Report/definition/pages/ReportSection/visuals/81f336d43a0a7400115b/visual.json"
+    },
+    {
+      "sha256": "4c631af8add52814eec276dc4eac892ef64de2850c5d476343ff27ba629a1a0f",
+      "bytes": 2795,
+      "path": "pbip/demo.Report/definition/pages/ReportSection/visuals/86eb301ce59baac560de/visual.json"
+    },
+    {
+      "sha256": "d52be6b2567343534bcf11e6dbe44e0547496d71e51693060b05fcf71b8a57fa",
+      "bytes": 6676,
+      "path": "pbip/demo.Report/definition/pages/ReportSection/visuals/89bc14267d9d7e763c57/visual.json"
+    },
+    {
+      "sha256": "ef858c15aa606744bd35221a4b8bd7f47cae1ed99bf1e5ffb8176b1af4053a63",
+      "bytes": 1920,
+      "path": "pbip/demo.Report/definition/pages/ReportSection/visuals/9403af7079b680aa1724/visual.json"
+    },
+    {
+      "sha256": "a31514ce9f4c1ea68b099437970cceb40e6aa13265afbd371a2c88ccbbb56678",
+      "bytes": 2483,
+      "path": "pbip/demo.Report/definition/pages/ReportSection/visuals/9c1ee723e00a392c888e/visual.json"
+    },
+    {
+      "sha256": "b68ffbf1b1f711bfd6058d5488ccb47c855a2391686c38f9c37c3d23b5d1f315",
+      "bytes": 11085,
+      "path": "pbip/demo.Report/definition/pages/ReportSection/visuals/a11bf139af50a08050d9/visual.json"
+    },
+    {
+      "sha256": "82dcf85d05db8b89e5dbf07939fa7e7a9dbdce576462decc132dd413e5b923ad",
+      "bytes": 2827,
+      "path": "pbip/demo.Report/definition/pages/ReportSection/visuals/b41e049d760021032464/visual.json"
+    },
+    {
+      "sha256": "c3b620c12f39f254a4afd346965f5659dc6eaca4855dd875d2822fe59451a803",
+      "bytes": 23348,
+      "path": "pbip/demo.Report/definition/pages/ReportSection/visuals/f3df3ce031b7a34101b8/visual.json"
+    },
+    {
+      "sha256": "1aaaeea512f8be9f6253e3f9c90962c8a67c2c16241f1db176040c259320af6b",
+      "bytes": 210,
+      "path": "pbip/demo.Report/definition/pages/pages.json"
+    },
+    {
+      "sha256": "4d07fca42e5f9b4bdd71a1e0d5054af7e30bf1972558d3b7f91b645191d44a9b",
+      "bytes": 2599,
+      "path": "pbip/demo.Report/definition/report.json"
+    },
+    {
+      "sha256": "c8bdd966a85f1eaab4312d2096b6d7b508243e4d7bc5a4d25af3cfcb1056a4e7",
+      "bytes": 152,
+      "path": "pbip/demo.Report/definition/version.json"
+    },
+    {
+      "sha256": "13a7b55918c0b24bb8342cd82657499367437888606952712faa9e7b88dfae69",
+      "bytes": 210,
+      "path": "pbip/demo.SemanticModel/.pbi/editorSettings.json"
+    },
+    {
+      "sha256": "644d978cde449375d3fc7e9b851903b513581e1fc64212ff38909b9499199d8b",
+      "bytes": 305,
+      "path": "pbip/demo.SemanticModel/.platform"
+    },
+    {
+      "sha256": "73a1ae4c89d7488f553788adc772a04c805d1c9e0d7333e2b2b5476aad8e5a5f",
+      "bytes": 170,
+      "path": "pbip/demo.SemanticModel/definition.pbism"
+    },
+    {
+      "sha256": "77a88800917979b47a4899a4430800ab851435f89425626ce3ae6345b9daeef5",
+      "bytes": 220200,
+      "path": "pbip/demo.SemanticModel/definition/cultures/zh-CN.tmdl"
+    },
+    {
+      "sha256": "822c914b643bca32bb20abd8a762df8204a1b9ef02acc2bc7348727f6699cb96",
+      "bytes": 39,
+      "path": "pbip/demo.SemanticModel/definition/database.tmdl"
+    },
+    {
+      "sha256": "f6e739da55e6034db9c5dad9c2af93e021523994465de2d839ecec45374778f1",
+      "bytes": 565,
+      "path": "pbip/demo.SemanticModel/definition/expressions.tmdl"
+    },
+    {
+      "sha256": "bdbcb6984273205e6e5a13d7ad59259f221c7b6967a4a3bd18f05f0b2cca252d",
+      "bytes": 1091,
+      "path": "pbip/demo.SemanticModel/definition/model.tmdl"
+    },
+    {
+      "sha256": "2f5c9e0b4c9b603bd124ec94be5b8b8239621820ab78f876e697b7929e638c9e",
+      "bytes": 2852,
+      "path": "pbip/demo.SemanticModel/definition/relationships.tmdl"
+    },
+    {
+      "sha256": "f6cca720349c376280af9cdc29beef1e08ad3dd6379384838a2ed6c4f5bc2e40",
+      "bytes": 3425,
+      "path": "pbip/demo.SemanticModel/definition/tables/Measure.tmdl"
+    },
+    {
+      "sha256": "1e85ee8ade04698ab5c6fa64d016d9056cd08b072ba4bf48e11e6856e5dcf10b",
+      "bytes": 7182,
+      "path": "pbip/demo.SemanticModel/definition/tables/Calendar.tmdl"
+    },
+    {
+      "sha256": "2545421ec1362396097af68a79c2435fd41566b8ebda6836f717195e3ed4c34e",
+      "bytes": 3481,
+      "path": "pbip/demo.SemanticModel/definition/tables/02_Unit.tmdl"
+    },
+    {
+      "sha256": "e3593545db92c74b1fe48305d9d71c6654b63ebb9381627293531802a2a98b0b",
+      "bytes": 1572,
+      "path": "pbip/demo.SemanticModel/definition/tables/Hour24.tmdl"
+    },
+    {
+      "sha256": "0962c6f1c3ad491c165fb9e5d88d988299e037187100564a5fc84ac95b26ec75",
+      "bytes": 1430,
+      "path": "pbip/demo.SemanticModel/definition/tables/MQHY.tmdl"
+    },
+    {
+      "sha256": "8c283bddfc6d4b03c82e34165114e0d2460be0a2c5eb572af410c93dccdb590c",
+      "bytes": 815,
+      "path": "pbip/demo.SemanticModel/definition/tables/RefreshTime.tmdl"
+    },
+    {
+      "sha256": "709b9e893a3fde07670bf3a33fe4b1f7e5453545f02e123cccdc41239382dea0",
+      "bytes": 2805,
+      "path": "pbip/demo.SemanticModel/definition/tables/D00_大区表.tmdl"
+    },
+    {
+      "sha256": "f9fd3ada9ebade291e1102c12281f80ad723d751820d51bae67e0a112075a1a9",
+      "bytes": 2653,
+      "path": "pbip/demo.SemanticModel/definition/tables/D01_省份表.tmdl"
+    },
+    {
+      "sha256": "658b3438502ea69005253d07df66c4a1ac6971b2fe9ef02b4883e266f69bd258",
+      "bytes": 2219,
+      "path": "pbip/demo.SemanticModel/definition/tables/D02_城市表.tmdl"
+    },
+    {
+      "sha256": "25a2f2f5a5598794fef8c70d323a0411570312e1b5194ea05130d0359cd14242",
+      "bytes": 2279,
+      "path": "pbip/demo.SemanticModel/definition/tables/T00_产品表.tmdl"
+    },
+    {
+      "sha256": "c7aca838cde3006d94d1f396ceff0cf67ad2d776749e8a6ed10f43004bbfdcc7",
+      "bytes": 3338,
+      "path": "pbip/demo.SemanticModel/definition/tables/T01_门店表.tmdl"
+    },
+    {
+      "sha256": "e7735bdb9bfeb49d1e843ad017a8bf7dd1af2b3ea619f8c61bdf15ab6fae73c7",
+      "bytes": 2502,
+      "path": "pbip/demo.SemanticModel/definition/tables/T02_客户表.tmdl"
+    },
+    {
+      "sha256": "f5207442e690849d47b64e8c061cd70cdf588f2ab4416e4834510069138d9326",
+      "bytes": 1994,
+      "path": "pbip/demo.SemanticModel/definition/tables/T03_入库信息表.tmdl"
+    },
+    {
+      "sha256": "f31bf6b21d0e207cc7eb90cf006ae24ca8f2497ba8c911f71da2b554e9b40acb",
+      "bytes": 2510,
+      "path": "pbip/demo.SemanticModel/definition/tables/T04_订单主表.tmdl"
+    },
+    {
+      "sha256": "2e9b47f511f61acf6bb26c47cabf775c1bd98343f567c53e341109ac28fd6c64",
+      "bytes": 2571,
+      "path": "pbip/demo.SemanticModel/definition/tables/T05_订单子表.tmdl"
+    },
+    {
+      "sha256": "cd3dd5c2786aa02b3864afcba1b3b921a3695e114c82b79367e9a01325f7e0b4",
+      "bytes": 1862,
+      "path": "pbip/demo.SemanticModel/definition/tables/T06_销售目标表.tmdl"
+    },
+    {
+      "sha256": "c40fe3b5d07e8a6638704c3b8c962e594fa338604716cee482985b31661d311a",
+      "bytes": 13010,
+      "path": "pbip/demo.SemanticModel/diagramLayout.json"
+    },
+    {
+      "sha256": "3a858d189267ea950bd461720a561253a0f7e2abf8c0b593d6745f674a32f6df",
+      "bytes": 283,
+      "path": "pbip/demo.pbip"
+    },
+    {
+      "sha256": "5c1c82c5f6ec59fa179cdd2f527ae2c12b77dbd512d24e3fea351990a333a4a9",
+      "bytes": 1886,
+      "path": "province.csv"
+    }
+  ],
+  "upstream": "https://github.com/jiaopengzi/Power-BI-custom-sample-data",
+  "commit": "197aaf4b6c3fac28990814851640c21796d49263"
+}

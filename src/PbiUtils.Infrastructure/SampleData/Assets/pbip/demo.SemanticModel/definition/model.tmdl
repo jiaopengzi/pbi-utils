@@ -1,0 +1,40 @@
+model Model
+	culture: zh-CN
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	discourageImplicitMeasures
+	sourceQueryCulture: zh-CN
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+queryGroup 基础必备
+
+	annotation PBI_QueryGroupOrder = 0
+
+annotation __PBI_TimeIntelligenceEnabled = 0
+
+annotation PBI_QueryOrder = ["Measure","Calendar","Hour24","MQHY","RefreshTime","Path","TypeList","D00_大区表","D01_省份表","D02_城市表","T00_产品表","T01_门店表","T02_客户表","T03_入库信息表","T04_订单主表","T05_订单子表","T06_销售目标表"]
+
+annotation __TEdtr = 1
+
+annotation PBI_ProTooling = ["DevMode","TMDL-Extension"]
+
+ref table Measure
+ref table Calendar
+ref table Hour24
+ref table MQHY
+ref table RefreshTime
+ref table D00_大区表
+ref table D01_省份表
+ref table D02_城市表
+ref table T00_产品表
+ref table T01_门店表
+ref table T02_客户表
+ref table T03_入库信息表
+ref table T04_订单主表
+ref table T05_订单子表
+ref table T06_销售目标表
+ref table 02_Unit
+
+ref cultureInfo zh-CN
+

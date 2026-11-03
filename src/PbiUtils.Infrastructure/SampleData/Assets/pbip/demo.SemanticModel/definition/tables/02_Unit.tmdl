@@ -1,0 +1,119 @@
+table 02_Unit
+	lineageTag: a75536fa-574d-44c9-b568-3f43e54ef28e
+
+	calculationGroup
+
+		calculationItem 常规 =
+				SELECTEDMEASURE ()
+
+		calculationItem 万 = ```
+				VAR MeasureName =
+				    SELECTEDMEASURENAME ()
+				VAR ContainsUnit =
+				    SEARCH ( "_单位", MeasureName, 1, 0 )
+				VAR SelectedMeasure =
+				    SELECTEDMEASURE ()
+				VAR Result =
+				    SWITCH (
+				        TRUE (),
+				        ContainsUnit > 0 && ABS ( SelectedMeasure ) >= 10000, SelectedMeasure * 100,
+				        SelectedMeasure
+				    )
+				RETURN
+				    Result
+				```
+
+			formatStringDefinition =
+					VAR MeasureName =
+					    SELECTEDMEASURENAME ()
+					VAR ContainsUnit =
+					    SEARCH ( "_单位", MeasureName, 1, 0 )
+					VAR TF0 =
+					    SEARCH ( "%", MeasureName, 1, 0 )
+					VAR SelectedMeasure =
+					    SELECTEDMEASURE ()
+					VAR Result =
+					    SWITCH (
+					        TRUE (),
+					        TF0 > 0, "0.0%",
+					        ContainsUnit > 0 && ABS ( SelectedMeasure ) >= 1000000, "#,0,,.0万",
+					        ContainsUnit > 0, "#,0"
+					    )
+					RETURN
+					    Result
+
+		calculationItem 万亿 =
+				VAR MeasureName =
+				    SELECTEDMEASURENAME ()
+				VAR ContainsUnit =
+				    SEARCH ( "_单位", MeasureName, 1, 0 )
+				VAR SelectedMeasure =
+				    SELECTEDMEASURE ()
+				VAR Result =
+				    SWITCH (
+				        TRUE (),
+				        ContainsUnit > 0 && ABS ( SelectedMeasure ) >= 100000000, SelectedMeasure * 10000,
+				        ContainsUnit > 0 && ABS ( SelectedMeasure ) >= 10000, SelectedMeasure * 100,
+				        SelectedMeasure
+				    )
+				RETURN
+				    Result
+
+			formatStringDefinition =
+					VAR MeasureName =
+					    SELECTEDMEASURENAME ()
+					VAR ContainsUnit =
+					    SEARCH ( "_单位", MeasureName, 1, 0 )
+					VAR TF0 =
+					    SEARCH ( "%", MeasureName, 1, 0 )
+					VAR SelectedMeasure =
+					    SELECTEDMEASURE ()
+					VAR Result =
+					    SWITCH (
+					        TRUE (),
+					        TF0 > 0, "0.0%",
+					        ContainsUnit > 0 && ABS ( SelectedMeasure ) >= 1000000000000, "#,0,,,,.00亿",
+					        ContainsUnit > 0 && ABS ( SelectedMeasure ) >= 1000000, "#,0,,.0万",
+					        ContainsUnit > 0 && ABS ( SelectedMeasure ) >= 0, "#,0"
+					    )
+					RETURN
+					    Result
+
+		calculationItem KMB =
+				SELECTEDMEASURE ()
+
+			formatStringDefinition =
+					VAR MeasureName =
+					    SELECTEDMEASURENAME ()
+					VAR ContainsUnit =
+					    SEARCH ( "_单位", MeasureName, 1, 0 )
+					VAR TF0 =
+					    SEARCH ( "%", MeasureName, 1, 0 )
+					VAR SelectedMeasure =
+					    SELECTEDMEASURE ()
+					VAR Result =
+					    SWITCH (
+					        TRUE (),
+					        TF0 > 0, "0.0%",
+					        ContainsUnit > 0 && SelectedMeasure >= 1000000000, "#,0,,,.00B",
+					        ContainsUnit > 0 && SelectedMeasure >= 1000000, "#,0,,.0M",
+					        ContainsUnit > 0 && SelectedMeasure >= 1000, "#,0,.0K",
+					        ContainsUnit > 0 && SelectedMeasure <= -1000000000, "#,0,,,.00B",
+					        ContainsUnit > 0 && SelectedMeasure <= -1000000, "#,0,,.0M",
+					        ContainsUnit > 0 && SelectedMeasure <= -1000, "#,0,.0K"
+					    )
+					RETURN
+					    Result
+
+	column 单位
+		dataType: string
+		lineageTag: a9fddcf3-f87c-4b83-8cdc-8ae9abc524ce
+		sourceColumn: Name
+		sortByColumn: Ordinal
+
+	column Ordinal
+		dataType: int64
+		isHidden
+		lineageTag: 06a80c8c-c01f-4beb-89f7-fb0a403fa28f
+		sourceColumn: Ordinal
+

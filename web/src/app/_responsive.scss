@@ -1,0 +1,28 @@
+/**
+ * FilePath    : pbi-utils\web\src\app\_responsive.scss
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 提供桌面紧凑、宽屏和低矮内容区断点, 经 Vite 全局注入供组件复用.
+ */
+
+/* 最小内容区为 1422×800; 紧凑桌面缩减留白, 保留侧栏和并排工作区. */
+@mixin compact-desktop {
+    @media (max-width: 1440px) {
+        @content;
+    }
+}
+
+/* 全高清及更宽窗口增加列表空间, 详情继续填满剩余宽度. */
+@mixin wide-desktop {
+    @media (min-width: 1920px) {
+        @content;
+    }
+}
+
+/* 800 高度起步的桌面缩减纵向留白, 操作区域可滚动而侧栏无需滚动. */
+@mixin short-window {
+    @media (max-height: 800px) {
+        @content;
+    }
+}

@@ -1,0 +1,480 @@
+[
+  {
+    "id": "external-tool-missing-target-contract",
+    "method": "project.connectExternalTool",
+    "params": {},
+    "error": {
+      "code": "EXTERNAL_TOOL_TARGET_UNAVAILABLE",
+      "message": "外部工具启动目标已失效, 请从 Power BI Desktop 重新打开"
+    }
+  },
+  {
+    "id": "info-contract",
+    "method": "app.info",
+    "params": {},
+    "expectedField": "version"
+  },
+  {
+    "id": "doctor-contract",
+    "method": "doctor",
+    "params": {},
+    "expectedField": "webView2"
+  },
+  {
+    "id": "reset-unavailable-contract",
+    "method": "app.resetUserData",
+    "params": {},
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主不支持完整重置用户数据"
+    }
+  },
+  {
+    "id": "cancel-contract",
+    "method": "request.cancel",
+    "params": {
+      "requestId": "unknown"
+    },
+    "expectedField": "accepted"
+  },
+  {
+    "id": "open-model-contract",
+    "method": "project.open",
+    "params": {},
+    "result": {
+      "projectId": "contract",
+      "baselineId": "before",
+      "hasPendingChanges": false
+    }
+  },
+  {
+    "id": "export-unavailable-contract",
+    "method": "model.exportTables",
+    "params": {
+      "projectId": "contract",
+      "baselineId": "before",
+      "format": "xlsx",
+      "includeLog": true,
+      "locale": "zh-cn",
+      "tables": [
+        "Sales"
+      ],
+      "rowLimit": null
+    },
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主未提供表数据导出"
+    }
+  },
+  {
+    "id": "edit-contract",
+    "method": "model.edit",
+    "params": {
+      "operation": "table.set",
+      "objectName": "Sales",
+      "property": "description",
+      "value": "after",
+      "table": "",
+      "pageId": ""
+    },
+    "result": {
+      "baselineId": "after",
+      "hasPendingChanges": false,
+      "saveResult": {
+        "modelSaved": true,
+        "fileSaved": true,
+        "desktopSynchronized": true,
+        "message": "文件已保存",
+        "errorCode": null
+      }
+    }
+  },
+  {
+    "id": "udf-lint-stale-baseline-contract",
+    "method": "model.udfLint",
+    "params": {
+      "projectId": "contract",
+      "baselineId": "before"
+    },
+    "error": {
+      "code": "STALE_BASELINE",
+      "message": "模型已变化, 请刷新后重新分析函数"
+    }
+  },
+  {
+    "id": "format-contract",
+    "method": "dax.format",
+    "params": {
+      "value": "[\"1\"]",
+      "style": "long"
+    },
+    "result": {
+      "expressions": [
+        "\n1"
+      ]
+    }
+  },
+  {
+    "id": "format-short-contract",
+    "method": "dax.format",
+    "params": {
+      "value": "[\"DIVIDE(1,2)\"]",
+      "style": "short"
+    },
+    "result": {
+      "expressions": [
+        "\nDIVIDE (\n    1,\n    2\n)"
+      ]
+    }
+  },
+  {
+    "id": "save-no-pending-contract",
+    "method": "model.save",
+    "params": {},
+    "error": {
+      "code": "NO_PENDING_CHANGES",
+      "message": "没有待保存的修改"
+    }
+  },
+  {
+    "id": "unknown-change-method-contract",
+    "method": "change.prepare",
+    "params": {},
+    "error": {
+      "code": "UNKNOWN_METHOD",
+      "message": "未注册的方法"
+    }
+  },
+  {
+    "id": "scaffold-open-directory-contract",
+    "method": "scaffold.openDirectory",
+    "params": {},
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主未提供新建脚手架"
+    }
+  },
+  {
+    "id": "scaffold-open-desktop-contract",
+    "method": "scaffold.openDesktop",
+    "params": {},
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主未提供新建脚手架"
+    }
+  },
+  {
+    "id": "scaffold-template-queries-contract",
+    "method": "scaffold.updateDraft",
+    "params": {
+      "draftId": "contract-draft",
+      "revision": 1,
+      "section": "templateQueries",
+      "value": [
+        "Hour24",
+        "MQHY",
+        "RefreshTime",
+        "TypeDetails"
+      ]
+    },
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主未提供新建脚手架"
+    }
+  },
+  {
+    "id": "scaffold-template-query-groups-contract",
+    "method": "scaffold.updateDraft",
+    "params": {
+      "draftId": "contract-draft",
+      "revision": 2,
+      "section": "templateQueryGroups",
+      "value": {
+        "Hour24": "维度",
+        "RefreshTime": "model",
+        "TypeDetails": ""
+      }
+    },
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主未提供新建脚手架"
+    }
+  },
+  {
+    "id": "scaffold-measures-mode-contract",
+    "method": "scaffold.updateDraft",
+    "params": {
+      "draftId": "contract-draft",
+      "revision": 3,
+      "section": "measuresMode",
+      "value": "config"
+    },
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主未提供新建脚手架"
+    }
+  },
+  {
+    "id": "configuration-file-revision-contract",
+    "method": "configuration.apply",
+    "params": {
+      "targetId": "contract-target",
+      "baselineId": "before",
+      "section": "measures",
+      "request": {
+        "measures": [],
+        "measuresMode": "config",
+        "measureConfigurationRevision": "missing"
+      }
+    },
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主未提供共享模型配置"
+    }
+  },
+  {
+    "id": "udf-catalog-contract",
+    "method": "udf.catalog",
+    "params": {
+      "action": "status",
+      "source": "daxlib"
+    },
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主未提供新建脚手架"
+    }
+  },
+  {
+    "id": "udf-catalogRefresh-contract",
+    "method": "udf.catalogRefresh",
+    "params": {
+      "source": "daxlib"
+    },
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主未提供新建脚手架"
+    }
+  },
+  {
+    "id": "udf-packages-contract",
+    "method": "udf.catalog",
+    "params": {
+      "action": "packages",
+      "limit": 500,
+      "source": "daxlib"
+    },
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主未提供新建脚手架"
+    }
+  },
+  {
+    "id": "udf-sourceSave-github-contract",
+    "method": "udf.sourceSave",
+    "params": {
+      "name": "Team library",
+      "baseUrl": "https://github.com/example/udfs",
+      "protocol": "git",
+      "gitRef": "main"
+    },
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主未提供新建脚手架"
+    }
+  },
+  {
+    "id": "table-statistics-unavailable-contract",
+    "method": "model.tableStatistics",
+    "params": {
+      "projectId": "contract",
+      "baselineId": "before"
+    },
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主未提供表统计"
+    }
+  },
+  {
+    "id": "model-tableRowCounts-contract",
+    "method": "model.tableRowCounts",
+    "params": {
+      "projectId": "contract",
+      "baselineId": "before",
+      "tables": [
+        "Sales"
+      ]
+    },
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主未提供精确行数统计"
+    }
+  },
+  {
+    "id": "model-exportLocation-contract",
+    "method": "model.exportLocation",
+    "params": {},
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主未提供导出目录记录"
+    }
+  },
+  {
+    "id": "model-openExportDirectory-contract",
+    "method": "model.openExportDirectory",
+    "params": {
+      "id": "record-contract"
+    },
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主未提供导出目录打开"
+    }
+  },
+  {
+    "params": {},
+    "method": "learning.open",
+    "id": "learning-unavailable",
+    "error": {
+      "code": "UNSUPPORTED"
+    }
+  },
+  {
+    "params": {
+      "url": "https://example.com"
+    },
+    "method": "learning.open",
+    "id": "learning-url-rejected",
+    "error": {
+      "code": "VALIDATION_ERROR"
+    }
+  },
+  {
+    "id": "mcp-configuration-contract",
+    "method": "mcp.configuration",
+    "params": {},
+    "expectedField": "executablePath"
+  },
+  {
+    "id": "removed-ai-contract",
+    "method": "ai.settings",
+    "params": {},
+    "error": {
+      "code": "UNKNOWN_METHOD",
+      "message": "未注册的方法"
+    }
+  },
+  {
+    "id": "open-path-private-contract",
+    "method": "project.openPath",
+    "params": {
+      "path": "C:\\fixture.pbix"
+    },
+    "error": {
+      "code": "MCP_ONLY",
+      "message": "完整路径打开仅允许已核验的本机 MCP 请求"
+    }
+  },
+  {
+    "id": "mcp-connections-unavailable",
+    "method": "mcp.connections",
+    "params": {},
+    "error": {
+      "code": "UNSUPPORTED"
+    }
+  },
+  {
+    "id": "mcp-disconnect-unavailable",
+    "method": "mcp.disconnect",
+    "params": {
+      "connectionId": "11111111111111111111111111111111"
+    },
+    "error": {
+      "code": "UNSUPPORTED"
+    }
+  },
+  {
+    "id": "mcp-admission-unavailable",
+    "method": "mcp.setAdmission",
+    "params": {
+      "acceptingConnections": false
+    },
+    "error": {
+      "code": "UNSUPPORTED"
+    }
+  },
+  {
+    "id": "mcp-management-extra-rejected",
+    "method": "mcp.connections",
+    "params": {
+      "force": true
+    },
+    "error": {
+      "code": "VALIDATION_ERROR"
+    }
+  },
+  {
+    "id": "mcp-management-pid-rejected",
+    "method": "mcp.disconnect",
+    "params": {
+      "processId": 123
+    },
+    "error": {
+      "code": "VALIDATION_ERROR"
+    }
+  },
+  {
+    "id": "mcp-management-boolean-required",
+    "method": "mcp.setAdmission",
+    "params": {
+      "acceptingConnections": "false"
+    },
+    "error": {
+      "code": "VALIDATION_ERROR"
+    }
+  },
+  {
+    "id": "updates-status-unavailable-contract",
+    "method": "updates.status",
+    "params": {},
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主不支持软件更新"
+    }
+  },
+  {
+    "id": "updates-save-unavailable-contract",
+    "method": "updates.save",
+    "params": {
+      "automaticCheck": true,
+      "source": "github"
+    },
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主不支持软件更新"
+    }
+  },
+  {
+    "id": "updates-check-unavailable-contract",
+    "method": "updates.check",
+    "params": {
+      "source": "gitee",
+      "automatic": false
+    },
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主不支持软件更新"
+    }
+  },
+  {
+    "id": "updates-open-unavailable-contract",
+    "method": "updates.open",
+    "params": {
+      "source": "github",
+      "version": "0.2.0",
+      "target": "release"
+    },
+    "error": {
+      "code": "UNSUPPORTED",
+      "message": "当前宿主不支持软件更新"
+    }
+  }
+]

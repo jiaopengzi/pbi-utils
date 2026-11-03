@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "resourceVersion": "lunar-years-1999-2099-v1",
+  "firstLunarYear": 1999,
+  "years": 101,
+  "anchorGregorianDate": "1999-02-16",
+  "firstSupportedGregorianDate": "2000-01-01",
+  "lastSupportedGregorianDate": "2099-12-31",
+  "byteLength": 315,
+  "header": ["ASCII LNY1", "UInt16LE firstLunarYear", "UInt16LE yearCount", "UInt16LE anchorGregorianYear", "UInt8 anchorMonth", "UInt8 anchorDay"],
+  "yearLayout": "UInt24LE: bits 0..12 sequential month length (0=29, 1=30); bits 13..16 leapAfter (0=no leap); bits 17..23 reserved zero",
+  "sha256": "93e54d4a49576bef30ba1c595013dffc0a7465bf46b995dd3372e4c2b48f3432",
+  "generator": "Build-time System.Globalization.ChineseLunisolarCalendar: GetMonthsInYear, GetDaysInMonth, GetLeapMonth minus one; runtime consumes frozen bytes only.",
+  "verification": "All 36525 supported Gregorian dates compared with frozen lunar-2000-2099-v1.bin lunar year/month/day/leap tuple.",
+  "calendarFieldReference": "Power query fxCalendar.m (MIT Copyright 2023 焦棚子)",
+  "dataSource": "Microsoft .NET ChineseLunisolarCalendar calendar facts; .NET runtime source distributed under MIT license https://github.com/dotnet/runtime/blob/main/LICENSE.TXT",
+  "scope": "Astronomical lunar dates only; no official holiday or compensating workday schedule."
+}

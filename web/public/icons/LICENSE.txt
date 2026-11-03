@@ -1,0 +1,66 @@
+图标集合: Lucide (通过 Iconify 图标目录选择).
+目录: https://icon-sets.iconify.design/lucide/
+上游: https://github.com/lucide-icons/lucide/tree/main/icons
+本地 SVG 随产品分发, 不使用运行时 CDN. 许可保留上游署名, 不随本项目年份改写.
+本目录当前 Lucide 文件:
+arrow-right, arrow-up, book-open, braces, calendar-days, database, flask-conical, folder, house, image-plus, info, panel-left-close, panels-top-left, plug, search, settings, sparkles, square, square-function, trash-2, users, x.
+
+初次引入核查日期: 2026-10-10. 后续已记录的固定来源为 Lucide 0.468.0:
+trash-2, x (2026-10-14); plug (2026-10-20); square-function (2026-10-23).
+https://github.com/lucide-icons/lucide/tree/0.468.0/icons
+历史未逐个记录固定提交的图标不据此重新声明为该版本. 本轮仅核对当前文件清单和许可原文, 未替换 SVG.
+
+下列 ISC 原文取自 Lucide 0.468.0/LICENSE (2026-11-03 核对):
+https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/LICENSE
+Lucide 的部分图标源自 Feather; 其 MIT 全文一并保留, 取自 Feather v4.29.2/LICENSE:
+https://raw.githubusercontent.com/feathericons/feather/v4.29.2/LICENSE
+
+---
+ISC License
+
+Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT). All other copyright (c) for Lucide are held by Lucide Contributors 2022.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+---
+
+The MIT License (MIT)
+
+Copyright (c) 2013-2023 Cole Bemis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+power-bi.svg 来自 Iconify 收录的 VSCode Icons 图标集, 固定提交 e397afa6e0e4a0d6a892d31a001a1df5efe8b436, 原始 SVG 保持不变 (2026-10-15 引入).
+目录: https://icon-sets.iconify.design/vscode-icons/
+原始 SVG: https://raw.githubusercontent.com/vscode-icons/vscode-icons/e397afa6e0e4a0d6a892d31a001a1df5efe8b436/icons/file_type_powerbi.svg
+许可证: ../licenses/vscode-icons-MIT.txt (MIT, Copyright (c) 2016 Roberto Huertas).
+Power BI 名称和图形的商标权归各自权利人所有.
+J 品牌图标位于 ../branding/, 来源见源码根 BRANDING.md, 不属于上述第三方图标集合.

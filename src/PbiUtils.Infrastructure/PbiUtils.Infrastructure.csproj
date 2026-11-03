@@ -1,0 +1,31 @@
+<!--
+ * FilePath    : pbi-utils\src\PbiUtils.Infrastructure\PbiUtils.Infrastructure.csproj
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 配置共享应用服务使用的实际环境适配项目.
+-->
+
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup>
+  <ItemGroup><EmbeddedResource Include="../../tests/contracts/bridge.schema.json" LogicalName="PbiUtils.Mcp.DesktopBridgeSchema" /></ItemGroup>
+  <ItemGroup><InternalsVisibleTo Include="PbiUtils.UnitTests" /><InternalsVisibleTo Include="PbiUtils.Cli.Tests" /><InternalsVisibleTo Include="PbiUtils.Desktop.Tests" /></ItemGroup>
+  <ItemGroup><PackageReference Include="ModelContextProtocol.Core" /></ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="Serilog.Formatting.Compact" />
+  </ItemGroup>
+  <ItemGroup><PackageReference Include="System.Security.Cryptography.ProtectedData" /></ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="SampleData/Assets/**/*" Exclude="SampleData/Assets/**/.pbi/localSettings.json;SampleData/Assets/**/.pbi/cache.abf;SampleData/Assets/**/.mimosa/**/*"><LogicalName>PbiUtils.Sample/%(RecursiveDir)%(Filename)%(Extension)</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="SampleData/manifest.json"><LogicalName>PbiUtils.Sample/manifest.json</LogicalName></EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup><PackageReference Include="Microsoft.AnalysisServices" /></ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Scaffolding/Assets/pbip/**/*" Exclude="Scaffolding/Assets/pbip/**/.pbi/localSettings.json;Scaffolding/Assets/pbip/**/.pbi/cache.abf;Scaffolding/Assets/pbip/**/.mimosa/**/*"><LogicalName>PbiUtils.Scaffold/%(RecursiveDir)%(Filename)%(Extension)</LogicalName></EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup><PackageReference Include="Microsoft.Identity.Client" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../PbiUtils.Application/PbiUtils.Application.csproj" /></ItemGroup>
+</Project>

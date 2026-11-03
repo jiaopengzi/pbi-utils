@@ -1,0 +1,22 @@
+<!--
+ * FilePath    : pbi-utils\src\PbiUtils.Windows\PbiUtils.Windows.csproj
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 隔离 Windows 进程发现与官方 Analysis Services TOM/ADOMD 读取依赖.
+-->
+
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- 原生导入的编译期生成代码使用指针, 仅在 Windows 适配层启用. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WPF" />
+    <ProjectReference Include="../PbiUtils.Application/PbiUtils.Application.csproj" />
+    <ProjectReference Include="../PbiUtils.Infrastructure/PbiUtils.Infrastructure.csproj" />
+    <PackageReference Include="Microsoft.AnalysisServices" />
+    <PackageReference Include="Microsoft.AnalysisServices.AdomdClient" />
+  </ItemGroup>
+</Project>

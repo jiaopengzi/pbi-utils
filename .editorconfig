@@ -1,0 +1,43 @@
+# FilePath    : pbi-utils\.editorconfig
+# Author      : jiaopengzi
+# Blog        : https://jiaopengzi.com
+# Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+# Description : 统一仓库的字符编码, 换行和源码缩进规则.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+
+[*.{ts,vue,css,json,yml,yaml}]
+indent_size = 2
+
+[web/**.{ts,vue,css,json,html,yml,yaml}]
+indent_size = 4
+
+# 内嵌来源快照保留清单绑定的 CRLF, 不随开发源码统一为 LF.
+[src/PbiUtils.Infrastructure/{Scaffolding/Assets/pbip,SampleData/Assets}/**]
+end_of_line = crlf
+
+# 原始 CSV 包含混合行尾, 不通过编辑器保存时自动转换.
+[src/PbiUtils.Infrastructure/SampleData/Assets/*.csv]
+end_of_line = unset
+
+# 许可证来源保留清单绑定的字节, 不对换行或空白应用源码格式化.
+[licenses/source/**]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+indent_style = unset
+indent_size = unset
+
+[*.cs]
+csharp_style_namespace_declarations = file_scoped:warning
+# 集合表达式只在具体类型一致时自动简化, 避免更换接口集合的运行时类型.
+dotnet_style_prefer_collection_expression = when_types_exactly_match:suggestion

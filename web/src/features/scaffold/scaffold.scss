@@ -1,0 +1,334 @@
+/**
+ * FilePath    : pbi-utils\web\src\features\scaffold\scaffold.scss
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 沿用品牌变量的紧凑五步表单, 平铺选择和低窗口操作区.
+ */
+.scaffold-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.scaffold-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    min-width: 0;
+    .tabs {
+        margin-bottom: 0;
+    }
+    .el-checkbox-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .el-checkbox-button .el-checkbox-button__inner {
+        border: 1px solid var(--el-border-color);
+        border-radius: var(--el-border-radius-base);
+    }
+    details {
+        margin-block: 8px;
+    }
+    summary {
+        cursor: pointer;
+        padding-block: 8px;
+        overflow-wrap: anywhere;
+    }
+    pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+}
+.scaffold-form {
+    display: grid;
+    // 单列也必须允许收缩, 否则 section 的固有宽度会反向撑开卡片与数字控件.
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    min-width: 0;
+    > * {
+        min-width: 0;
+    }
+}
+.scaffold-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+    gap: 16px;
+    margin-block: 12px;
+}
+.scaffold-grid > label:not(.el-checkbox),
+.scaffold-form > label:not(.el-checkbox),
+.scaffold-toolbar > label:not(.el-checkbox) {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+.scaffold-grid .el-input-number,
+.scaffold-grid .el-date-editor,
+.scaffold-grid .el-select {
+    width: 100%;
+}
+.scaffold-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-block: 12px;
+}
+.scaffold-toolbar > .el-input {
+    flex: 1;
+    min-width: min(160px, 100%);
+}
+.scaffold-path {
+    overflow-wrap: anywhere;
+    color: var(--el-text-color-secondary);
+}
+.scaffold-table-scroll {
+    min-width: 0;
+    container: scaffold-table / inline-size;
+    margin-block: 12px;
+}
+.scaffold-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    text-align: left;
+}
+.scaffold-table th,
+.scaffold-table td {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    padding: 8px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+}
+.scaffold-table th {
+    font-weight: 600;
+}
+.scaffold-measures {
+    th {
+        white-space: normal;
+    }
+    // fixed 布局从首行确定列宽, 为值输入和默认尺寸编辑按钮预留同一行空间.
+    th:nth-child(1) {
+        width: 16%;
+    }
+    th:nth-child(2) {
+        width: 26%;
+    }
+    th:nth-child(3) {
+        width: 19%;
+    }
+    th:nth-child(4),
+    td:nth-child(4) {
+        width: 80px;
+    }
+    th:last-child,
+    td:last-child {
+        width: 96px;
+    }
+    .el-button,
+    .el-button > span {
+        white-space: nowrap;
+    }
+}
+.scaffold-value {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex-wrap: nowrap;
+    > .el-input {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+    > .el-button {
+        flex-shrink: 0;
+        white-space: nowrap;
+        > span {
+            white-space: nowrap;
+        }
+    }
+}
+// 小于完整七列表格的可读宽度时按记录换行, 标签来自同一双语字段键, 不产生横向滚动.
+@container scaffold-table (max-width: 919px) {
+    .scaffold-records {
+        display: block;
+        thead {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            clip-path: inset(50%);
+            overflow: hidden;
+        }
+        tbody {
+            display: grid;
+            gap: 12px;
+        }
+        tr {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+            border: 1px solid var(--el-border-color-lighter);
+            border-radius: var(--el-border-radius-base);
+            min-width: 0;
+        }
+        td:nth-child(n) {
+            display: grid;
+            align-content: start;
+            gap: 6px;
+            width: auto;
+            min-width: 0;
+            border: 0;
+            &::before {
+                content: attr(data-label);
+                font-weight: 600;
+                overflow-wrap: anywhere;
+            }
+        }
+    }
+}
+.scaffold-table .el-date-editor.el-input {
+    width: 100%;
+    min-width: 0;
+}
+.scaffold-panel .el-pagination {
+    flex-wrap: wrap;
+    white-space: normal;
+    gap: 8px;
+}
+// 数字控件的 operation-lock 位于组合根, 仅临时锁覆盖内部输入, 跳过步骤不添加此标记.
+.scaffold-panel .el-input-number.operation-lock .el-input.is-disabled {
+    .el-input__wrapper {
+        background-color: var(--el-input-bg-color);
+        box-shadow: 0 0 0 1px var(--el-input-border-color) inset;
+    }
+    .el-input__inner {
+        color: var(--el-input-text-color);
+        -webkit-text-fill-color: currentColor;
+    }
+}
+// 步进边界原本就禁用的按钮仍保持禁用色, 仅恢复临时整控件禁用的可用按钮颜色.
+.scaffold-panel .el-input-number.operation-lock.is-disabled {
+    .el-input-number__increase:not(.is-disabled),
+    .el-input-number__decrease:not(.is-disabled) {
+        color: var(--el-text-color-regular);
+        border-color: var(--el-border-color);
+        &:hover {
+            color: var(--el-color-primary);
+        }
+    }
+}
+.scaffold-panel .el-checkbox-button.operation-lock {
+    &.is-disabled .el-checkbox-button__inner {
+        color: var(--el-text-color-regular);
+        background-color: var(--el-fill-color-blank);
+    }
+    &.is-disabled.is-checked .el-checkbox-button__inner {
+        color: var(--el-checkbox-button-checked-text-color);
+        background-color: var(--el-checkbox-button-checked-bg-color);
+        border-color: var(--el-checkbox-button-checked-border-color);
+    }
+}
+.scaffold-period-group {
+    margin-block: 20px;
+}
+.scaffold-period-group h3 {
+    margin: 0 auto 0 0;
+}
+.scaffold-selection {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-block: 12px;
+    overflow-wrap: anywhere;
+}
+.scaffold-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    position: sticky;
+    z-index: 3;
+    padding: 12px;
+    background: var(--el-bg-color);
+    border: 1px solid var(--el-border-color);
+    border-radius: var(--el-border-radius-base);
+}
+.scaffold-create-hint {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--el-text-color-secondary);
+    font: inherit;
+    font-size: var(--el-font-size-small);
+    text-align: left;
+    cursor: pointer;
+    &:focus-visible {
+        outline: 2px solid var(--brand-accent);
+        outline-offset: 4px;
+    }
+    &:disabled {
+        cursor: default;
+    }
+}
+.scaffold-output {
+    // 目录按钮保持默认尺寸, 路径仅在剩余列内省略, 字段错误独占下一行.
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+}
+.scaffold-field__error {
+    display: block;
+    margin: 4px 0 0;
+    color: var(--el-color-danger);
+    font-size: var(--el-font-size-small);
+    overflow-wrap: anywhere;
+}
+.scaffold-output .scaffold-field__error {
+    grid-column: 1 / -1;
+}
+.scaffold-selection > .scaffold-field__error {
+    flex-basis: 100%;
+}
+.scaffold-field[data-scaffold-invalid="true"] {
+    .el-input__wrapper,
+    .el-select__wrapper {
+        box-shadow: 0 0 0 1px var(--el-color-danger) inset;
+    }
+}
+.scaffold-action-spacer,
+.configuration-panel .scaffold-actions > .scaffold-path {
+    flex: 1;
+}
+.scaffold-actions .el-button + .el-button,
+.scaffold-toolbar .el-button + .el-button {
+    margin-left: 0;
+}
+@media (max-width: 900px) {
+    .scaffold-action-spacer {
+        display: none;
+    }
+}
+
+.scaffold-actions .scaffold-output {
+    flex: 1 1 260px;
+    min-width: 0;
+}
+.scaffold-actions .scaffold-output .scaffold-path,
+.scaffold-created-target {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.scaffold-git-status {
+    color: var(--el-text-color-secondary);
+    font-size: var(--el-font-size-small);
+    max-width: 260px;
+}
+.scaffold-template-list {
+    padding-left: 20px;
+    overflow-wrap: anywhere;
+}

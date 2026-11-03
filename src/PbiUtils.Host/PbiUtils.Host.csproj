@@ -1,0 +1,18 @@
+<!--
+ * FilePath    : pbi-utils\src\PbiUtils.Host\PbiUtils.Host.csproj
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 配置不依赖 WebView2 的按需业务宿主, 逐客户端拥有共享业务上下文.
+-->
+
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="PbiUtils.Desktop.Tests" />
+    <ProjectReference Include="../PbiUtils.Windows/PbiUtils.Windows.csproj" />
+    <ProjectReference Include="../PbiUtils.Infrastructure/PbiUtils.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

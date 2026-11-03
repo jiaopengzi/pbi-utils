@@ -1,0 +1,21 @@
+<!-- 
+59.372539 = 63 的算术平方根减二乘以10,具体参看原始设计图。
+rx,ry=210,210 正方形边长 550 乘以 黄金比例 0.618 等于 340; 550-340=210
+-->
+<svg id="jiaopengzi-logo-svg" width="108" height="108" viewBox="-230 -345 550 550" version="1.1"
+    xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <rect id="jiaopengzi-logo-svg-background" x="-230" y="-345" width="550" height="550" rx="210" ry="210"
+        fill="#1E2858" stroke="#1E2858" />
+    <path id="jiaopengzi-logo-svg-j" d="
+    M -10 10 
+    L -59.372539 10
+    A 80,80 1 0,0 20,100
+    A 130,130 1 0,0 150,-30
+    L 150 -240
+    L 20 -240
+    L 20 -160
+    L 70 -160
+    L 70 -30
+    A 50,50 1 0,1 -10,10
+    Z" fill="#C89828" stroke="#C89828"></path>
+</svg>

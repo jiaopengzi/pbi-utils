@@ -1,0 +1,30 @@
+/**
+ * FilePath    : pbi-utils\web\src\ui\_theme.scss
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 为按需加载的 Element Plus 样式映射现有品牌色, 不输出重复 CSS.
+ */
+
+@forward "element-plus/theme-chalk/src/common/var.scss" with (
+    $colors: (
+        "primary": (
+            "base": #1e2858,
+        ),
+        "success": (
+            "base": #21834c,
+        ),
+        "warning": (
+            "base": #c89828,
+        ),
+        "danger": (
+            "base": #9b3b35,
+        ),
+        "error": (
+            "base": #9b3b35,
+        ),
+        "info": (
+            "base": #626b80,
+        ),
+    )
+);

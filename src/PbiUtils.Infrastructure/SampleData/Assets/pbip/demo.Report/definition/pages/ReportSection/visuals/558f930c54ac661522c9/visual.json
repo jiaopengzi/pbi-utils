@@ -1,0 +1,468 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.12.0/schema.json",
+  "name": "558f930c54ac661522c9",
+  "position": {
+    "x": 688,
+    "y": 208,
+    "z": 0,
+    "height": 536,
+    "width": 576,
+    "tabOrder": 20
+  },
+  "visual": {
+    "visualType": "map",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "D01_省份表"
+                    }
+                  },
+                  "Property": "F_05_省简称2"
+                }
+              },
+              "queryRef": "D01_省份表.F_05_省简称2",
+              "nativeQueryRef": "省",
+              "active": true,
+              "displayName": "省"
+            }
+          ]
+        },
+        "Series": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "D00_大区表"
+                    }
+                  },
+                  "Property": "F_02_大区"
+                }
+              },
+              "queryRef": "D00_大区表.F_02_大区",
+              "displayName": "大区"
+            }
+          ]
+        },
+        "Size": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Measure"
+                    }
+                  },
+                  "Property": "005_毛利_单位"
+                }
+              },
+              "queryRef": "Measure.005_毛利_单位",
+              "displayName": "毛利"
+            }
+          ]
+        },
+        "Tooltips": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Measure"
+                    }
+                  },
+                  "Property": "006_毛利率%"
+                }
+              },
+              "queryRef": "Measure.006_毛利率%",
+              "displayName": "毛利率%"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Measure"
+                    }
+                  },
+                  "Property": "001_销售金额_单位"
+                }
+              },
+              "queryRef": "Measure.003_销售金额_单位",
+              "displayName": "销售额"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Measure"
+                    }
+                  },
+                  "Property": "002_订单数量_单位"
+                }
+              },
+              "queryRef": "Measure.002_订单数量_单位",
+              "displayName": "订单数"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Measure"
+                    }
+                  },
+                  "Property": "008_产品数量_单位"
+                }
+              },
+              "queryRef": "Measure.008_产品数量_单位",
+              "displayName": "产品数"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Measure"
+                    }
+                  },
+                  "Property": "009_门店数量_单位"
+                }
+              },
+              "queryRef": "Measure.009_门店数量_单位",
+              "displayName": "门店数"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Measure"
+                    }
+                  },
+                  "Property": "010_客户数量_单位"
+                }
+              },
+              "queryRef": "Measure.010_客户数量_单位",
+              "displayName": "客户数"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "dataPoint": [
+        {
+          "properties": {}
+        }
+      ],
+      "legend": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "categoryLabels": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "fontSize": {
+              "expr": {
+                "Literal": {
+                  "Value": "8D"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "bubbles": [
+        {
+          "properties": {}
+        }
+      ],
+      "mapControls": [
+        {
+          "properties": {
+            "autoZoom": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "showZoomButtons": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "border": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "dropShadow": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'销售地图'"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "background": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "visualTooltip": [
+        {
+          "properties": {
+            "fontSize": {
+              "expr": {
+                "Literal": {
+                  "Value": "10D"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "a953755424e2e31c056c",
+        "field": {
+          "Arithmetic": {
+            "Left": {
+              "Measure": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "Measure"
+                  }
+                },
+                "Property": "005_毛利_单位"
+              }
+            },
+            "Right": {
+              "ScopedEval": {
+                "Expression": {
+                  "Measure": {
+                    "Expression": {
+                      "SourceRef": {
+                        "Entity": "Measure"
+                      }
+                    },
+                    "Property": "005_毛利_单位"
+                  }
+                },
+                "Scope": []
+              }
+            },
+            "Operator": 3
+          }
+        },
+        "type": "Advanced",
+        "howCreated": "User"
+      },
+      {
+        "name": "946b56e3051d7d796a9e",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "D00_大区表"
+              }
+            },
+            "Property": "F_02_大区"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "e8070d8715a01720b563",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Measure"
+              }
+            },
+            "Property": "001_销售金额_单位"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "e7bc9e11005783639858",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Measure"
+              }
+            },
+            "Property": "002_订单数量_单位"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "bb276abf8d300ed39081",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Measure"
+              }
+            },
+            "Property": "005_毛利_单位"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "cb01e7f502eb4c06e100",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Measure"
+              }
+            },
+            "Property": "008_产品数量_单位"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "ce4390d344932c98c512",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Measure"
+              }
+            },
+            "Property": "009_门店数量_单位"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "d2ee60b43306debc1ce1",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Measure"
+              }
+            },
+            "Property": "010_客户数量_单位"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "48affe7942d7be19b520",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Measure"
+              }
+            },
+            "Property": "006_毛利率%"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "066b2716e65231449b1d",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "D01_省份表"
+              }
+            },
+            "Property": "F_05_省简称2"
+          }
+        },
+        "type": "Categorical"
+      }
+    ]
+  }
+}

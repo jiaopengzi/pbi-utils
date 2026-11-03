@@ -1,0 +1,88 @@
+table T04_订单主表
+	lineageTag: 3373b6fc-72ef-4a22-9540-bc2931a69502
+
+	column F_00_自动编号
+		dataType: int64
+		formatString: 0
+		lineageTag: f9a078f2-a8e8-4dde-ad35-5446511fc6f7
+		summarizeBy: sum
+		sourceColumn: F_00_自动编号
+
+		annotation SummarizationSetBy = Automatic
+
+	column F_01_订单编号
+		dataType: string
+		lineageTag: d05cc5c2-536a-4994-8d19-0bab542cfd7e
+		summarizeBy: none
+		sourceColumn: F_01_订单编号
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column F_02_门店编号
+		dataType: string
+		lineageTag: 5ada792c-5c57-4783-9858-04bcb8c51fd3
+		summarizeBy: none
+		sourceColumn: F_02_门店编号
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column F_03_下单日期
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 095a721e-5ca4-4951-9110-0c4d7e7bbdba
+		summarizeBy: none
+		sourceColumn: F_03_下单日期
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column F_04_送货日期
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: b8574684-6b85-411e-bcc4-a71371b967de
+		summarizeBy: none
+		sourceColumn: F_04_送货日期
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column F_05_客户编号
+		dataType: string
+		lineageTag: 6e61ad19-9e14-4b79-a00c-9736efc61170
+		summarizeBy: none
+		sourceColumn: F_05_客户编号
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column F_06_销售渠道
+		dataType: string
+		lineageTag: 51175b51-d57d-4d5f-ae43-d116d768598c
+		summarizeBy: none
+		sourceColumn: F_06_销售渠道
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	partition T04_订单主表-c54a5a21-c6d8-42a4-b52d-1058d9abb321 = m
+		mode: import
+		source =
+				let
+				  源 = Csv.Document(File.Contents(Path&"\T04_订单主表.csv"), [Delimiter = ",", Columns = 7, Encoding = 65001, QuoteStyle = QuoteStyle.None]),
+				    提升的标题 = Table.PromoteHeaders(源, [PromoteAllScalars=true]),
+				    更改的类型 = Table.TransformColumnTypes(提升的标题,{{"F_00_自动编号", Int64.Type}, {"F_03_下单日期", type date}, {"F_04_送货日期", type date}})
+				in
+				    更改的类型
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = 导航
+

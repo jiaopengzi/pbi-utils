@@ -1,0 +1,344 @@
+/**
+ * FilePath    : pbi-utils\web\src\features\scaffold\udf.scss
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : UDF 来源、函数库、函数及标签的稳定布局与来源管理弹窗.
+ */
+.udf-step {
+    min-width: 0;
+    .udf-source-toolbar {
+        align-items: flex-end;
+    }
+    .udf-source-picker {
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        column-gap: 12px;
+        flex: 0 1 280px;
+        width: 280px;
+        min-width: 0;
+        max-width: 100%;
+        .el-select {
+            width: 100%;
+            min-width: 0;
+        }
+    }
+    .udf-library-picker,
+    .udf-tag-picker {
+        display: grid;
+        gap: 6px;
+        max-width: 480px;
+        min-width: 0;
+        .el-select {
+            width: 100%;
+        }
+    }
+    .udf-tag-picker {
+        margin-top: 16px;
+        max-width: 280px;
+    }
+    .udf-browser {
+        border: 1px solid var(--el-border-color);
+        border-radius: var(--el-border-radius-base);
+        padding: 16px;
+        min-width: 0;
+        h4 {
+            margin: 16px 0 8px;
+        }
+    }
+    .udf-empty {
+        color: var(--el-text-color-secondary);
+        padding-block: 8px;
+        min-height: 24px;
+    }
+    .udf-functions {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        .el-checkbox {
+            margin-right: 0;
+            max-width: 100%;
+            height: auto;
+            min-height: 32px;
+        }
+        .el-checkbox__label {
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+    }
+    .udf-selected {
+        margin-top: 20px;
+    }
+}
+.udf-source-row > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.udf-source-form {
+    margin-top: 20px;
+}
+.udf-protocol {
+    color: var(--el-text-color-secondary);
+    line-height: 1.65;
+}
+.udf-bulk-preview {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    .udf-bulk-package {
+        padding-block: 12px;
+        border-bottom: 1px solid var(--el-border-color);
+    }
+    pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+    .el-checkbox {
+        height: auto;
+        min-height: 32px;
+        max-width: 100%;
+    }
+    .el-checkbox__label {
+        white-space: normal;
+    }
+}
+
+.udf-library-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.udf-library-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid var(--el-border-color);
+    border-radius: var(--el-border-radius-base);
+    background: var(--el-bg-color);
+    overflow-wrap: anywhere;
+    &.is-selected {
+        border-color: var(--brand-accent);
+        box-shadow: inset 0 2px var(--brand-accent);
+    }
+    .udf-package-heading {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    h3 {
+        flex: 1;
+        min-width: 0;
+        margin: 0;
+        font-size: 17px;
+    }
+    small {
+        display: block;
+        color: var(--el-text-color-secondary);
+    }
+    footer {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 16px;
+        margin-top: auto;
+        border-top: 1px solid var(--el-border-color-lighter);
+    }
+    mark {
+        background: var(--el-color-warning-light-8);
+        color: var(--el-text-color-primary);
+    }
+}
+.udf-library-card .udf-package-icon {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    flex: 0 0 36px;
+    color: var(--el-color-primary);
+}
+.udf-package-version {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-block: 16px 0;
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+}
+.udf-package-description {
+    margin-block: 16px;
+    line-height: 1.7;
+}
+.udf-package-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 20px;
+    .el-tag {
+        height: auto;
+        min-height: var(--el-tag-height);
+        white-space: normal;
+        overflow-wrap: anywhere;
+        padding-block: 4px;
+    }
+}
+.udf-package-meta {
+    display: flex;
+    flex: 1 1 260px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    min-width: 0;
+}
+.udf-package-author,
+.udf-package-date {
+    min-width: 0;
+    max-width: 100%;
+}
+.udf-package-count {
+    min-width: 0;
+    font-size: 12px;
+}
+.udf-selected-actions {
+    margin-top: 16px;
+}
+.udf-stale {
+    color: var(--el-color-warning-dark-2);
+}
+.udf-revalidation-entry {
+    overflow-wrap: anywhere;
+    pre {
+        white-space: pre-wrap;
+    }
+}
+
+.udf-function-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
+    gap: 8px;
+}
+.udf-function-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--el-border-color);
+    border-radius: var(--el-border-radius-base);
+    .el-checkbox {
+        margin-right: 0;
+    }
+    .udf-function-name {
+        flex: 1;
+        min-width: 0;
+        overflow-wrap: anywhere;
+        font-size: 13px;
+    }
+    .udf-function-tag {
+        flex: 0 1 auto;
+        max-width: 170px;
+        min-width: 70px;
+        overflow: hidden;
+        justify-content: flex-start;
+        > span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    }
+    .udf-function-icon {
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+        flex: 0 0 20px;
+    }
+    .udf-local-tag {
+        color: var(--el-text-color-secondary);
+    }
+    mark {
+        background: var(--el-color-warning-light-8);
+        color: var(--el-text-color-primary);
+    }
+}
+.udf-page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 16px;
+    .el-pagination {
+        flex-wrap: wrap;
+        row-gap: 8px;
+    }
+}
+.udf-list-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    .el-button {
+        white-space: normal;
+        height: auto;
+        min-height: 32px;
+    }
+}
+.udf-step .udf-browser .udf-list-heading h4 {
+    margin: 0;
+}
+.udf-local-browser {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.udf-step .udf-selected-package {
+    display: block;
+    padding: 0;
+    margin-top: 12px;
+    border: 1px solid var(--el-border-color);
+    border-radius: var(--el-border-radius-base);
+    overflow: hidden;
+    background: var(--el-bg-color);
+    .scaffold-field__error {
+        display: block;
+        padding: 0 16px 12px;
+    }
+}
+.udf-selected-package-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--el-fill-color-lighter);
+    > .el-button {
+        flex-shrink: 0;
+    }
+}
+.udf-selected-package-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 12px;
+    h4 {
+        flex-basis: 100%;
+        margin: 0;
+        color: var(--el-text-color-primary);
+        font-size: 14px;
+        line-height: 1.5;
+    }
+    .el-tag {
+        height: auto;
+        min-height: var(--el-tag-height);
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+}

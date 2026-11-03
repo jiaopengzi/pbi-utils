@@ -1,0 +1,29 @@
+<!--
+ * FilePath    : pbi-utils\pbi-utils.slnx
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 组织共享核心, 桌面宿主与测试项目, 保留解决方案平台配置.
+-->
+
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/src/">
+    <Project Path="src/PbiUtils.Application/PbiUtils.Application.csproj" />
+    <Project Path="src/PbiUtils.Cli/PbiUtils.Cli.csproj" />
+    <Project Path="src/PbiUtils.Core/PbiUtils.Core.csproj" />
+    <Project Path="src/PbiUtils.Desktop/PbiUtils.Desktop.csproj" />
+    <Project Path="src/PbiUtils.Host/PbiUtils.Host.csproj" />
+    <Project Path="src/PbiUtils.Infrastructure/PbiUtils.Infrastructure.csproj" />
+    <Project Path="src/PbiUtils.Windows/PbiUtils.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PbiUtils.Cli.Tests/PbiUtils.Cli.Tests.csproj" />
+    <Project Path="tests/PbiUtils.Desktop.Tests/PbiUtils.Desktop.Tests.csproj" />
+    <Project Path="tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj" />
+  </Folder>
+</Solution>

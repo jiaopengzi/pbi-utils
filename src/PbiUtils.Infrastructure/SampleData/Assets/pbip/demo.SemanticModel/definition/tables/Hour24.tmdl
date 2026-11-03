@@ -1,0 +1,71 @@
+table Hour24
+	excludeFromModelRefresh
+	lineageTag: 1ae5059c-745e-4a4d-8680-d350064674c2
+
+	column ID
+		dataType: int64
+		formatString: 0
+		lineageTag: cccb54d7-f3cf-481b-b732-1f8843e4af61
+		summarizeBy: count
+		sourceColumn: ID
+
+		annotation SummarizationSetBy = Automatic
+
+	column 小时
+		dataType: string
+		lineageTag: 5e55f1d1-80bc-4245-a192-bc1c2471947c
+		summarizeBy: none
+		sourceColumn: 小时
+		sortByColumn: ID
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column 小时L
+		dataType: int64
+		formatString: 0
+		lineageTag: 75322f20-6f69-4dc5-9f72-9bac85529495
+		summarizeBy: sum
+		sourceColumn: 小时L
+
+		annotation SummarizationSetBy = Automatic
+
+	column 小时R
+		dataType: int64
+		formatString: 0
+		lineageTag: 37e15c7e-a005-4d36-b34f-68592e46f316
+		summarizeBy: sum
+		sourceColumn: 小时R
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Hour24-cfbd25de-9609-4d56-bb28-d0843e1ad0b0 = m
+		mode: import
+		queryGroup: 基础必备
+		source = ```
+				let
+				    源=#table(
+				        type table
+				        [ID=Int64.Type
+				        ,小时=text
+				        ,小时L=Int64.Type
+				        ,小时R=Int64.Type
+				        ]
+				        ,
+				        
+				        
+				        List.Transform({1..24},(n)=>
+				            {n, "("&Text.From(n-1)&","&Text.From(n)&"]"  , n-1,n }
+				
+				            
+				        )
+				    )
+				in
+				    源
+				```
+
+	annotation PBI_NavigationStepName = 导航
+
+	annotation PBI_ResultType = Table
+

@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "name": "空白模板",
+  "description": "用户提供的blank PBIP结构; 空白报表与空语义模型, 不包含数据源或生成对象",
+  "source": {
+    "suppliedPath": "src/PbiUtils.Infrastructure/Scaffolding/Assets/pbip/blank",
+    "snapshot": "2026-10-22",
+    "version": "source-snapshot",
+    "parser": "Microsoft.AnalysisServices.Tabular.TmdlSerializer",
+    "formulasExecuted": false
+  },
+  "license": "用户提供的本地素材, 保留原作者注释和资源; 源目录未附独立许可证, 不推定为第三方MIT许可",
+  "entryFile": "blank.pbip",
+  "reportDirectory": "blank.Report",
+  "modelDirectory": "blank.SemanticModel",
+  "compatibilityLevel": 1606,
+  "sourceFiles": [
+    {
+      "path": "blank.pbip",
+      "bytes": 284,
+      "sha256": "006dfdf153f5e78e61aeb9c0ed160a884385ed9bc9be3f5420e0176b8a7a094a"
+    },
+    {
+      "path": "blank.Report/.platform",
+      "bytes": 299,
+      "sha256": "21a9019bd0a435b9a4e6d09b9806d1dbfd213cd843526e1770ecc3648f5db9f7"
+    },
+    {
+      "path": "blank.Report/definition.pbir",
+      "bytes": 239,
+      "sha256": "b82bdd5be9fb9e4ce918ee9655979eb6ef8bbbc5876c10d663a30fc73ccfa5ca"
+    },
+    {
+      "path": "blank.Report/definition/report.json",
+      "bytes": 1195,
+      "sha256": "e6557ff452b09d332580911ba81fe6881ef6f05c44d1641a41655d54f72d488c"
+    },
+    {
+      "path": "blank.Report/definition/version.json",
+      "bytes": 152,
+      "sha256": "c8bdd966a85f1eaab4312d2096b6d7b508243e4d7bc5a4d25af3cfcb1056a4e7"
+    },
+    {
+      "path": "blank.Report/definition/pages/pages.json",
+      "bytes": 224,
+      "sha256": "feb4dca6f27ea43f29262c7244e1dedd9601996856ddd5864f536c2c7c5b5cef"
+    },
+    {
+      "path": "blank.Report/definition/pages/61137d9bbe7465b73bef/page.json",
+      "bytes": 254,
+      "sha256": "2700a60c880b6d44cd89471805061b890dc9b7feb4b66119ddcf407a537bc43c"
+    },
+    {
+      "path": "blank.Report/StaticResources/SharedResources/BaseThemes/Fluent2-CY26SU09.json",
+      "bytes": 99684,
+      "sha256": "eb556359c12fe93c43047b494aa086e6f832a6bac211e6375b742c35ee784c78"
+    },
+    {
+      "path": "blank.SemanticModel/.platform",
+      "bytes": 306,
+      "sha256": "a0c846985139d8e96c3680a17c3db0faf93b6f32d3ba10cdeb6c7225030b7db4"
+    },
+    {
+      "path": "blank.SemanticModel/definition.pbism",
+      "bytes": 170,
+      "sha256": "73a1ae4c89d7488f553788adc772a04c805d1c9e0d7333e2b2b5476aad8e5a5f"
+    },
+    {
+      "path": "blank.SemanticModel/diagramLayout.json",
+      "bytes": 441,
+      "sha256": "b9dfb4c321d6f3f125b28f4216a34b14305702ed6c34aa764e1176adad47edd1"
+    },
+    {
+      "path": "blank.SemanticModel/.pbi/editorSettings.json",
+      "bytes": 317,
+      "sha256": "993662478760e2bcbc0184d6260711ae0b7cdb3867354581e7fd56609ca6ec97"
+    },
+    {
+      "path": "blank.SemanticModel/definition/database.tmdl",
+      "bytes": 39,
+      "sha256": "822c914b643bca32bb20abd8a762df8204a1b9ef02acc2bc7348727f6699cb96"
+    },
+    {
+      "path": "blank.SemanticModel/definition/model.tmdl",
+      "bytes": 323,
+      "sha256": "f1001641daa72965a1e20fde5c67493a6d21b5f459a3271386c5b4b7627918b6"
+    },
+    {
+      "path": "blank.SemanticModel/definition/cultures/zh-CN.tmdl",
+      "bytes": 21,
+      "sha256": "2c47d0aee016b2b6f70c3124b6ab6d2502c8c35c154458be63e40309e88ddeb3"
+    }
+  ],
+  "tables": [],
+  "expressions": [],
+  "relationships": [],
+  "localization": {
+    "required": false,
+    "projectRootParameter": "PbiUtilsProjectRoot",
+    "sourceParameters": [],
+    "calendarTable": null,
+    "calendarDateColumn": null,
+    "configurationTables": [],
+    "notes": [
+      "schema URLs are metadata, not data-source dependencies"
+    ]
+  }
+}

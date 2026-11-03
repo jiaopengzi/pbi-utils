@@ -1,0 +1,709 @@
+{
+  "sourceFile": "261030-03.md",
+  "sourceSha256": "9a5e8095bdfe86d15609fb39e7e5d5b6729e0275e3b45ec8490a6a645ba3c8f8",
+  "productionMeasureCount": 92,
+  "cases": [
+    {
+      "id": "production-001",
+      "sourceKind": "production",
+      "name": "0000_刷新时间",
+      "expression": "SELECTEDVALUE ( '04_RefreshTime'[RefreshTime] )"
+    },
+    {
+      "id": "production-002",
+      "sourceKind": "production",
+      "name": "0001_销售金额_单位_D_",
+      "expression": "SUM ( 'T05_订单子表'[F_06_产品销售金额] )"
+    },
+    {
+      "id": "production-003",
+      "sourceKind": "production",
+      "name": "0002_订单数量_单位_D_",
+      "expression": "COUNTROWS ( 'T04_订单主表' )"
+    },
+    {
+      "id": "production-004",
+      "sourceKind": "production",
+      "name": "0003_销售目标_单位_D_",
+      "expression": "SUM ( 'T06_销售目标表'[F_04_每日目标] )"
+    },
+    {
+      "id": "production-005",
+      "sourceKind": "production",
+      "name": "0004_产品成本金额_单位_D_",
+      "expression": "SUMX (\n    'T05_订单子表',\n    RELATED ( 'T00_产品表'[F_05_产品成本价格] ) * 'T05_订单子表'[F_05_产品销售数量]\n)"
+    },
+    {
+      "id": "production-006",
+      "sourceKind": "production",
+      "name": "0005_毛利_单位_D_",
+      "expression": "[0001_销售金额_单位_D_] - [0004_产品成本金额_单位_D_]"
+    },
+    {
+      "id": "production-007",
+      "sourceKind": "production",
+      "name": "0006_毛利率_%_D_",
+      "expression": "DIVIDE ( [0005_毛利_单位_D_], [0001_销售金额_单位_D_], BLANK () )"
+    },
+    {
+      "id": "production-008",
+      "sourceKind": "production",
+      "name": "0007_目标完成率_%_D_",
+      "expression": "DIVIDE ( [0001_销售金额_单位_D_], [0003_销售目标_单位_D_] )"
+    },
+    {
+      "id": "production-009",
+      "sourceKind": "production",
+      "name": "0008_产品数量_单位_D_",
+      "expression": "CALCULATE ( COUNTROWS ( 'T00_产品表' ), KEEPFILTERS ( 'T05_订单子表' ) )"
+    },
+    {
+      "id": "production-010",
+      "sourceKind": "production",
+      "name": "0009_门店数量_单位_D_",
+      "expression": "VAR DATE_AC_A =\n    LASTDATE ( '01_Calendar'[dates] )\nVAR TABLE_OPEN =\n    FILTER ( 'T01_门店表', 'T01_门店表'[F_04_开店日期] <= DATE_AC_A )\nVAR TABLE_CLOSE =\n    FILTER ( TABLE_OPEN, [F_09_关店日期] > DATE_AC_A || [F_09_关店日期] = BLANK () )\nRETURN\n    COUNTROWS ( TABLE_CLOSE )"
+    },
+    {
+      "id": "production-011",
+      "sourceKind": "production",
+      "name": "0010_客户数量_已购买_订单日期_单位_D_",
+      "expression": "CALCULATE (\n    COUNTROWS ( 'T02_客户表' ),\n    KEEPFILTERS ( 'T04_订单主表' ),\n    KEEPFILTERS ( 'T05_订单子表' )\n)"
+    },
+    {
+      "id": "production-012",
+      "sourceKind": "production",
+      "name": "0011_大区_idphotoURL",
+      "expression": "VAR U = \"https://demo.jiaopengzi.com/idphoto/\"\nVAR R =\n    SELECTEDVALUE ( 'D00_大区表'[F_01_大区ID] )\nVAR L = \".png\"\nRETURN\n    IF ( HASONEVALUE ( 'D00_大区表'[F_03_大区负责人] ), U & R & L, BLANK () )"
+    },
+    {
+      "id": "production-013",
+      "sourceKind": "production",
+      "name": "0012_大区_负责人",
+      "expression": "SELECTEDVALUE ( 'D00_大区表'[F_03_大区负责人] )"
+    },
+    {
+      "id": "production-014",
+      "sourceKind": "production",
+      "name": "0013_大区",
+      "expression": "SELECTEDVALUE ( 'D00_大区表'[F_02_大区] )"
+    },
+    {
+      "id": "production-015",
+      "sourceKind": "production",
+      "name": "0014_省简称",
+      "expression": "VAR TF0 =\n    HASONEFILTER ( 'D01_省份表'[F_04_省简称] )\nVAR TF1 =\n    HASONEFILTER ( 'D01_省份表_对比'[F_04_省简称] )\nVAR R0 =\n    SELECTEDVALUE ( 'D01_省份表'[F_04_省简称] )\nVAR R1 =\n    COUNTROWS ( 'D01_省份表' )\nVAR R_DB0 =\n    SELECTEDVALUE ( 'D01_省份表_对比'[F_04_省简称] )\nVAR R_DB1 =\n    COUNTROWS ( 'D01_省份表_对比' )\nVAR D =\n    SELECTEDVALUE ( 'G02_P50_AB对比分析'[对比维度] )\nRETURN\n    SWITCH (\n        TRUE (),\n        D = \"A\"\n            && TF0 = TRUE (), R0,\n        D = \"A\"\n            && TF0 = FALSE (), \"省：\" & R1,\n        D = \"B\"\n            && TF1 = TRUE (), R_DB0,\n        D = \"B\"\n            && TF1 = FALSE (), \"省：\" & R_DB1,\n        R0\n    )"
+    },
+    {
+      "id": "production-016",
+      "sourceKind": "production",
+      "name": "0015_折扣比例_%_D_",
+      "expression": "VAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    SUMX ( 'T05_订单子表', 'T05_订单子表'[F_03_产品销售价格] * 'T05_订单子表'[F_05_产品销售数量] )\nRETURN\n    DIVIDE ( FZ, FM, BLANK () )"
+    },
+    {
+      "id": "production-017",
+      "sourceKind": "production",
+      "name": "0016_订单件数_单位_D_",
+      "expression": "SUM ( 'T05_订单子表'[F_05_产品销售数量] )"
+    },
+    {
+      "id": "production-018",
+      "sourceKind": "production",
+      "name": "0017_销售金额_门店占比_%_D_",
+      "expression": "VAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    CALCULATE (\n        [0001_销售金额_单位_D_],\n        ALL ( 'T01_门店表'[F_02_门店名称], 'T01_门店表'[F_00_自动编号] )\n    )\nRETURN\n    DIVIDE ( FZ, FM, BLANK () )"
+    },
+    {
+      "id": "production-019",
+      "sourceKind": "production",
+      "name": "0018_产品数量_入库_单位_D_",
+      "expression": "SUM ( 'T03_入库信息表'[F_02_入库产品数量] )"
+    },
+    {
+      "id": "production-020",
+      "sourceKind": "production",
+      "name": "0019_产品数量_出库_单位_D_",
+      "expression": "CALCULATE (\n    SUM ( 'T05_订单子表'[F_05_产品销售数量] ),\n    USERELATIONSHIP ( 'T04_订单主表'[F_04_送货日期], '01_Calendar'[dates] )\n)"
+    },
+    {
+      "id": "production-021",
+      "sourceKind": "production",
+      "name": "0100_日期矩阵_DAY",
+      "expression": "SELECTEDVALUE ( '01_Calendar'[day] )"
+    },
+    {
+      "id": "production-022",
+      "sourceKind": "production",
+      "name": "0101_日期矩阵_DAY_color_map",
+      "expression": "VAR VALUE_DAY = [0001_销售金额_单位_D_]\nVAR VALUE_TABLE_0 =\n    CALCULATETABLE (\n        '01_Calendar',\n        ALL (\n            '01_Calendar'[dates],\n            '01_Calendar'[day],\n            '01_Calendar'[weeknumber],\n            '01_Calendar'[weekday],\n            '01_Calendar'[weekcna] //易错点：注意清除筛选的时候，按列排序的列都要加上；weekcna按照weekday排序的。\n        )\n    )\nVAR VALUE_TABLE_1 =\n    SUMMARIZE (\n        VALUE_TABLE_0,\n        '01_Calendar'[day],\n        \"@DAY\", [0001_销售金额_单位_D_]\n    )\nVAR VALUE_DAY_MAX =\n    MAXX ( VALUE_TABLE_1, [@DAY] )\nVAR VALUE_DAY_MIN =\n    MINX ( VALUE_TABLE_1, [@DAY] )\nVAR VALUE_DIFF_MAX = ( VALUE_DAY_MAX - VALUE_DAY_MIN ) //min是最浅颜色，max是最深颜色。\nVAR VALUE_DIFF_DAY = ( VALUE_DAY_MAX - VALUE_DAY )\nVAR X = VALUE_DIFF_DAY / VALUE_DIFF_MAX\nVAR R =\n    INT ( 200 * X ) + 20\nVAR G =\n    INT ( 100 * X ) + 140 //222,239\nVAR B = 250\nVAR D = \",\"\nVAR TF =\n    VALUE_DAY = BLANK ()\nRETURN\n    IF ( TF, \"#dddddd\", \"RGB(\" & R & D & G & D & B & \")\" )"
+    },
+    {
+      "id": "production-023",
+      "sourceKind": "production",
+      "name": "0200_计算组矩阵_color_背景",
+      "expression": "/*\n    good:#188818\n    neutral:#DD8800\n    bad:#BB1818\n    1、YTD>=1,MTD>=1 =>good\n    2、YTD>=1,MTD< 1 =>neutral\n    3、YTD< 1,MTD>=1 =>neutral\n    4、YTD< 1,MTD< 1=>bad\n*/\nVAR MTD0 =\n    VAR DATE_END_AC =\n        LASTDATE ( '01_Calendar'[dates] )\n    VAR DATE_SATRT_AC =\n        STARTOFMONTH ( DATE_END_AC )\n    VAR DATE_TABLE_AC =\n        DATESBETWEEN ( '01_Calendar'[dates], DATE_SATRT_AC, DATE_END_AC )\n    RETURN\n        CALCULATE ( [0007_目标完成率_%_D_], DATE_TABLE_AC )\nVAR YTD0 =\n    VAR DATE_END_AC =\n        LASTDATE ( '01_Calendar'[dates] )\n    VAR DATE_SATRT_AC =\n        STARTOFYEAR ( DATE_END_AC )\n    VAR DATE_TABLE_AC =\n        DATESBETWEEN ( '01_Calendar'[dates], DATE_SATRT_AC, DATE_END_AC )\n    RETURN\n        CALCULATE ( [0007_目标完成率_%_D_], DATE_TABLE_AC )\nVAR COLOR0 =\n    SWITCH (\n        TRUE (),\n        YTD0 >= 1\n            && MTD0 >= 1, \"#188818\",\n        YTD0 >= 1\n            && MTD0 < 1, \"#DD8800\",\n        YTD0 < 1\n            && MTD0 >= 1, \"#DD8800\",\n        YTD0 < 1\n            && MTD0 < 1, \"#BB1818\"\n    )\nVAR LIST0 = { \"AC\", \"MTD\", \"YTD\" }\nVAR ROW_VALUE =\n    SELECTEDVALUE ( 'G03_P60_DWMQHY'[F_07_指标] )\nVAR COLOR_AC_TF =\n    IF ( ROW_VALUE IN LIST0, COLOR0, BLANK () )\nRETURN\n    COLOR_AC_TF"
+    },
+    {
+      "id": "production-024",
+      "sourceKind": "production",
+      "name": "0201_计算组矩阵_color_字体",
+      "expression": "/*\n    good:#188818\n    neutral:#DD8800\n    bad:#BB1818\n    字体颜色：#EEEEEE\n*/\nVAR LIST0 = { \"AC\", \"MTD\", \"YTD\" }\nVAR ROW_VALUE =\n    SELECTEDVALUE ( 'G03_P60_DWMQHY'[F_07_指标] )\nVAR COLOR_AC_TF =\n    IF ( ROW_VALUE IN LIST0, \"#EEEEEE\", BLANK () )\nRETURN\n    COLOR_AC_TF"
+    },
+    {
+      "id": "production-025",
+      "sourceKind": "production",
+      "name": "0202_计算组矩阵_工具提示_01_指标",
+      "expression": "SELECTEDVALUE ( 'G03_P60_DWMQHY'[F_07_指标] )"
+    },
+    {
+      "id": "production-026",
+      "sourceKind": "production",
+      "name": "0203_计算组矩阵_工具提示_02_开始日期",
+      "expression": "\"开始日期\""
+    },
+    {
+      "id": "production-027",
+      "sourceKind": "production",
+      "name": "0204_计算组矩阵_工具提示_03_结束日期",
+      "expression": "\"结束日期\""
+    },
+    {
+      "id": "production-028",
+      "sourceKind": "production",
+      "name": "0205_计算组矩阵_工具提示_04_指标说明",
+      "expression": "SELECTEDVALUE ( 'G03_P60_DWMQHY'[F_08_说明] )"
+    },
+    {
+      "id": "production-029",
+      "sourceKind": "production",
+      "name": "0206_计算组矩阵_工具提示_05_页面说明",
+      "expression": "50"
+    },
+    {
+      "id": "production-030",
+      "sourceKind": "production",
+      "name": "0207_计算组矩阵_工具提示_06_各省大区内排名",
+      "expression": "VAR DQ =\n    SELECTEDVALUE ( 'D00_大区表'[F_01_大区ID] )\nVAR TABLE0 =\n    ADDCOLUMNS ( ALL ( 'D01_省份表' ), \"@销售额\", [0001_销售金额_单位_D_] )\nVAR TABLE1 =\n    FILTER ( TABLE0, [F_01_大区ID] = DQ )\nVAR TABLE2 =\n    ADDCOLUMNS (\n        TABLE1,\n        \"@RANK\", RANKX ( TABLE1, [0001_销售金额_单位_D_], [@销售额], DESC )\n    )\nVAR N =\n    SUM ( 'T71_大区_排名辅助'[ID] )\nVAR TABLE3 =\n    FILTER ( TABLE2, [@RANK] = N )\nRETURN\n    CALCULATE ( MAXX ( TABLE3, [F_04_省简称] ), ALL ( 'D00_大区表' ) )"
+    },
+    {
+      "id": "production-031",
+      "sourceKind": "production",
+      "name": "0300_销售金额_贡献_组织_省简称_%",
+      "expression": "VAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    CALCULATE (\n        [0001_销售金额_单位_D_],\n        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] )\n    )\nVAR P =\n    DIVIDE ( FZ, FM, BLANK () )\nRETURN\n    P"
+    },
+    {
+      "id": "production-032",
+      "sourceKind": "production",
+      "name": "0301_销售金额_贡献_组织_省简称_累计_%",
+      "expression": "VAR R =\n    RANKX (\n        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\n        [0001_销售金额_单位_D_],\n        ,\n        DESC\n    )\n        + CALCULATE ( SUM ( 'D01_省份表'[F_02_省ID] ) ) / 100\nVAR T =\n    ADDCOLUMNS (\n        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\n        \"R\",\n            RANKX (\n                ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\n                [0001_销售金额_单位_D_],\n                ,\n                DESC\n            )\n                + CALCULATE ( SUM ( 'D01_省份表'[F_02_省ID] ) ) / 100\n    )\nVAR LJ =\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\nVAR FM =\n    CALCULATE (\n        [0001_销售金额_单位_D_],\n        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] )\n    )\nVAR P =\n    DIVIDE ( LJ, FM, BLANK () )\nRETURN\n    P"
+    },
+    {
+      "id": "production-033",
+      "sourceKind": "production",
+      "name": "0302_销售金额_贡献_组织_省简称_累计_二八分界_%",
+      "expression": "VAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\n        \"R\",\n            RANKX (\n                ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\n                [0001_销售金额_单位_D_],\n                ,\n                DESC\n            )\n                + CALCULATE ( SUM ( 'D01_省份表'[F_02_省ID] ) ) / 100\n    )\nVAR T1 =\n    ADDCOLUMNS (\n        T0,\n        \"@P%\",\n            VAR R =\n                RANKX (\n                    ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] ),\n                    [0001_销售金额_单位_D_],\n                    ,\n                    DESC\n                )\n                    + CALCULATE ( SUM ( 'D01_省份表'[F_02_省ID] ) ) / 100\n            VAR LJ =\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\n            VAR FM =\n                CALCULATE (\n                    [0001_销售金额_单位_D_],\n                    ALL ( 'D01_省份表'[F_04_省简称], 'D01_省份表'[F_02_省ID] )\n                )\n            VAR P =\n                DIVIDE ( LJ, FM, BLANK () )\n            RETURN\n                P\n    )\nVAR T2 =\n    FILTER ( T1, [@P%] >= 0.8 )\nVAR MINRANK =\n    MINX ( T2, [@P%] )\nRETURN\n    MINRANK"
+    },
+    {
+      "id": "production-034",
+      "sourceKind": "production",
+      "name": "0303_销售金额_贡献_组织_省简称_大区color",
+      "expression": "VAR DQ =\n    CALCULATE ( SUM ( 'D00_大区表'[F_01_大区ID] ), 'D01_省份表' )\nVAR TABLE0 =\n    FILTER ( 'T70_主题颜色', [ID] = DQ )\nVAR COLOR =\n    CONCATENATEX ( TABLE0, [颜色值] )\nRETURN\n    COLOR"
+    },
+    {
+      "id": "production-035",
+      "sourceKind": "production",
+      "name": "0400_销售金额_贡献_产品_分类_%",
+      "expression": "VAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[F_02_产品分类] ) )\nVAR P =\n    DIVIDE ( FZ, FM, BLANK () )\nRETURN\n    P"
+    },
+    {
+      "id": "production-036",
+      "sourceKind": "production",
+      "name": "0401_销售金额_贡献_产品_分类_累计_%",
+      "expression": "VAR R =\n    RANKX ( ALL ( 'T00_产品表'[F_02_产品分类] ), [0001_销售金额_单位_D_],, DESC )\nVAR T =\n    ADDCOLUMNS (\n        ALL ( 'T00_产品表'[F_02_产品分类] ),\n        \"R\", RANKX ( ALL ( 'T00_产品表'[F_02_产品分类] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR LJ =\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[F_02_产品分类] ) )\nVAR P =\n    DIVIDE ( LJ, FM, BLANK () )\nRETURN\n    P"
+    },
+    {
+      "id": "production-037",
+      "sourceKind": "production",
+      "name": "0402_销售金额_贡献_产品_分类_累计_二八分界_%",
+      "expression": "VAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'T00_产品表'[F_02_产品分类] ),\n        \"R\", RANKX ( ALL ( 'T00_产品表'[F_02_产品分类] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR T1 =\n    ADDCOLUMNS (\n        T0,\n        \"@P%\",\n            VAR R =\n                RANKX ( ALL ( 'T00_产品表'[F_02_产品分类] ), [0001_销售金额_单位_D_],, DESC )\n            VAR LJ =\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\n            VAR FM =\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[F_02_产品分类] ) )\n            VAR P =\n                DIVIDE ( LJ, FM, BLANK () )\n            RETURN\n                P\n    )\nVAR T2 =\n    FILTER ( T1, [@P%] >= 0.8 )\nVAR MINRANK =\n    MINX ( T2, [@P%] )\nRETURN\n    MINRANK"
+    },
+    {
+      "id": "production-038",
+      "sourceKind": "production",
+      "name": "0500_销售金额_贡献_产品_折扣_%",
+      "expression": "VAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T72_折扣分组'[折扣分类] ) )\nVAR P =\n    DIVIDE ( FZ, FM, BLANK () )\nRETURN\n    P"
+    },
+    {
+      "id": "production-039",
+      "sourceKind": "production",
+      "name": "0501_销售金额_贡献_产品_折扣_累计_%",
+      "expression": "VAR R =\n    RANKX ( ALL ( 'T72_折扣分组'[折扣分类] ), [0001_销售金额_单位_D_],, DESC )\nVAR T =\n    ADDCOLUMNS (\n        ALL ( 'T72_折扣分组'[折扣分类] ),\n        \"R\", RANKX ( ALL ( 'T72_折扣分组'[折扣分类] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR LJ =\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T72_折扣分组'[折扣分类] ) )\nVAR P =\n    DIVIDE ( LJ, FM, BLANK () )\nRETURN\n    P"
+    },
+    {
+      "id": "production-040",
+      "sourceKind": "production",
+      "name": "0502_销售金额_贡献_产品_折扣_累计_二八分界_%",
+      "expression": "VAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'T72_折扣分组'[折扣分类] ),\n        \"R\", RANKX ( ALL ( 'T72_折扣分组'[折扣分类] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR T1 =\n    ADDCOLUMNS (\n        T0,\n        \"@P%\",\n            VAR R =\n                RANKX ( ALL ( 'T72_折扣分组'[折扣分类] ), [0001_销售金额_单位_D_],, DESC )\n            VAR LJ =\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\n            VAR FM =\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T72_折扣分组'[折扣分类] ) )\n            VAR P =\n                DIVIDE ( LJ, FM, BLANK () )\n            RETURN\n                P\n    )\nVAR T2 =\n    FILTER ( T1, [@P%] >= 0.8 )\nVAR MINRANK =\n    MINX ( T2, [@P%] )\nRETURN\n    MINRANK"
+    },
+    {
+      "id": "production-041",
+      "sourceKind": "production",
+      "name": "0600_销售金额_贡献_产品_价格_%",
+      "expression": "VAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[@价格段] ) )\nVAR P =\n    DIVIDE ( FZ, FM, BLANK () )\nRETURN\n    P"
+    },
+    {
+      "id": "production-042",
+      "sourceKind": "production",
+      "name": "0601_销售金额_贡献_产品_价格_累计_%",
+      "expression": "VAR R =\n    RANKX ( ALL ( 'T00_产品表'[@价格段] ), [0001_销售金额_单位_D_],, DESC )\nVAR T =\n    ADDCOLUMNS (\n        ALL ( 'T00_产品表'[@价格段] ),\n        \"R\", RANKX ( ALL ( 'T00_产品表'[@价格段] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR LJ =\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[@价格段] ) )\nVAR P =\n    DIVIDE ( LJ, FM, BLANK () )\nRETURN\n    P"
+    },
+    {
+      "id": "production-043",
+      "sourceKind": "production",
+      "name": "0602_销售金额_贡献_产品_价格_累计_二八分界_%",
+      "expression": "VAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'T00_产品表'[@价格段] ),\n        \"R\", RANKX ( ALL ( 'T00_产品表'[@价格段] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR T1 =\n    ADDCOLUMNS (\n        T0,\n        \"@P%\",\n            VAR R =\n                RANKX ( ALL ( 'T00_产品表'[@价格段] ), [0001_销售金额_单位_D_],, DESC )\n            VAR LJ =\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\n            VAR FM =\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T00_产品表'[@价格段] ) )\n            VAR P =\n                DIVIDE ( LJ, FM, BLANK () )\n            RETURN\n                P\n    )\nVAR T2 =\n    FILTER ( T1, [@P%] >= 0.8 )\nVAR MINRANK =\n    MINX ( T2, [@P%] )\nRETURN\n    MINRANK"
+    },
+    {
+      "id": "production-044",
+      "sourceKind": "production",
+      "name": "0700_销售金额_门店矩阵_排名",
+      "expression": "VAR ROW0 =\n    SELECTEDVALUE ( 'T74_ROW'[ROW] ) - 1\nVAR COLUMN0 =\n    SELECTEDVALUE ( T75_COLUMN[COLUMN] )\nVAR RANK0 = ROW0 * 10 + COLUMN0\nVAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'T01_门店表'[F_02_门店名称] ),\n        \"@VALUE0\", [0001_销售金额_单位_D_]\n    )\nVAR T1 =\n    FILTER ( T0, [@VALUE0] <> BLANK () )\nVAR T2 =\n    ADDCOLUMNS (\n        T1,\n        \"@R0\",\n            RANKX ( T1, [0001_销售金额_单位_D_],, DESC )\n                + CALCULATE ( SUM ( 'T01_门店表'[F_00_自动编号] ) ) / 1000\n    )\nVAR T3 =\n    ADDCOLUMNS ( T2, \"@R1\", VAR R = [@R0] RETURN RANKX ( T2, [@R0], R, ASC ) )\nVAR T4 =\n    FILTER ( T3, [@R1] = RANK0 )\nRETURN\n    MAXX ( T4, [@R1] & \"-\" & [F_02_门店名称] )"
+    },
+    {
+      "id": "production-045",
+      "sourceKind": "production",
+      "name": "0701_销售金额_门店矩阵_门店按照毛利_color_背景",
+      "expression": "/*\n    good:#188818 ; RGB:24,136,24 ; 色阶开始：#CCFFCC , RGB:204,255,204\n    neutral:#DD8800 ; RGB:221,136,0\n    bad:#BB1818 ; RGB:187,24,24；色阶开始：#FFCCCC , RGB:255,204,204\n    字体颜色：#EEEEEE ; RGB:238,238,238\n*/\nVAR ROW0 =\n    SELECTEDVALUE ( 'T74_ROW'[ROW] ) - 1\nVAR COLUMN0 =\n    SELECTEDVALUE ( T75_COLUMN[COLUMN] )\nVAR RANK0 = ROW0 * 10 + COLUMN0\nVAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'T01_门店表'[F_02_门店名称] ),\n        \"@VALUE0\", [0001_销售金额_单位_D_]\n    )\nVAR T1 =\n    FILTER ( T0, [@VALUE0] <> BLANK () )\nVAR T2 =\n    ADDCOLUMNS (\n        T1,\n        \"@R0\",\n            RANKX ( T1, [0001_销售金额_单位_D_],, DESC )\n                + CALCULATE ( SUM ( 'T01_门店表'[F_00_自动编号] ) ) / 1000\n    )\nVAR T3 =\n    ADDCOLUMNS ( T2, \"@R1\", VAR R = [@R0] RETURN RANKX ( T2, [@R0], R, ASC ) )\nVAR T4 =\n    FILTER ( T3, [@R1] = RANK0 )\nVAR MD =\n    MAXX ( T4, [F_02_门店名称] )\nVAR FILTER0 =\n    TREATAS ( { MD }, 'T01_门店表'[F_02_门店名称] )\nVAR VALUE_MD =\n    CALCULATE ( [0006_毛利率_%_D_], KEEPFILTERS ( FILTER0 ) )\nVAR VALUE_TABLE_0 =\n    CALCULATETABLE ( 'T01_门店表', ALL ( 'T01_门店表'[F_01_门店编号], 'T01_门店表'[F_02_门店名称] ) )\nVAR VALUE_TABLE_1 =\n    SUMMARIZE (\n        VALUE_TABLE_0,\n        'T01_门店表'[F_02_门店名称],\n        \"@ML\", [0006_毛利率_%_D_]\n    )\nVAR VALUE_MD_MAX =\n    MAXX ( VALUE_TABLE_1, [@ML] )\nVAR VALUE_MD_0 = 0\nVAR VALUE_MD_MIN =\n    MINX ( VALUE_TABLE_1, [@ML] )\nVAR VALUE_DIFF_MAX_0 = ( VALUE_MD_MAX - VALUE_MD_0 ) //0是最浅颜色，max是最深good颜色。\nVAR VALUE_DIFF_MIN_0 = ( VALUE_MD_MIN - VALUE_MD_0 ) //0是最浅颜色，MIN是最深bad颜色；0包含在bad中。\nVAR VALUE_DIFF_MD_POSITIVE = ( VALUE_MD_MAX - VALUE_MD ) //正数=>positive\nVAR VALUE_DIFF_MD_NEGATIVE = ( VALUE_MD_MIN - VALUE_MD ) //负数=>negative\nVAR X =\n    IF (\n        VALUE_MD > 0,\n        VALUE_DIFF_MD_POSITIVE / VALUE_DIFF_MAX_0,\n        VALUE_DIFF_MD_NEGATIVE / VALUE_DIFF_MIN_0\n    ) --------------------------------\n//good:#188818 ; RGB:24,136,24 ; 色阶开始：#CCFFCC , RGB:204,255,204\nVAR R_GOOD =\n    INT ( 180 * X ) + 24 //204-24=180\nVAR G_GOOD =\n    INT ( 119 * X ) + 136 //255-136=119\nVAR B_GOOD =\n    INT ( 180 * X ) + 24 //204-24=180\n--------------------------------\n--------------------------------\n//bad:#BB1818 ; RGB:187,24,24；色阶开始：#FFCCCC , RGB:255,204,204\nVAR R_BAD =\n    INT ( 68 * X ) + 187 //255-187=68\nVAR G_BAD =\n    INT ( 180 * X ) + 24 //204-24=180\nVAR B_BAD =\n    INT ( 180 * X ) + 24 //204-24=180\n--------------------------------\nVAR R =\n    IF ( VALUE_MD > 0, R_GOOD, R_BAD )\nVAR G =\n    IF ( VALUE_MD > 0, G_GOOD, G_BAD )\nVAR B =\n    IF ( VALUE_MD > 0, B_GOOD, B_BAD )\nVAR D = \",\"\nVAR TF =\n    VALUE_MD = BLANK ()\nRETURN\n    IF ( TF, \"#dddddd\", \"RGB(\" & R & D & G & D & B & \")\" )"
+    },
+    {
+      "id": "production-046",
+      "sourceKind": "production",
+      "name": "0702_销售金额_门店矩阵_门店按照毛利_color_字体",
+      "expression": "\"#CCCCCC\"\n/*\n    good:#188818 ; RGB:24,136,24 ; 色阶开始：#CCFFCC , RGB:204,255,204\n    neutral:#DD8800 ; RGB:221,136,0\n    bad:#BB1818 ; RGB:187,24,24；色阶开始：#FFCCCC , RGB:255,204,204\n    字体颜色：#EEEEEE ; RGB:238,238,238\n*/"
+    },
+    {
+      "id": "production-047",
+      "sourceKind": "production",
+      "name": "0800_产品数量_库存_期初_单位_",
+      "expression": "VAR DATE_START0 =\n    CALCULATE ( FIRSTDATE ( '01_Calendar'[dates] ), ALL ( '01_Calendar' ) )\nVAR DATE_END0 =\n    LASTDATE ( '01_Calendar'[dates] )\nVAR TF0 =\n    HASONEVALUE ( '01_Calendar'[dates] ) //日\nVAR TF1 =\n    HASONEVALUE ( '01_Calendar'[YW] ) //周\nVAR TF2 =\n    HASONEVALUE ( '01_Calendar'[YM] ) //月\nVAR TF3 =\n    HASONEVALUE ( '01_Calendar'[YQ] ) //季度\nVAR TF4 =\n    HASONEVALUE ( '01_Calendar'[YH] ) //半年度\nVAR TF5 =\n    HASONEVALUE ( '01_Calendar'[FY00] ) //年度\nVAR N0 =\n    SWITCH (\n        TRUE (),\n        TF0, 0,\n        TF1,\n            DATEDIFF (\n                FIRSTDATE ( '01_Calendar'[StartOfWeek] ),\n                LASTDATE ( '01_Calendar'[EndOfWeek] ),\n                DAY\n            ),\n        TF2,\n            DATEDIFF (\n                FIRSTDATE ( '01_Calendar'[StartOfMonth] ),\n                LASTDATE ( '01_Calendar'[EndOfMonth] ),\n                DAY\n            ),\n        TF3,\n            DATEDIFF (\n                FIRSTDATE ( '01_Calendar'[StartOfQuarter] ),\n                LASTDATE ( '01_Calendar'[EndOfQuarter] ),\n                DAY\n            ),\n        TF4,\n            DATEDIFF (\n                FIRSTDATE ( '01_Calendar'[StartOfHalfYear] ),\n                LASTDATE ( '01_Calendar'[EndOfHalfYear] ),\n                DAY\n            ),\n        TF5,\n            DATEDIFF (\n                FIRSTDATE ( '01_Calendar'[StartOfYear] ),\n                LASTDATE ( '01_Calendar'[EndOfYear] ),\n                DAY\n            ),\n        0\n    ) + 1\nVAR DATE_END1 =\n    SWITCH (\n        TRUE (),\n        TF0, DATEADD ( DATE_END0, - N0, DAY ),\n        TF1, DATEADD ( LASTDATE ( '01_Calendar'[EndOfWeek] ), - N0, DAY ),\n        TF2, DATEADD ( LASTDATE ( '01_Calendar'[EndOfMonth] ), - N0, DAY ),\n        TF3, DATEADD ( LASTDATE ( '01_Calendar'[EndOfQuarter] ), - N0, DAY ),\n        TF4, DATEADD ( LASTDATE ( '01_Calendar'[EndOfHalfYear] ), - N0, DAY ),\n        TF5, DATEADD ( LASTDATE ( '01_Calendar'[EndOfYear] ), - N0, DAY ),\n        DATE_START0 //无筛选的时，默认日期表期初。\n    )\nVAR DATE_END2 =\n    IF ( ISBLANK ( DATE_END1 ), DATE_START0, DATE_END1 ) //兼容dateadd后的空值，注意日期表的两个端点。\nVAR DATE_TABLE0 =\n    DATESBETWEEN ( '01_Calendar'[dates], DATE_START0, DATE_END2 )\nVAR IN0 =\n    CALCULATE ( [0018_产品数量_入库_单位_D_], DATE_TABLE0 )\nVAR OUT0 =\n    CALCULATE ( [0019_产品数量_出库_单位_D_], DATE_TABLE0 )\nVAR DATE_START_ABS0 =\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_04_送货日期] ), ALL () ) //兼容显示到事实表最后日期。\nRETURN\n    IN0 - OUT0\n//IF ( DATE_START_ABS0 >= DATE_END2, IN0 - OUT0, BLANK () )"
+    },
+    {
+      "id": "production-048",
+      "sourceKind": "production",
+      "name": "0801_产品数量_库存_期末_单位_",
+      "expression": "VAR DATE_START0 =\n    CALCULATE ( FIRSTDATE ( '01_Calendar'[dates] ), ALL ( '01_Calendar' ) )\nVAR DATE_END0 =\n    LASTDATE ( '01_Calendar'[dates] )\nVAR DATE_TABLE0 =\n    DATESBETWEEN ( '01_Calendar'[dates], DATE_START0, DATE_END0 )\nVAR IN0 =\n    CALCULATE ( [0018_产品数量_入库_单位_D_], DATE_TABLE0 )\nVAR OUT0 =\n    CALCULATE ( [0019_产品数量_出库_单位_D_], DATE_TABLE0 )\nVAR DATE_START_ABS0 =\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_04_送货日期] ), ALL () ) //兼容显示到事实表最后日期。\nRETURN\n    IN0 - OUT0\n//IF(DATE_START_ABS0>=DATE_END0,IN0 - OUT0,BLANK())"
+    },
+    {
+      "id": "production-049",
+      "sourceKind": "production",
+      "name": "0802_产品数量_库存_期间平均库存_单位_",
+      "expression": "/*\n----------------------------------------------------------------------------------------------------\n存货周转天数（Days Sales Of Inventory），参考值=>年度：120;半年：60;季度：30;月度：9;周度：2;单日：1。\n存货周转率（Inventory Turnover），越大表示周转越快。\n----------------------------------------------------------------------------------------------------\n年度：N = 360\n半年：N = 180\n季度：N = 90\n月度：N = 30\n周度：N = 7\n单日: N = 1\n----------------------------------------------------------------------------------------------------\n库存周转天数 = N / 期间存货周转率\n库存周转率 = 期间出库数量 / 期间平均库存 \n期间平均库存 =（ 期初库存 + 期末库存）÷ 2\n----------------------------------------------------------------------------------------------------\n*/\n//1、期初期末平均法\n( [0800_产品数量_库存_期初_单位_] + [0801_产品数量_库存_期末_单位_] ) / 2\n//2、日平均法\n// VAR T0 =\n//     SUMMARIZE ( '01_Calendar', '01_Calendar'[dates] )\n// VAR T1 =\n//     ADDCOLUMNS ( T0, \"@KC\", [0801_产品数量_库存_期末_单位_D_] )\n// VAR FM =\n//     COUNTROWS ( T0 )\n// VAR FZ =\n//     SUMX ( T1, [@KC] )\n// RETURN\n//     DIVIDE ( FZ, FM, BLANK () )"
+    },
+    {
+      "id": "production-050",
+      "sourceKind": "production",
+      "name": "0803_产品数量_库存_期间周转率_单位_",
+      "expression": "/*\n----------------------------------------------------------------------------------------------------\n存货周转天数（Days Sales Of Inventory），参考值=>年度：120;半年：60;季度：30;月度：9;周度：2;单日：1。\n存货周转率（Inventory Turnover），越大表示周转越快。\n----------------------------------------------------------------------------------------------------\n年度：N = 360\n半年：N = 180\n季度：N = 90\n月度：N = 30\n周度：N = 7\n单日: N = 1\n----------------------------------------------------------------------------------------------------\n库存周转天数 = N / 期间存货周转率\n库存周转率 = 期间出库数量 / 期间平均库存 \n期间平均库存 =（ 期初库存 + 期末库存）÷ 2\n----------------------------------------------------------------------------------------------------\n*/\nVAR FM = ( [0800_产品数量_库存_期初_单位_] + [0801_产品数量_库存_期末_单位_] ) / 2\nVAR FZ = [0019_产品数量_出库_单位_D_]\nVAR InventoryTurnover =\n    DIVIDE ( FZ, FM, BLANK () )\nRETURN\n    InventoryTurnover"
+    },
+    {
+      "id": "production-051",
+      "sourceKind": "production",
+      "name": "0804_产品数量_库存_期间周转天数_单位_",
+      "expression": "/*\n----------------------------------------------------------------------------------------------------\n存货周转天数（Days Sales Of Inventory），参考值=>年度：120;半年：60;季度：30;月度：9;周度：2;单日：1。\n存货周转率（Inventory Turnover），越大表示周转越快。\n----------------------------------------------------------------------------------------------------\n年度：N = 360\n半年：N = 180\n季度：N = 90\n月度：N = 30\n周度：N = 7\n单日: N = 1\n----------------------------------------------------------------------------------------------------\n库存周转天数 = N / 期间存货周转率\n库存周转率 = 期间出库数量 / 期间平均库存 \n期间平均库存 =（ 期初库存 + 期末库存）÷ 2\n----------------------------------------------------------------------------------------------------\n*/\nVAR TF0 =\n    HASONEVALUE ( '01_Calendar'[dates] ) //日\nVAR TF1 =\n    HASONEVALUE ( '01_Calendar'[YW] ) //周\nVAR TF2 =\n    HASONEVALUE ( '01_Calendar'[YM] ) //月\nVAR TF3 =\n    HASONEVALUE ( '01_Calendar'[YQ] ) //季度\nVAR TF4 =\n    HASONEVALUE ( '01_Calendar'[YH] ) //半年度\nVAR TF5 =\n    HASONEVALUE ( '01_Calendar'[FY00] ) //年度\nVAR N =\n    SWITCH (\n        TRUE (),\n        TF0, 1,\n        TF1, 7,\n        TF2, 30,\n        TF3, 90,\n        TF4, 180,\n        TF5, 360,\n        COUNTROWS ( '01_Calendar' )\n    )\nVAR DaysSalesOfInventory =\n    DIVIDE ( N, [0803_产品数量_库存_期间周转率_单位_] )\nRETURN\n    DaysSalesOfInventory"
+    },
+    {
+      "id": "production-052",
+      "sourceKind": "production",
+      "name": "0900_客户_客户数量_注册_单位_D_",
+      "expression": "VAR C_TBALE0 =\n    CALCULATETABLE (\n        VALUES ( 'T02_客户表'[F_01_客户编号] ),\n        USERELATIONSHIP ( 'T02_客户表'[F_05_注册日期], '01_Calendar'[dates] )\n    )\nRETURN\n    COUNTROWS ( C_TBALE0 )"
+    },
+    {
+      "id": "production-053",
+      "sourceKind": "production",
+      "name": "0901_客户_客户数量_已购买_注册日期_单位_D_",
+      "expression": "VAR C_TBALE0 =\n    CALCULATETABLE (\n        VALUES ( 'T02_客户表'[F_01_客户编号] ),\n        USERELATIONSHIP ( 'T02_客户表'[F_05_注册日期], '01_Calendar'[dates] )\n    )\nVAR C_TBALE1 =\n    ALL ( 'T04_订单主表'[F_05_客户编号] )\nVAR C_TBALE2 =\n    FILTER ( C_TBALE0, [F_01_客户编号] IN C_TBALE1 )\nRETURN\n    COUNTROWS ( C_TBALE2 )"
+    },
+    {
+      "id": "production-054",
+      "sourceKind": "production",
+      "name": "0902_客户_客户数量_零购买_注册日期_单位_D_",
+      "expression": "[0900_客户_客户数量_注册_单位_D_] - [0901_客户_客户数量_已购买_注册日期_单位_D_]"
+    },
+    {
+      "id": "production-055",
+      "sourceKind": "production",
+      "name": "0903_客户_客户数量_已购买_单位_%_",
+      "expression": "DIVIDE (\n    [0901_客户_客户数量_已购买_注册日期_单位_D_],\n    [0900_客户_客户数量_注册_单位_D_]\n)"
+    },
+    {
+      "id": "production-056",
+      "sourceKind": "production",
+      "name": "0904_客户_客户数量_零购买_单位_%_",
+      "expression": "DIVIDE (\n    [0902_客户_客户数量_零购买_注册日期_单位_D_],\n    [0900_客户_客户数量_注册_单位_D_]\n)"
+    },
+    {
+      "id": "production-057",
+      "sourceKind": "production",
+      "name": "0905_客户_新客户数量_单位_D_",
+      "expression": "// 新客户定义：只有一次购买记录。\nVAR USER_TABLE0 =\n    CALCULATETABLE (\n        ADDCOLUMNS (\n            ALLSELECTED ( 'T02_客户表'[F_01_客户编号] ),\n            \"@购买次数\", CALCULATE ( COUNTROWS ( 'T04_订单主表' ) )\n        ),\n        'T04_订单主表',\n        'T05_订单子表'\n    )\nVAR USER_TABLE_NEW =\n    FILTER ( USER_TABLE0, [@购买次数] = 1 )\nRETURN\n    COUNTROWS ( USER_TABLE_NEW )"
+    },
+    {
+      "id": "production-058",
+      "sourceKind": "production",
+      "name": "0906_客户_老客户数量_单位_D_",
+      "expression": "// 老客户定义：有大于一次购买记录。\nVAR USER_TABLE0 =\n    CALCULATETABLE (\n        ADDCOLUMNS (\n            ALLSELECTED ( 'T02_客户表'[F_01_客户编号] ),\n            \"@购买次数\", CALCULATE ( COUNTROWS ( 'T04_订单主表' ) )\n        ),\n        'T04_订单主表',\n        'T05_订单子表'\n    )\nVAR USER_TABLE_OLD =\n    FILTER ( USER_TABLE0, [@购买次数] > 1 )\nRETURN\n    COUNTROWS ( USER_TABLE_OLD )"
+    },
+    {
+      "id": "production-059",
+      "sourceKind": "production",
+      "name": "1000_销售金额_贡献_客户_行业_%",
+      "expression": "VAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_06_客户行业] ) )\nVAR P =\n    DIVIDE ( FZ, FM, BLANK () )\nRETURN\n    P"
+    },
+    {
+      "id": "production-060",
+      "sourceKind": "production",
+      "name": "1001_销售金额_贡献_客户_行业_累计_%",
+      "expression": "VAR R =\n    RANKX ( ALL ( 'T02_客户表'[F_06_客户行业] ), [0001_销售金额_单位_D_],, DESC )\nVAR T =\n    ADDCOLUMNS (\n        ALL ( 'T02_客户表'[F_06_客户行业] ),\n        \"R\", RANKX ( ALL ( 'T02_客户表'[F_06_客户行业] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR LJ =\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_06_客户行业] ) )\nVAR P =\n    DIVIDE ( LJ, FM, BLANK () )\nRETURN\n    P"
+    },
+    {
+      "id": "production-061",
+      "sourceKind": "production",
+      "name": "1002_销售金额_贡献_客户_行业_累计_二八分界_%",
+      "expression": "VAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'T02_客户表'[F_06_客户行业] ),\n        \"R\", RANKX ( ALL ( 'T02_客户表'[F_06_客户行业] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR T1 =\n    ADDCOLUMNS (\n        T0,\n        \"@P%\",\n            VAR R =\n                RANKX ( ALL ( 'T02_客户表'[F_06_客户行业] ), [0001_销售金额_单位_D_],, DESC )\n            VAR LJ =\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\n            VAR FM =\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_06_客户行业] ) )\n            VAR P =\n                DIVIDE ( LJ, FM, BLANK () )\n            RETURN\n                P\n    )\nVAR T2 =\n    FILTER ( T1, [@P%] >= 0.8 )\nVAR MINRANK =\n    MINX ( T2, [@P%] )\nRETURN\n    MINRANK"
+    },
+    {
+      "id": "production-062",
+      "sourceKind": "production",
+      "name": "1100_销售金额_贡献_客户_职业_%",
+      "expression": "VAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_07_客户职业] ) )\nVAR P =\n    DIVIDE ( FZ, FM, BLANK () )\nRETURN\n    P"
+    },
+    {
+      "id": "production-063",
+      "sourceKind": "production",
+      "name": "1101_销售金额_贡献_客户_职业_累计_%",
+      "expression": "VAR R =\n    RANKX ( ALL ( 'T02_客户表'[F_07_客户职业] ), [0001_销售金额_单位_D_],, DESC )\nVAR T =\n    ADDCOLUMNS (\n        ALL ( 'T02_客户表'[F_07_客户职业] ),\n        \"R\", RANKX ( ALL ( 'T02_客户表'[F_07_客户职业] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR LJ =\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_07_客户职业] ) )\nVAR P =\n    DIVIDE ( LJ, FM, BLANK () )\nRETURN\n    P"
+    },
+    {
+      "id": "production-064",
+      "sourceKind": "production",
+      "name": "1102_销售金额_贡献_客户_职业_累计_二八分界_%",
+      "expression": "VAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'T02_客户表'[F_07_客户职业] ),\n        \"R\", RANKX ( ALL ( 'T02_客户表'[F_07_客户职业] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR T1 =\n    ADDCOLUMNS (\n        T0,\n        \"@P%\",\n            VAR R =\n                RANKX ( ALL ( 'T02_客户表'[F_07_客户职业] ), [0001_销售金额_单位_D_],, DESC )\n            VAR LJ =\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\n            VAR FM =\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[F_07_客户职业] ) )\n            VAR P =\n                DIVIDE ( LJ, FM, BLANK () )\n            RETURN\n                P\n    )\nVAR T2 =\n    FILTER ( T1, [@P%] >= 0.8 )\nVAR MINRANK =\n    MINX ( T2, [@P%] )\nRETURN\n    MINRANK"
+    },
+    {
+      "id": "production-065",
+      "sourceKind": "production",
+      "name": "1200_销售金额_贡献_客户_年龄段_%",
+      "expression": "VAR FZ = [0001_销售金额_单位_D_]\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[@年龄段] ) )\nVAR P =\n    DIVIDE ( FZ, FM, BLANK () )\nRETURN\n    P"
+    },
+    {
+      "id": "production-066",
+      "sourceKind": "production",
+      "name": "1201_销售金额_贡献_客户_年龄段_累计_%",
+      "expression": "VAR R =\n    RANKX ( ALL ( 'T02_客户表'[@年龄段] ), [0001_销售金额_单位_D_],, DESC )\nVAR T =\n    ADDCOLUMNS (\n        ALL ( 'T02_客户表'[@年龄段] ),\n        \"R\", RANKX ( ALL ( 'T02_客户表'[@年龄段] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR LJ =\n    CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T, [R] <= R ) )\nVAR FM =\n    CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[@年龄段] ) )\nVAR P =\n    DIVIDE ( LJ, FM, BLANK () )\nRETURN\n    P"
+    },
+    {
+      "id": "production-067",
+      "sourceKind": "production",
+      "name": "1202_销售金额_贡献_客户_年龄段_累计_二八分界_%",
+      "expression": "VAR T0 =\n    ADDCOLUMNS (\n        ALL ( 'T02_客户表'[@年龄段] ),\n        \"R\", RANKX ( ALL ( 'T02_客户表'[@年龄段] ), [0001_销售金额_单位_D_],, DESC )\n    )\nVAR T1 =\n    ADDCOLUMNS (\n        T0,\n        \"@P%\",\n            VAR R =\n                RANKX ( ALL ( 'T02_客户表'[@年龄段] ), [0001_销售金额_单位_D_],, DESC )\n            VAR LJ =\n                CALCULATE ( [0001_销售金额_单位_D_], FILTER ( T0, [R] <= R ) )\n            VAR FM =\n                CALCULATE ( [0001_销售金额_单位_D_], ALL ( 'T02_客户表'[@年龄段] ) )\n            VAR P =\n                DIVIDE ( LJ, FM, BLANK () )\n            RETURN\n                P\n    )\nVAR T2 =\n    FILTER ( T1, [@P%] >= 0.8 )\nVAR MINRANK =\n    MINX ( T2, [@P%] )\nRETURN\n    MINRANK"
+    },
+    {
+      "id": "production-068",
+      "sourceKind": "production",
+      "name": "1300_销售金额_贡献_客户_新客户_单位_D_",
+      "expression": "// 新客户定义：只有一次购买记录。\nVAR USER_TABLE0 =\n    CALCULATETABLE (\n        ADDCOLUMNS (\n            ALLSELECTED ( 'T02_客户表'[F_01_客户编号] ),\n            \"@购买次数\", CALCULATE ( COUNTROWS ( 'T04_订单主表' ) )\n        ),\n        KEEPFILTERS ( 'T04_订单主表' ),\n        KEEPFILTERS ( 'T05_订单子表' )\n    )\nVAR USER_TABLE_NEW =\n    FILTER ( USER_TABLE0, [@购买次数] = 1 )\nRETURN\n    CALCULATE ( [0001_销售金额_单位_D_], USER_TABLE_NEW )"
+    },
+    {
+      "id": "production-069",
+      "sourceKind": "production",
+      "name": "1301_销售金额_贡献_客户_老客户_单位_D_",
+      "expression": "// 老客户定义：有大于一次购买记录。\nVAR USER_TABLE0 =\n    CALCULATETABLE (\n        ADDCOLUMNS (\n            ALLSELECTED ( 'T02_客户表'[F_01_客户编号] ),\n            \"@购买次数\", CALCULATE ( COUNTROWS ( 'T04_订单主表' ) )\n        ),\n        KEEPFILTERS ( 'T04_订单主表' ),\n        KEEPFILTERS ( 'T05_订单子表' )\n    )\nVAR USER_TABLE_OLD =\n    FILTER ( USER_TABLE0, [@购买次数] > 1 )\nRETURN\n    CALCULATE ( [0001_销售金额_单位_D_], USER_TABLE_OLD )"
+    },
+    {
+      "id": "production-070",
+      "sourceKind": "production",
+      "name": "1400_均值_订单均值_销售额_单位_D_",
+      "expression": "VAR FZ = [0001_销售金额_单位_D_]\nVAR FM = [0002_订单数量_单位_D_]\nRETURN\n    DIVIDE ( FZ, FM, BLANK () )"
+    },
+    {
+      "id": "production-071",
+      "sourceKind": "production",
+      "name": "1401_均值_订单均值_毛利润_单位_D_",
+      "expression": "VAR FZ = [0005_毛利_单位_D_]\nVAR FM = [0002_订单数量_单位_D_]\nRETURN\n    DIVIDE ( FZ, FM, BLANK () )"
+    },
+    {
+      "id": "production-072",
+      "sourceKind": "production",
+      "name": "1402_均值_sku均值_销售额_单位_D_",
+      "expression": "VAR FZ = [0001_销售金额_单位_D_]\nVAR FM = [0016_订单件数_单位_D_]\nRETURN\n    DIVIDE ( FZ, FM, BLANK () )"
+    },
+    {
+      "id": "production-073",
+      "sourceKind": "production",
+      "name": "1403_均值_sku均值_毛利润_单位_D_",
+      "expression": "VAR FZ = [0005_毛利_单位_D_]\nVAR FM = [0016_订单件数_单位_D_]\nRETURN\n    DIVIDE ( FZ, FM, BLANK () )"
+    },
+    {
+      "id": "production-074",
+      "sourceKind": "production",
+      "name": "1404_均值_单均件数_单位_D_",
+      "expression": "VAR FZ = [0016_订单件数_单位_D_]\nVAR FM = [0002_订单数量_单位_D_]\nRETURN\n    DIVIDE ( FZ, FM, BLANK () )"
+    },
+    {
+      "id": "production-075",
+      "sourceKind": "production",
+      "name": "1500_预测_预测达成_单位_",
+      "expression": "VAR DAY_MAX =\n    CALCULATETABLE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL ( '01_Calendar' ) )\nVAR DAY_MIN =\n    CALCULATETABLE (\n        STARTOFYEAR ( '01_Calendar'[dates] ),\n        ALLSELECTED ( '01_Calendar' )\n    )\nVAR DATE_AC =\n    DATESBETWEEN ( '01_Calendar'[dates], DAY_MIN, DAY_MAX )\nVAR DATE_PRE =\n    DATESBETWEEN (\n        '01_Calendar'[dates],\n        DATEADD ( DAY_MIN, -1, YEAR ),\n        DATEADD ( DAY_MAX, -1, YEAR )\n    )\nVAR YTD_AC =\n    CALCULATE ( [0001_销售金额_单位_D_], DATE_AC )\nVAR YTD_PRE =\n    CALCULATE ( [0001_销售金额_单位_D_], DATE_PRE )\nVAR YOY =\n    DIVIDE ( YTD_AC, YTD_PRE )\nVAR DAY_AC =\n    MAX ( '01_Calendar'[dates] )\nVAR PRE =\n    CALCULATE (\n        [0001_销售金额_单位_D_],\n        DATEADD ( '01_Calendar'[dates], -1, YEAR )\n    )\nRETURN\n    IF ( DAY_AC <= DAY_MAX, BLANK (), PRE * YOY )"
+    },
+    {
+      "id": "production-076",
+      "sourceKind": "production",
+      "name": "1501_预测_AC_MTD_单位_",
+      "expression": "VAR DAY_MAX =\n    CALCULATETABLE (\n        LASTDATE ( 'T04_订单主表'[F_03_下单日期] ),\n        ALLSELECTED ( '01_Calendar' )\n    )\nVAR DAY_AC =\n    LASTDATE ( '01_Calendar'[dates] )\nRETURN\n    IF (\n        DAY_AC > DAY_MAX,\n        BLANK (),\n        CALCULATE ( [0001_销售金额_单位_D_], DATESMTD ( '01_Calendar'[dates] ) )\n    )"
+    },
+    {
+      "id": "production-077",
+      "sourceKind": "production",
+      "name": "1502_预测_AC_MTD_最后端点_单位_",
+      "expression": "VAR DAY_MAX =\n    CALCULATETABLE (\n        LASTDATE ( 'T04_订单主表'[F_03_下单日期] ),\n        ALLSELECTED ( '01_Calendar' )\n    )\nVAR DAY_AC =\n    LASTDATE ( '01_Calendar'[dates] )\nVAR DATE_EDN =\n    ENDOFMONTH ( '01_Calendar'[dates] )\nRETURN\n    IF (\n        DAY_AC = DAY_MAX\n            && DAY_AC < DATE_EDN,\n        //DAY_AC < DATE_EDN兼容实际月末两个端点（1502，1504）出现。\n        CALCULATE (\n            [0001_销售金额_单位_D_],\n            DATESMTD ( '01_Calendar'[dates] )\n        ),\n        BLANK ()\n    )"
+    },
+    {
+      "id": "production-078",
+      "sourceKind": "production",
+      "name": "1503_预测_预测达成_MTD_单位_",
+      "expression": "VAR DAY_MAX0 =\n    CALCULATETABLE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL ( '01_Calendar' ) )\nVAR DAY_MAX1 =\n    CALCULATETABLE (\n        LASTDATE ( '01_Calendar'[dates] ),\n        TREATAS ( DAY_MAX0, '01_Calendar'[dates] )\n    ) //由于'T04_订单主表'[F_03_下单日期]最大日期后在无日期，DATEADD后为空，需要转化到'01_Calendar'[dates]\nVAR DAY_MAX2 =\n    DATEADD ( DAY_MAX1, 1, DAY )\nVAR DAY_MIN =\n    CALCULATETABLE (\n        STARTOFMONTH ( '01_Calendar'[dates] ),\n        ALLSELECTED ( '01_Calendar' )\n    )\nVAR DAY_AC =\n    LASTDATE ( '01_Calendar'[dates] )\nVAR MTD_FORE0 =\n    CALCULATE (\n        [1500_预测_预测达成_单位_],\n        DATESBETWEEN ( '01_Calendar'[dates], DAY_MAX2, DAY_AC )\n    )\nVAR MTD_FORE1 =\n    CALCULATE (\n        [1500_预测_预测达成_单位_],\n        DATESMTD ( '01_Calendar'[dates] )\n    )\nVAR MTD_AC =\n    CALCULATE ( [0001_销售金额_单位_D_], DATESMTD ( '01_Calendar'[dates] ) )\nRETURN\n    SWITCH (\n        TRUE (),\n        DAY_AC >= DAY_MAX0\n            && DAY_MIN > DAY_MAX0, MTD_FORE1,\n        DAY_AC >= DAY_MAX0\n            && DAY_MIN <= DAY_MAX0, MTD_AC + MTD_FORE0,\n        BLANK ()\n    )"
+    },
+    {
+      "id": "production-079",
+      "sourceKind": "production",
+      "name": "1504_预测_预测达成_MTD_最后端点_单位_",
+      "expression": "VAR DAY_MAX_M =\n    CALCULATETABLE (\n        LASTDATE ( '01_Calendar'[dates] ),\n        ALLSELECTED ( '01_Calendar' )\n    )\nVAR DAY_MAX0 =\n    CALCULATETABLE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL ( '01_Calendar' ) )\nVAR DAY_MAX1 =\n    CALCULATETABLE (\n        LASTDATE ( '01_Calendar'[dates] ),\n        TREATAS ( DAY_MAX0, '01_Calendar'[dates] )\n    )\nVAR DAY_MAX2 =\n    DATEADD ( DAY_MAX1, 1, DAY )\nVAR DAY_MIN =\n    CALCULATETABLE (\n        STARTOFMONTH ( '01_Calendar'[dates] ),\n        ALLSELECTED ( '01_Calendar' )\n    )\nVAR DAY_AC =\n    LASTDATE ( '01_Calendar'[dates] )\nVAR MTD_FORE0 =\n    CALCULATE (\n        [1500_预测_预测达成_单位_],\n        DATESBETWEEN ( '01_Calendar'[dates], DAY_MAX2, DAY_AC )\n    )\nVAR MTD_FORE1 =\n    CALCULATE (\n        [1500_预测_预测达成_单位_],\n        DATESMTD ( '01_Calendar'[dates] )\n    )\nVAR MTD_AC =\n    CALCULATE ( [0001_销售金额_单位_D_], DATESMTD ( '01_Calendar'[dates] ) )\nRETURN\n    SWITCH (\n        TRUE (),\n        DAY_AC = DAY_MAX_M\n            && DAY_MIN > DAY_MAX0, MTD_FORE1,\n        DAY_AC = DAY_MAX_M\n            && DAY_MIN <= DAY_MAX0, MTD_AC + MTD_FORE0,\n        BLANK ()\n    )"
+    },
+    {
+      "id": "production-080",
+      "sourceKind": "production",
+      "name": "1505_预测_目标线_单位_",
+      "expression": "CALCULATE (\n    [0003_销售目标_单位_D_],\n    ALL ( '01_Calendar'[dates], '01_Calendar'[day] )\n)"
+    },
+    {
+      "id": "production-081",
+      "sourceKind": "production",
+      "name": "1506_预测_目标_显示标签点_单位_",
+      "expression": "VAR DATE0 =\n    STARTOFMONTH ( '01_Calendar'[dates] )\nVAR DATE1 =\n    LASTDATE ( '01_Calendar'[dates] )\nVAR DOT =\n    IF ( DATE0 = DATE1, [1505_预测_目标线_单位_], BLANK () )\nRETURN\n    DOT"
+    },
+    {
+      "id": "production-082",
+      "sourceKind": "production",
+      "name": "1507_预测_AC_MTD_PY_单位_",
+      "expression": "CALCULATE (\n    [0001_销售金额_单位_D_],\n    SAMEPERIODLASTYEAR ( DATESMTD ( '01_Calendar'[dates] ) )\n)"
+    },
+    {
+      "id": "production-083",
+      "sourceKind": "production",
+      "name": "1508_预测_AC_MTD线_PY_单位_",
+      "expression": "CALCULATE (\n    [1507_预测_AC_MTD_PY_单位_],\n    ALL ( '01_Calendar'[dates], '01_Calendar'[day] )\n)"
+    },
+    {
+      "id": "production-084",
+      "sourceKind": "production",
+      "name": "1509_预测_AC_MTD线_PY_显示标签点_单位_",
+      "expression": "VAR DATE0 =\n    STARTOFMONTH ( '01_Calendar'[dates] )\nVAR DATE1 =\n    LASTDATE ( '01_Calendar'[dates] )\nVAR DOT =\n    IF ( DATE0 = DATE1, [1508_预测_AC_MTD线_PY_单位_], BLANK () )\nRETURN\n    DOT"
+    },
+    {
+      "id": "production-085",
+      "sourceKind": "production",
+      "name": "1510_预测_实际&预测_MTD_工具提示_单位_",
+      "expression": "VAR DAY_MAX =\n    CALCULATETABLE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL ( '01_Calendar' ) )\nVAR DAY_AC =\n    LASTDATE ( '01_Calendar'[dates] )\nRETURN\n    IF ( DAY_AC <= DAY_MAX, [1501_预测_AC_MTD_单位_], [1503_预测_预测达成_MTD_单位_] )"
+    },
+    {
+      "id": "production-086",
+      "sourceKind": "production",
+      "name": "1511_预测_目标完成_单位_%_",
+      "expression": "DIVIDE ( [1510_预测_实际&预测_MTD_工具提示_单位_], [1505_预测_目标线_单位_] )"
+    },
+    {
+      "id": "production-087",
+      "sourceKind": "production",
+      "name": "1512_预测_整月_同环比及目标完成率_",
+      "expression": "//用最后一天的MTD\nVAR DATE_START_MONTH_AC =\n    STARTOFMONTH ( '01_Calendar'[dates] ) //兼容闰月及月份天数不一致。\nVAR DATE_END_MONTH_LASTYEAR =\n    ENDOFMONTH ( DATEADD ( DATE_START_MONTH_AC, -1, YEAR ) )\nVAR DATE_END_MONTH_LAST =\n    ENDOFMONTH ( DATEADD ( DATE_START_MONTH_AC, -1, MONTH ) )\nVAR FZ = [1510_预测_实际&预测_MTD_工具提示_单位_]\nVAR FM_YOY =\n    CALCULATE ( [1510_预测_实际&预测_MTD_工具提示_单位_], DATE_END_MONTH_LASTYEAR )\nVAR FM_MOM =\n    CALCULATE ( [1510_预测_实际&预测_MTD_工具提示_单位_], DATE_END_MONTH_LAST )\nVAR _YOY =\n    DIVIDE ( FZ, FM_YOY, BLANK () ) - 1\nVAR _MOM =\n    DIVIDE ( FZ, FM_MOM, BLANK () ) - 1\nVAR _TARGET = [1511_预测_目标完成_单位_%_]\nVAR YM =\n    FORMAT ( DATE_START_MONTH_AC, \"YYYY年MM月\" )\nRETURN\n    YM & \" 同比去年：\"\n        & FORMAT ( _YOY, \"0.0%\" ) & \"，环比上月：\"\n        & FORMAT ( _MOM, \"0.0%\" ) & \"，目标完成率：\"\n        & FORMAT ( _TARGET, \"0.0%\" ) & \"。\""
+    },
+    {
+      "id": "production-088",
+      "sourceKind": "production",
+      "name": "1513_预测_MTD_Y轴结束_单位_",
+      "expression": "VAR DATE_ALLSELECTED =\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALLSELECTED () )\nVAR DATE_ALL =\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL () )\nVAR DATE_MAX =\n    ENDOFMONTH ( '01_Calendar'[dates] )\nVAR DATE0 =\n    IF ( DATE_MAX > DATE_ALL, DATE_ALL, DATE_ALLSELECTED ) //兼容大约当月预测。\nVAR FM = 60\nVAR DATETABLE0 =\n    DATESINPERIOD ( '01_Calendar'[dates], DATE0, - FM, DAY )\nVAR FZ =\n    CALCULATE ( [0001_销售金额_单位_D_], DATETABLE0 )\nRETURN\n    DIVIDE ( FZ, FM ) * FM"
+    },
+    {
+      "id": "production-089",
+      "sourceKind": "production",
+      "name": "1514_预测_AC_Y轴结束_单位_",
+      "expression": "VAR DATE_ALLSELECTED =\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALLSELECTED () )\nVAR DATE_ALL =\n    CALCULATE ( LASTDATE ( 'T04_订单主表'[F_03_下单日期] ), ALL () )\nVAR DATE_MAX =\n    ENDOFMONTH ( '01_Calendar'[dates] )\nVAR DATE0 =\n    IF ( DATE_MAX > DATE_ALL, DATE_ALL, DATE_ALLSELECTED )\nVAR FM = 60\nVAR DATETABLE0 =\n    DATESINPERIOD ( '01_Calendar'[dates], DATE0, - FM, DAY )\nVAR FZ =\n    CALCULATE ( [0001_销售金额_单位_D_], DATETABLE0 )\nRETURN\n    DIVIDE ( FZ, FM ) * 10"
+    },
+    {
+      "id": "production-090",
+      "sourceKind": "production",
+      "name": "9900_weburl",
+      "expression": "\"https://jiaopengzi.com/video/video-101\""
+    },
+    {
+      "id": "production-091",
+      "sourceKind": "production",
+      "name": "9901_weburl_提示",
+      "expression": "\"点击前往项目页面。\""
+    },
+    {
+      "id": "production-092",
+      "sourceKind": "production",
+      "name": "安全库存",
+      "expression": "/*\n说明：因理想为标准正太分布，安全库存仅作为参考点，需要加入业务的理解。\nSS= z * SQRT( σd^2* μL + σL^2 * μd^2 )\n其中\nSS：安全库存（Safe Stock）\nz : 服务水平系数，服务水平（现货率）为0.95，在标准正太分布下对应的z=1.65。\nL : 采购提前期\nμL: 平均提前期\nσL: 提前期L的标准差\nd : 日出库量\nμd: 平均日出库量\nσd: 日出库量d的标准差\n*/\n1"
+    },
+    {
+      "id": "task-logo",
+      "sourceKind": "task-example",
+      "name": "logo_image2",
+      "expression": "VAR SvgStartImage =\n    \"data:image/svg+xml;utf8,\"\n\nVAR ConfigTable =\n    FILTER (\n        'PbiUtilsTemplateMeasures',\n        'PbiUtilsTemplateMeasures'[name] = \"logo_image2\"\n    )\n\nVAR ConfigValue =\n    CONCATENATEX (\n        ConfigTable,\n        'PbiUtilsTemplateMeasures'[value]\n    )\n\nVAR SvgMatchPosition =\n    COALESCE (\n        SEARCH (\n            \"<svg*</svg>\",\n            ConfigValue,\n            1,\n            BLANK ()\n        ),\n        SEARCH (\n            \"<svg*/>\",\n            ConfigValue,\n            1,\n            BLANK ()\n        )\n    )\n\nVAR Result =\n    IF (\n        ISBLANK ( SvgMatchPosition )\n            || LEFT (\n                ConfigValue,\n                5\n            )\n            = \"data:\"\n            || LEFT (\n                ConfigValue,\n                7\n            )\n            = \"http://\"\n            || LEFT (\n                ConfigValue,\n                8\n            )\n            = \"https://\",\n        ConfigValue,\n        SvgStartImage & ConfigValue\n    )\n\nRETURN\n    Result"
+    },
+    {
+      "id": "boundary-simple-multiple-arguments",
+      "sourceKind": "boundary",
+      "name": "simple-multiple-arguments",
+      "expression": "DIVIDE(1,2,BLANK())"
+    },
+    {
+      "id": "boundary-nested-single-argument",
+      "sourceKind": "boundary",
+      "name": "nested-single-argument",
+      "expression": "ABS(SUM(Sales[Amount]))"
+    },
+    {
+      "id": "boundary-switch-pairs",
+      "sourceKind": "boundary",
+      "name": "switch-pairs",
+      "expression": "SWITCH(TRUE(),[Amount]>100,\"Large\",[Amount]>0,\"Small\",\"None\")"
+    },
+    {
+      "id": "boundary-row-name-expression-pairs",
+      "sourceKind": "boundary",
+      "name": "row-name-expression-pairs",
+      "expression": "ROW(\"First\",1,\"Second\",DIVIDE(4,2))"
+    },
+    {
+      "id": "boundary-addcolumns-name-expression-pairs",
+      "sourceKind": "boundary",
+      "name": "addcolumns-name-expression-pairs",
+      "expression": "ADDCOLUMNS(Sales,\"Net\",Sales[Amount]-Sales[Cost],\"Rate\",DIVIDE(Sales[Cost],Sales[Amount]))"
+    },
+    {
+      "id": "boundary-summarize-group-and-pair",
+      "sourceKind": "boundary",
+      "name": "summarize-group-and-pair",
+      "expression": "SUMMARIZE(Sales,Sales[Category],\"Amount\",SUM(Sales[Amount]),\"Quantity\",SUM(Sales[Quantity]))"
+    },
+    {
+      "id": "boundary-omitted-rank-argument",
+      "sourceKind": "boundary",
+      "name": "omitted-rank-argument",
+      "expression": "RANKX(ALL(Sales[Category]),[Amount],,DESC,DENSE)"
+    },
+    {
+      "id": "boundary-unary-and-scientific",
+      "sourceKind": "boundary",
+      "name": "unary-and-scientific",
+      "expression": "-1 + 1e-3 - -2"
+    },
+    {
+      "id": "boundary-escaped-table-and-column",
+      "sourceKind": "boundary",
+      "name": "escaped-table-and-column",
+      "expression": "SUM('O''Brien'[A]]B])"
+    },
+    {
+      "id": "boundary-escaped-string",
+      "sourceKind": "boundary",
+      "name": "escaped-string",
+      "expression": "IF([Amount]>0,\"a  b\",\"x\"\"y\")"
+    },
+    {
+      "id": "boundary-unicode-references",
+      "sourceKind": "boundary",
+      "name": "unicode-references",
+      "expression": "SUM('中文 表'[金额])+[利润]"
+    },
+    {
+      "id": "boundary-datetime-literal",
+      "sourceKind": "boundary",
+      "name": "datetime-literal",
+      "expression": "dt\"2026-10-30T13:45:00\""
+    },
+    {
+      "id": "boundary-line-comment",
+      "sourceKind": "boundary",
+      "name": "line-comment",
+      "expression": "VAR Total=1 // keep  two spaces  \nRETURN Total+2"
+    },
+    {
+      "id": "boundary-block-comment",
+      "sourceKind": "boundary",
+      "name": "block-comment",
+      "expression": "/* config  value */\nVAR Total=1\n/* final  value */\nRETURN Total"
+    },
+    {
+      "id": "boundary-multiline-comment",
+      "sourceKind": "boundary",
+      "name": "multiline-comment",
+      "expression": "/* first\n  second  line\n*/\nVAR Total=1 RETURN Total"
+    },
+    {
+      "id": "boundary-multiline-string",
+      "sourceKind": "boundary",
+      "name": "multiline-string",
+      "expression": "VAR Message=\"first\n second\" RETURN Message"
+    },
+    {
+      "id": "boundary-nested-var",
+      "sourceKind": "boundary",
+      "name": "nested-var",
+      "expression": "VAR OuterTotal=VAR InnerTotal=1 RETURN InnerTotal+2 VAR OtherTotal=3 RETURN OuterTotal+OtherTotal"
+    },
+    {
+      "id": "boundary-iterator-var",
+      "sourceKind": "boundary",
+      "name": "iterator-var",
+      "expression": "SUMX(Sales,VAR Net=Sales[Amount]-Sales[Cost] RETURN Net*2)"
+    },
+    {
+      "id": "boundary-table-constructor",
+      "sourceKind": "boundary",
+      "name": "table-constructor",
+      "expression": "{(1,\"One\"),(2,\"Two\"),(3,\"Three\")}"
+    },
+    {
+      "id": "boundary-boolean-condition",
+      "sourceKind": "boundary",
+      "name": "boolean-condition",
+      "expression": "IF(ISBLANK([Amount])||LEFT([Label],5)=\"data:\"||LEFT([Label],7)=\"http://\"||LEFT([Label],8)=\"https://\",[Amount],0)"
+    },
+    {
+      "id": "boundary-binary-call-continuations",
+      "sourceKind": "boundary",
+      "name": "binary-call-continuations",
+      "expression": "DIVIDE([Amount],[Quantity])+SUM(Sales[Tax])-1"
+    },
+    {
+      "id": "boundary-membership",
+      "sourceKind": "boundary",
+      "name": "membership",
+      "expression": "IF([Category] IN {\"A\",\"B\",\"C\"},1,0)"
+    },
+    {
+      "id": "boundary-preserved-lowercase",
+      "sourceKind": "boundary",
+      "name": "preserved-lowercase",
+      "expression": "var lower_case=sum(Sales[Amount]) return divide(lower_case,2)"
+    },
+    {
+      "id": "boundary-redundant-table-quotes",
+      "sourceKind": "boundary",
+      "name": "redundant-table-quotes",
+      "expression": "SUM('Sales'[Amount])"
+    }
+  ]
+}

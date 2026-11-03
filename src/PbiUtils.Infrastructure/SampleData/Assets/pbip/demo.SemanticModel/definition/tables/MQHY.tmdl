@@ -1,0 +1,57 @@
+table MQHY
+	excludeFromModelRefresh
+	lineageTag: dc261270-1240-4502-a3bf-913047feed29
+
+	column Index
+		dataType: int64
+		formatString: 0
+		lineageTag: d5861708-adf7-4f5a-83a5-568932295564
+		summarizeBy: none
+		sourceColumn: Index
+
+		annotation SummarizationSetBy = Automatic
+
+	column MQHY
+		dataType: string
+		lineageTag: 04cfc9f7-3c6a-408e-adf2-fea25757ef46
+		summarizeBy: none
+		sourceColumn: MQHY
+		sortByColumn: Index
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	partition MQHY-b598470c-e1b1-4bb9-b538-02b53078e284 = m
+		mode: import
+		queryGroup: 基础必备
+		source = ```
+				let
+				
+				    dimension = #table
+				        (
+				        type table
+				            [
+				                Index=Int64.Type
+				                ,MQHY=text
+				
+				
+				            ]
+				        ,List.Transform({1..19},(n)=> 
+				                    {
+				                        n
+				                        ,if n<13 then "M"& Number.ToText(n,"00")
+				                            else if n<17 then "Q"& Number.ToText(n-12,"0")
+				                            else if n<19 then "H"& Number.ToText(n-16,"0")
+				                            else "FY"
+				                    }
+				                        )
+				        )
+				in
+				    dimension
+				```
+
+	annotation PBI_NavigationStepName = 导航
+
+	annotation PBI_ResultType = Table
+

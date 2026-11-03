@@ -1,0 +1,77 @@
+table T00_产品表
+	lineageTag: 4fe6b0fa-7ffc-40d8-ada5-5ca83af1b2cd
+
+	column F_00_自动编号
+		dataType: int64
+		formatString: 0
+		lineageTag: 9a218a0d-9107-4672-bcad-21f764f7b346
+		summarizeBy: sum
+		sourceColumn: F_00_自动编号
+
+		annotation SummarizationSetBy = Automatic
+
+	column F_01_产品编号
+		dataType: string
+		lineageTag: fd8d3be2-2e03-4dd8-9f49-1560547490cf
+		summarizeBy: none
+		sourceColumn: F_01_产品编号
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column F_02_产品分类
+		dataType: string
+		lineageTag: 25b3787d-74e4-43f7-a0fe-ffbc676d7430
+		summarizeBy: none
+		sourceColumn: F_02_产品分类
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column F_03_产品名称
+		dataType: string
+		lineageTag: 36dd4e06-bfcd-4cbd-92d5-196e7d73cff9
+		summarizeBy: none
+		sourceColumn: F_03_产品名称
+		sortByColumn: F_01_产品编号
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column F_04_产品销售价格
+		dataType: double
+		lineageTag: 56b5c524-dd42-453e-bdec-55718859f3c0
+		summarizeBy: sum
+		sourceColumn: F_04_产品销售价格
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column F_05_产品成本价格
+		dataType: double
+		lineageTag: f10b1d3a-1457-4e60-9f60-f4b1e01e7278
+		summarizeBy: sum
+		sourceColumn: F_05_产品成本价格
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition T00_产品表-475020b2-923a-4233-a8c7-024c8c881c6b = m
+		mode: import
+		source =
+				let
+				  源 = Csv.Document(File.Contents(Path&"\T00_产品表.csv"), [Delimiter = ",", Columns = 6, Encoding = 65001, QuoteStyle = QuoteStyle.None]),
+				    提升的标题 = Table.PromoteHeaders(源, [PromoteAllScalars=true]),
+				    更改的类型 = Table.TransformColumnTypes(提升的标题,{{"F_00_自动编号", Int64.Type}, {"F_04_产品销售价格", type number}, {"F_05_产品成本价格", type number}})
+				in
+				    更改的类型
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = 导航
+

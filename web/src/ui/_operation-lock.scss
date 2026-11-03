@@ -1,0 +1,81 @@
+/**
+ * FilePath    : pbi-utils\web\src\ui\_operation-lock.scss
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 为显式标记的临时操作锁保留控件外观, 不改变原生 disabled 和业务不可用样式.
+ */
+
+// 调用方仅在控件原本可用时添加 operation-lock, 不在祖先批量覆盖真实禁用原因.
+.el-button.operation-lock.is-disabled {
+    color: var(--el-button-text-color);
+    background-color: var(--el-button-bg-color);
+    border-color: var(--el-button-border-color);
+    &:hover {
+        color: var(--el-button-hover-text-color);
+        background-color: var(--el-button-hover-bg-color);
+        border-color: var(--el-button-hover-border-color);
+    }
+    &:active {
+        color: var(--el-button-active-text-color);
+        background-color: var(--el-button-active-bg-color);
+        border-color: var(--el-button-active-border-color);
+    }
+}
+.el-input.operation-lock.is-disabled {
+    .el-input__wrapper {
+        background-color: var(--el-input-bg-color);
+        box-shadow: 0 0 0 1px var(--el-input-border-color) inset;
+        &:hover {
+            box-shadow: 0 0 0 1px var(--el-input-hover-border-color) inset;
+        }
+        &.is-focus {
+            box-shadow: 0 0 0 1px var(--el-input-focus-border-color) inset;
+        }
+    }
+    .el-input__inner {
+        color: var(--el-input-text-color);
+        -webkit-text-fill-color: currentColor;
+        &::placeholder {
+            color: var(--el-input-placeholder-color);
+        }
+    }
+}
+.el-select.operation-lock .el-select__wrapper.is-disabled {
+    color: inherit;
+    background-color: var(--el-fill-color-blank);
+    box-shadow: 0 0 0 1px var(--el-border-color) inset;
+    &.is-hovering:not(.is-focused) {
+        box-shadow: 0 0 0 1px var(--el-border-color-hover) inset;
+    }
+    &.is-focused {
+        box-shadow: 0 0 0 1px var(--el-color-primary) inset;
+    }
+    .el-select__selected-item {
+        color: var(--el-text-color-regular);
+    }
+    .el-select__placeholder.is-transparent {
+        color: var(--el-text-color-placeholder);
+    }
+}
+.el-checkbox.operation-lock {
+    --el-checkbox-disabled-input-fill: var(--el-checkbox-bg-color);
+    --el-checkbox-disabled-border-color: var(--el-border-color);
+    --el-checkbox-disabled-checked-input-fill: var(--el-checkbox-checked-bg-color);
+    --el-checkbox-disabled-checked-input-border-color: var(--el-checkbox-checked-input-border-color);
+    --el-checkbox-disabled-checked-icon-color: var(--el-checkbox-checked-icon-color);
+    .el-checkbox__input.is-disabled + .el-checkbox__label {
+        color: var(--el-checkbox-text-color);
+    }
+    .el-checkbox__input.is-disabled.is-checked + .el-checkbox__label {
+        color: var(--el-checkbox-checked-text-color);
+    }
+    .el-checkbox__input.is-disabled:not(.is-checked) .el-checkbox__inner:hover {
+        border-color: var(--el-checkbox-input-border-color-hover);
+    }
+}
+
+// switch 临时锁保留当前开关外观, 原生 disabled 仍阻止鼠标与键盘操作.
+.el-switch.operation-lock.is-disabled {
+    opacity: 1;
+}

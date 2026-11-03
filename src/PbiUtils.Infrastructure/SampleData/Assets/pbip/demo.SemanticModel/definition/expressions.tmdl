@@ -1,0 +1,20 @@
+expression Path = "C:\Users\jiaopengzi\PowerBISampleData" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+	lineageTag: ea8e5e9c-89f5-4385-9dfe-dc4f8070af85
+	queryGroup: 基础必备
+
+	annotation PBI_NavigationStepName = 导航
+
+	annotation PBI_ResultType = Text
+
+expression TypeList =
+		let
+		    源 = {type text,type number,Int32.Type,type date}
+		in
+		    源
+	lineageTag: 2c0c5d5a-c75d-4c40-8c85-39c337907be0
+	queryGroup: 基础必备
+
+	annotation PBI_NavigationStepName = 导航
+
+	annotation PBI_ResultType = List
+

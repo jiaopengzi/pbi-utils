@@ -1,0 +1,10 @@
+<!--
+ * FilePath    : pbi-utils\web\public\icons\square.svg
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 输入区停止生成操作的方形图标.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+  <rect x="6" y="6" width="12" height="12" rx="2"/>
+</svg>

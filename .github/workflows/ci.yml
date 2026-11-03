@@ -1,0 +1,46 @@
+# FilePath    : pbi-utils\.github\workflows\ci.yml
+# Author      : jiaopengzi
+# Blog        : https://jiaopengzi.com
+# Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+# Description : 配置 Windows 完整范围的持续集成验证.
+
+name: baseline
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CI: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_GENERATE_ASPNET_CERTIFICATE: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: web/package.json
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+          run_install: false
+      - run: pwsh -NoProfile -File ./run.ps1 -Choice setupAll -Scope All -NonInteractive
+      - run: pwsh -NoProfile -File ./run.ps1 -Choice all -Scope All -Configuration Release -NonInteractive
+      - name: Verify published files and self-contained CLI
+        run: pwsh -NoProfile -File ./scripts/tests/published-smoke.ps1
+      - name: Interactive desktop acceptance
+        run: Write-Output 'UNRUN - CI 自动测试不等于交互 Windows UI 验收. 按 .docs/acceptance.md 在交互会话补验.'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evidence-windows
+          path: |
+            artifacts/test-results
+            artifacts/evidence/published-*
+            artifacts/build/win-x64/manifest.json
