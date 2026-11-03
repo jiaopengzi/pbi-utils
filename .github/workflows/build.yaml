@@ -8,7 +8,6 @@ name: Build pbi-utils
 
 on:
   push:
-    branches: [main, v2]
     tags: ['desktop-v*']
   pull_request:
     branches: [main, v2]

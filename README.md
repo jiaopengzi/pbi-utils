@@ -140,7 +140,7 @@ Debug 与 Release 互不覆盖。所选模式的临时产物完成编译、前�
 
 两个固定来源为 [GitHub](https://github.com/jiaopengzi/pbi-utils/releases) 和 [Gitee](https://gitee.com/jiaopengzi/pbi-utils/releases)。新 Windows 产品仅识别 `desktop-v<版本>` 正式 Release，例如 `desktop-v0.1.0`，排除旧 v1 标签、草稿和预发布。版本来自 `Directory.Build.props`，查询完整的有界分页后比较数字版本，不依赖 API 返回顺序；超过分页/响应预算明确失败。两来源分别查询，附件与说明必须属于同一来源、同一版本，不拼接不同发布的结果。
 
-GitHub Actions 的 [build.yaml](.github/workflows/build.yaml) 在 `main`、`v2` 推送及面向这两个分支的 PR 上执行完整构建验证，统一包含固定工具链、`release` 门禁和发布后 CLI/MCP smoke。CI 从仓库配置读取 .NET SDK、Node、pnpm 和产品版本，使用与许可来源一致、归档 SHA256 固定的 NSIS；不执行产品安装或开发外部工具登记。通过后上传版本化 ZIP，分支/PR 构建不创建 Release。
+GitHub Actions 的 [build.yaml](.github/workflows/build.yaml) 仅在推送 `desktop-v*` 发布标签时自动构建发版；面向 `main`、`v2` 的 PR 和手动触发可单独运行验证。普通分支 push 不触发构建，避免提交和标签各跑一遍。流程统一包含固定工具链、`release` 门禁和发布后 CLI/MCP smoke。CI 从仓库配置读取 .NET SDK、Node、pnpm 和产品版本，使用与许可来源一致、归档 SHA256 固定的 NSIS；不执行产品安装或开发外部工具登记。通过后上传版本化 ZIP，PR/手动分支验证不创建 Release。
 
 正式发布只分发 `pbi-utils-<版本>-win-x64-without-dotnet.zip`，由用户解压并运行安装器，运行时由安装器按需补齐。ZIP 根目录恰好包含本次 `package` 的两个文件：
 
