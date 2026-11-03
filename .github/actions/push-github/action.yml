@@ -1,0 +1,52 @@
+# FilePath    : pbi-utils\.github\actions\push-github\action.yml
+# Author      : jiaopengzi
+# Blog        : https://jiaopengzi.com
+# Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+# Description : 发布共享 ZIP 和说明, 已有发行版精确复用, 公开下载校验后才成功.
+
+name: Push GitHub release
+description: Publish and publicly verify the shared release bundle
+runs:
+  using: composite
+  steps:
+    - name: Create or reuse the exact release
+      shell: bash
+      run: |
+        set -euo pipefail
+        archive="release-zip/$ARCHIVE_NAME"
+        metadata="$RUNNER_TEMP/github-release.json"
+        # GET 失败只有明确的 404 才允许创建, 不将网络/权限失败当作缺失.
+        if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > "$metadata" 2> "$RUNNER_TEMP/github-release-error"; then
+          jq -e --arg tag "$RELEASE_TAG" --argjson preview "$PRERELEASE" '.tag_name == $tag and .name == $tag and .draft == false and .prerelease == $preview' "$metadata" > /dev/null
+          count="$(jq '.assets | length' "$metadata")"
+          if [[ "$count" == 0 ]]; then
+            gh release upload "$RELEASE_TAG" "$archive" --repo "$GITHUB_REPOSITORY"
+          elif [[ "$count" != 1 ]]; then
+            echo '::error::Unexpected GitHub assets'; exit 1
+          fi
+        else
+          grep -q '(HTTP 404)' "$RUNNER_TEMP/github-release-error" || { cat "$RUNNER_TEMP/github-release-error"; exit 1; }
+          flags=()
+          if [[ "$PRERELEASE" == true ]]; then flags+=(--prerelease --latest=false); fi
+          gh release create "$RELEASE_TAG" "$archive" --verify-tag --repo "$GITHUB_REPOSITORY" \
+            --title "$RELEASE_TAG" --notes-file release-notes.md "${flags[@]}"
+        fi
+    - name: Verify public download, size, hash and notes
+      shell: bash
+      run: |
+        set -euo pipefail
+        metadata="$RUNNER_TEMP/github-release.json"
+        gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > "$metadata"
+        url="https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/$ARCHIVE_NAME"
+        size="$(stat --format=%s "release-zip/$ARCHIVE_NAME")"
+        jq -e --arg name "$ARCHIVE_NAME" --arg url "$url" --argjson size "$size" --rawfile notes release-notes.md \
+          '.assets | length == 1' "$metadata" > /dev/null
+        jq -e --arg name "$ARCHIVE_NAME" --arg url "$url" --argjson size "$size" --rawfile notes release-notes.md \
+          '.assets[0].name == $name and .assets[0].size == $size and .assets[0].browser_download_url == $url' "$metadata" > /dev/null
+        curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+          --connect-timeout 15 --max-time 180 --max-filesize 100000000 "$url" -o "$RUNNER_TEMP/github-public.zip"
+        cmp "release-zip/$ARCHIVE_NAME" "$RUNNER_TEMP/github-public.zip"
+        sha256sum "$RUNNER_TEMP/github-public.zip"
+        gh release edit "$RELEASE_TAG" --notes-file release-notes.md --repo "$GITHUB_REPOSITORY"
+        gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > "$metadata"
+        jq -e --rawfile notes release-notes.md '.body == $notes' "$metadata" > /dev/null

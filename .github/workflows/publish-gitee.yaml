@@ -2,38 +2,26 @@
 # Author      : jiaopengzi
 # Blog        : https://jiaopengzi.com
 # Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-# Description : GitHub 发布成功后调用的独立 Gitee 发行流程, 复用上游附件 Action 并公开回读校验.
+# Description : 指定现有发行版的 Gitee 附件专项重试, 复用原标签、ZIP 和说明, 不重新构建.
 
-name: Publish Gitee release
-
+name: Retry Gitee attachment
 on:
-  workflow_call:
-    inputs:
-      release_tag:
-        description: Already published GitHub release tag
-        required: true
-        type: string
-    secrets:
-      GITEE_SSH_PRIVATE_KEY:
-        required: true
-      GITEE_TOKEN:
-        required: true
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Already published GitHub release tag
+        description: Existing release tag to verify and upload
         required: true
+        default: desktop-v0.1.0-v2.7
         type: string
-
 permissions:
   contents: read
-
 concurrency:
   group: gitee-release-${{ inputs.release_tag }}
   cancel-in-progress: false
-
 jobs:
-  publish:
+  push-gitee:
+    name: push-gitee
+    if: github.ref == 'refs/heads/v2'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -96,60 +84,10 @@ jobs:
           "commit=$commit" >> $env:GITHUB_OUTPUT
           "archive_name=$($context.ArchiveName)" >> $env:GITHUB_OUTPUT
           "prerelease=$($context.Prerelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
-      - name: Synchronize only the verified release tag
+      - uses: ./.github/actions/push-gitee
         env:
-          GITEE_SSH_PRIVATE_KEY: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}
-          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
-        run: |
-          set -euo pipefail
-          test -n "$GITEE_SSH_PRIVATE_KEY"
-          ssh_dir="$(mktemp -d "$RUNNER_TEMP/pbi-utils-gitee-tag.XXXXXX")"
-          trap 'rm -rf -- "$ssh_dir"' EXIT
-          chmod 700 "$ssh_dir"
-          printf '%s\n' "$GITEE_SSH_PRIVATE_KEY" > "$ssh_dir/key"
-          chmod 600 "$ssh_dir/key"
-          printf '%s\n' 'gitee.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEKxHSJ7084RmkJ4YdEi5tngynE8aZe2uEoVVsB/OvYN' > "$ssh_dir/known_hosts"
-          export GIT_SSH_COMMAND="ssh -i $ssh_dir/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$ssh_dir/known_hosts"
-          repo='git@gitee.com:jiaopengzi/pbi-utils.git'
-          expected="$(git rev-parse "refs/tags/$RELEASE_TAG")"
-          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$RELEASE_COMMIT"
-          remote="$(git ls-remote --refs "$repo" "refs/tags/$RELEASE_TAG" | cut -f1)"
-          if [[ -z "$remote" ]]; then
-            git push --no-follow-tags "$repo" "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
-          else
-            test "$remote" = "$expected"
-          fi
-          test "$(git ls-remote --refs "$repo" "refs/tags/$RELEASE_TAG" | cut -f1)" = "$expected"
-      - name: Prepare and validate the Gitee release
-        id: prepare
-        env:
-          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
-          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
           ARCHIVE_NAME: ${{ steps.release.outputs.archive_name }}
           PRERELEASE: ${{ steps.release.outputs.prerelease }}
-        run: bash ./.github/scripts/publish-gitee-release.sh prepare
-      - uses: actions/setup-python@v7.1.0
-        if: steps.prepare.outputs.upload_required == 'true'
         with:
-          python-version: '3.12'
-      - name: Upload the exact ZIP with the upstream Gitee Action
-        if: steps.prepare.outputs.upload_required == 'true'
-        uses: nICEnnnnnnnLee/action-gitee-release@v2.0.0
-        timeout-minutes: 6
-        with:
-          gitee_action: upload_asset
-          gitee_owner: jiaopengzi
-          gitee_repo: pbi-utils
-          gitee_token: ${{ secrets.GITEE_TOKEN }}
-          gitee_release_id: ${{ steps.prepare.outputs.release_id }}
-          gitee_file_name: ${{ steps.release.outputs.archive_name }}
-          gitee_file_path: release-zip/${{ steps.release.outputs.archive_name }}
-          gitee_upload_retry_times: '0'
-      - name: Verify the public ZIP and finalize the release
-        env:
-          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
-          PREPARED_RELEASE_ID: ${{ steps.prepare.outputs.release_id }}
-          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
-          ARCHIVE_NAME: ${{ steps.release.outputs.archive_name }}
-          PRERELEASE: ${{ steps.release.outputs.prerelease }}
-        run: bash ./.github/scripts/publish-gitee-release.sh verify
+          token: ${{ secrets.GITEE_TOKEN }}
+          ssh-key: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}

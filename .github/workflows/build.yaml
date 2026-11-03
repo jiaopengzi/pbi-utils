@@ -2,7 +2,7 @@
 # Author      : jiaopengzi
 # Blog        : https://jiaopengzi.com
 # Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-# Description : 完整构建 Windows ZIP, 发布 GitHub 后调用独立的 Gitee 正式或测试发行流程.
+# Description : 构建并验证唯一发布包, 并行运行独立 GitHub 与 Gitee 发布 Action.
 
 name: Build pbi-utils
 
@@ -112,11 +112,17 @@ jobs:
         run: |
           Import-Module ./scripts/ReleaseAutomation.psm1 -Force
           New-PbiReleaseArchive -RepositoryRoot $PWD -Destination ./artifacts/release-zip
+      - name: Prepare shared release notes and integrity manifest
+        if: steps.metadata.outputs.release_tag != ''
+        env:
+          RELEASE_TAG: ${{ steps.metadata.outputs.release_tag }}
+          ARCHIVE_NAME: ${{ steps.metadata.outputs.archive_name }}
+        run: pwsh -NoProfile -File ./.github/scripts/release-bundle.ps1 -Mode Create -Directory ./artifacts/release-zip
       - name: Upload exact release ZIP
         uses: actions/upload-artifact@v7.0.2
         with:
           name: pbi-utils-windows-${{ github.run_id }}
-          path: artifacts/release-zip/${{ steps.metadata.outputs.archive_name }}
+          path: artifacts/release-zip/*
           if-no-files-found: error
           compression-level: 0
       - name: Interactive desktop acceptance
@@ -132,63 +138,65 @@ jobs:
             artifacts/build/release/win-x64/without-dotnet/manifest.json
           if-no-files-found: error
 
-  publish:
+  push-github:
+    name: push-github
     needs: build
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.build.outputs.release_tag != ''
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    concurrency:
+      group: github-release-${{ needs.build.outputs.release_tag }}
+      cancel-in-progress: false
     permissions:
       contents: write
       actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
+      ARCHIVE_NAME: ${{ needs.build.outputs.archive_name }}
+      PRERELEASE: ${{ needs.build.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v7
         with:
+          fetch-depth: 0
           persist-credentials: false
-      - name: Download verified build artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Download shared verified release bundle
+        shell: bash
         run: gh run download "$GITHUB_RUN_ID" --name "pbi-utils-windows-$GITHUB_RUN_ID" --dir release-zip --repo "$GITHUB_REPOSITORY"
-      - name: Read changelog and hash the archived installer
+      - name: Verify shared release bundle
         shell: pwsh
-        env:
-          RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
-          ARCHIVE_NAME: ${{ needs.build.outputs.archive_name }}
-        run: |
-          Import-Module ./scripts/ReleaseAutomation.psm1 -Force
-          $context = Get-PbiReleaseContext -RepositoryRoot $PWD -Ref $env:GITHUB_REF
-          $installerName = "pbi-utils-$($context.Version)-win-x64-without-dotnet-setup.exe"
-          $archive = [IO.Compression.ZipFile]::OpenRead((Join-Path $PWD "release-zip/$env:ARCHIVE_NAME"))
-          try {
-            if ($archive.Entries.Count -ne 1 -or $archive.Entries[0].FullName -cne $installerName) { throw '发布 ZIP 必须仅包含当前安装器 EXE' }
-            $stream = $archive.Entries[0].Open()
-            try { $installerHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)) } finally { $stream.Dispose() }
-          } finally { $archive.Dispose() }
-          $notes = Get-PbiReleaseNotes -RepositoryRoot $PWD -Tag $env:RELEASE_TAG -InstallerSha256 $installerHash
-          [IO.File]::WriteAllText((Join-Path $env:RUNNER_TEMP 'release-notes.md'), $notes)
-      - name: Publish verified ZIP
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
-          PRERELEASE: ${{ needs.build.outputs.prerelease }}
-          ARCHIVE_NAME: ${{ needs.build.outputs.archive_name }}
-        run: |
-          set -euo pipefail
-          archive="release-zip/$ARCHIVE_NAME"
-          test -s "$archive"
-          flags=()
-          if [[ "$PRERELEASE" == true ]]; then flags+=(--prerelease --latest=false); fi
-          gh release create "$RELEASE_TAG" "$archive" --verify-tag \
-            --repo "$GITHUB_REPOSITORY" --title "$RELEASE_TAG" \
-            --notes-file "$RUNNER_TEMP/release-notes.md" "${flags[@]}"
+        run: ./.github/scripts/release-bundle.ps1 -Mode Verify -Directory ./release-zip
+      - uses: ./.github/actions/push-github
 
-  publish-gitee:
-    needs: [build, publish]
+  push-gitee:
+    name: push-gitee
+    needs: build
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.build.outputs.release_tag != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: gitee-release-${{ needs.build.outputs.release_tag }}
+      cancel-in-progress: false
     permissions:
       contents: read
-    uses: ./.github/workflows/publish-gitee.yaml
-    with:
-      release_tag: ${{ needs.build.outputs.release_tag }}
-    secrets:
-      GITEE_SSH_PRIVATE_KEY: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}
-      GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
+      ARCHIVE_NAME: ${{ needs.build.outputs.archive_name }}
+      PRERELEASE: ${{ needs.build.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Download shared verified release bundle
+        shell: bash
+        run: gh run download "$GITHUB_RUN_ID" --name "pbi-utils-windows-$GITHUB_RUN_ID" --dir release-zip --repo "$GITHUB_REPOSITORY"
+      - name: Verify shared release bundle
+        shell: pwsh
+        run: ./.github/scripts/release-bundle.ps1 -Mode Verify -Directory ./release-zip
+      - uses: ./.github/actions/push-gitee
+        with:
+          token: ${{ secrets.GITEE_TOKEN }}
+          ssh-key: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}

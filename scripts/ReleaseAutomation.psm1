@@ -35,7 +35,7 @@ function Get-PbiReleaseContext([string]$RepositoryRoot, [string]$Ref) {
 .PARAMETER RepositoryRoot 仓库根目录.
 .PARAMETER Tag 精确发布标签, 不含 refs/tags 前缀.
 .PARAMETER InstallerSha256 可选的实际归档 EXE 的 64 位十六进制摘要, 调用者须从安装器字节获取, 不能传 ZIP 摘要.
-.OUTPUTS 原章节正文及可选的大写摘要代码块; 标签版本不符、摘要非法、章节缺失或重复、日期无效及内容为空时抛错.
+.OUTPUTS 原章节正文及可选的精确 EXE 文件名 SHA256 标题、仅含大写摘要的代码块; 标签版本不符、摘要非法、章节缺失或重复、日期无效及内容为空时抛错.
 #>
 function Get-PbiReleaseNotes([string]$RepositoryRoot, [string]$Tag, [string]$InstallerSha256) {
     $context = Get-PbiReleaseContext $RepositoryRoot "refs/tags/$Tag"
@@ -57,7 +57,7 @@ function Get-PbiReleaseNotes([string]$RepositoryRoot, [string]$Tag, [string]$Ins
     if (!$includeInstallerHash) { return $notes + "`n" }
     $installerHash = $InstallerSha256.ToUpperInvariant()
     $installerName = "pbi-utils-$($context.Version)-win-x64-without-dotnet-setup.exe"
-    return $notes + "`n`n### 安装器 SHA256`n`n" + '```text' + "`n$installerHash  $installerName`n" + '```' + "`n"
+    return $notes + "`n`n### $installerName SHA256`n`n" + '```text' + "`n$installerHash`n" + '```' + "`n"
 }
 
 <#

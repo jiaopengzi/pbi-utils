@@ -9,6 +9,14 @@
 同一个精确标签只能出现一次, 已发布标签不可覆盖或重用.
 分类按需使用 Added、Changed、Deprecated、Removed、Fixed、Security, 不保留空分类.
 
+## [desktop-v0.1.0-v2.7] - 2026-11-03
+
+### Changed
+
+- 构建后并行执行 push-github 与 push-gitee, 共用已验证 ZIP、发布说明和完整性清单.
+- ZIP 仅包含安装器 EXE; SHA256 标题显示完整 EXE 文件名, text 代码块仅包含摘要.
+- 复用现有标签和发行版, 已有附件核验后跳过重复上传; 对 Gitee 上传增加传输取证及限时标签同步.
+
 ## [desktop-v0.1.0-v2.6] - 2026-11-03
 
 ### Changed

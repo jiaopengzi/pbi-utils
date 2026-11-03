@@ -117,6 +117,23 @@ if [[ "$release_absent" == true ]]; then
   request POST '/releases' "$state/release.json" "$state/create.json"
   [[ "$status" == 200 || "$status" == 201 ]] || reject_response 'release creation HTTP status is not accepted'
 fi
+if [[ "$phase" == prepare && "$release_absent" == false ]]; then
+  # 复用当前发行版, 只同步本轮共享说明; 先确认身份, 不创建替代发行版或删除附件.
+  jq -e --arg tag "$RELEASE_TAG" '(.id | type == "number") and .id > 0 and .tag_name == $tag and .name == $tag and (.body | type == "string") and (.prerelease | type == "boolean")' "$state/release.json" > /dev/null \
+    || reject_response 'existing release identity is invalid'
+  release_id="$(jq -er '.id' "$state/release.json")"
+  [[ "$release_id" =~ ^[1-9][0-9]*$ ]] || reject_response 'existing release id is invalid'
+  # 已有附件先确认完整字节, 避免失败重跑将旧附件配上新安装器摘要.
+  read_assets "$release_id"
+  if [[ "$asset_count" == 1 ]]; then verify_asset "$release_id"; fi
+  if ! jq -e --rawfile notes release-notes.md '(.body | sub("\n+$"; "")) == ($notes | sub("\n+$"; ""))' "$state/release.json" > /dev/null; then
+    jq --rawfile notes release-notes.md '{tag_name:.tag_name,name:.name,body:$notes,prerelease:.prerelease}' "$state/release.json" > "$state/notes.json"
+    request PATCH "/releases/$release_id" "$state/notes-response.json" "$state/notes.json"
+    [[ "$status" == 200 ]] || reject_response 'release notes update failed'
+    request GET "/releases/tags/$RELEASE_TAG" "$state/release.json"
+    [[ "$status" == 200 ]] || reject_response 'updated release read-back failed'
+  fi
+fi
 validate_release "$state/release.json"
 if [[ "$phase" == prepare ]]; then
   read_assets "$release_id"

@@ -83,8 +83,8 @@ try {
     Assert ($hash -cne $zipHash) '夹具必须区分安装器摘要与 ZIP 摘要'
     Assert ((Get-Content -LiteralPath (Join-Path $package "$name.sha256") -Raw).Trim() -ceq "$hash  $name.exe") '本地 SHA256 侧文件仍保留且不加入 ZIP'
     $hashNotes = Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag $preview.ReleaseTag -InstallerSha256 $hash.ToLowerInvariant()
-    $expectedHashNotes = $notes + "`n### 安装器 SHA256`n`n" + '```text' + "`n$hash  $name.exe`n" + '```' + "`n"
-    Assert ($hashNotes -ceq $expectedHashNotes) '发布说明必须追加规范大写的实际 EXE 摘要与精确文件名代码块'
+    $expectedHashNotes = $notes + "`n### $name.exe SHA256`n`n" + '```text' + "`n$hash`n" + '```' + "`n"
+    Assert ($hashNotes -ceq $expectedHashNotes) '发布说明必须以精确 EXE 名和 SHA256 为标题, text 代码块仅含大写 64 位摘要'
     Assert (!$hashNotes.Contains($zipHash) -and !$hashNotes.Contains([IO.Path]::GetFileName($zip))) '安装器摘要说明不能混入 ZIP 哈希或 ZIP 文件名'
     Assert ((Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag $preview.ReleaseTag) -ceq $notes) '构建前省略摘要时必须保持原 CHANGELOG 章节'
     foreach ($invalid in @('', ' ', ('A' * 63), ('A' * 65), ('g' * 64), "$hash`n", " $hash")) {

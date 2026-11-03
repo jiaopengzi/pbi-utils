@@ -1,0 +1,110 @@
+# FilePath    : pbi-utils\.github\actions\push-gitee\action.yml
+# Author      : jiaopengzi
+# Blog        : https://jiaopengzi.com
+# Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+# Description : 复用现成 Action 上传附件, 统一准备和公开下载校验, 复用现有标签与发行版.
+
+name: Push Gitee release
+description: Publish the shared verified release bundle to Gitee
+inputs:
+  token:
+    description: Gitee release API token
+    required: true
+  ssh-key:
+    description: Key used only when the verified tag is missing
+    required: true
+runs:
+  using: composite
+  steps:
+      - name: Validate existing tag using HTTPS
+        id: tag
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $commit = git rev-parse "refs/tags/$env:RELEASE_TAG^{commit}"
+          if ($LASTEXITCODE -ne 0 -or $commit -cnotmatch '^[0-9a-f]{40}$') { throw '发布标签提交无效' }
+          "RELEASE_COMMIT=$commit" >> $env:GITHUB_ENV
+          $found = $false
+          for ($page = 1; $page -le 20; $page++) {
+            $tags = Invoke-RestMethod "https://gitee.com/api/v5/repos/jiaopengzi/pbi-utils/tags?per_page=100&page=$page" -TimeoutSec 30
+            if ($tags -isnot [array]) { throw 'Gitee 标签响应无效' }
+            $matches = @($tags | Where-Object name -CEQ $env:RELEASE_TAG)
+            if ($matches.Count -gt 1) { throw 'Gitee 标签重复' }
+            if ($matches.Count -eq 1) {
+              if ($matches[0].commit.sha -cne $commit) { throw 'Gitee 标签提交冲突' }
+              $found = $true
+              break
+            }
+            if ($tags.Count -lt 100) { break }
+            if ($page -eq 20) { throw 'Gitee 标签分页超限' }
+          }
+          "missing=$((!$found).ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+      - name: Synchronize only the verified release tag
+        if: steps.tag.outputs.missing == 'true'
+        env:
+          GITEE_SSH_PRIVATE_KEY: ${{ inputs.ssh-key }}
+          RELEASE_COMMIT: ${{ env.RELEASE_COMMIT }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$GITEE_SSH_PRIVATE_KEY"
+          ssh_dir="$(mktemp -d "$RUNNER_TEMP/pbi-utils-gitee-tag.XXXXXX")"
+          trap 'rm -rf -- "$ssh_dir"' EXIT
+          chmod 700 "$ssh_dir"
+          printf '%s\n' "$GITEE_SSH_PRIVATE_KEY" > "$ssh_dir/key"
+          chmod 600 "$ssh_dir/key"
+          printf '%s\n' 'gitee.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEKxHSJ7084RmkJ4YdEi5tngynE8aZe2uEoVVsB/OvYN' > "$ssh_dir/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $ssh_dir/key -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$ssh_dir/known_hosts"
+          repo='git@gitee.com:jiaopengzi/pbi-utils.git'
+          expected="$(git rev-parse "refs/tags/$RELEASE_TAG")"
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$RELEASE_COMMIT"
+          remote="$(git ls-remote --refs "$repo" "refs/tags/$RELEASE_TAG" | cut -f1)"
+          if [[ -z "$remote" ]]; then
+            git push --no-follow-tags "$repo" "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          else
+            test "$remote" = "$expected"
+          fi
+          test "$(git ls-remote --refs "$repo" "refs/tags/$RELEASE_TAG" | cut -f1)" = "$expected"
+      - name: Prepare and validate the Gitee release
+        id: prepare
+        env:
+          GITEE_TOKEN: ${{ inputs.token }}
+          RELEASE_COMMIT: ${{ env.RELEASE_COMMIT }}
+          ARCHIVE_NAME: ${{ env.ARCHIVE_NAME }}
+          PRERELEASE: ${{ env.PRERELEASE }}
+        shell: bash
+        run: bash ./.github/scripts/publish-gitee-release.sh prepare
+      - uses: actions/setup-python@v7.1.0
+        if: steps.prepare.outputs.upload_required == 'true'
+        with:
+          python-version: '3.12'
+      - name: Observe upload transport counters
+        if: steps.prepare.outputs.upload_required == 'true'
+        shell: bash
+        run: |
+          nohup python .github/scripts/watch-gitee-upload.py > "$RUNNER_TEMP/gitee-upload-metrics.jsonl" 2>&1 < /dev/null &
+      - name: Upload the exact ZIP with the upstream Gitee Action
+        if: steps.prepare.outputs.upload_required == 'true'
+        uses: nICEnnnnnnnLee/action-gitee-release@v2.0.0
+        with:
+          gitee_action: upload_asset
+          gitee_owner: jiaopengzi
+          gitee_repo: pbi-utils
+          gitee_token: ${{ inputs.token }}
+          gitee_release_id: ${{ steps.prepare.outputs.release_id }}
+          gitee_file_name: ${{ env.ARCHIVE_NAME }}
+          gitee_file_path: release-zip/${{ env.ARCHIVE_NAME }}
+          gitee_upload_retry_times: '0'
+      - name: Verify the public ZIP and finalize the release
+        env:
+          GITEE_TOKEN: ${{ inputs.token }}
+          PREPARED_RELEASE_ID: ${{ steps.prepare.outputs.release_id }}
+          RELEASE_COMMIT: ${{ env.RELEASE_COMMIT }}
+          ARCHIVE_NAME: ${{ env.ARCHIVE_NAME }}
+          PRERELEASE: ${{ env.PRERELEASE }}
+        shell: bash
+        run: bash ./.github/scripts/publish-gitee-release.sh verify
+      - name: Report upload transport evidence
+        if: always() && steps.prepare.outputs.upload_required == 'true'
+        shell: bash
+        run: cat "$RUNNER_TEMP/gitee-upload-metrics.jsonl"
