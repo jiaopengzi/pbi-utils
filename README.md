@@ -170,7 +170,7 @@ CI 还会核验标签提交确实属于对应来源分支，Release 正文取精
 
 首次在 `v2` 上线时使用 push 和 tag 事件验证；手动触发入口须等工作流进入默认分支后可用。
 
-[sync_gitee.yaml](.github/workflows/sync_gitee.yaml) 在 `v2` 只运行门禁说明，不读取密钥或同步任何 ref；只有 `main` 的 push/手动运行能使用 `GITEE_SSH_PRIVATE_KEY`，以远端租约保护将当前 `main` 镜像到 Gitee 的 `main`。该工作流不处理标签或 Release，发行版同步由 `build.yaml` 负责。代码同步无需 `GITEE_TOKEN`。`v2` 的跳过结果不能证明合并后 `main` 的真实代码同步权限已通过。
+[sync_gitee.yaml](.github/workflows/sync_gitee.yaml) 只在 `main` push 时自动运行，其他分支不会触发；手动选择非 `main` ref 时只运行跳过门禁，不读取密钥或同步任何 ref。只有 `main` 的 push/手动运行能使用 `GITEE_SSH_PRIVATE_KEY`，以远端租约保护将当前 `main` 镜像到 Gitee 的 `main`。该工作流不处理标签或 Release，发行版同步由 `build.yaml` 负责。代码同步无需 `GITEE_TOKEN`。上线测试时执行的 `v2` 跳过结果不能证明合并后 `main` 的真实代码同步权限已通过。
 
 ```text
 pbi-utils --help

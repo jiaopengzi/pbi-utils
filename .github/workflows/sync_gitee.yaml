@@ -2,13 +2,13 @@
 # Author      : jiaopengzi
 # Blog        : https://jiaopengzi.com
 # Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-# Description : v2 仅验证分支门禁, 只有 main 可使用 SSH 密钥将 main 代码同步至 Gitee, 不同步标签或发行版.
+# Description : 仅 main 推送自动同步 main 代码至 Gitee, 其他 ref 的手动运行仅验证跳过门禁.
 
 name: Sync Gitee
 
 on:
   push:
-    branches: [main, v2]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
