@@ -1,0 +1,155 @@
+# FilePath    : pbi-utils\.github\workflows\publish-gitee.yaml
+# Author      : jiaopengzi
+# Blog        : https://jiaopengzi.com
+# Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+# Description : GitHub 发布成功后调用的独立 Gitee 发行流程, 复用上游附件 Action 并公开回读校验.
+
+name: Publish Gitee release
+
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        description: Already published GitHub release tag
+        required: true
+        type: string
+    secrets:
+      GITEE_SSH_PRIVATE_KEY:
+        required: true
+      GITEE_TOKEN:
+        required: true
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Already published GitHub release tag
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitee-release-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate and download the published GitHub release
+        id: release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          Import-Module ./scripts/ReleaseAutomation.psm1 -Force
+          if ($env:RELEASE_TAG -cnotmatch '^desktop-v[0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:-v2\.[1-9][0-9]*)?$') { throw '发布标签格式无效' }
+          $tagType = & git cat-file -t "refs/tags/$env:RELEASE_TAG"
+          if ($LASTEXITCODE -ne 0 -or $tagType -cne 'tag') { throw '只允许已存在的注释发布标签' }
+          $commit = & git rev-parse "refs/tags/$env:RELEASE_TAG^{commit}"
+          if ($LASTEXITCODE -ne 0 -or $commit -cnotmatch '^[0-9a-f]{40}$') { throw '发布标签提交无效' }
+          # 独立重跑读取原发布标签的数据, 不把运行分支的新版本或新 changelog 当作旧发行版的说明.
+          $specRoot = Join-Path $env:RUNNER_TEMP ('pbi-release-spec-' + [Guid]::NewGuid().ToString('N'))
+          $null = [IO.Directory]::CreateDirectory($specRoot)
+          foreach ($file in @('Directory.Build.props', 'CHANGELOG.md')) {
+            $content = (& git show "${env:RELEASE_TAG}:$file") -join "`n"
+            if ($LASTEXITCODE -ne 0) { throw '原发布标签的版本或说明读取失败' }
+            [IO.File]::WriteAllText((Join-Path $specRoot $file), $content)
+          }
+          $context = Get-PbiReleaseContext -RepositoryRoot $specRoot -Ref "refs/tags/$env:RELEASE_TAG"
+          & git merge-base --is-ancestor $commit "refs/remotes/origin/$($context.SourceBranch)"
+          if ($LASTEXITCODE -ne 0) { throw '发布标签不属于指定来源分支' }
+          $json = (& gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG") -join "`n"
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub Release 读取失败' }
+          $release = $json | ConvertFrom-Json
+          if ($release.tag_name -cne $env:RELEASE_TAG -or $release.name -cne $env:RELEASE_TAG -or
+              $release.draft -isnot [bool] -or $release.draft -or
+              $release.prerelease -isnot [bool] -or $release.prerelease -ne $context.Prerelease) { throw 'GitHub Release 身份或预发布策略不符' }
+          $assets = @($release.assets)
+          $url = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$env:RELEASE_TAG/$($context.ArchiveName)"
+          if ($assets.Count -ne 1 -or $assets[0].name -cne $context.ArchiveName -or
+              $assets[0].browser_download_url -cne $url -or $assets[0].size -le 0 -or
+              $assets[0].size -gt 100000000) { throw 'GitHub 必须已有唯一精确的 ZIP 附件' }
+          & gh release download $env:RELEASE_TAG --pattern $context.ArchiveName --dir release-zip --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub ZIP 下载失败' }
+          $archivePath = Join-Path $PWD "release-zip/$($context.ArchiveName)"
+          if ((Get-Item -LiteralPath $archivePath).Length -ne $assets[0].size) { throw 'GitHub ZIP 大小不符' }
+          $installerName = "pbi-utils-$($context.Version)-win-x64-without-dotnet-setup.exe"
+          $archive = [IO.Compression.ZipFile]::OpenRead($archivePath)
+          try {
+            if ($archive.Entries.Count -ne 1 -or $archive.Entries[0].FullName -cne $installerName -or $archive.Entries[0].Length -le 0) { throw 'ZIP 必须仅含当前非空安装器 EXE' }
+            $stream = $archive.Entries[0].Open()
+            try { $hash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)) } finally { $stream.Dispose() }
+          } finally { $archive.Dispose() }
+          $notes = Get-PbiReleaseNotes -RepositoryRoot $specRoot -Tag $env:RELEASE_TAG -InstallerSha256 $hash
+          if ($release.body -isnot [string] -or $release.body.TrimEnd() -cne $notes.TrimEnd()) { throw 'GitHub 发布说明或安装器摘要不符' }
+          [IO.File]::WriteAllText((Join-Path $PWD 'release-notes.md'), $notes)
+          "commit=$commit" >> $env:GITHUB_OUTPUT
+          "archive_name=$($context.ArchiveName)" >> $env:GITHUB_OUTPUT
+          "prerelease=$($context.Prerelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+      - name: Synchronize only the verified release tag
+        env:
+          GITEE_SSH_PRIVATE_KEY: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+        run: |
+          set -euo pipefail
+          test -n "$GITEE_SSH_PRIVATE_KEY"
+          ssh_dir="$(mktemp -d "$RUNNER_TEMP/pbi-utils-gitee-tag.XXXXXX")"
+          trap 'rm -rf -- "$ssh_dir"' EXIT
+          chmod 700 "$ssh_dir"
+          printf '%s\n' "$GITEE_SSH_PRIVATE_KEY" > "$ssh_dir/key"
+          chmod 600 "$ssh_dir/key"
+          printf '%s\n' 'gitee.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEKxHSJ7084RmkJ4YdEi5tngynE8aZe2uEoVVsB/OvYN' > "$ssh_dir/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $ssh_dir/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$ssh_dir/known_hosts"
+          repo='git@gitee.com:jiaopengzi/pbi-utils.git'
+          expected="$(git rev-parse "refs/tags/$RELEASE_TAG")"
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$RELEASE_COMMIT"
+          remote="$(git ls-remote --refs "$repo" "refs/tags/$RELEASE_TAG" | cut -f1)"
+          if [[ -z "$remote" ]]; then
+            git push --no-follow-tags "$repo" "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          else
+            test "$remote" = "$expected"
+          fi
+          test "$(git ls-remote --refs "$repo" "refs/tags/$RELEASE_TAG" | cut -f1)" = "$expected"
+      - name: Prepare and validate the Gitee release
+        id: prepare
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+          ARCHIVE_NAME: ${{ steps.release.outputs.archive_name }}
+          PRERELEASE: ${{ steps.release.outputs.prerelease }}
+        run: bash ./.github/scripts/publish-gitee-release.sh prepare
+      - uses: actions/setup-python@v7.1.0
+        if: steps.prepare.outputs.upload_required == 'true'
+        with:
+          python-version: '3.12'
+      - name: Upload the exact ZIP with the upstream Gitee Action
+        if: steps.prepare.outputs.upload_required == 'true'
+        uses: nICEnnnnnnnLee/action-gitee-release@v2.0.0
+        timeout-minutes: 6
+        with:
+          gitee_action: upload_asset
+          gitee_owner: jiaopengzi
+          gitee_repo: pbi-utils
+          gitee_token: ${{ secrets.GITEE_TOKEN }}
+          gitee_release_id: ${{ steps.prepare.outputs.release_id }}
+          gitee_file_name: ${{ steps.release.outputs.archive_name }}
+          gitee_file_path: release-zip/${{ steps.release.outputs.archive_name }}
+          gitee_upload_retry_times: '0'
+      - name: Verify the public ZIP and finalize the release
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          PREPARED_RELEASE_ID: ${{ steps.prepare.outputs.release_id }}
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+          ARCHIVE_NAME: ${{ steps.release.outputs.archive_name }}
+          PRERELEASE: ${{ steps.release.outputs.prerelease }}
+        run: bash ./.github/scripts/publish-gitee-release.sh verify

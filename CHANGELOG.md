@@ -9,6 +9,14 @@
 同一个精确标签只能出现一次, 已发布标签不可覆盖或重用.
 分类按需使用 Added、Changed、Deprecated、Removed、Fixed、Security, 不保留空分类.
 
+## [desktop-v0.1.0-v2.6] - 2026-11-03
+
+### Changed
+
+- Gitee 发版拆为独立工作流, 在 GitHub 发布成功后调用, 并提供指定已发布标签的单独执行入口.
+- 使用现成的 action-gitee-release 上传精确 ZIP, 保留发行版身份、公开附件长度与 SHA256 校验, 不自动重复上传或覆盖冲突附件.
+- 构建所用 pnpm Action 同步到最新稳定版, 项目 Node 与 pnpm 工具链版本继续由原配置决定.
+
 ## [desktop-v0.1.0-v2.5] - 2026-11-03
 
 ### Changed

@@ -146,7 +146,7 @@ GitHub Actions 的 [build.yaml](.github/workflows/build.yaml) 仅在推送 `desk
 
 - `pbi-utils-<版本>-win-x64-without-dotnet-setup.exe`。
 
-安装器 JSON、`.sha256` 侧文件、目录锁和中间产物保留在本地，不进入 ZIP。归档前后核验安装器字节及本地校验值，发布时从实际 ZIP 内的 EXE 计算 SHA256，将摘要和精确 EXE 文件名写入 GitHub/Gitee 发布说明；该摘要对应安装器，不是 ZIP。软件更新仅识别同源同版本的上述 ZIP；缺少、重复或地址不符时禁用下载。开发命令仍支持两种本地构建模式。更新检查仅访问匿名 Releases API，不读取仓库分支上的 changelog 文件，也不要求自建更新服务器。标签构建发布 GitHub 成功后，同一工作流将同一 ZIP 同步发布到 Gitee；本地 `run.ps1` 仍只生成文件，不创建远程 Release、不上传文件。
+安装器 JSON、`.sha256` 侧文件、目录锁和中间产物保留在本地，不进入 ZIP。归档前后核验安装器字节及本地校验值，发布时从实际 ZIP 内的 EXE 计算 SHA256，将摘要和精确 EXE 文件名写入 GitHub/Gitee 发布说明；该摘要对应安装器，不是 ZIP。软件更新仅识别同源同版本的上述 ZIP；缺少、重复或地址不符时禁用下载。开发命令仍支持两种本地构建模式。更新检查仅访问匿名 Releases API，不读取仓库分支上的 changelog 文件，也不要求自建更新服务器。标签构建发布 GitHub 成功后，调用独立的 [publish-gitee.yaml](.github/workflows/publish-gitee.yaml) 同步同一 ZIP；本地 `run.ps1` 仍只生成文件，不创建远程 Release、不上传文件。
 
 #### 标签、更新日志与 Git 别名
 
@@ -165,11 +165,13 @@ git savetag
 - `main`：`desktop-v<版本>`，成功构建后创建正式 GitHub Release。
 - `v2`：`desktop-v<版本>-v2.<正整数>`，例如 `desktop-v0.1.0-v2.1`，成功构建后创建非 latest 的 GitHub 预发布，软件更新会忽略它。
 
-CI 还会核验标签提交确实属于对应来源分支，Release 正文取精确 CHANGELOG 章节，附件只有上述 ZIP。已有同名 GitHub Release 不自动覆盖。Gitee 发行任务只推送此次精确标签，不推送 `v2` 分支；使用已配置的 `GITEE_SSH_PRIVATE_KEY` 和 `GITEE_TOKEN`，预发布标记与 GitHub 一致。上传前检查 ZIP 不超过 100,000,000 字节，上传后从公开链接下载核验长度和 SHA256，最后才开放正式发行版。若 GitHub 已发布而 Gitee 失败，使用 GitHub 的“重新运行失败的作业”继续 Gitee 阶段，不重复构建或创建 GitHub Release；已有精确 Gitee 附件只在字节完全一致时复用，冲突明确失败，不删除重建。
+CI 还会核验标签提交确实属于对应来源分支，Release 正文取精确 CHANGELOG 章节，附件只有上述 ZIP。已有同名 GitHub Release 不自动覆盖。独立 Gitee 工作流只推送此次精确标签，不推送 `v2` 分支；使用已配置的 `GITEE_SSH_PRIVATE_KEY` 和 `GITEE_TOKEN`，预发布标记与 GitHub 一致。附件上传复用 [action-gitee-release v2.0.0](https://github.com/nICEnnnnnnnLee/action-gitee-release/releases/tag/v2.0.0)，明确指定数字发行版 ID 和唯一 ZIP，禁用自动重试并限制步骤时长。上传前检查 ZIP 不超过 100,000,000 字节，上传后从公开链接下载核验长度和 SHA256，最后才开放正式发行版。若 GitHub 已发布而 Gitee 失败，使用“重新运行失败的作业”，或单独运行 `Publish Gitee release` 并填写 `release_tag`，不重复构建或创建 GitHub Release。独立入口也会核验 GitHub 已有的发行版、原标签提交、单 EXE ZIP 和发行说明中的 EXE 摘要；已有精确 Gitee 附件只在字节完全一致时复用，冲突明确失败，不删除重建。
+
+当前 `v2` 通过 `workflow_call` 在 GitHub 发布成功后调用该独立 YAML，避免仅在默认分支存在时才生效的 `workflow_run` 监听限制；未合并 `main` 时，手动入口的网页可见性仍由 GitHub 的默认分支登记规则决定。两条入口共用按标签串行的发布锁。
 
 首次在 `v2` 上线时使用 push 和 tag 事件验证；手动触发入口须等工作流进入默认分支后可用。
 
-[sync_gitee.yaml](.github/workflows/sync_gitee.yaml) 只在 `main` push 时自动运行，其他分支不会触发；手动选择非 `main` ref 时只运行跳过门禁，不读取密钥或同步任何 ref。只有 `main` 的 push/手动运行能使用 `GITEE_SSH_PRIVATE_KEY`，以远端租约保护将当前 `main` 镜像到 Gitee 的 `main`。该工作流不处理标签或 Release，发行版同步由 `build.yaml` 负责。代码同步无需 `GITEE_TOKEN`。上线测试时执行的 `v2` 跳过结果不能证明合并后 `main` 的真实代码同步权限已通过。
+[sync_gitee.yaml](.github/workflows/sync_gitee.yaml) 只在 `main` push 时自动运行，其他分支不会触发；手动选择非 `main` ref 时只运行跳过门禁，不读取密钥或同步任何 ref。只有 `main` 的 push/手动运行能使用 `GITEE_SSH_PRIVATE_KEY`，以远端租约保护将当前 `main` 镜像到 Gitee 的 `main`。该工作流不处理标签或 Release，发行版同步由 `publish-gitee.yaml` 负责。代码同步无需 `GITEE_TOKEN`。上线测试时执行的 `v2` 跳过结果不能证明合并后 `main` 的真实代码同步权限已通过。
 
 ```text
 pbi-utils --help

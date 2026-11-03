@@ -2,7 +2,7 @@
 # Author      : jiaopengzi
 # Blog        : https://jiaopengzi.com
 # Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-# Description : 完整构建 Windows ZIP, 验证后发布 GitHub 并同步 Gitee 正式或测试发行版.
+# Description : 完整构建 Windows ZIP, 发布 GitHub 后调用独立的 Gitee 正式或测试发行流程.
 
 name: Build pbi-utils
 
@@ -62,7 +62,7 @@ jobs:
       - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: web/package.json
-      - uses: pnpm/action-setup@v6.1.0
+      - uses: pnpm/action-setup@v6.1.1
         with:
           package_json_file: web/package.json
           run_install: false
@@ -184,52 +184,11 @@ jobs:
   publish-gitee:
     needs: [build, publish]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.build.outputs.release_tag != ''
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
     permissions:
       contents: read
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Download the published GitHub ZIP and notes
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
-          ARCHIVE_NAME: ${{ needs.build.outputs.archive_name }}
-        run: |
-          set -euo pipefail
-          gh release download "$RELEASE_TAG" --pattern "$ARCHIVE_NAME" --dir release-zip --repo "$GITHUB_REPOSITORY"
-          gh release view "$RELEASE_TAG" --json body --jq .body --repo "$GITHUB_REPOSITORY" > release-notes.md
-      - name: Synchronize only this release tag
-        env:
-          GITEE_SSH_PRIVATE_KEY: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}
-          RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
-        run: |
-          set -euo pipefail
-          test -n "$GITEE_SSH_PRIVATE_KEY"
-          ssh_dir="$(mktemp -d "$RUNNER_TEMP/pbi-utils-gitee-tag.XXXXXX")"
-          trap 'rm -rf -- "$ssh_dir"' EXIT
-          chmod 700 "$ssh_dir"
-          printf '%s\n' "$GITEE_SSH_PRIVATE_KEY" > "$ssh_dir/key"
-          chmod 600 "$ssh_dir/key"
-          printf '%s\n' 'gitee.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEKxHSJ7084RmkJ4YdEi5tngynE8aZe2uEoVVsB/OvYN' > "$ssh_dir/known_hosts"
-          export GIT_SSH_COMMAND="ssh -i $ssh_dir/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$ssh_dir/known_hosts"
-          repo='git@gitee.com:jiaopengzi/pbi-utils.git'
-          expected="$(git rev-parse "refs/tags/$RELEASE_TAG")"
-          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$GITHUB_SHA"
-          remote="$(git ls-remote --refs "$repo" "refs/tags/$RELEASE_TAG" | cut -f1)"
-          if [[ -z "$remote" ]]; then
-            git push --no-follow-tags "$repo" "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
-          else
-            test "$remote" = "$expected"
-          fi
-          test "$(git ls-remote --refs "$repo" "refs/tags/$RELEASE_TAG" | cut -f1)" = "$expected"
-      - name: Publish and verify the Gitee ZIP
-        env:
-          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
-          RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
-          PRERELEASE: ${{ needs.build.outputs.prerelease }}
-          ARCHIVE_NAME: ${{ needs.build.outputs.archive_name }}
-        run: bash ./.github/scripts/publish-gitee-release.sh
+    uses: ./.github/workflows/publish-gitee.yaml
+    with:
+      release_tag: ${{ needs.build.outputs.release_tag }}
+    secrets:
+      GITEE_SSH_PRIVATE_KEY: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}
+      GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
