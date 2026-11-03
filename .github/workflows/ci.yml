@@ -70,8 +70,12 @@ jobs:
           $nsis = @($catalog.resources | Where-Object name -CEQ 'NSIS-COPYING')
           if ($nsis.Count -ne 1 -or $nsis[0].version -cne '3.13') { throw 'NSIS 版本需重新审核归档及许可' }
           $zip = Join-Path $env:RUNNER_TEMP 'nsis-3.13.zip'
-          Invoke-WebRequest -Uri $nsis[0].source -OutFile $zip
-          if ((Get-FileHash $zip -Algorithm SHA256).Hash -cne 'BA63DFFC4410EE89193E1CB5A41989991BD77C61068DA17E3156D136B7B0B3D8') { throw 'NSIS 官方归档 SHA256 不符' }
+          $response = Invoke-WebRequest -Uri $nsis[0].source -OutFile $zip -PassThru
+          $downloadHash = (Get-FileHash $zip -Algorithm SHA256).Hash
+          $header = [IO.File]::ReadAllBytes($zip)
+          $signature = [Convert]::ToHexString($header[0..([Math]::Min(3, $header.Length - 1))])
+          Write-Host "NSIS download: status=$($response.StatusCode), content-type=$($response.Headers['Content-Type']), bytes=$($header.Length), signature=$signature, sha256=$downloadHash"
+          if ($downloadHash -cne 'BA63DFFC4410EE89193E1CB5A41989991BD77C61068DA17E3156D136B7B0B3D8') { throw 'NSIS 官方归档 SHA256 不符' }
           $tools = Join-Path $env:RUNNER_TEMP 'pbi-utils-build-tools'
           Expand-Archive -LiteralPath $zip -DestinationPath $tools
           $root = Join-Path $tools 'nsis-3.13'
