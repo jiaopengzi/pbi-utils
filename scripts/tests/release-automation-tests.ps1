@@ -86,6 +86,74 @@ try {
     $expectedHashNotes = $notes + "`n### $name.exe SHA256`n`n" + '```text' + "`n$hash`n" + '```' + "`n"
     Assert ($hashNotes -ceq $expectedHashNotes) '发布说明必须以精确 EXE 名和 SHA256 为标题, text 代码块仅含大写 64 位摘要'
     Assert (!$hashNotes.Contains($zipHash) -and !$hashNotes.Contains([IO.Path]::GetFileName($zip))) '安装器摘要说明不能混入 ZIP 哈希或 ZIP 文件名'
+    # 使用隔离的 Git/gh 边界验证实际共享包脚本, 所有未知命令失败, 不访问远端.
+    $bundleScript = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../.github/scripts/release-bundle.ps1'))
+    & {
+        $savedEnvironment = @{}
+        foreach ($key in @('RELEASE_TAG', 'ARCHIVE_NAME', 'GITHUB_REPOSITORY')) { $savedEnvironment[$key] = [Environment]::GetEnvironmentVariable($key) }
+        <# .SYNOPSIS 模拟已核验注释标签与分支归属; 未知 Git 调用立即失败. #>
+        $global:releaseSpecTestChangelog = $validChangelog
+        function global:git {
+            $global:LASTEXITCODE = 0
+            if ($args[0] -ceq '-C' -and $args[2] -ceq 'show') {
+                if ($args[3].EndsWith(':Directory.Build.props')) { return '<Project><PropertyGroup><Version>0.1.0</Version></PropertyGroup></Project>' }
+                if ($args[3].EndsWith(':CHANGELOG.md')) { return $global:releaseSpecTestChangelog }
+                throw '未预期的标签文件读取'
+            }
+            switch ($args[0]) {
+                'cat-file' { 'tag' }
+                'rev-parse' { 'a' * 40 }
+                'merge-base' { }
+                default { throw '未预期的 Git 请求' }
+            }
+        }
+        <# .SYNOPSIS 返回封闭发行版夹具或复制测试 ZIP; 不允许其他外部请求. #>
+        function gh {
+            $global:LASTEXITCODE = 0
+            if ($args[0] -ceq 'api') { return ($fixtureRelease | ConvertTo-Json -Depth 8) }
+            if ($args[0] -ceq 'release' -and $args[1] -ceq 'download') {
+                Copy-Item -LiteralPath $zip -Destination $args[[array]::IndexOf($args, '--dir') + 1]
+                return
+            }
+            throw '未预期的 gh 请求'
+        }
+        Push-Location $sandbox
+        try {
+            $env:RELEASE_TAG = $preview.ReleaseTag
+            $env:ARCHIVE_NAME = $preview.ArchiveName
+            $env:GITHUB_REPOSITORY = 'fixture/repository'
+            $dist = Join-Path $sandbox 'dist'
+            & $bundleScript -Mode Create -Directory $dist | Out-Null
+            # 运行分支升级或修改说明后, 仍须使用原标签规范复验原包.
+            '<Project><PropertyGroup><Version>0.2.0</Version></PropertyGroup></Project>' | Set-Content (Join-Path $sandbox 'Directory.Build.props')
+            'changed branch notes' | Set-Content (Join-Path $sandbox 'CHANGELOG.md')
+            & $bundleScript -Mode Verify -Directory $dist | Out-Null
+            $notesPath = Join-Path $dist 'release-notes.md'
+            $originalNotes = [IO.File]::ReadAllText($notesPath)
+            [IO.File]::WriteAllText($notesPath, $originalNotes + 'tampered')
+            Assert-Rejected { & $bundleScript -Mode Verify -Directory $dist }
+            [IO.File]::WriteAllText($notesPath, $originalNotes)
+            $fixtureRelease = @{
+                tag_name = $env:RELEASE_TAG; name = $env:RELEASE_TAG; draft = $false; prerelease = $true; body = $originalNotes
+                assets = @(@{ name = $env:ARCHIVE_NAME; size = (Get-Item $zip).Length; digest = 'sha256:' + $zipHash.ToLowerInvariant()
+                        browser_download_url = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$env:RELEASE_TAG/$env:ARCHIVE_NAME" })
+            }
+            & $bundleScript -Mode Download -Directory (Join-Path $sandbox 'download') | Out-Null
+            Assert ((Get-FileHash (Join-Path $sandbox "download/$env:ARCHIVE_NAME")).Hash -ceq $zipHash) '重试必须复用原 ZIP 字节'
+            $fixtureRelease.assets[0].digest = 'sha256:' + ('0' * 64)
+            Assert-Rejected { & $bundleScript -Mode Download -Directory (Join-Path $sandbox 'bad-digest') }
+            $fixtureRelease.assets += $fixtureRelease.assets[0]
+            Assert-Rejected { & $bundleScript -Mode Download -Directory (Join-Path $sandbox 'duplicate-asset') }
+            Assert (!(Test-Path (Join-Path $sandbox 'duplicate-asset'))) '重复附件必须在下载前拒绝'
+        } finally {
+            '<Project><PropertyGroup><Version>0.1.0</Version></PropertyGroup></Project>' | Set-Content (Join-Path $sandbox 'Directory.Build.props')
+            $validChangelog | Set-Content (Join-Path $sandbox 'CHANGELOG.md')
+            Remove-Item Function:\git
+            Remove-Variable releaseSpecTestChangelog -Scope Global
+            Pop-Location
+            foreach ($key in $savedEnvironment.Keys) { [Environment]::SetEnvironmentVariable($key, $savedEnvironment[$key]) }
+        }
+    }
     Assert ((Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag $preview.ReleaseTag) -ceq $notes) '构建前省略摘要时必须保持原 CHANGELOG 章节'
     foreach ($invalid in @('', ' ', ('A' * 63), ('A' * 65), ('g' * 64), "$hash`n", " $hash")) {
         Assert-Rejected { Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag $preview.ReleaseTag -InstallerSha256 $invalid }

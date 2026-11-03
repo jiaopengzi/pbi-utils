@@ -61,6 +61,38 @@ function Get-PbiReleaseNotes([string]$RepositoryRoot, [string]$Tag, [string]$Ins
 }
 
 <#
+.SYNOPSIS 从不可变的原发布标签读取版本和说明, 避免运行分支升级影响已有发行版复验.
+.PARAMETER RepositoryRoot 含原发布标签的 Git 仓库目录.
+.PARAMETER Tag 精确发布标签.
+.PARAMETER InstallerSha256 可选的实际 EXE SHA256, 不得传 ZIP 摘要.
+.OUTPUTS Context 和 Notes; 标签读取或原发布规范无效时抛错, 临时规范文件始终清理.
+#>
+function Get-PbiTaggedReleaseSpec([string]$RepositoryRoot, [string]$Tag, [string]$InstallerSha256) {
+    if ($Tag -cnotmatch '^desktop-v[0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:-v2\.[1-9][0-9]*)?$') { throw '原发布标签格式无效' }
+    $specRoot = Join-Path ([IO.Path]::GetTempPath()) ('pbi-utils-release-spec-' + [Guid]::NewGuid().ToString('N'))
+    $null = [IO.Directory]::CreateDirectory($specRoot)
+    try {
+        foreach ($file in @('Directory.Build.props', 'CHANGELOG.md')) {
+            $content = (& git -C $RepositoryRoot show "refs/tags/${Tag}:$file") -join "`n"
+            if ($LASTEXITCODE -ne 0) { throw '原发布标签规范读取失败' }
+            [IO.File]::WriteAllText((Join-Path $specRoot $file), $content)
+        }
+        $parameters = @{ RepositoryRoot = $specRoot; Tag = $Tag }
+        if ($PSBoundParameters.ContainsKey('InstallerSha256')) { $parameters.InstallerSha256 = $InstallerSha256 }
+        [pscustomobject]@{
+            Context = Get-PbiReleaseContext -RepositoryRoot $specRoot -Ref "refs/tags/$Tag"
+            Notes = Get-PbiReleaseNotes @parameters
+        }
+    } finally {
+        foreach ($file in @('Directory.Build.props', 'CHANGELOG.md')) {
+            $path = Join-Path $specRoot $file
+            if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force }
+        }
+        Remove-Item -LiteralPath $specRoot -Force
+    }
+}
+
+<#
 .SYNOPSIS 用本地 SHA256 侧文件校验当前 without-dotnet 安装器, 创建仅含 EXE 的 ZIP 并核对归档原字节.
 .PARAMETER RepositoryRoot 仓库根目录, 安装器必须已由现有 package/release 成功生成.
 .PARAMETER Destination ZIP 输出目录; 临时归档校验完成后才替换本版本 ZIP.
@@ -101,4 +133,4 @@ function New-PbiReleaseArchive([string]$RepositoryRoot, [string]$Destination) {
     }
 }
 
-Export-ModuleMember -Function Get-PbiReleaseContext, Get-PbiReleaseNotes, New-PbiReleaseArchive
+Export-ModuleMember -Function Get-PbiReleaseContext, Get-PbiReleaseNotes, Get-PbiTaggedReleaseSpec, New-PbiReleaseArchive

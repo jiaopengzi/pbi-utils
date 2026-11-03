@@ -15,7 +15,7 @@ param([Parameter(Mandatory)][ValidateSet('Create', 'Verify', 'Download')][string
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module "$PSScriptRoot/../../scripts/ReleaseAutomation.psm1" -Force
-$context = Get-PbiReleaseContext -RepositoryRoot $PWD -Ref "refs/tags/$env:RELEASE_TAG"
+$context = (Get-PbiTaggedReleaseSpec -RepositoryRoot $PWD -Tag $env:RELEASE_TAG).Context
 if ($env:ARCHIVE_NAME -cne $context.ArchiveName) { throw 'ZIP 文件名与发布上下文不符' }
 $tagType = git cat-file -t "refs/tags/$env:RELEASE_TAG"
 if ($LASTEXITCODE -ne 0 -or $tagType -cne 'tag') { throw '必须使用已存在的注释标签' }
@@ -49,7 +49,7 @@ try {
 } finally { $zip.Dispose() }
 $notesPath = Join-Path $Directory 'release-notes.md'
 $manifestPath = Join-Path $Directory 'release-manifest.json'
-$expectedNotes = Get-PbiReleaseNotes -RepositoryRoot $PWD -Tag $env:RELEASE_TAG -InstallerSha256 $installerHash
+$expectedNotes = (Get-PbiTaggedReleaseSpec -RepositoryRoot $PWD -Tag $env:RELEASE_TAG -InstallerSha256 $installerHash).Notes
 if ($Mode -ceq 'Download' -and $release.body.TrimEnd() -cne $expectedNotes.TrimEnd()) { throw '已有发布说明与 EXE 摘要不符' }
 if ($Mode -cne 'Verify') { [IO.File]::WriteAllText($notesPath, $expectedNotes) }
 if ([IO.File]::ReadAllText($notesPath) -cne $expectedNotes) { throw '共享发布说明与标签或 EXE 摘要不符' }

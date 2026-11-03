@@ -65,13 +65,15 @@ jobs:
           $reuse = ![string]::IsNullOrEmpty($requestedTag)
           if ($reuse -and $env:GITHUB_REF -cne 'refs/heads/v2') { throw '已有发行版重试只允许 v2' }
           $releaseRef = if ($reuse) { "refs/tags/$requestedTag" } else { $env:GITHUB_REF }
-          $context = Get-PbiReleaseContext -RepositoryRoot $PWD -Ref $releaseRef
+          $context = if ($reuse) {
+            (Get-PbiTaggedReleaseSpec -RepositoryRoot $PWD -Tag $requestedTag).Context
+          } else { Get-PbiReleaseContext -RepositoryRoot $PWD -Ref $releaseRef }
           if ($reuse -and !$context.Prerelease) { throw 'v2 不能重试正式发行版' }
           "reuse=$($reuse.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
           if ($context.ReleaseTag) {
             git merge-base --is-ancestor HEAD "refs/remotes/origin/$($context.SourceBranch)"
             if ($LASTEXITCODE -ne 0) { throw '发布提交不属于指定来源分支' }
-            $null = Get-PbiReleaseNotes -RepositoryRoot $PWD -Tag $context.ReleaseTag
+            $null = Get-PbiTaggedReleaseSpec -RepositoryRoot $PWD -Tag $context.ReleaseTag
           }
           "release_tag=$($context.ReleaseTag)" >> $env:GITHUB_OUTPUT
           "prerelease=$($context.Prerelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
