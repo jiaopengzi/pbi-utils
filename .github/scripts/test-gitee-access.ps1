@@ -59,7 +59,9 @@ try {
     $attachmentPath = "/repos/jiaopengzi/pbi-utils/releases/$($release.id)/attach_files"
     $null = Invoke-AccessProbe 'invalid-token-control-upload-no-file' POST $attachmentPath 'invalid-diagnostic-token' -FormToken $true
     $upload = Invoke-AccessProbe 'configured-token-upload-no-file' POST $attachmentPath $env:GITEE_TOKEN -FormToken $true
+    $headerUpload = Invoke-AccessProbe 'configured-token-bearer-upload-no-file' POST $attachmentPath $env:GITEE_TOKEN
     Write-Host "tokenIdentityConfirmed=$($identity.Status -eq 200) releaseWriteConfirmed=$($write.Status -eq 200) uploadEndpointReturned=$($upload.Status -ne 0)"
     if ($write.Status -ne 200) { throw '当前 token 的发行版写权限核验失败' }
-    if ($upload.Status -notin 400, 422) { throw '无文件上传应返回参数错误, 当前响应异常; 不据此宣布附件上传成功' }
+    if ($headerUpload.Status -notin 400, 422) { throw 'Bearer 无文件上传应返回参数错误, 当前响应异常; 不据此宣布附件上传成功' }
+    if ($upload.Status -notin 400, 422) { throw '表单 token 与 Bearer 认证行为不一致, 须修正上传认证方式' }
 } finally { $client.Dispose() }
