@@ -158,12 +158,6 @@ jobs:
           RELEASE_TAG: ${{ steps.metadata.outputs.release_tag }}
           ARCHIVE_NAME: ${{ steps.metadata.outputs.archive_name }}
         run: pwsh -NoProfile -File ./.github/scripts/release-bundle.ps1 -Mode Create -Directory ./artifacts/release-zip
-      - name: Diagnose configured Gitee token and upload endpoint
-        if: steps.metadata.outputs.reuse == 'true'
-        env:
-          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
-          RELEASE_TAG: ${{ steps.metadata.outputs.release_tag }}
-        run: ./.github/scripts/test-gitee-access.ps1
       - name: Upload exact release ZIP
         uses: actions/upload-artifact@v7.0.2
         with:
@@ -220,7 +214,7 @@ jobs:
     needs: build
     if: needs.build.outputs.release_tag != ''
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     concurrency:
       group: gitee-release-${{ needs.build.outputs.release_tag }}
       cancel-in-progress: false
@@ -244,7 +238,8 @@ jobs:
         shell: pwsh
         run: ./.github/scripts/release-bundle.ps1 -Mode Verify -Directory ./release-zip
       - uses: ./.github/actions/push-gitee
-        timeout-minutes: 8
+        # 实测 7 MB 附件上传耗时近 9 分钟; 为慢速链路保留有界余量.
+        timeout-minutes: 20
         with:
           token: ${{ secrets.GITEE_TOKEN }}
           ssh-key: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}
