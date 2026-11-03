@@ -78,11 +78,6 @@ runs:
         if: steps.prepare.outputs.upload_required == 'true'
         with:
           python-version: '3.12'
-      - name: Observe upload transport counters
-        if: steps.prepare.outputs.upload_required == 'true'
-        shell: bash
-        run: |
-          nohup python .github/scripts/watch-gitee-upload.py > "$RUNNER_TEMP/gitee-upload-metrics.jsonl" 2>&1 < /dev/null &
       - name: Upload the exact ZIP with the upstream Gitee Action
         if: steps.prepare.outputs.upload_required == 'true'
         uses: nICEnnnnnnnLee/action-gitee-release@v2.0.0

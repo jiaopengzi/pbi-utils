@@ -243,8 +243,3 @@ jobs:
         with:
           token: ${{ secrets.GITEE_TOKEN }}
           ssh-key: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}
-      - name: Collect upload transport evidence
-        if: always()
-        shell: bash
-        run: |
-          if [[ -f "$RUNNER_TEMP/gitee-upload-metrics.jsonl" ]]; then cat "$RUNNER_TEMP/gitee-upload-metrics.jsonl"; fi

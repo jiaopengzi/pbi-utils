@@ -40,13 +40,14 @@ reject_response() {
 }
 
 # 向固定 Gitee API 发起一次请求, 参数为方法、相对路径、输出文件和可选 JSON 文件.
-# 只读取 HTTP 状态, 不输出令牌或响应正文; 非预期结果抛失败, 写请求不自动重试.
+# 只读取 HTTP 状态, 不输出令牌或响应正文; GET 对暂时性网络/服务错误有界重试, 写请求不自动重试.
 request() {
   local method="$1" path="$2" output="$3" payload="${4:-}"
   request_method="$method"
   request_path="$path"
   local args=(--silent --show-error --connect-timeout 15 --max-time 180 --request "$method"
     --header "Authorization: Bearer $GITEE_TOKEN" --output "$output" --write-out '%{http_code}')
+  if [[ "$method" == GET ]]; then args+=(--retry 2 --retry-delay 3 --retry-max-time 240 --retry-connrefused); fi
   if [[ -n "$payload" ]]; then args+=(--header 'Content-Type: application/json' --data-binary "@$payload"); fi
   status="$(curl "${args[@]}" "$api$path")"
 }
@@ -91,7 +92,8 @@ verify_asset() {
   request_method=GET
   request_path="$url"
   status="$(curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
-    --connect-timeout 15 --max-time 180 --max-filesize 100000000 --output "$state/verified.zip" --write-out '%{http_code}' "$url")"
+    --connect-timeout 15 --max-time 300 --retry 2 --retry-delay 3 --retry-max-time 420 --retry-connrefused \
+    --max-filesize 100000000 --output "$state/verified.zip" --write-out '%{http_code}' "$url")"
   actual_hash="$(sha256sum "$state/verified.zip" | cut -d ' ' -f1)"
   [[ "$actual_hash" == "$expected_hash" ]] || reject_response 'public attachment hash does not match the verified archive'
   [[ "$(stat --format=%s "$state/verified.zip")" == "$bytes" ]] || reject_response 'public attachment length does not match the verified archive'
@@ -99,6 +101,7 @@ verify_asset() {
 
 request GET "/releases/tags/$RELEASE_TAG" "$state/release.json"
 release_absent=false
+existing_asset_verified=false
 if [[ "$status" == 404 ]]; then
   release_absent=true
 elif [[ "$status" == 200 ]]; then
@@ -125,7 +128,7 @@ if [[ "$phase" == prepare && "$release_absent" == false ]]; then
   [[ "$release_id" =~ ^[1-9][0-9]*$ ]] || reject_response 'existing release id is invalid'
   # 已有附件先确认完整字节, 避免失败重跑将旧附件配上新安装器摘要.
   read_assets "$release_id"
-  if [[ "$asset_count" == 1 ]]; then verify_asset "$release_id"; fi
+  if [[ "$asset_count" == 1 ]]; then verify_asset "$release_id"; existing_asset_verified=true; fi
   if ! jq -e --rawfile notes release-notes.md '(.body | sub("\n+$"; "")) == ($notes | sub("\n+$"; ""))' "$state/release.json" > /dev/null; then
     jq --rawfile notes release-notes.md '{tag_name:.tag_name,name:.name,body:$notes,prerelease:.prerelease}' "$state/release.json" > "$state/notes.json"
     request PATCH "/releases/$release_id" "$state/notes-response.json" "$state/notes.json"
@@ -136,9 +139,14 @@ if [[ "$phase" == prepare && "$release_absent" == false ]]; then
 fi
 validate_release "$state/release.json"
 if [[ "$phase" == prepare ]]; then
-  read_assets "$release_id"
   upload_required=true
-  if [[ "$asset_count" == 1 ]]; then verify_asset "$release_id"; upload_required=false; fi
+  # 复用准备阶段已完成的公开字节校验, 不在同一阶段重复下载; 独立 verify 阶段仍重新核验远端状态.
+  if [[ "$existing_asset_verified" == true ]]; then
+    upload_required=false
+  else
+    read_assets "$release_id"
+    if [[ "$asset_count" == 1 ]]; then verify_asset "$release_id"; upload_required=false; fi
+  fi
   # 固定字段和值不允许注入 GITHUB_OUTPUT; 仅在元数据及已有资产检查完成后写入本步输出.
   printf 'release_id=%s\nupload_required=%s\n' "$release_id" "$upload_required" >> "$GITHUB_OUTPUT"
   echo "Prepared Gitee release: release_id=$release_id, upload_required=$upload_required"
@@ -150,8 +158,10 @@ verify_asset "$release_id"
 # Gitee PATCH 要求 tag/name/body; 取已核验对象的原始值, 不因本地 notes 的末尾 LF 差异改写远端正文.
 jq --argjson prerelease "$PRERELEASE" \
   '{tag_name:.tag_name,name:.name,body:.body,prerelease:$prerelease}' "$state/release.json" > "$state/final.json"
-request PATCH "/releases/$release_id" "$state/final-response.json" "$state/final.json"
-[[ "$status" == 200 ]] || reject_response 'release finalization HTTP status is not accepted'
+if ! jq -e --argjson prerelease "$PRERELEASE" '.prerelease == $prerelease' "$state/release.json" > /dev/null; then
+  request PATCH "/releases/$release_id" "$state/final-response.json" "$state/final.json"
+  [[ "$status" == 200 ]] || reject_response 'release finalization HTTP status is not accepted'
+fi
 request GET "/releases/tags/$RELEASE_TAG" "$state/final-release.json"
 [[ "$status" == 200 ]] || reject_response 'final release read-back HTTP status is not accepted'
 validate_release "$state/final-release.json"
