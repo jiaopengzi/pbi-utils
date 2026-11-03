@@ -33,5 +33,14 @@ $OutputEncoding = $utf8
 
 $parameters = @{}
 if ($Scenario) { $parameters.Scenario = $Scenario }
-# 直接执行原文件, 不用 ScriptBlock 重建而丢失 PSScriptRoot; dot-source 保留 -File 的显式 exit 语义.
-. $TestScript @parameters
+# 调用运算符建立独立脚本作用域; dot-source 会让宿主的 string Scenario 约束污染脚本自己的 scenario 对象.
+# 直接执行原文件保留 BOM 和 PSScriptRoot, 不通过 ScriptBlock 重建源文本.
+$global:LASTEXITCODE = 0
+& $TestScript @parameters
+$testSucceeded = $?
+# 与直接 -File 对照: 普通完成不继承脚本内部已处理的原生失败码, 显式 exit 非零则保留原数值.
+if (!$testSucceeded) {
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    exit 1
+}
+exit 0
