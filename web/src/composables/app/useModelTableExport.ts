@@ -52,13 +52,13 @@ export function useModelTableExport(props: ModelTableExportProps, onExported?: (
     const eligible = computed(() => props.project.model.tables.filter((table) => !selectionUnavailable(table)))
     const selectedTables = computed(() => eligible.value.filter((table) => selected.value.includes(table.name)))
     const exportAvailable = computed(() => selectedTables.value.length > 0 && selectedTables.value.every((table) => !unavailable(table)))
-    const allSelected = computed(() => eligible.value.length > 0 && selectedTables.value.length === eligible.value.length)
-    const indeterminate = computed(() => selectedTables.value.length > 0 && !allSelected.value)
-    /** 全选当前可操作的表, 选择绑定当前基线; 导出入口继续独立核验每张表可读取数据. */
-    function selectAll(value: boolean): void {
+    /** 全选或取消指定可见表, 未指定范围时作用于全部; 核验真实可选身份并保留范围外选择, 不允许过期基线选择混入新操作. */
+    function selectAll(value: boolean, names?: readonly string[]): void {
         if (!locked.value) {
+            const available = eligible.value.filter((table) => !names || names.includes(table.name)).map((table) => table.name)
+            const previous = selectionBaselineId.value === props.project.baselineId ? selected.value : []
             selectionBaselineId.value = props.project.baselineId
-            selected.value = value ? eligible.value.map((table) => table.name) : []
+            selected.value = value ? [...new Set([...previous, ...available])] : names ? previous.filter((name) => !available.includes(name)) : []
         }
     }
     /** 只切换当前模型内的真实表, 不接受未知名称或绕过disabled的点击. */
@@ -212,8 +212,6 @@ export function useModelTableExport(props: ModelTableExportProps, onExported?: (
         eligible,
         selectedTables,
         exportAvailable,
-        allSelected,
-        indeterminate,
         selectAll,
         selectTable,
         unavailable,

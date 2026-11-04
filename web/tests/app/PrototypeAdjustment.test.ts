@@ -27,6 +27,8 @@ it("搜索描述命中二级目标, 无匹配时显示空态", async () => {
     await flushPromises()
     expect(popup.get('[role="dialog"]').isVisible()).toBe(false)
     await wrapper.get(".nav-search").trigger("click")
+    await popup.get('[role="dialog"] input').setValue("页面编辑")
+    expect(popup.findAll(".search-results button")).toHaveLength(0)
     await popup.get('[role="dialog"] input').setValue("RLS")
     expect(popup.findAll(".search-results button")).toHaveLength(0)
     await popup.get('[role="dialog"] input').setValue("关于")

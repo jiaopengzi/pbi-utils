@@ -71,7 +71,7 @@ public sealed class McpRemoteConnectionTests
         Assert.Equal("completed", record.State); Assert.True(record.CommitStarted);
         Assert.Empty(new LocalRemoteConnectionStore(fixture.Root).Load());
         var readOnly = await Assert.ThrowsAsync<AppException>(() => fixture.Session.InvokeMcpAsync("model.edit",
-            Json(new { operation = "table.set", objectName = "Sales", property = "description", value = "changed", table = "", pageId = "" }), default, 1));
+            Json(new { operation = "table.set", objectName = "Sales", property = "description", value = "changed", table = "" }), default, 1));
         Assert.Equal("READ_ONLY_MODEL", readOnly.Code);
     }
 

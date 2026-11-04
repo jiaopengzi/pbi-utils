@@ -1009,10 +1009,6 @@
               "table": {
                 "type": "string",
                 "maxLength": 200
-              },
-              "pageId": {
-                "type": "string",
-                "maxLength": 200
               }
             },
             "required": [
@@ -1020,8 +1016,7 @@
               "objectName",
               "property",
               "value",
-              "table",
-              "pageId"
+              "table"
             ]
           }
         }

@@ -16,7 +16,6 @@ export function udfLintDeleteRequest(result: UdfLintResult): ModelEditRequest {
         property: "items",
         value: JSON.stringify({ projectId: result.projectId, baselineId: result.baselineId, names: result.unused }),
         table: "",
-        pageId: "",
     }
 }
 

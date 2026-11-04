@@ -12,7 +12,6 @@ import { useMessageNotices } from "@/composables/ui/useMessageNotices"
 // 显式调用的确认框需要单独引入品牌 SCSS, 模板按需导入不会补齐其样式.
 import "element-plus/es/components/message-box/style/index"
 import UiIcon from "@/ui/UiIcon.vue"
-import ReportPanel from "./ReportPanel.vue"
 import SearchDialog from "./SearchDialog.vue"
 import HostDialog from "./HostDialog.vue"
 import ModelPanel from "./ModelPanel.vue"
@@ -215,14 +214,6 @@ useMessageNotices("application-workspace", () => [
                         :editor-busy="modelEditorBusy"
                         @busy="modelPanelBusy = $event"
                         @editor-state="acceptModelEditorState"
-                        @updated="acceptEdit"
-                    />
-                    <ReportPanel
-                        v-else-if="page === 'report' && project && bridge"
-                        :key="`report:${project.projectId}`"
-                        :project="project"
-                        :bridge="bridge"
-                        @busy="operationBusy = $event"
                         @updated="acceptEdit"
                     />
                     <SettingsWorkspace

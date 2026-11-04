@@ -84,6 +84,7 @@ function selectGroup(keys: string[], checked: boolean): void {
                     v-for="node in hierarchy"
                     :key="node.key"
                     :node="node"
+                    :query="query"
                     :collapsed="visibleCollapsed"
                     :selected="selected"
                     :disabled="disabled"

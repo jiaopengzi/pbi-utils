@@ -66,8 +66,8 @@ public sealed partial class BridgeSession
                 {
                     if (method == "model.edit")
                     {
-                        var fields = Strings(parameters, ["operation", "objectName", "property", "value", "table", "pageId"], 30000);
-                        result = await edits.EditAndSaveAsync(new(fields["operation"], fields["objectName"], fields["property"], fields["value"], fields["table"], fields["pageId"]),
+                        var fields = Strings(parameters, ["operation", "objectName", "property", "value", "table"], 30000);
+                        result = await edits.EditAndSaveAsync(new(fields["operation"], fields["objectName"], fields["property"], fields["value"], fields["table"]),
                             flight.Cancellation.Token, () => BeginModelCommit(id, flight));
                     }
                     else

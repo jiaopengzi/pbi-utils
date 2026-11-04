@@ -72,7 +72,7 @@ public sealed class DesktopModelDraft(ProjectSnapshot baseline, TOM.Database ori
         token.ThrowIfCancellationRequested();
         var before = ModelConfigurationReadback.Fingerprint(original);
         ModelMutation.Apply(original, new(baseline.ProjectPath, "original", request.Operation, request.ObjectName, request.Property,
-            request.Value, request.Table, request.PageId, Configuration: request.Configuration));
+            request.Value, request.Table, Configuration: request.Configuration));
         var after = ModelConfigurationReadback.Fingerprint(original);
         token.ThrowIfCancellationRequested();
         if (request.Operation == "configuration.apply" && before == after

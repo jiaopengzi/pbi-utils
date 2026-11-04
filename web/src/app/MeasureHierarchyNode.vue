@@ -7,11 +7,19 @@
 -->
 <script setup lang="ts">
 import { computed } from "vue"
+import UiSearchHighlight from "@/ui/UiSearchHighlight.vue"
 import { useI18n } from "@/composables/i18n/useI18n"
 import { hierarchyMeasureKeys, measureKey, type HierarchyMeasure, type MeasureHierarchyNode } from "@/features/model/measureHierarchy"
 
 /** node 为已过滤的展示树, selected 为受控对象身份; 目录选择包含折叠后代, 只回传意图, 不执行模型操作. */
-const props = defineProps<{ node: MeasureHierarchyNode; collapsed: ReadonlySet<string>; selected: string[]; disabled: boolean; currentKey?: string }>()
+const props = defineProps<{
+    node: MeasureHierarchyNode
+    collapsed: ReadonlySet<string>
+    selected: string[]
+    disabled: boolean
+    currentKey?: string
+    query?: string
+}>()
 const emit = defineEmits<{ select: [measure: HierarchyMeasure]; toggle: [key: string]; selectGroup: [keys: string[], selected: boolean] }>()
 const { t } = useI18n()
 const nodeKeys = computed(() => hierarchyMeasureKeys([props.node]))
@@ -44,8 +52,8 @@ function selectGroup(keys: string[], selected: string | number | boolean): void 
                 :aria-pressed="currentKey === measureKey(node.measure)"
                 :title="`${node.path}\\${node.label}`"
                 @click="!disabled && emit('select', node.measure)"
-                ><strong class="measure-content-label">{{ node.label }}</strong></el-button
-            >
+                ><strong class="measure-content-label"><UiSearchHighlight :text="node.label" :query="query ?? ''" /></strong
+            ></el-button>
         </div>
         <template v-else>
             <div class="measure-folder-row">
@@ -67,14 +75,15 @@ function selectGroup(keys: string[], selected: string | number | boolean): void 
                     @click="!disabled && emit('toggle', node.key)"
                     ><svg class="folder-chevron" :class="{ expanded: !collapsed.has(node.key) }" viewBox="0 0 16 16" aria-hidden="true">
                         <path d="m6 3 5 5-5 5" /></svg
-                    ><span class="measure-content-label">{{ node.label }}</span></el-button
-                >
+                    ><span class="measure-content-label"><UiSearchHighlight :text="node.label" :query="query ?? ''" /></span
+                ></el-button>
             </div>
             <ul v-if="!collapsed.has(node.key)" class="measure-children">
                 <MeasureHierarchyNode
                     v-for="child in node.children"
                     :key="child.key"
                     :node="child"
+                    :query="query"
                     :collapsed="collapsed"
                     :selected="selected"
                     :disabled="disabled"

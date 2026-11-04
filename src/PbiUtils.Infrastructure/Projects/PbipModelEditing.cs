@@ -45,7 +45,7 @@ public sealed partial class ChangeWorkspace
     {
         await AssertBaselineAsync(baseline, token);
         var first = edits[0];
-        var request = new ChangeRequest(baseline.ProjectPath, PbipProjectLayout.ProjectRoot(baseline.ProjectPath), first.Operation, first.ObjectName, first.Property, first.Value, first.Table, first.PageId, true, first.Configuration);
+        var request = new ChangeRequest(baseline.ProjectPath, PbipProjectLayout.ProjectRoot(baseline.ProjectPath), first.Operation, first.ObjectName, first.Property, first.Value, first.Table, true, first.Configuration);
         var plan = await PrepareCoreAsync(request, token, edits);
         try
         {

@@ -27,7 +27,6 @@ const {
     objectName,
     property,
     value,
-    pageId,
     startYear,
     endYear,
     dateTable,
@@ -70,7 +69,7 @@ useMessageNotices(
 <template>
     <UiPanel class="copy-change"
         ><h2>{{ template === "calendar" ? t("model.calendarCreate") : template === "period" ? t("model.periodGenerate") : t("model.editCurrent") }}</h2>
-        <p v-if="template || report">{{ t(isConnectedDesktopProject(project) ? "model.directSaveNotice" : "model.saveNotice") }}</p>
+        <p v-if="template">{{ t(isConnectedDesktopProject(project) ? "model.directSaveNotice" : "model.saveNotice") }}</p>
         <el-form
             ref="form"
             :model="formModel"
@@ -174,7 +173,7 @@ useMessageNotices(
                 <el-form-item :label="t('model.displayFolder')"><el-input v-model="folder" maxlength="200" /></el-form-item>
             </template>
             <template v-else>
-                <el-form-item v-if="!report && !initialOperation" :label="t('model.objectType')"
+                <el-form-item v-if="!initialOperation" :label="t('model.objectType')"
                     ><el-select v-model="operation" :aria-label="t('model.objectType')"
                         ><el-option value="measure.set" :label="t('model.measures')" /><el-option
                             value="table.set"
@@ -187,14 +186,6 @@ useMessageNotices(
                     :rules="{ required: true, message: t('model.tableRequired'), trigger: 'change' }"
                     ><el-select v-model="table" :aria-label="t('model.table')"
                         ><el-option v-for="t in project.model.tables" :key="t.name" :value="t.name" :label="t.name" /></el-select
-                ></el-form-item>
-                <el-form-item
-                    v-if="report"
-                    :label="t('model.page')"
-                    prop="pageId"
-                    :rules="{ required: true, message: t('model.pageRequired'), trigger: 'change' }"
-                    ><el-select v-model="pageId" :aria-label="t('model.page')"
-                        ><el-option v-for="p in project.pages" :key="p.id" :value="p.id" :label="p.displayName" /></el-select
                 ></el-form-item>
                 <el-form-item
                     :label="operation === 'udf.set' ? t('model.functionName') : t('model.targetObject')"
@@ -227,7 +218,7 @@ useMessageNotices(
                         ref="valueInput"
                         v-model="value"
                         :aria-label="t('model.newValue')"
-                        :type="operation === 'visual.set' ? 'text' : 'textarea'"
+                        type="textarea"
                         :rows="4"
                         :maxlength="valueLimit"
                         :disabled="!active || busy || locked || hasPendingModelUpdate(project) || !targetValid"

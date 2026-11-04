@@ -144,7 +144,7 @@
       "license": "ISC AND MIT",
       "files": [
         {
-          "sha256": "68C97223AFE0786215D318AD944C4AD2344C3B0B0F0D9A36F24BC70342D09328",
+          "sha256": "FC32550BE36C0094BCF4564B00EAFE68E9FA551EED85DF4692E7283CE98394FB",
           "source": "repository:THIRD-PARTY-NOTICES.md",
           "path": "web/public/icons/LICENSE.txt"
         }

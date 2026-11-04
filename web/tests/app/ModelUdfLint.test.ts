@@ -281,7 +281,7 @@ it("确认仅提交原目标原基线的完整候选, 部分保存事实交还�
         await flushPromises()
         const [method, parameters] = request.mock.calls[1]!
         expect(method).toBe("model.edit")
-        expect(parameters).toMatchObject({ operation: "udf.deleteUnused", property: "items", table: "", pageId: "" })
+        expect(parameters).toMatchObject({ operation: "udf.deleteUnused", property: "items", table: "" })
         expect(JSON.parse((parameters as { value: string }).value)).toEqual({
             projectId: result.projectId,
             baselineId: result.baselineId,

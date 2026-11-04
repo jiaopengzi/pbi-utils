@@ -21,8 +21,8 @@ afterEach(() => {
 })
 
 it.each([
-    ["zh-cn", ["连接", "模型", "报表", "新建", "示例", "学习", "设置"]],
-    ["en-us", ["Connections", "Model", "Report", "New", "Sample", "Learn", "Settings"]],
+    ["zh-cn", ["连接", "模型", "新建", "示例", "学习", "设置"]],
+    ["en-us", ["Connections", "Model", "New", "Sample", "Learn", "Settings"]],
 ] as const)("%s 侧栏按产品顺序排列, 每页移除冗余页脚和说明且折叠后保留导航名称", async (locale, labels) => {
     const transport = new MockTransport()
     const preferences = new BridgeClient(transport)

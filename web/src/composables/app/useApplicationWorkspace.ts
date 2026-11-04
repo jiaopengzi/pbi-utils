@@ -23,7 +23,6 @@ export function useApplicationWorkspace() {
     const modules = computed(() => [
         ["connections", t("app.connections"), "plug"],
         ["model", t("app.model"), "database"],
-        ["report", t("app.report"), "panels-top-left"],
         ["new", t("app.new"), "folder"],
         ["sample", t("app.sample"), "flask-conical"],
         ["learning", t("learning.title"), "book-open"],

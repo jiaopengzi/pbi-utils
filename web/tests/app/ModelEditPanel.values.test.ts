@@ -18,12 +18,12 @@ import ModelEditPanel from "@/app/ModelEditPanel.vue"
 import { expectConsoleWarnings } from "../support/testDiagnostics"
 
 /** 使用完整快照和真实表单, 仅隔离外部宿主请求; cleanup 释放组件和桥接. */
-function setup(options: { operation?: string; report?: boolean } = {}) {
+function setup(options: { operation?: string } = {}) {
     const project = structuredClone(previewProject)
     project.model.tables.push({ ...structuredClone(project.model.tables[0]!), name: "空说明表", description: null })
     const bridge = markRaw(new BridgeClient(new MockTransport()))
     const request = vi.spyOn(bridge, "request")
-    const wrapper = mount(ModelEditPanel, { props: { project, bridge, initialOperation: options.operation, report: options.report } })
+    const wrapper = mount(ModelEditPanel, { props: { project, bridge, initialOperation: options.operation } })
     return {
         project,
         wrapper,
@@ -165,32 +165,6 @@ it("模型切换即使对象同名也清空原选择和草稿", async () => {
     }
 })
 
-it("报表页面和视觉对象切换同步位置值, 保留数值0并将null显示为空", async () => {
-    const { project, wrapper, select, cleanup } = setup({ report: true })
-    project.pages[0]!.visuals[0]!.x = 0
-    project.pages[0]!.visuals[0]!.y = null
-    project.pages.push({
-        ...structuredClone(project.pages[0]!),
-        id: "other",
-        displayName: "另页",
-        visuals: [{ ...project.pages[0]!.visuals[0]!, id: "card2", x: 123 }],
-    })
-    try {
-        await select("页面", "overview")
-        await select("目标对象", "card1")
-        expect(wrapper.get<HTMLInputElement>('input[aria-label="值"]').element.value).toBe("0")
-        await select("属性", "y")
-        expect(wrapper.get<HTMLInputElement>('input[aria-label="值"]').element.value).toBe("")
-        await expectConsoleWarnings([["async-validator:", ["objectName is required"]]], () => select("页面", "other"))
-        expect(wrapper.get<HTMLInputElement>('input[aria-label="值"]').element.value).toBe("")
-        await select("目标对象", "card2")
-        await select("属性", "x")
-        expect(wrapper.get<HTMLInputElement>('input[aria-label="值"]').element.value).toBe("123")
-    } finally {
-        cleanup()
-    }
-})
-
 it("UDF名称带入既有表达式, 新名称从空白创建, 切回加载原表达式", async () => {
     const { project, wrapper, cleanup } = setup({ operation: "udf.set" })
     try {
@@ -268,7 +242,7 @@ it("表说明超过应用上限时保留完整输入并阻止请求, 缩回2000�
         await flushPromises()
         expect(request.mock.calls[0]?.slice(0, 2)).toEqual([
             "model.edit",
-            { operation: "table.set", objectName: "销售", property: "description", value: "说".repeat(2000), table: "", pageId: "" },
+            { operation: "table.set", objectName: "销售", property: "description", value: "说".repeat(2000), table: "" },
         ])
     } finally {
         cleanup()
@@ -314,17 +288,16 @@ it("保存失败回读也保留未改动输入, 权威字段已变化时阻止�
     }
 })
 
-it.each([false, true])("父级表或页面从候选移除后清空整组选中字段, 报表模式=%s", async (report) => {
-    const { project, wrapper, request, select, cleanup } = setup({ report })
+it("父级表从候选移除后清空整组选中字段", async () => {
+    const { project, wrapper, request, select, cleanup } = setup()
     try {
-        await select(report ? "页面" : "所属表", report ? "overview" : "销售")
-        await select("目标对象", report ? "card1" : "销售额")
+        await select("所属表", "销售")
+        await select("目标对象", "销售额")
         const removed = structuredClone(project)
-        if (report) removed.pages = []
-        else removed.model.tables = []
+        removed.model.tables = []
         await expectConsoleWarnings(
             [
-                ["async-validator:", [`${report ? "pageId" : "table"} is required`]],
+                ["async-validator:", ["table is required"]],
                 ["async-validator:", ["objectName is required"]],
             ],
             async () => {
@@ -378,7 +351,7 @@ it("单表模型冲突可直接载入当前值再编辑应用, 无须切换目�
         await flushPromises()
         expect(request.mock.calls[0]?.slice(0, 2)).toEqual([
             "model.edit",
-            { operation: "table.set", objectName: "销售", property: "description", value: "合并后应用的说明", table: "", pageId: "" },
+            { operation: "table.set", objectName: "销售", property: "description", value: "合并后应用的说明", table: "" },
         ])
     } finally {
         cleanup()

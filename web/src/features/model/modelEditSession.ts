@@ -28,7 +28,6 @@ export interface ModelEditSession {
     targetIdentity: string
     operation: string
     table: string
-    pageId: string
     objectName: string
     property: string
     value: string

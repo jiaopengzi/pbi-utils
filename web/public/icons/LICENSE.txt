@@ -3,7 +3,7 @@
 上游: https://github.com/lucide-icons/lucide/tree/main/icons
 本地 SVG 随产品分发, 不使用运行时 CDN. 许可保留上游署名, 不随本项目年份改写.
 本目录当前 Lucide 文件:
-arrow-right, arrow-up, book-open, braces, calendar-days, database, flask-conical, folder, house, image-plus, info, panel-left-close, panels-top-left, plug, search, settings, sparkles, square, square-function, trash-2, users, x.
+arrow-right, arrow-up, book-open, braces, calendar-days, database, flask-conical, folder, house, image-plus, info, panel-left-close, plug, search, settings, sparkles, square, square-function, trash-2, users, x.
 
 初次引入核查日期: 2026-10-10. 后续已记录的固定来源为 Lucide 0.468.0:
 trash-2, x (2026-10-14); plug (2026-10-20); square-function (2026-10-23).

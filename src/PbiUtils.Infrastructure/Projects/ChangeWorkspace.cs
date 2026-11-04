@@ -2,7 +2,7 @@
 // Author      : jiaopengzi
 // Blog        : https://jiaopengzi.com
 // Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-// Description : 私有 staging 准备模型/PBIR 副本, 复核全部文件后原子发布新目录.
+// Description : 私有 staging 准备模型副本, 复核全部文件后原子发布新目录.
 
 using PbiUtils.Infrastructure.Storage;
 using PbiUtils.Infrastructure.Models.Pbip;
@@ -13,7 +13,6 @@ using PbiUtils.Application.Models.Editing;
 using PbiUtils.Application.Models;
 using PbiUtils.Application.Logging;
 using System.Collections.Concurrent;
-using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -81,11 +80,10 @@ public sealed partial class ChangeWorkspace(string? userDirectory = null, ILogge
             var report = Resolve(pbipDirectory, project["artifacts"]![0]!["report"]!["path"]!.GetValue<string>(), pbipDirectory);
             var binding = JsonNode.Parse(File.ReadAllText(Path.Combine(report, "definition.pbir")))!;
             var model = Resolve(report, binding["datasetReference"]!["byPath"]!["path"]!.GetValue<string>(), pbipDirectory);
-            foreach (var edit in edits ?? [new(request.Operation, request.ObjectName, request.Property, request.Value, request.Table, request.PageId, request.Configuration)])
+            foreach (var edit in edits ?? [new(request.Operation, request.ObjectName, request.Property, request.Value, request.Table, request.Configuration)])
             {
-                var mutation = request with { Operation = edit.Operation, ObjectName = edit.ObjectName, Property = edit.Property, Value = edit.Value, Table = edit.Table, PageId = edit.PageId, Configuration = edit.Configuration };
-                if (mutation.Operation == "visual.set") PatchVisual(mutation, report, pbipDirectory);
-                else MutateModel(mutation, model, sourceSnapshot.ModelFormat);
+                var mutation = request with { Operation = edit.Operation, ObjectName = edit.ObjectName, Property = edit.Property, Value = edit.Value, Table = edit.Table, Configuration = edit.Configuration };
+                MutateModel(mutation, model, sourceSnapshot.ModelFormat);
                 if (edit.Configuration is { } configuration)
                 {
                     if (!string.Equals(configuration.AssetRoot, source, StringComparison.OrdinalIgnoreCase)) throw new AppException("CONFIGURATION_TARGET_CHANGED", "冻结配置不属于当前工程", 3);
@@ -119,7 +117,7 @@ public sealed partial class ChangeWorkspace(string? userDirectory = null, ILogge
                 .Select(f => new FileChange(f, before.GetValueOrDefault(f), after.GetValueOrDefault(f), Text(source, f, before), Text(staging, f, after))).ToArray();
             var digest = Hash(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { sourceSnapshot.ProjectId, before, output, request, changes })));
             var plan = new ChangePlan(id, digest, sourceSnapshot.ProjectId, sourceSnapshot.BaselineId, output, request, changes,
-                [request.InPlace ? "直接修改当前 PBIP, 失败使用本轮临时快照恢复" : "仅发布新工程副本, 原工程保持不变", "模型序列化可能产生排版差异, 请逐文件检查", "Desktop 重开、数据刷新和业务数值尚未验证", "PBIR 修改仅验证已支持的坐标字段, 不等于完整 Schema/引用验收"]);
+                [request.InPlace ? "直接修改当前 PBIP, 失败使用本轮临时快照恢复" : "仅发布新工程副本, 原工程保持不变", "模型序列化可能产生排版差异, 请逐文件检查", "Desktop 重开、数据刷新和业务数值尚未验证"]);
             prepared[id] = new(source, staging, relativeEntry, before, after);
             return plan;
         }
@@ -286,25 +284,4 @@ public sealed partial class ChangeWorkspace(string? userDirectory = null, ILogge
         if (format == "TMDL") TOM.TmdlSerializer.SerializeDatabaseToFolder(db, Path.Combine(modelPath, "definition"));
         else File.WriteAllText(Path.Combine(modelPath, "model.bim"), TOM.JsonSerializer.SerializeDatabase(db));
     }
-
-    /// <summary>PBIR 定点坐标补丁保留未知字段, 不改绑定或版本.</summary>
-    private static void PatchVisual(ChangeRequest request, string report, string root)
-    {
-        if (!double.TryParse(request.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) || !double.IsFinite(number)
-            || number < 0 || number > 10000 || (request.Property is "width" or "height" && number == 0))
-            throw new AppException("VALIDATION_ERROR", "坐标需为 0–10000, 宽高必须大于零");
-        foreach (var id in new[] { request.PageId, request.ObjectName })
-            if (string.IsNullOrWhiteSpace(id) || id.IndexOfAny(['/', '\\', ':', '.']) >= 0) throw new AppException("VALIDATION_ERROR", "页面或视觉 ID 无效");
-        var file = Resolve(report, $"definition/pages/{request.PageId}/visuals/{request.ObjectName}/visual.json", root);
-        var visual = JsonNode.Parse(File.ReadAllText(file))!;
-        var schema = visual["$schema"]?.GetValue<string>();
-        if (schema != "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.4.0/schema.json")
-            throw new AppException("UNSUPPORTED_SCHEMA", "当前只对 visualContainer 2.4.0 提供坐标副本修改", 3);
-        if (visual["name"]?.GetValue<string>() != request.ObjectName || visual["position"] is not JsonObject position)
-            throw new AppException("INVALID_REPORT_REFERENCE", "视觉身份或位置节点不一致");
-        position[request.Property] = number;
-        File.WriteAllText(file, visual.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
-    }
-
-
 }

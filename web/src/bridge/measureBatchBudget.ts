@@ -10,7 +10,7 @@ import { estimatedRequestBytes } from "./requestEnvelope"
 
 /** 将精确基线和属性集合构造成真实保存请求, 不修改输入或发送模型写入. */
 export function measureBatchRequest(baselineId: string, items: readonly MeasureChange[]): ModelEditRequest {
-    return { operation: "measure.batch", objectName: "度量值批量操作", property: "items", value: JSON.stringify({ baselineId, items }), table: "", pageId: "" }
+    return { operation: "measure.batch", objectName: "度量值批量操作", property: "items", value: JSON.stringify({ baselineId, items }), table: "" }
 }
 
 /** 同时核验业务条数、value 字符数与 UUID/最大安全代际信封 UTF-8 字节上限; 超限不拆批或改写候选. */

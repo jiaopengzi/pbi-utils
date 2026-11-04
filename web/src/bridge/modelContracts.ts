@@ -92,7 +92,6 @@ export interface ModelEditRequest {
     property: string
     value: string
     table: string
-    pageId: string
 }
 /** 绑定当前完整基线的只读结果; 未完整识别时禁止删除. */
 export interface UdfLintResult {

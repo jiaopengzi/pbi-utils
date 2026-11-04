@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url"
 import { checkVueTemplate, checkVueTemplates } from "../../scripts/check-vue-templates"
 
 it.each([':key="project.projectId"', 'key="same"', ':key="`model:${project.projectId}`"'])("拒绝同一条件链的重复 %s, 即使分支使用不同组件", (key) => {
-    const source = `<script setup lang="ts">const project = { projectId: "p" }</script>\n<template>\n<ModelPanel v-if="project" ${key} />\n<!-- 相邻分支之间允许注释 -->\n<ConnectionPanel v-else-if="project" ${key} />\n<ReportPanel v-else ${key} />\n</template>`
+    const source = `<script setup lang="ts">const project = { projectId: "p" }</script>\n<template>\n<ModelPanel v-if="project" ${key} />\n<!-- 相邻分支之间允许注释 -->\n<ConnectionPanel v-else-if="project" ${key} />\n<SettingsPanel v-else ${key} />\n</template>`
     const errors = checkVueTemplate(source, "Example.vue")
     expect(errors.some((error) => error.startsWith("Example.vue:5:") && error.includes("[vue29]"))).toBe(true)
     expect(errors.some((error) => error.startsWith("Example.vue:6:") && error.includes("[vue29]"))).toBe(true)

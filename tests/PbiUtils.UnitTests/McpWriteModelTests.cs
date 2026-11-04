@@ -37,7 +37,7 @@ public sealed class McpWriteModelTests
     {
         await using var fixture = await ModelFixture.CreateAsync();
         var before = await fixture.InspectAsync();
-        var parameters = Json(new { operation = "table.set", objectName = "销售", property = "description", value = "MCP 写入", table = "", pageId = "" });
+        var parameters = Json(new { operation = "table.set", objectName = "销售", property = "description", value = "MCP 写入", table = "" });
         var result = Assert.IsType<ProjectSnapshot>(await fixture.CallAsync("model.edit", parameters));
         var proposal = Assert.Single(fixture.Proposals);
         Assert.Equal(before.BaselineId, proposal.BaselineId);

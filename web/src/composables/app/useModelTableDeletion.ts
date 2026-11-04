@@ -100,7 +100,7 @@ export function useModelTableDeletion(
             writing = true
             const request = bridge.request(
                 "model.edit",
-                { operation: "table.deleteBatch", objectName: "tables", property: "items", value, table: "", pageId: "" },
+                { operation: "table.deleteBatch", objectName: "tables", property: "items", value, table: "" },
                 undefined,
                 (phase) => {
                     if (current() && phase === "committing") committing.value = true

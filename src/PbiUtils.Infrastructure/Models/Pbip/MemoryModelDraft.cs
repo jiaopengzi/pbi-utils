@@ -8,7 +8,6 @@ using PbiUtils.Infrastructure.Udf.Model;
 using PbiUtils.Application.Udf;
 using PbiUtils.Application.Models.Editing;
 using PbiUtils.Application.Models;
-using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
 using PbiUtils.Application;
@@ -57,8 +56,7 @@ public sealed class MemoryModelDraft(ProjectSnapshot baseline, TOM.Database data
         {
             var pages = Snapshot.Pages;
             var before = request.Operation == "configuration.apply" ? TOM.JsonSerializer.SerializeDatabase(model) : null;
-            if (request.Operation == "visual.set") pages = PatchPages(pages, request);
-            else ModelMutation.Apply(clone, new(baseline.ProjectPath, "memory", request.Operation, request.ObjectName, request.Property, request.Value, request.Table, request.PageId, Configuration: request.Configuration));
+            ModelMutation.Apply(clone, new(baseline.ProjectPath, "memory", request.Operation, request.ObjectName, request.Property, request.Value, request.Table, Configuration: request.Configuration));
             if (before is not null && before == TOM.JsonSerializer.SerializeDatabase(clone)
                 && request.Configuration!.Assets.All(asset => asset.BeforeHash == asset.AfterHash)) { clone.Dispose(); return; }
             var info = ModelSnapshotMapper.Map(clone, baseline.Model.Name);
@@ -75,23 +73,6 @@ public sealed class MemoryModelDraft(ProjectSnapshot baseline, TOM.Database data
     /// <summary>传递离线编辑列表到共享文件事务, 原始基线、备份和发布一致性由保存适配器再次复核.</summary>
     public Task<ProjectSnapshot> SaveAsync(Action? committing, CancellationToken token) => save(edits.ToArray(), token, committing);
 
-    /// <summary>拒绝未知页面、对象及非有限坐标; 内存更新保留其他页面和字段.</summary>
-    private static PageInfo[] PatchPages(IReadOnlyList<PageInfo> pages, ModelEditRequest request)
-    {
-        if (!double.TryParse(request.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) || !double.IsFinite(value)
-            || value < 0 || value > 10000 || (request.Property is "width" or "height" && value == 0)) throw new AppException("VALIDATION_ERROR", "坐标需为 0–10000, 宽高必须大于零");
-        var page = pages.SingleOrDefault(p => p.Id == request.PageId) ?? throw new AppException("OBJECT_NOT_FOUND", "页面不存在", 3);
-        var visual = page.Visuals.SingleOrDefault(v => v.Id == request.ObjectName) ?? throw new AppException("OBJECT_NOT_FOUND", "视觉对象不存在", 3);
-        var changed = request.Property switch
-        {
-            "x" => visual with { X = value },
-            "y" => visual with { Y = value },
-            "width" => visual with { Width = value },
-            "height" => visual with { Height = value },
-            _ => throw new AppException("UNSUPPORTED_PROPERTY", "坐标属性不可修改", 3)
-        };
-        return [.. pages.Select(p => p == page ? p with { Visuals = p.Visuals.Select(v => v == visual ? changed : v).ToArray() } : p)];
-    }
     /// <summary>释放私有模型, 关闭不保存.</summary>
     public void Dispose() { model.Dispose(); foreach (var edit in edits) edit.Configuration?.Dispose(); }
 }

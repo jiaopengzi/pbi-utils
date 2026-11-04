@@ -61,7 +61,6 @@ useMessageNotices("measures-panel", () => [
         !readOnly.value &&
         !!chosen.value.length &&
         !current.value && { key: "batch", once: true, message: t("model.batchNotice"), type: "info" },
-    !creating.value && !readOnly.value && !!chosen.value.length && { key: "delete", once: true, message: t("model.deleteNotice") },
     !!error.value && { key: "error", message: error.value, type: "error" },
     !!(props.project.hasPendingChanges || props.project.saveResult?.errorCode) && { key: "pending", message: t("model.pendingSave") },
 ])

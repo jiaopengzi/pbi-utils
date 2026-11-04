@@ -20,6 +20,16 @@ import { setLocale, setUiSettings } from "@/i18n"
 
 afterEach(() => vi.restoreAllMocks())
 
+it("打开度量值页面及选择对象不再自动弹删除说明", async () => {
+    const { wrapper, cleanup } = await setup()
+    try {
+        expect(wrapper.findAll(".measure-row").length).toBeGreaterThan(0)
+        expect(document.body.textContent).not.toContain("删除会直接更新当前模型或 TMDL")
+    } finally {
+        cleanup()
+    }
+})
+
 it.each([
     ["edit", "long", "\nDIVIDE ( 1, 2 )", "DIVIDE ( 1, 2 )"],
     ["edit", "short", "\nDIVIDE (\n    1,\n    2\n)", "DIVIDE (\n    1,\n    2\n)"],
@@ -632,7 +642,6 @@ async function setup() {
         objectName: "batch",
         property: "items",
         table: "",
-        pageId: "",
         value: JSON.stringify({
             baselineId: previewProject.baselineId,
             items: [
@@ -894,7 +903,6 @@ it("单选格式化预算不重复计算未主动修改的长属性, 边界内�
             objectName: "batch",
             property: "items",
             table: "",
-            pageId: "",
             value: JSON.stringify({
                 baselineId: project.baselineId,
                 items: [{ action: "update", table: "销售", name: "销售额", description: "d".repeat(1000) }],

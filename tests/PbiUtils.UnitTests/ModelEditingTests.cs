@@ -202,9 +202,9 @@ public sealed class ModelEditingTests : IDisposable
         Assert.Equal("unnamed works", saved.Model.Measures[0].Description);
         Assert.False(saved.HasPendingChanges);
     }
-    /// <summary>实际 TMDL 模型中日期表、依赖新日期表的期间指标和 PBIR 坐标在同一草稿累积保存.</summary>
+    /// <summary>实际 TMDL 模型中日期表和依赖新日期表的期间指标累积保存, 保持报表文件字节不变.</summary>
     [Fact]
-    public async Task TmdlCalendarPeriodsAndReportEditsShareOneDraft()
+    public async Task TmdlCalendarAndPeriodsShareOneDraftWithoutChangingReport()
     {
         using (var db = Microsoft.AnalysisServices.Tabular.JsonSerializer.DeserializeDatabase(File.ReadAllText(ModelFile)))
             Microsoft.AnalysisServices.Tabular.TmdlSerializer.SerializeDatabaseToFolder(db, Path.Combine(root, "source/model/definition"));
@@ -219,16 +219,33 @@ public sealed class ModelEditingTests : IDisposable
         edits.Select(baseline);
         await edits.StageAsync(new("calendar.create", "Calendar", "config", """{"startYear":2024,"endYear":2025}"""), default);
         await edits.StageAsync(new("period.generate", "Total", "config", """{"dateTable":"Calendar","dateColumn":"Date","measureTable":"Sales","templates":["YTD"],"digitsN":2,"digitsP":2,"folder":"Time"}"""), default);
-        await edits.StageAsync(new("visual.set", "v1", "x", "50", PageId: "p1"), default);
+        var reportFile = Path.Combine(root, "source/report/definition/pages/p1/visuals/v1/visual.json");
+        var reportBytes = File.ReadAllBytes(reportFile);
         Assert.Equal(baseline.BaselineId, (await reader.ReadAsync(Entry, default)).BaselineId);
-        Assert.Equal(50, (await edits.ReadAsync(Entry, default)).Pages[0].Visuals[0].X);
-        await Assert.ThrowsAsync<AppException>(() => edits.StageAsync(new("visual.set", "v1", "x", "10001", PageId: "p1"), default));
+        Assert.Equal(1, (await edits.ReadAsync(Entry, default)).Pages[0].Visuals[0].X);
         var saved = await edits.SaveAsync(default);
         Assert.Equal("TMDL", saved.ModelFormat); Assert.Contains(saved.Model.Tables, t => t.Name == "Calendar");
         Assert.Contains(saved.Model.Measures, m => m.Expression.Contains("DATESYTD", StringComparison.Ordinal));
-        Assert.Equal(50, saved.Pages[0].Visuals[0].X);
-        Assert.Contains("preserve", File.ReadAllText(Path.Combine(root, "source/report/definition/pages/p1/visuals/v1/visual.json")));
+        Assert.Equal(1, saved.Pages[0].Visuals[0].X);
+        Assert.Equal(reportBytes, File.ReadAllBytes(reportFile));
     }
+    /// <summary>移除报表编辑后, 模型编辑和副本计划都拒绝视觉操作且不改变完整工程基线.</summary>
+    [Fact]
+    public async Task ReportVisualWritesAreRejectedWithoutChangingProject()
+    {
+        using var workspace = new ChangeWorkspace(Path.Combine(root, "user"));
+        using var edits = new ModelEditService(reader, workspace);
+        var baseline = await reader.ReadAsync(Entry, default);
+        edits.Select(baseline);
+        var error = await Assert.ThrowsAsync<AppException>(() => edits.StageAsync(new("visual.set", "v1", "x", "50"), default));
+        Assert.Equal("UNSUPPORTED_OPERATION", error.Code);
+        using var changes = new ChangeService(workspace, TimeProvider.System);
+        error = await Assert.ThrowsAsync<AppException>(() => changes.PrepareAsync(new(Entry, Path.Combine(root, "copy"), "visual.set", "v1", "x", "50"), default));
+        Assert.Equal("UNSUPPORTED_OPERATION", error.Code);
+        Assert.False((await edits.ReadAsync(Entry, default)).HasPendingChanges);
+        Assert.Equal(baseline.BaselineId, (await reader.ReadAsync(Entry, default)).BaselineId);
+    }
+
     private readonly string root = Path.Combine(Path.GetTempPath(), "pbi-utils-tests", Guid.NewGuid().ToString("N"));
     private string Entry => Path.Combine(root, "source", "sample.pbip");
     private string ModelFile => Path.Combine(root, "source", "model", "model.bim");
@@ -327,8 +344,8 @@ public sealed class ModelEditingTests : IDisposable
         await Call("project.open", new { });
         Assert.Equal("UNKNOWN_METHOD", (await Call("model.saveSettings", new { })).GetProperty("error").GetProperty("code").GetString());
         Assert.Equal("UNKNOWN_METHOD", (await Call("model.updateSaveSettings", new { confirmBeforeSave = false })).GetProperty("error").GetProperty("code").GetString());
-        Assert.Equal("VALIDATION_ERROR", (await Call("model.edit", new { operation = "table.set", objectName = "Sales", property = "description", value = "bad", table = "", pageId = "", projectPath = "other" })).GetProperty("error").GetProperty("code").GetString());
-        var result = await Call("model.edit", new { operation = "table.set", objectName = "Sales", property = "description", value = "draft", table = "", pageId = "" });
+        Assert.Equal("VALIDATION_ERROR", (await Call("model.edit", new { operation = "table.set", objectName = "Sales", property = "description", value = "bad", table = "", projectPath = "other" })).GetProperty("error").GetProperty("code").GetString());
+        var result = await Call("model.edit", new { operation = "table.set", objectName = "Sales", property = "description", value = "draft", table = "" });
         Assert.False(result.GetProperty("result").GetProperty("hasPendingChanges").GetBoolean());
         Assert.False((await Call("project.inspect", new { })).GetProperty("result").GetProperty("hasPendingChanges").GetBoolean());
         Assert.Equal("draft", (await reader.ReadAsync(Entry, default)).Model.Tables[0].Description);

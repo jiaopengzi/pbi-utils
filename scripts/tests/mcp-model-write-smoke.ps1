@@ -116,7 +116,7 @@ try {
     $connected | ConvertTo-Json -Depth 50 | Set-Content -LiteralPath (Join-Path $evidence 'before.json') -Encoding utf8
     # 发出写请求后, 通信或回读失败不代表未提交; 不重放, 保留原始帧和可靠回执供人工核验.
     $result.writeState = 'unknown'; $result.modelWrites = $null
-    $updated = Invoke-ProbeTool $client 'desktop_model_edit' @{ sessionId = $session.id; parameters = @{ operation = 'measure.set'; objectName = 'MCP Probe'; property = 'expression'; value = "`n    VAR Result = 42`n    RETURN Result"; table = 'McpWriteFixture'; pageId = '' } }
+    $updated = Invoke-ProbeTool $client 'desktop_model_edit' @{ sessionId = $session.id; parameters = @{ operation = 'measure.set'; objectName = 'MCP Probe'; property = 'expression'; value = "`n    VAR Result = 42`n    RETURN Result"; table = 'McpWriteFixture' } }
     $updated | ConvertTo-Json -Depth 50 | Set-Content -LiteralPath (Join-Path $evidence 'write-response.json') -Encoding utf8
     if ($updated.saveResult.modelSaved) { $result.writeState = 'committed'; $result.modelWrites = 1 }
     $updatedMeasures = Invoke-ProbeTool $client 'desktop_project_inspect' @{ sessionId = $session.id; parameters = @{}; read = @{ section = 'measures'; table = 'McpWriteFixture'; includeExpressions = $true; projectId = $updated.projectId; baselineId = $updated.baselineId } }

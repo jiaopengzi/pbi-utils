@@ -27,7 +27,6 @@ const catalog = computed(() => [
     ["model", "templates", t("scaffold.measures"), t("app.templatesDesc"), "braces"],
     ["model", "time", t("scaffold.calendar"), t("app.calendarDesc"), "calendar-days"],
     ["model", "udf", t("app.udf"), t("configuration.applyUdfs"), "braces"],
-    ["report", "pages", t("app.pageEdit"), t("app.pageEditDesc"), "panels-top-left"],
     ["learning", "", t("learning.title"), t("learning.description"), "book-open"],
     ["system", "general", t("app.general"), t("app.generalDesc"), "settings"],
     ["system", "mcp", t("mcp.title"), t("mcp.searchDescription"), "plug"],

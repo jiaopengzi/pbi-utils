@@ -7,6 +7,40 @@
  */
 .udf-step {
     min-width: 0;
+    .udf-source-section,
+    .udf-browse-section,
+    .udf-selected {
+        min-width: 0;
+        margin-block: 0 24px;
+        > h3 {
+            margin-block: 0 12px;
+        }
+    }
+    .udf-source-section {
+        padding: 16px;
+        border: 1px solid var(--el-border-color);
+        border-radius: var(--el-border-radius-base);
+        background: var(--el-fill-color-extra-light);
+    }
+    .udf-management {
+        margin-top: 12px;
+        summary {
+            width: fit-content;
+            cursor: pointer;
+            color: var(--el-text-color-secondary);
+            &:focus-visible {
+                outline: 2px solid var(--el-color-primary);
+                outline-offset: 4px;
+            }
+        }
+        > .scaffold-toolbar {
+            margin-block: 12px 0;
+        }
+    }
+    .udf-list-actions {
+        justify-content: flex-end;
+        margin: 0;
+    }
     .udf-source-toolbar {
         align-items: flex-end;
     }

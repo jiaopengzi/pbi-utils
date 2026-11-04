@@ -72,9 +72,13 @@ export function useUdfCacheRefresh(state: UdfState, requests: UdfRequests, readP
             await verify()
         } else if (state.lastErrorCode.value === "CANCELLED" && !state.error.value) showFeedback({ message: t("scaffold.catalogCancelled"), type: "info" })
     }
-    /** 只有手动点击更新才请求远端, 失败保持原缓存, 成功与后续列表失败分别反馈. */
+    /** 手动更新先核实远端来源; 缺失时提示设置, 锁定或待核验时不请求, 失败保持原缓存. */
     async function refresh(): Promise<void> {
-        if (state.locked.value || state.uncertain.value || !state.currentSource.value || state.source.value === "local") return
+        if (state.locked.value || state.uncertain.value) return
+        if (!state.currentSource.value?.baseUrl?.trim() || state.currentSource.value.kind === "local" || state.source.value === "local") {
+            showFeedback({ message: t("scaffold.updateSourceRequired"), type: "warning" })
+            return
+        }
         state.operation.value = "refresh"
         cleanupFailed.value = false
         try {

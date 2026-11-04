@@ -16,7 +16,7 @@ using PbiUtils.Application.Models.Configuration;
 namespace PbiUtils.Application.Models.Editing;
 
 /// <summary>绑定当前模型的编辑参数, 不接受源、输出路径或连接地址.</summary>
-public sealed record ModelEditRequest(string Operation, string ObjectName, string Property, string Value, string? Table = null, string? PageId = null,
+public sealed record ModelEditRequest(string Operation, string ObjectName, string Property, string Value, string? Table = null,
     [property: JsonIgnore] ModelConfigurationPlan? Configuration = null);
 /// <summary>后端操作上下文, 保存适配器复核基线后直接写入当前模型或工程, 不创建历史备份.</summary>
 public interface IModelDraft : IDisposable, IAsyncDisposable
@@ -376,11 +376,11 @@ public sealed class ModelEditService(IProjectReader reader, IModelEditWorkspace 
         try { token.ThrowIfCancellationRequested(); return await action(); }
         finally { gate.Release(); }
     });
-    /// <summary>拒绝任意操作、过大输入和 Desktop 报表写入; SDK 再验证对象与兼容级别.</summary>
+    /// <summary>验证模型操作白名单、输入预算和批次基线, 拒绝报表写入; SDK 再验证对象与兼容级别.</summary>
     private static void Validate(ModelEditRequest request, ProjectSnapshot snapshot)
     {
         if (string.IsNullOrWhiteSpace(request.ObjectName) || request.ObjectName.Length > 200 || request.Value is null || request.Value.Length > 30000
-            || request.Table?.Length > 200 || request.PageId?.Length > 200) throw new AppException("VALIDATION_ERROR", "对象名或变更内容不合法");
+            || request.Table?.Length > 200) throw new AppException("VALIDATION_ERROR", "对象名或变更内容不合法");
         string[] allowed = request.Operation switch
         {
             "measure.batch" => ["items"],
@@ -391,7 +391,6 @@ public sealed class ModelEditService(IProjectReader reader, IModelEditWorkspace 
             "table.set" => ["description"],
             "udf.set" => ["expression"],
             "calendar.create" or "period.generate" => ["config"],
-            "visual.set" when !snapshot.ProjectPath.StartsWith("model://", StringComparison.Ordinal) => ["x", "y", "width", "height"],
             _ => throw new AppException("UNSUPPORTED_OPERATION", "当前来源不支持此修改", 3)
         };
         if (!allowed.Contains(request.Property)) throw new AppException("UNSUPPORTED_PROPERTY", "此属性不可修改", 3);

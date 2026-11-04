@@ -36,7 +36,7 @@ public sealed class ChangeBridgeTests
             selectProject: _ => Task.FromResult<string?>("source.pbip"), connections: new TestLocalFileConnection(reader).Service(), edits: edits);
         Task Call(string id, string method, object parameters) => bridge.ReceiveAsync(OriginPolicy.Production, JsonSerializer.Serialize(new { protocolVersion = 1, id, method, @params = parameters, connectionRevision = id == "open" ? 0 : 1 }));
         await Call("open", "project.open", new { });
-        var apply = Call("apply", "model.edit", new { operation = "table.set", objectName = "Sales", property = "description", value = "test", table = "", pageId = "" });
+        var apply = Call("apply", "model.edit", new { operation = "table.set", objectName = "Sales", property = "description", value = "test", table = "" });
         await workspace.Entered.Task.WaitAsync(TimeSpan.FromSeconds(3));
         await Call("cancel", "request.cancel", new { requestId = "apply" });
         Assert.Equal(!commitFirst, output.Last().GetProperty("result").GetProperty("accepted").GetBoolean());
@@ -59,7 +59,7 @@ public sealed class ChangeBridgeTests
             projects: new(edits), selectProject: _ => Task.FromResult<string?>("source.pbip"), connections: new(reader, localFiles: new TestLocalFileConnection(reader)), edits: edits);
         Task Call(string id, string method, object parameters) => bridge.ReceiveAsync(OriginPolicy.Production, JsonSerializer.Serialize(new { protocolVersion = 1, id, method, @params = parameters, connectionRevision = id == "open" ? 0 : 1 }));
         await Call("open", "project.open", new { });
-        var save = Call("save", "model.edit", new { operation = "table.set", objectName = "Sales", property = "description", value = "fixture", table = "", pageId = "" });
+        var save = Call("save", "model.edit", new { operation = "table.set", objectName = "Sales", property = "description", value = "fixture", table = "" });
         await workspace.Entered.Task;
         var close = bridge.ShutdownAsync(); var again = bridge.ShutdownAsync();
         Assert.False(close.IsCompleted); Assert.Equal("Draining", bridge.Lifecycle); Assert.Equal(0, reader.Disconnections);

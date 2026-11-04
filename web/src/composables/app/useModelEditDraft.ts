@@ -12,7 +12,6 @@ import { modelEditTargetIdentity, type ModelEditSession } from "@/features/model
 type DraftSelection = {
     operation: Ref<string>
     table: Ref<string>
-    pageId: Ref<string>
     objectName: Ref<string>
     property: Ref<string>
     value: Ref<string>
@@ -20,13 +19,13 @@ type DraftSelection = {
 type FieldSource = { present: boolean; value: string }
 
 /**
- * 按当前选择读取快照字段; null 显示空文本, 数值0保留. 不查找同名的其他表/页对象.
+ * 按当前选择读取快照字段; null 显示空文本. 不查找同名的其他表对象.
  * 返回 present 区分目标不存在与目标字段为空, 仅允许当前操作的已声明属性.
  */
 function readField(project: ProjectSnapshot, selection: DraftSelection): FieldSource {
-    const { operation, table, pageId, objectName, property } = selection
+    const { operation, table, objectName, property } = selection
     let present = false
-    let value: string | number | null | undefined
+    let value: string | null | undefined
     if (operation.value === "table.set" && property.value === "description") {
         const target = project.model.tables.find((item) => item.name === objectName.value)
         present = !!target
@@ -35,10 +34,6 @@ function readField(project: ProjectSnapshot, selection: DraftSelection): FieldSo
         const target = project.model.measures.find((item) => item.table === table.value && item.name === objectName.value)
         present = !!target && ["description", "formatString", "displayFolder", "expression"].includes(property.value)
         value = target?.[property.value as "description" | "formatString" | "displayFolder" | "expression"]
-    } else if (operation.value === "visual.set") {
-        const target = project.pages.find((item) => item.id === pageId.value)?.visuals.find((item) => item.id === objectName.value)
-        present = !!target && ["x", "y", "width", "height"].includes(property.value)
-        value = target?.[property.value as "x" | "y" | "width" | "height"]
     } else if (operation.value === "udf.set" && property.value === "expression") {
         const target = project.model.functions.find((item) => item.name === objectName.value)
         present = !!target
@@ -53,10 +48,10 @@ function readField(project: ProjectSnapshot, selection: DraftSelection): FieldSo
  * 返回有效目标、冲突、会话快照及恢复操作; 选择失效清空, 请求失败回读保留同目标输入.
  */
 export function useModelEditDraft(props: { project: ProjectSnapshot; template?: string }, selection: DraftSelection, restored?: ModelEditSession) {
-    const { operation, table, pageId, objectName, property, value } = selection
+    const { operation, table, objectName, property, value } = selection
     const conflict = ref(restored?.conflict ?? false)
     const source = computed(() => readField(props.project, selection))
-    const selectionKey = computed(() => JSON.stringify([operation.value, table.value, pageId.value, objectName.value, property.value]))
+    const selectionKey = computed(() => JSON.stringify([operation.value, table.value, objectName.value, property.value]))
     const targetValid = computed(
         () => !!props.template || source.value.present || (operation.value === "udf.set" && property.value === "expression" && !!objectName.value.trim()),
     )
@@ -70,7 +65,6 @@ export function useModelEditDraft(props: { project: ProjectSnapshot; template?: 
         targetIdentity: currentModel.value,
         operation: operation.value,
         table: table.value,
-        pageId: pageId.value,
         objectName: objectName.value,
         property: property.value,
         value: value.value,
@@ -118,17 +112,11 @@ export function useModelEditDraft(props: { project: ProjectSnapshot; template?: 
             if (next.model !== currentModel.value) {
                 currentModel.value = next.model
                 table.value = ""
-                pageId.value = ""
                 clearTarget()
                 return
             }
             if (operation.value === "measure.set" && table.value && !props.project.model.tables.some((item) => item.name === table.value)) {
                 table.value = ""
-                clearTarget()
-                return
-            }
-            if (operation.value === "visual.set" && pageId.value && !props.project.pages.some((item) => item.id === pageId.value)) {
-                pageId.value = ""
                 clearTarget()
                 return
             }

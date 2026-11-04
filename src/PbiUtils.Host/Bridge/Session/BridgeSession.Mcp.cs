@@ -76,12 +76,12 @@ public sealed partial class BridgeSession
     private async Task<object> EditMcpModelAsync(JsonElement parameters, string id, Flight flight)
     {
         if (edits is null) throw new AppException("WRITE_AUTHORIZATION_UNAVAILABLE", "当前宿主未提供工具模型授权", 3);
-        var fields = Strings(parameters, ["operation", "objectName", "property", "value", "table", "pageId"], 30000);
+        var fields = Strings(parameters, ["operation", "objectName", "property", "value", "table"], 30000);
         if (!await projectGate.WaitAsync(0, flight.Cancellation.Token)) throw new AppException("BUSY", "模型操作正在执行", 3);
         try
         {
             var selectedWorkspace = workspaceId ?? throw new AppException("PROJECT_NOT_SELECTED", "请先连接模型", 3);
-            var result = await edits.EditAuthorizedAndSaveAsync(new(fields["operation"], fields["objectName"], fields["property"], fields["value"], fields["table"], fields["pageId"]),
+            var result = await edits.EditAuthorizedAndSaveAsync(new(fields["operation"], fields["objectName"], fields["property"], fields["value"], fields["table"]),
                 id, selectedWorkspace, toolWrites ?? new ToolWritePolicy((_, token) =>
                 {
                     token.ThrowIfCancellationRequested();

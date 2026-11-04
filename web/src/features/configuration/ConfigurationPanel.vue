@@ -55,6 +55,7 @@ const {
                     :draft="draft"
                     :bridge="bridge"
                     :step="section"
+                    :active="active"
                     :visited="visited"
                     :id-prefix="prefix"
                     :labelled-by="

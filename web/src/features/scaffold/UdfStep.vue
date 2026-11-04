@@ -32,7 +32,7 @@ import { useUdfBulkImport } from "@/composables/features/scaffold/useUdfBulkImpo
 import "./udf.scss"
 /** 按来源组合目录与管理器, 仍向外发出请求和模态共同占用的导航锁. */
 const model = defineModel<UdfSelection[]>({ required: true })
-const props = defineProps<{ bridge: BridgeClient; disabled: boolean; operationLocked?: boolean }>()
+const props = withDefaults(defineProps<{ bridge: BridgeClient; disabled: boolean; operationLocked?: boolean; active?: boolean }>(), { active: true })
 defineSlots<{ actions(props: { canSubmit: boolean }): unknown }>()
 const emit = defineEmits<{ busy: [value: boolean]; validity: [value: boolean] }>()
 const { t } = useI18n()
@@ -58,6 +58,20 @@ const { changeSource, openSources, sourceLabel, listSources } = sourceActions
 const { openManager, listLocal, toggleLocal } = local
 // 来源、编辑器和批量导入共享同一错误通道, 只在此处提示一次.
 useMessageNotices("scaffold.udf", () => [{ key: "error", message: error.value, type: "error" }])
+// 仅在当前来源确认为未初始化且页面可操作时提示; 同一来源配置不因搜索、切页或翻译重复提醒, 不自动发起更新.
+useMessageNotices(
+    "scaffold.udf.firstUpdate",
+    () => [
+        catalogStatus.value?.initialized === false &&
+            state.currentSource.value?.kind !== "local" &&
+            !!state.currentSource.value?.baseUrl?.trim() && {
+                key: JSON.stringify([source.value, state.currentSource.value.baseline, state.currentSource.value.baseUrl]),
+                message: t("scaffold.catalogFirstUpdateRequired"),
+                once: true,
+            },
+    ],
+    { ready: () => props.active !== false && !locked.value && !props.operationLocked && !state.uncertain.value },
+)
 watch(cache.valid, (value) => emit("validity", value), { immediate: true })
 onMounted(async () => {
     await listSources()
@@ -67,86 +81,101 @@ onMounted(async () => {
 </script>
 <template>
     <div class="udf-step" :aria-busy="busy">
-        <div class="scaffold-toolbar udf-source-toolbar">
-            <label class="udf-source-picker"
-                >{{ t("scaffold.source") }}
-                <el-select
-                    v-model="source"
-                    data-test="udf-source"
-                    :placeholder="t('scaffold.chooseSource')"
+        <section class="udf-source-section" :aria-label="t('scaffold.sourceAndUpdates')">
+            <h3>{{ t("scaffold.sourceAndUpdates") }}</h3>
+            <div class="scaffold-toolbar udf-source-toolbar">
+                <label class="udf-source-picker"
+                    >{{ t("scaffold.source") }}
+                    <el-select
+                        v-model="source"
+                        data-test="udf-source"
+                        :placeholder="t('scaffold.chooseSource')"
+                        :class="{ 'operation-lock': operationLocked || busy }"
+                        :disabled="locked"
+                        @change="changeSource"
+                    >
+                        <el-option v-for="item in sources" :key="item.id" :value="item.id" :label="sourceLabel(item.id)" />
+                    </el-select>
+                </label>
+                <el-button
+                    data-test="udf-refresh"
                     :class="{ 'operation-lock': operationLocked || busy }"
-                    :disabled="locked"
-                    @change="changeSource"
+                    :disabled="locked || state.uncertain.value"
+                    @click="cache.refresh"
+                    >{{ t("scaffold.refreshSource") }}</el-button
                 >
-                    <el-option v-for="item in sources" :key="item.id" :value="item.id" :label="sourceLabel(item.id)" />
-                </el-select>
-            </label>
-            <el-button
-                data-test="udf-refresh"
-                :class="{ 'operation-lock': operationLocked || busy }"
-                :disabled="locked || state.uncertain.value || !state.currentSource.value || source === 'local'"
-                @click="cache.refresh"
-                >{{ t("scaffold.refreshSource") }}</el-button
-            >
-            <el-button :class="{ 'operation-lock': operationLocked || busy }" :disabled="locked" @click="openSources">{{
-                t("scaffold.sourceManager")
-            }}</el-button>
-            <el-button :class="{ 'operation-lock': operationLocked || busy }" :disabled="locked" @click="openManager">{{
-                t("scaffold.localManager")
-            }}</el-button>
-        </div>
-        <p v-if="catalogStatus?.initialized && source !== 'local'" class="muted" role="status">
-            {{ t("scaffold.catalogSummary", { packages: catalogStatus.packageCount, functions: catalogStatus.functionCount }) }} ·
-            {{ t("scaffold.lastUpdated") }}: {{ formatUdfLocalTime(catalogStatus.retrievedAt) }}
-        </p>
-        <section v-if="state.uncertain.value" class="udf-stale" role="status">
-            <p>{{ cache.failureMessage.value }}</p>
-            <el-button :disabled="busy" @click="cache.verify">{{ t("scaffold.verifyCatalog") }}</el-button>
-        </section>
-        <p class="muted">{{ t("scaffold.compatibilityHint") }}</p>
-        <template v-if="source && source !== 'local'">
-            <UdfCatalogBrowser :state="state" :catalog="catalog" :local="local" :operation-locked="operationLocked" @select-source="bulk.prepare" />
-        </template>
-        <template v-else-if="source === 'local'">
-            <div class="scaffold-toolbar udf-search">
-                <el-input
-                    v-model="query"
-                    :disabled="locked"
-                    :aria-label="t('scaffold.functionNameSearch')"
-                    :placeholder="t('scaffold.functionNameSearch')"
-                    clearable
-                    @keydown.enter.prevent="catalog.search"
-                    @compositionstart="catalog.compositionStart"
-                    @compositionend="catalog.compositionEnd"
-                />
             </div>
-            <div class="scaffold-toolbar">
-                <el-button :class="{ 'operation-lock': operationLocked || busy }" :disabled="locked" @click="listLocal">{{ t("scaffold.refresh") }}</el-button>
-            </div>
-            <section class="udf-browser" :aria-label="t('scaffold.local')">
-                <header class="udf-list-heading">
-                    <h4>{{ t("scaffold.local") }}</h4>
-                    <el-button :class="{ 'operation-lock': operationLocked || busy }" :disabled="locked || !state.currentSource.value" @click="bulk.prepare">{{
-                        t("scaffold.bulkImport")
+            <details class="udf-management">
+                <summary>{{ t("scaffold.udfManagement") }}</summary>
+                <div class="scaffold-toolbar">
+                    <el-button :class="{ 'operation-lock': operationLocked || busy }" :disabled="locked" @click="openSources">{{
+                        t("scaffold.sourceManager")
                     }}</el-button>
-                </header>
-                <UdfLocalBrowser
-                    v-model:details-open="state.localDetailOpen.value"
-                    :items="state.locals.value"
-                    :selections="model"
-                    :active-versions="state.localPackageTags.value"
-                    :query="state.searchQuery.value"
-                    :disabled="locked"
-                    :busy="busy"
-                    :operation-locked="operationLocked || busy"
-                    @select="toggleLocal"
-                    @change-version="local.changeVersion"
-                    @select-page="local.selectPage"
-                    @edit="local.edit"
-                />
+                    <el-button :class="{ 'operation-lock': operationLocked || busy }" :disabled="locked" @click="openManager">{{
+                        t("scaffold.localManager")
+                    }}</el-button>
+                </div>
+            </details>
+            <p v-if="catalogStatus?.initialized && source !== 'local'" class="muted" role="status">
+                {{ t("scaffold.catalogSummary", { packages: catalogStatus.packageCount, functions: catalogStatus.functionCount }) }} ·
+                {{ t("scaffold.lastUpdated") }}: {{ formatUdfLocalTime(catalogStatus.retrievedAt) }}
+            </p>
+            <section v-if="state.uncertain.value" class="udf-stale" role="status">
+                <p>{{ cache.failureMessage.value }}</p>
+                <el-button :disabled="busy" @click="cache.verify">{{ t("scaffold.verifyCatalog") }}</el-button>
             </section>
-        </template>
-        <p v-else class="udf-empty">{{ t("scaffold.chooseSource") }}</p>
+        </section>
+        <section class="udf-browse-section" :aria-label="t('scaffold.browseFunctions')">
+            <h3>{{ t("scaffold.browseFunctions") }}</h3>
+            <template v-if="source && source !== 'local'">
+                <UdfCatalogBrowser :state="state" :catalog="catalog" :local="local" :operation-locked="operationLocked" @select-source="bulk.prepare" />
+            </template>
+            <template v-else-if="source === 'local'">
+                <div class="scaffold-toolbar udf-search">
+                    <el-input
+                        v-model="query"
+                        :disabled="locked"
+                        :aria-label="t('scaffold.functionNameSearch')"
+                        :placeholder="t('scaffold.functionNameSearch')"
+                        clearable
+                        @keydown.enter.prevent="catalog.search"
+                        @compositionstart="catalog.compositionStart"
+                        @compositionend="catalog.compositionEnd"
+                    />
+                </div>
+                <section class="udf-browser" :aria-label="t('scaffold.local')">
+                    <header class="udf-list-heading">
+                        <h4>{{ t("scaffold.local") }}</h4>
+                        <div class="scaffold-toolbar udf-list-actions">
+                            <el-button :class="{ 'operation-lock': operationLocked || busy }" :disabled="locked" @click="listLocal">{{
+                                t("scaffold.refresh")
+                            }}</el-button>
+                            <el-button
+                                :class="{ 'operation-lock': operationLocked || busy }"
+                                :disabled="locked || !state.currentSource.value"
+                                @click="bulk.prepare"
+                                >{{ t("scaffold.bulkImport") }}</el-button
+                            >
+                        </div>
+                    </header>
+                    <UdfLocalBrowser
+                        v-model:details-open="state.localDetailOpen.value"
+                        :items="state.locals.value"
+                        :selections="model"
+                        :active-versions="state.localPackageTags.value"
+                        :query="state.searchQuery.value"
+                        :disabled="locked"
+                        :busy="busy"
+                        :operation-locked="operationLocked || busy"
+                        @select="toggleLocal"
+                        @change-version="local.changeVersion"
+                        @select-page="local.selectPage"
+                        @edit="local.edit"
+                    />
+                </section>
+            </template>
+            <p v-else class="udf-empty">{{ t("scaffold.chooseSource") }}</p>
+        </section>
         <section class="udf-selected" aria-live="polite">
             <h3>
                 {{ t("scaffold.selected") }} <span class="muted">{{ model.reduce((total, item) => total + item.functions.length, 0) }}</span>
@@ -185,6 +214,7 @@ onMounted(async () => {
                     ><p class="muted">{{ t("scaffold.createUdfHint") }}</p></slot
                 >
             </div>
+            <p class="muted">{{ t("scaffold.compatibilityHint") }}</p>
         </section>
     </div>
     <UdfRevalidationDialog :actions="cache" />

@@ -6,8 +6,9 @@
  * Description : 组装表格选择、显式精确计数、抽样导出和分区详情, 保持共享操作锁与迟到结果保护.
 -->
 <script setup lang="ts">
-import { computed, onBeforeUnmount, watch } from "vue"
+import { computed, onBeforeUnmount, ref, watch } from "vue"
 import UiPanel from "@/ui/UiPanel.vue"
+import UiSearchHighlight from "@/ui/UiSearchHighlight.vue"
 import ModelTableDetails from "./ModelTableDetails.vue"
 import ModelTableExportToolbar from "./ModelTableExportToolbar.vue"
 import { useModelTableExport, type ModelTableExportProps } from "@/composables/app/useModelTableExport"
@@ -29,11 +30,8 @@ const {
     rowLimit,
     validLimit,
     busy,
-    eligible,
     selectedTables,
     exportAvailable,
-    allSelected,
-    indeterminate,
     selectAll,
     selectTable,
     selectionUnavailable,
@@ -53,6 +51,23 @@ const statistics = useModelTableStatistics(
 )
 const operationBusy = computed(() => busy.value || statistics.busy.value || locations.busy.value || deletion.busy.value)
 const locked = computed(() => operationBusy.value || !!props.locked)
+const query = ref("")
+const visibleTables = computed(() => {
+    const words = query.value.trim().toLowerCase().split(/\s+/u)
+    return props.project.model.tables.filter((table) => words.every((word) => table.name.toLowerCase().includes(word)))
+})
+const visibleEligible = computed(() => visibleTables.value.filter((table) => !selectionUnavailable(table)).map((table) => table.name))
+const visibleSelected = computed(() => visibleEligible.value.filter((name) => selected.value.includes(name)))
+const allSelected = computed(() => visibleEligible.value.length > 0 && visibleSelected.value.length === visibleEligible.value.length)
+const indeterminate = computed(() => visibleSelected.value.length > 0 && !allSelected.value)
+const hiddenSelected = computed(() => selectedTables.value.length - visibleSelected.value.length)
+// 同模型统计刷新保留查询, 切换真实目标后清空, 避免旧条件遮住新模型.
+watch(
+    () => [props.project.projectId, props.project.connection?.instanceId, props.project.connection?.modelId],
+    (next, previous) => {
+        if (next.some((value, index) => value !== previous[index])) query.value = ""
+    },
+)
 let disposed = false
 watch(
     operationBusy,
@@ -115,13 +130,26 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
             @delete="perform(deletion.deleteSelected)"
             @open-directory="perform(locations.open)"
         />
+        <div class="table-search-toolbar">
+            <el-input v-model="query" clearable :disabled="locked" :aria-label="t('model.tableSearch')" :placeholder="t('model.tableSearch')" />
+        </div>
+        <p class="table-search-summary" role="status">
+            {{
+                t("model.tableSearchSummary", {
+                    visible: visibleTables.length,
+                    total: project.model.tables.length,
+                    selected: selectedTables.length,
+                    hidden: hiddenSelected,
+                })
+            }}
+        </p>
         <div class="table-list-head">
             <el-checkbox
                 :model-value="allSelected"
                 :indeterminate="indeterminate"
-                :disabled="locked || !eligible.length"
-                :aria-label="t(deletion.writable.value ? 'model.tableDeleteSelectAll' : 'model.exportSelectAll')"
-                @update:model-value="!locked && selectAll(Boolean($event))"
+                :disabled="locked || !visibleEligible.length"
+                :aria-label="t(query.trim() ? 'model.tableSelectVisible' : deletion.writable.value ? 'model.tableDeleteSelectAll' : 'model.exportSelectAll')"
+                @update:model-value="!locked && selectAll(Boolean($event), visibleEligible)"
             />
             <div class="table-title">
                 <span>{{ t("model.tableName") }}</span
@@ -130,7 +158,7 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
                 ><span>{{ t("model.fieldCount") }}</span>
             </div>
         </div>
-        <div v-for="table in project.model.tables" :key="table.name" class="model-table-entry">
+        <div v-for="table in visibleTables" :key="table.name" class="model-table-entry">
             <el-checkbox
                 class="table-selection"
                 :model-value="selected.includes(table.name)"
@@ -143,7 +171,7 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
                 ><el-collapse-item :name="table.name">
                     <template #title
                         ><div class="table-title">
-                            <span class="table-name">{{ table.name }}</span
+                            <span class="table-name"><UiSearchHighlight :text="table.name" :query="query" /></span
                             ><span :title="statistics.countKind(table.name) === 'query' ? t('model.queryRowCount') : undefined">{{
                                 statistics.rowCount(table.name)
                             }}</span
@@ -160,12 +188,30 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
                     /> </el-collapse-item
             ></el-collapse>
         </div>
-        <el-empty v-if="!project.model.tables.length" :description="t('model.exportNoTables')" :image-size="64" />
+        <el-empty
+            v-if="!visibleTables.length"
+            :description="t(project.model.tables.length ? 'model.tableSearchEmpty' : 'model.exportNoTables')"
+            :image-size="64"
+        />
         <p v-if="project.connection?.isLimited">{{ t("model.relationsUnavailable") }}</p>
         <p v-else>{{ t("model.relationCounts", { relationships: project.model.relationshipCount, roles: project.model.roleCount }) }}</p>
     </UiPanel>
 </template>
 <style scoped lang="scss">
+.table-search-toolbar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-top: 16px;
+    :deep(.el-input) {
+        max-width: 420px;
+    }
+}
+.table-search-summary {
+    color: var(--el-text-color-regular);
+    font-size: 12px;
+    margin: 12px 0;
+}
 .tables-heading {
     display: flex;
     flex-wrap: wrap;

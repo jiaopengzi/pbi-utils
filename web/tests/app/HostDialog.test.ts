@@ -110,7 +110,6 @@ it("显式交互预览直接完成手工模型编辑和保存, 不产生普通�
             property: "description",
             value: "直接编辑预览",
             table: measure.table,
-            pageId: "",
         }).promise
         expect(edited.model.measures[0]?.description).toBe("直接编辑预览")
         const saved = await bridge.request("model.save", {}).promise

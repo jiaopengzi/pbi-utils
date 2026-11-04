@@ -17,7 +17,7 @@ using PbiUtils.Application.Models.Configuration;
 namespace PbiUtils.Application.Projects;
 
 /// <summary>窄域变更请求, 输出只能是新目录副本.</summary>
-public sealed record ChangeRequest(string ProjectPath, string OutputPath, string Operation, string ObjectName, string Property, string Value, string? Table = null, string? PageId = null, bool InPlace = false,
+public sealed record ChangeRequest(string ProjectPath, string OutputPath, string Operation, string ObjectName, string Property, string Value, string? Table = null, bool InPlace = false,
     [property: JsonIgnore] ModelConfigurationPlan? Configuration = null);
 /// <summary>实际文件差异; null 表示新增或删除, 二进制不输出内容.</summary>
 public sealed record FileChange(string Path, string? BeforeHash, string? AfterHash, string? Before, string? After);
@@ -55,9 +55,9 @@ public sealed class ChangeService(IChangeWorkspace workspace, TimeProvider clock
         try
         {
             token.ThrowIfCancellationRequested();
-            if (request.Operation is not ("measure.set" or "table.set" or "udf.set" or "visual.set" or "calendar.create" or "period.generate"))
-                throw new AppException("UNSUPPORTED_OPERATION", "当前仅支持度量值、表说明、UDF 或视觉位置的副本修改", 3);
-            if (request.Table?.Length > 200 || request.PageId?.Length > 200 || string.IsNullOrWhiteSpace(request.ObjectName) || request.ObjectName.Length > 200 || request.Value is null || request.Value.Length > 30000
+            if (request.Operation is not ("measure.set" or "table.set" or "udf.set" or "calendar.create" or "period.generate"))
+                throw new AppException("UNSUPPORTED_OPERATION", "当前仅支持度量值、表说明、UDF、日期表或期间指标的副本修改", 3);
+            if (request.Table?.Length > 200 || string.IsNullOrWhiteSpace(request.ObjectName) || request.ObjectName.Length > 200 || request.Value is null || request.Value.Length > 30000
                 || string.IsNullOrWhiteSpace(request.ProjectPath) || request.ProjectPath.Length > 2048
                 || string.IsNullOrWhiteSpace(request.OutputPath) || request.OutputPath.Length > 2048)
                 throw new AppException("VALIDATION_ERROR", "对象名或变更内容不合法");
@@ -67,7 +67,7 @@ public sealed class ChangeService(IChangeWorkspace workspace, TimeProvider clock
                 "table.set" => ["description"],
                 "udf.set" => ["expression"],
                 "calendar.create" or "period.generate" => ["config"],
-                _ => ["x", "y", "width", "height"]
+                _ => []
             };
             if (!allowed.Contains(request.Property)) throw new AppException("UNSUPPORTED_PROPERTY", "此属性不在可修改白名单中", 3);
             ModelEditValueLimits.Validate(request.Operation, request.Property, request.Value);

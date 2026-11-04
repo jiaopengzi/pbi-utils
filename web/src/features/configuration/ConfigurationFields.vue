@@ -18,25 +18,30 @@ import type { BridgeClient } from "@/bridge/client"
 import type { CalendarPreviewContext, ScaffoldPeriodTemplate, ModelConfigurationCatalog, TemplateMeasureMode } from "../scaffold/contracts"
 import type { ConfigurationDraft, ConfigurationOperation } from "./draft"
 /** 配置展示由呈现器传入目标目录和锁, 本组件不创建或切换模型. */
-const props = defineProps<{
-    draft: ConfigurationDraft
-    bridge: BridgeClient
-    step: string
-    visited: Set<string>
-    idPrefix: string
-    labelledBy?: string
-    disabled: boolean
-    locked: boolean
-    operationLocked?: boolean
-    definitions: ScaffoldPeriodTemplate[]
-    details?: ModelConfigurationCatalog
-    canGenerateSample?: boolean
-    canUseMeasureConfig?: boolean
-    measureConfigUnavailableReason?: "layout" | "invalid" | null
-    previewContext?: CalendarPreviewContext
-    /** 现有模型通过独立应用按钮提交, 四个配置段始终启用且不展示可选开关; 新建仍保留开关. */
-    modelConfiguration?: boolean
-}>()
+const props = withDefaults(
+    defineProps<{
+        draft: ConfigurationDraft
+        bridge: BridgeClient
+        step: string
+        /** 外层页面是否可见, 与当前步骤共同控制首次使用提示. */
+        active?: boolean
+        visited: Set<string>
+        idPrefix: string
+        labelledBy?: string
+        disabled: boolean
+        locked: boolean
+        operationLocked?: boolean
+        definitions: ScaffoldPeriodTemplate[]
+        details?: ModelConfigurationCatalog
+        canGenerateSample?: boolean
+        canUseMeasureConfig?: boolean
+        measureConfigUnavailableReason?: "layout" | "invalid" | null
+        previewContext?: CalendarPreviewContext
+        /** 现有模型通过独立应用按钮提交, 四个配置段始终启用且不展示可选开关; 新建仍保留开关. */
+        modelConfiguration?: boolean
+    }>(),
+    { active: true },
+)
 const emit = defineEmits<{ busy: [value: boolean]; dialog: [value: boolean]; udfValidity: [value: boolean]; measureMode: [value: TemplateMeasureMode] }>()
 defineSlots<{ actions(props: { operation: ConfigurationOperation; canSubmit?: boolean }): unknown }>()
 const { t } = useI18n()
@@ -193,6 +198,7 @@ function selectMeasureMode(value: TemplateMeasureMode): void {
         <ScaffoldField field="udfs" tag="div" error-first>
             <UdfStep
                 v-if="visited.has('udfs')"
+                :active="active !== false && step === 'udfs'"
                 :operation-locked="locked && draft.udfsEnabled"
                 v-model="draft.udfs"
                 :bridge="bridge"

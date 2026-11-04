@@ -20,7 +20,7 @@ public sealed record ToolWriteProposal(string RunId, string WorkspaceId, string 
 {
     /// <summary>对规范化操作字段生成指纹, 对象、属性和原始值均参与绑定.</summary>
     public static string RequestDigest(ModelEditRequest request) => Convert.ToHexString(SHA256.HashData(
-        Encoding.UTF8.GetBytes(JsonSerializer.Serialize(request with { Table = string.IsNullOrEmpty(request.Table) ? null : request.Table, PageId = string.IsNullOrEmpty(request.PageId) ? null : request.PageId }, JsonSerializerOptions.Web))));
+        Encoding.UTF8.GetBytes(JsonSerializer.Serialize(request with { Table = string.IsNullOrEmpty(request.Table) ? null : request.Table }, JsonSerializerOptions.Web))));
 
     /// <summary>比较宿主实际操作前后的属性值, 提案不能仅使用模型自报的变更描述.</summary>
     public static ToolWriteProposal Create(string runId, string workspace, ProjectSnapshot before, ProjectSnapshot after, ModelEditRequest request)
@@ -54,12 +54,6 @@ public sealed record ToolWriteProposal(string RunId, string WorkspaceId, string 
         }
         foreach (var name in before.Model.Functions.Select(f => f.Name).Union(after.Model.Functions.Select(f => f.Name)))
             Add(name, "expression", before.Model.Functions.SingleOrDefault(f => f.Name == name)?.Expression, after.Model.Functions.SingleOrDefault(f => f.Name == name)?.Expression);
-        foreach (var page in after.Pages)
-            foreach (var visual in page.Visuals)
-            {
-                var oldValue = before.Pages.SingleOrDefault(p => p.Id == page.Id)?.Visuals.SingleOrDefault(v => v.Id == visual.Id);
-                Add($"{page.Id}/{visual.Id}", "position", JsonSerializer.Serialize(oldValue), JsonSerializer.Serialize(visual));
-            }
         // 模板配置同时展示, 保留日期范围等快照不包含的实际生成参数.
         if (request.Property == "config") changes.Insert(0, new(request.ObjectName, "config", null, request.Value));
         var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { runId, workspace, before.BaselineId, requestDigest = RequestDigest(request), changes }, JsonSerializerOptions.Web))));

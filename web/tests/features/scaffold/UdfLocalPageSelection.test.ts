@@ -102,7 +102,14 @@ it("来源全量动作位于对应列表标题, 远端嵌入本地页和独立�
     picker.vm.$emit("change", "local")
     await flushPromises()
     expect(heading().get("h4").text()).toBe("本地")
-    expect(heading().get("button").text()).toBe("选择当前来源全部函数")
+    expect(
+        heading()
+            .findAll("button")
+            .map((button) => button.text()),
+    ).toEqual(["刷新", "选择当前来源全部函数"])
+    await heading().get("button").trigger("click")
+    await flushPromises()
+    expect(wrapper.props("modelValue")).toHaveLength(1)
     await wrapper.get(".udf-page-actions button").trigger("click")
     await flushPromises()
     expect(wrapper.props("modelValue")).toHaveLength(1)

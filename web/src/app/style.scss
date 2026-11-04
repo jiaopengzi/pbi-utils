@@ -461,12 +461,6 @@ p {
     gap: 24px;
     margin-top: 20px;
 }
-.object-list {
-    max-height: 62vh;
-    overflow-y: auto;
-    min-width: 0;
-}
-.object-list .el-button,
 .ai-history-item,
 .recent-project-row .recent-project-open {
     width: 100%;
@@ -477,7 +471,6 @@ p {
     height: auto;
     white-space: normal;
 }
-.object-list .el-button > span,
 .ai-history-item > span,
 .recent-project-row .recent-project-open > span {
     display: flex;
@@ -488,7 +481,6 @@ p {
     gap: 6px;
     line-height: var(--el-font-line-height-primary);
 }
-.object-list .el-button.active,
 .ai-history-item[aria-current="true"],
 .search-results .active {
     border-color: var(--brand-accent);

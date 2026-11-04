@@ -34,7 +34,7 @@ it("只删除所选表, 先读权威同基线再发一个完整批次并保持�
         expect(sent).toHaveLength(2)
         expect(sent[1]).toMatchObject({
             method: "model.edit",
-            params: { operation: "table.deleteBatch", objectName: "tables", property: "items", table: "", pageId: "" },
+            params: { operation: "table.deleteBatch", objectName: "tables", property: "items", table: "" },
         })
         expect(JSON.parse(sent[1]!.params.value as string)).toEqual({ projectId: project.projectId, baselineId: project.baselineId, tables: ["销售"] })
         const saved = { ...project, baselineId: "deleted", model: { ...project.model, tables: [project.model.tables[1]!] } }
@@ -237,7 +237,6 @@ it("显式浏览器模拟删除所选表及其度量值, 明确返回未提交�
             property: "items",
             value: JSON.stringify({ projectId: project.projectId, baselineId: project.baselineId, tables: ["销售"] }),
             table: "",
-            pageId: "",
         }).promise
         expect(result.model.tables.some((table) => table.name === "销售")).toBe(false)
         expect(result.model.measures.some((measure) => measure.table === "销售")).toBe(false)

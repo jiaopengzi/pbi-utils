@@ -130,7 +130,7 @@ public sealed class McpBridgeTests : IDisposable
             connections: new TestLocalFileConnection(target).Service(), mcpJournal: journal);
         await session.ReceiveAsync(OriginPolicy.Production, JsonSerializer.Serialize(new { protocolVersion = 1, id = "connect", method = "project.open", @params = new { } }));
         var error = await Assert.ThrowsAsync<AppException>(() => session.InvokeMcpAsync("model.edit",
-            Json(new { operation = "table.set", objectName = "Sales", property = "description", value = "after", table = "", pageId = "" }), default));
+            Json(new { operation = "table.set", objectName = "Sales", property = "description", value = "after", table = "" }), default));
         Assert.Equal("STALE_CONNECTION", error.Code);
         Assert.Equal(0, target.Writes);
         Assert.Equal("completed", Assert.Single(journal.List(), item => item.Record.Method == "project.open").Record.State);
@@ -154,7 +154,7 @@ public sealed class McpBridgeTests : IDisposable
         await session.InvokeMcpAsync("project.inspect", Json(new { }), default, observeConnectionRevision: observations.Add);
         Assert.Equal([1L], observations);
         await Connect("reconnect", 1);
-        var request = Json(new { operation = "table.set", objectName = "Sales", property = "description", value = "after", table = "", pageId = "" });
+        var request = Json(new { operation = "table.set", objectName = "Sales", property = "description", value = "after", table = "" });
         var error = await Assert.ThrowsAsync<AppException>(() => session.InvokeMcpAsync("model.edit", request, default, observations.Last(), observations.Add));
         Assert.Equal("STALE_CONNECTION", error.Code);
         Assert.Equal(0, target.Writes);
@@ -311,7 +311,7 @@ public sealed class McpBridgeTests : IDisposable
         await session.ReceiveAsync(OriginPolicy.Production, JsonSerializer.Serialize(new { protocolVersion = 1, id = "connect", method = "project.open", @params = new { } }));
         List<long> observations = [];
         await session.InvokeMcpAsync("model.edit",
-            Json(new { operation = "table.set", objectName = "Sales", property = "description", value = "after", table = "", pageId = "" }), default, 1, observations.Add);
+            Json(new { operation = "table.set", objectName = "Sales", property = "description", value = "after", table = "" }), default, 1, observations.Add);
         await Assert.IsType<Task>(reconnect, exactMatch: false);
         Assert.Equal("USER_DATA_BUSY", reconnectResponse!.Value.GetProperty("error").GetProperty("code").GetString());
         Assert.Equal([2L], observations);
@@ -343,7 +343,7 @@ public sealed class McpBridgeTests : IDisposable
             selectProject: _ => Task.FromResult<string?>("fixture.pbip"), connections: new TestLocalFileConnection(target).Service(), mcpJournal: journal);
         await session.ReceiveAsync(OriginPolicy.Production, JsonSerializer.Serialize(new { protocolVersion = 1, id = "connect", method = "project.open", @params = new { } }));
         var result = Assert.IsType<ProjectSnapshot>(await session.InvokeMcpAsync("model.edit",
-            Json(new { operation = "table.set", objectName = "Sales", property = "description", value = "after", table = "", pageId = "" }), default, 1));
+            Json(new { operation = "table.set", objectName = "Sales", property = "description", value = "after", table = "" }), default, 1));
         Assert.Equal("after", result.Model.Tables[0].Description);
         Assert.Equal(1, target.Writes);
         Assert.Equal("completed", Assert.Single(journal.List(), item => item.Record.Method == "model.edit").Record.State);
@@ -446,7 +446,7 @@ public sealed class McpBridgeTests : IDisposable
         using var session = new BridgeSession(new(false, null), new(new RuntimeEnvironment()), text => messages.Add(JsonSerializer.Deserialize<JsonElement>(text)), "test", projects: new(edits), edits: edits,
             selectProject: _ => Task.FromResult<string?>("fixture.pbip"), connections: new TestLocalFileConnection(target).Service(), toolWrites: policy, mcpJournal: journal);
         await session.ReceiveAsync(OriginPolicy.Production, JsonSerializer.Serialize(new { protocolVersion = 1, id = "connect", method = "project.open", @params = new { } }));
-        var request = Json(new { operation = "table.set", objectName = "Sales", property = "description", value = "after", table = "", pageId = "" });
+        var request = Json(new { operation = "table.set", objectName = "Sales", property = "description", value = "after", table = "" });
         if (scenario == "approve")
         {
             var result = Assert.IsType<ProjectSnapshot>(await session.InvokeMcpAsync("model.edit", request, default, 1));
@@ -521,7 +521,7 @@ public sealed class McpBridgeTests : IDisposable
         try
         {
             List<long> observations = [];
-            var result = Assert.IsType<McpDesktopResult>(await session.InvokeMcpAsync("model.edit", Json(new { operation = "table.set", objectName = "Sales", property = "description", value = "after", table = "", pageId = "" }), default, 1, observations.Add));
+            var result = Assert.IsType<McpDesktopResult>(await session.InvokeMcpAsync("model.edit", Json(new { operation = "table.set", objectName = "Sales", property = "description", value = "after", table = "" }), default, 1, observations.Add));
             Assert.Empty(observations);
             Assert.True(result.IsError);
             Assert.True(result.NeedsVerification);

@@ -20,7 +20,6 @@ import { hasPendingModelUpdate, isConnectedDesktopProject, isModelUpdateComplete
 export type ModelEditProps = {
     bridge: BridgeClient
     project: ProjectSnapshot
-    report?: boolean
     template?: "calendar" | "period"
     initialOperation?: string
     locked?: boolean
@@ -42,25 +41,17 @@ export function useModelEdit(props: ModelEditProps, emit: ModelEditEmit, form: T
     // 只在同一精确目标和操作下恢复工作区会话; 请求、busy和保存回执继续由本次挂载拥有.
     const restored =
         !props.template &&
-        !props.report &&
         props.editSession?.targetIdentity === modelEditTargetIdentity(props.project) &&
         props.editSession.operation === (props.initialOperation || "measure.set")
             ? props.editSession
             : undefined
     const operation = ref(
-        props.template === "calendar"
-            ? "calendar.create"
-            : props.template === "period"
-              ? "period.generate"
-              : props.report
-                ? "visual.set"
-                : props.initialOperation || "measure.set",
+        props.template === "calendar" ? "calendar.create" : props.template === "period" ? "period.generate" : props.initialOperation || "measure.set",
     )
     const table = ref(restored?.table ?? "")
     const objectName = ref(restored?.objectName ?? (props.template === "calendar" ? "Calendar" : ""))
-    const property = ref(restored?.property ?? (props.report ? "x" : props.initialOperation === "udf.set" ? "expression" : "description"))
+    const property = ref(restored?.property ?? (props.initialOperation === "udf.set" ? "expression" : "description"))
     const value = ref(restored?.value ?? "")
-    const pageId = ref(restored?.pageId ?? "")
     const startYear = ref(2024)
     const endYear = ref(2027)
     const dateTable = ref("")
@@ -86,7 +77,6 @@ export function useModelEdit(props: ModelEditProps, emit: ModelEditEmit, form: T
     const formModel = computed(() => ({
         objectName: objectName.value,
         table: table.value,
-        pageId: pageId.value,
         dateTable: dateTable.value,
         dateColumn: dateColumn.value,
         measureTable: measureTable.value,
@@ -111,22 +101,18 @@ export function useModelEdit(props: ModelEditProps, emit: ModelEditEmit, form: T
             : undefined,
     )
     const properties = computed(() =>
-        operation.value === "visual.set"
-            ? ["x", "y", "width", "height"]
-            : operation.value === "measure.set"
-              ? ["description", "formatString", "displayFolder", "expression"]
-              : operation.value === "udf.set"
-                ? ["expression"]
-                : ["description"],
+        operation.value === "measure.set"
+            ? ["description", "formatString", "displayFolder", "expression"]
+            : operation.value === "udf.set"
+              ? ["expression"]
+              : ["description"],
     )
     const names = computed(() =>
         operation.value === "measure.set"
             ? props.project.model.measures.filter((m) => m.table === table.value).map((m) => m.name)
             : operation.value === "table.set"
               ? props.project.model.tables.map((modelTable) => modelTable.name)
-              : operation.value === "visual.set"
-                ? (props.project.pages.find((p) => p.id === pageId.value)?.visuals.map((v) => v.id) ?? [])
-                : props.project.model.functions.map((f) => f.name),
+              : props.project.model.functions.map((f) => f.name),
     )
     /** 属性选项在语言切换后重新计算, 不改变属性键或当前编辑值. */
     const labels = computed<Record<string, string>>(() => ({
@@ -134,10 +120,6 @@ export function useModelEdit(props: ModelEditProps, emit: ModelEditEmit, form: T
         formatString: t("model.formatString"),
         displayFolder: t("model.displayFolder"),
         expression: t("model.expression"),
-        x: t("model.x"),
-        y: t("model.y"),
-        width: t("model.width"),
-        height: t("model.height"),
     }))
     watch(operation, () => {
         objectName.value = ""
@@ -148,7 +130,6 @@ export function useModelEdit(props: ModelEditProps, emit: ModelEditEmit, form: T
         {
             operation,
             table,
-            pageId,
             objectName,
             property,
             value,
@@ -156,7 +137,7 @@ export function useModelEdit(props: ModelEditProps, emit: ModelEditEmit, form: T
         restored,
     )
     const selectionIdentity = computed(() =>
-        JSON.stringify([modelEditTargetIdentity(props.project), operation.value, table.value, pageId.value, objectName.value, property.value]),
+        JSON.stringify([modelEditTargetIdentity(props.project), operation.value, table.value, objectName.value, property.value]),
     )
     const selection = shallowRef<ModelEditSelection | undefined>(restored?.selection)
     let disposed = false
@@ -277,7 +258,6 @@ export function useModelEdit(props: ModelEditProps, emit: ModelEditEmit, form: T
                     property: props.template ? "config" : property.value,
                     value: props.template ? config.value : value.value,
                     table: table.value,
-                    pageId: pageId.value,
                 },
                 undefined,
                 onPhase,
@@ -338,7 +318,6 @@ export function useModelEdit(props: ModelEditProps, emit: ModelEditEmit, form: T
         objectName,
         property,
         value,
-        pageId,
         startYear,
         endYear,
         dateTable,

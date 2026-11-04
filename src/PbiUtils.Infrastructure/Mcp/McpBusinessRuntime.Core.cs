@@ -69,7 +69,7 @@ public sealed partial class McpBusinessRuntime
             async (input, token) => await ApplyConfigurationAsync(input, token));
         Register<IdInput>("configuration_discard", "Release an uncommitted configuration plan without changing its PBIP project.", false,
             (input, _) => Task.FromResult<object>(new { discarded = DiscardConfiguration(input.Id) }));
-        Register<ChangeRequest>("change_plan", "Prepare a new-directory copy with a whitelisted measure/table/UDF/visual/calendar/period change. In-place writes are not supported by this tool; use configuration_plan for local configuration.", false,
+        Register<ChangeRequest>("change_plan", "Prepare a new-directory copy with a whitelisted measure/table/UDF/calendar/period change. In-place writes are not supported by this tool; use configuration_plan for local configuration.", false,
             async (input, token) => { if (input.InPlace) throw new AppException("INVALID_ARGUMENT", "change_plan 仅支持新目录副本"); RequirePath(input.ProjectPath); RequirePath(input.OutputPath); return await changes.PrepareAsync(input, token); });
         Register<PlanApplyInput>("change_apply", "Publish a reviewed new-directory copy using planId and exact approve digest. Requires startup --allow-write; consumes the plan once.", true,
             async (input, token) => await changes.ApplyAsync(input.PlanId, input.Approve, token, CommitLocalWrite));
