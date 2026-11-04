@@ -33,7 +33,7 @@ public sealed partial class McpBusinessRuntime
             (_, _) => Task.FromResult<object>(new { version = Product.Version, allowWrite = AllowWrite, transport = "stdio", offlineConfiguration = "PBIP", maxInputBytes = 4 * 1024 * 1024 }));
         Register<EmptyInput>("doctor", "Inspect the local pbi-utils runtime without modifying models or opening Power BI.", false,
             (_, token) => Task.FromResult<object>(new DoctorService(new RuntimeEnvironment()).Execute(token)));
-        Register<UpdateCheckInput>("updates_check", "Check stable desktop product releases from the fixed jiaopengzi/pbi-utils repository. source is github (default) or gitee. Returns plain-text release notes and verified full-installer links. Does not download, install, restart or open a browser. Network failure is a tool error, not an up-to-date result.", false,
+        Register<UpdateCheckInput>("updates_check", "List stable and prerelease desktop product releases from the fixed jiaopengzi/pbi-utils repository. source is github (default) or gitee. Returns ordered versions, exact tags, prerelease flags and bounded plain-text notes. The numeric installed version cannot identify a prerelease revision. Does not download, install, restart or open a browser. Network failure is a tool error, not an up-to-date result.", false,
             async (input, token) => await productUpdates.CheckAsync(input.Source, false, token), openWorld: true);
         Register<ProjectInput>("project_inspect", "Read a specific local PBIP project, full baseline, model metadata and report pages. Does not execute DAX/M or refresh data sources.", false,
             async (input, token) => await InspectAsync(input.Project, token));

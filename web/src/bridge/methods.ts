@@ -7,7 +7,7 @@
  */
 
 import type { ScaffoldMethods } from "@/features/scaffold/contracts"
-import type { ProductUpdateState, ProductUpdateSettings, ProductUpdateCheckResponse, ProductUpdateSource, ProductUpdateTarget } from "./updateContracts"
+import type { ProductUpdateState, ProductUpdateSettings, ProductUpdateCheckResponse, ProductUpdateSource } from "./updateContracts"
 import type {
     ModelConfigurationRequest,
     ConfigurationContext,
@@ -38,7 +38,7 @@ export interface Methods extends ScaffoldMethods {
     "updates.save": { params: Partial<ProductUpdateSettings>; result: ProductUpdateState }
     "updates.check": { params: { source: ProductUpdateSource; automatic: boolean }; result: ProductUpdateCheckResponse }
     "updates.open": {
-        params: { source: ProductUpdateSource; version: string; target: ProductUpdateTarget }
+        params: { source: ProductUpdateSource }
         result: { opened: boolean; isSimulation: boolean }
     }
     "mcp.connections": { params: Record<string, never>; result: McpConnectionsSnapshot }

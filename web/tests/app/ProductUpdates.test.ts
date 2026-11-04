@@ -3,7 +3,7 @@
  * Author      : jiaopengzi
  * Blog        : https://jiaopengzi.com
  * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
- * Description : 验证更新设置权威回读、并发身份、通知和纯文本下载入口.
+ * Description : 验证更新设置权威回读、并发身份、通知和纯文本发布列表与固定来源入口.
  */
 import { expect, it, vi } from "vitest"
 import { effectScope, markRaw, ref } from "vue"
@@ -35,9 +35,19 @@ function result(source: "github" | "gitee" = "github", status: ProductUpdateChec
         status,
         checkedAtUtc: "2026-11-03T00:00:00Z",
         latestVersion: "0.2.0",
-        releaseUrl: "https://example.invalid/release",
-        notes: "<img src=x onerror=alert(1)>\n[link](javascript:alert(1))",
-        assets: [{ dotNetMode: "without-dotnet", fileName: "fixture.zip", downloadUrl: "https://example.invalid/file", size: null }],
+        releases:
+            status === "failed" || status === "noRelease"
+                ? []
+                : [
+                      {
+                          tag: "v0.2.0",
+                          version: "0.2.0",
+                          prerelease: false,
+                          notes: "<img src=x onerror=alert(1)>\n[link](javascript:alert(1))",
+                          notesTruncated: false,
+                      },
+                      { tag: "v0.1.0-v2.1", version: "0.1.0-v2.1", prerelease: true, notes: "Preview notes", notesTruncated: true },
+                  ],
         errorCode: status === "failed" ? "UPDATE_TIMEOUT" : null,
         isSimulation: false,
     }
@@ -199,7 +209,7 @@ it("取消确认不提前释放检查守卫, 未结束期间不重复检查, 取
     bridge.dispose()
 })
 
-it("自动网络失败静默保留失败状态, 节流缓存不能启用下载, 手动失败禁止旧入口", async () => {
+it("自动网络失败静默, 缓存与手动失败均不阻止独立打开发布页", async () => {
     const bridge = markRaw(new BridgeClient(new MockTransport()))
     const scope = effectScope()
     const updates = scope.run(() =>
@@ -216,21 +226,25 @@ it("自动网络失败静默保留失败状态, 节流缓存不能启用下载, 
     await updates.check(true)
     expect(updates.checkResult.value?.status).toBe("failed")
     expect(showMessage).not.toHaveBeenCalled()
+    await updates.open()
+    expect(request).toHaveBeenLastCalledWith("updates.open", { source: "github" })
     request.mockReturnValueOnce({ id: "cached", promise: Promise.resolve({ checkedNow: false, check: result() }) })
     await updates.check(true)
-    expect(updates.canOpen("without-dotnet")).toBe(false)
-    request.mockReturnValueOnce({ id: "fresh", promise: Promise.resolve({ checkedNow: true, check: result() }) })
-    await updates.check(false)
-    expect(updates.canOpen("without-dotnet")).toBe(true)
+    expect(updates.checkResult.value?.releases).toHaveLength(2)
     request.mockReturnValueOnce({ id: "network", promise: Promise.reject(new Error("private network exception")) })
     await updates.check(false)
-    expect(updates.canOpen("without-dotnet")).toBe(false)
     expect(updates.error.value).not.toContain("private")
+    const before = updates.error.value
+    request.mockReturnValueOnce({ id: "open-failure", promise: Promise.reject(new Error("open failed")) })
+    await updates.open()
+    expect(updates.error.value).toBe(before)
+    await updates.open()
+    expect(request).toHaveBeenLastCalledWith("updates.open", { source: "github" })
     scope.stop()
     bridge.dispose()
 })
 
-it.each(["failed", "noRelease"] as const)("%s 撤销本实例授权, 其他客户端的同版本成功缓存不能重新开放下载", async (status) => {
+it("错误来源检查响应不展示列表或改写当前版本", async () => {
     const bridge = markRaw(new BridgeClient(new MockTransport()))
     const scope = effectScope()
     const updates = scope.run(() =>
@@ -241,94 +255,87 @@ it.each(["failed", "noRelease"] as const)("%s 撤销本实例授权, 其他客�
         ),
     )!
     await flushPromises()
-    const request = vi.spyOn(bridge, "request")
-    request.mockReturnValueOnce({ id: "fresh", promise: Promise.resolve({ checkedNow: true, check: result() }) })
-    await updates.check(false)
-    expect(updates.canOpen("without-dotnet")).toBe(true)
-    request.mockReturnValueOnce({ id: "revoked", promise: Promise.resolve({ checkedNow: true, check: result("github", status) }) })
-    await updates.check(false)
-    expect(updates.canOpen("without-dotnet")).toBe(false)
-    await updates.save({ source: "gitee" })
-    request.mockReturnValueOnce({
-        id: "foreign-cache",
-        promise: Promise.resolve({ settings: { source: "github", automaticCheck: true }, lastCheck: result() }),
-    })
-    await updates.save({ source: "github" })
-    expect(updates.checkResult.value?.status).toBe("available")
-    expect(updates.canOpen("without-dotnet")).toBe(false)
-    expect(updates.canOpen("release")).toBe(false)
-    scope.stop()
-    bridge.dispose()
-})
-
-it("同版本缓存后来替换附件不能借旧检查授权, 保存回读与失效响应均要求重新核验", async () => {
-    const bridge = markRaw(new BridgeClient(new MockTransport()))
-    const scope = effectScope()
-    const updates = scope.run(() =>
-        useProductUpdates(
-            () => bridge,
-            () => true,
-            false,
-        ),
-    )!
-    await flushPromises()
-    const request = vi.spyOn(bridge, "request")
-    request.mockReturnValueOnce({ id: "fresh", promise: Promise.resolve({ checkedNow: true, check: result() }) })
-    await updates.check(false)
-    expect(updates.canOpen("without-dotnet")).toBe(true)
-    const foreign = result()
-    foreign.assets[0] = { dotNetMode: "without-dotnet", fileName: "new.exe", downloadUrl: "https://example.invalid/new", size: null }
-    request.mockReturnValueOnce({ id: "cache", promise: Promise.resolve({ settings: { source: "github", automaticCheck: false }, lastCheck: foreign }) })
-    await updates.save({ automaticCheck: false })
-    expect(updates.canOpen("without-dotnet")).toBe(false)
-    request.mockReturnValueOnce({ id: "new-fresh", promise: Promise.resolve({ checkedNow: true, check: foreign }) })
-    await updates.check(false)
-    expect(updates.canOpen("without-dotnet")).toBe(true)
-    const late = deferred<{ checkedNow: boolean; check: ProductUpdateCheck }>()
-    request.mockReturnValueOnce({ id: "late", promise: late.promise })
-    const checking = updates.check(false)
-    updates.cancelCheck()
-    late.resolve({ checkedNow: true, check: foreign })
-    await checking
-    expect(updates.canOpen("without-dotnet")).toBe(false)
-    request.mockReturnValueOnce({ id: "throttled", promise: Promise.resolve({ checkedNow: false, check: foreign }) })
-    await updates.check(false)
-    expect(updates.canOpen("without-dotnet")).toBe(false)
-    scope.stop()
-    bridge.dispose()
-})
-
-it("status缓存回读或错误来源检查响应不能继承已核验链接", async () => {
-    const bridge = markRaw(new BridgeClient(new MockTransport()))
-    const scope = effectScope()
-    const updates = scope.run(() =>
-        useProductUpdates(
-            () => bridge,
-            () => true,
-            false,
-        ),
-    )!
-    await flushPromises()
-    const original = bridge.request.bind(bridge)
-    const request = vi.spyOn(bridge, "request")
-    const check = result()
-    request.mockReturnValueOnce({ id: "fresh", promise: Promise.resolve({ checkedNow: true, check }) })
-    await updates.check(false)
-    expect(updates.canOpen("release")).toBe(true)
-    request.mockImplementation((method, params) =>
-        method === "updates.status"
-            ? ({ id: "cache", promise: Promise.resolve({ settings: { automaticCheck: true, source: "github" }, lastCheck: check }) } as ReturnType<
-                  BridgeClient["request"]
-              >)
-            : original(method, params),
-    )
-    await updates.load()
-    expect(updates.canOpen("release")).toBe(false)
-    request.mockReturnValueOnce({ id: "wrong-source", promise: Promise.resolve({ checkedNow: true, check: result("gitee") }) })
+    const before = updates.currentVersion.value
+    const request = vi
+        .spyOn(bridge, "request")
+        .mockReturnValueOnce({ id: "wrong-source", promise: Promise.resolve({ checkedNow: true, check: result("gitee") }) })
     await updates.check(false)
     expect(updates.checkResult.value).toBeNull()
-    expect(updates.canOpen("release")).toBe(false)
+    expect(updates.currentVersion.value).toBe(before)
+    await updates.open()
+    expect(request).toHaveBeenLastCalledWith("updates.open", { source: "github" })
     scope.stop()
+    bridge.dispose()
+})
+
+it("加载、未检查、保存、检查与打开在途均保留发布页入口, 只使用已保存来源", async () => {
+    const bridge = markRaw(new BridgeClient(new MockTransport()))
+    const original = bridge.request.bind(bridge)
+    const loading = deferred<ProductUpdateState>()
+    const request = vi
+        .spyOn(bridge, "request")
+        .mockImplementation((method, params) =>
+            method === "updates.status" ? ({ id: "loading", promise: loading.promise } as ReturnType<BridgeClient["request"]>) : original(method, params),
+        )
+    const wrapper = mount(SoftwareUpdatePanel, { props: { bridge } })
+    const button = wrapper.get('[data-action="release"]')
+    expect(button.attributes("disabled")).toBeUndefined()
+    await button.trigger("click")
+    await flushPromises()
+    expect(request).toHaveBeenLastCalledWith("updates.open", { source: "github" })
+    loading.resolve({ settings: { source: "gitee", automaticCheck: false }, lastCheck: null })
+    await flushPromises()
+    await button.trigger("click")
+    await flushPromises()
+    expect(request).toHaveBeenLastCalledWith("updates.open", { source: "gitee" })
+    const saving = deferred<ProductUpdateState>()
+    request.mockReturnValueOnce({ id: "saving", promise: saving.promise })
+    wrapper.getComponent({ name: "ElSelect" }).vm.$emit("change", "github")
+    await flushPromises()
+    expect(button.attributes("disabled")).toBeUndefined()
+    await button.trigger("click")
+    await flushPromises()
+    expect(request).toHaveBeenLastCalledWith("updates.open", { source: "gitee" })
+    saving.resolve({ settings: { source: "github", automaticCheck: false }, lastCheck: null })
+    await flushPromises()
+    const checking = deferred<{ checkedNow: boolean; check: ProductUpdateCheck }>()
+    request.mockReturnValueOnce({ id: "checking", promise: checking.promise })
+    await wrapper.get('[data-action="check"]').trigger("click")
+    expect(button.attributes("disabled")).toBeUndefined()
+    const opening = deferred<{ opened: boolean; isSimulation: boolean }>()
+    request.mockReturnValueOnce({ id: "opening", promise: opening.promise })
+    await button.trigger("click")
+    expect(button.attributes("disabled")).toBeUndefined()
+    const count = request.mock.calls.length
+    await button.trigger("click")
+    expect(request).toHaveBeenCalledTimes(count)
+    checking.resolve({ checkedNow: true, check: result() })
+    opening.resolve({ opened: true, isSimulation: false })
+    await flushPromises()
+    expect(wrapper.get(".update-result").attributes("data-status")).toBe("available")
+    wrapper.unmount()
+    bridge.dispose()
+})
+
+it("设置读取失败仍可使用默认来源打开发布页, 打开失败不覆盖设置错误", async () => {
+    const bridge = markRaw(new BridgeClient(new MockTransport()))
+    const original = bridge.request.bind(bridge)
+    const request = vi
+        .spyOn(bridge, "request")
+        .mockImplementation((method, params) =>
+            method === "updates.status"
+                ? ({ id: "failed", promise: Promise.reject(new Error("private settings error")) } as ReturnType<BridgeClient["request"]>)
+                : original(method, params),
+        )
+    const wrapper = mount(SoftwareUpdatePanel, { props: { bridge } })
+    await flushPromises()
+    const before = wrapper.get(".update-result").text()
+    request.mockReturnValueOnce({ id: "open-failure", promise: Promise.reject(new Error("private open error")) })
+    await wrapper.get('[data-action="release"]').trigger("click")
+    await flushPromises()
+    expect(request).toHaveBeenLastCalledWith("updates.open", { source: "github" })
+    expect(wrapper.get(".update-result").text()).toBe(before)
+    wrapper.unmount()
     bridge.dispose()
 })
 
@@ -389,34 +396,33 @@ it("离开设置只取消手动检查, 全局自动检查继续且不会锁住�
     bridge.dispose()
 })
 
-it.each(["available", "current", "noRelease", "failed"] as const)("展示 %s 的独立结果、纯文本说明与精确资产入口", async (status) => {
+it.each(["available", "current", "noRelease", "failed"] as const)("展示 %s 状态与简洁版本号, 不渲染发布列表或说明", async (status) => {
     const bridge = markRaw(new BridgeClient(new MockTransport()))
     const state: ProductUpdateState = { settings: { automaticCheck: false, source: "github" }, lastCheck: result("github", status) }
     const original = bridge.request.bind(bridge)
-    const request = vi.spyOn(bridge, "request")
-    request.mockImplementation((method, params) =>
-        method === "updates.status"
-            ? ({ id: "state", promise: Promise.resolve(state) } as ReturnType<BridgeClient["request"]>)
-            : method === "updates.check"
-              ? ({ id: "check", promise: Promise.resolve({ checkedNow: true, check: state.lastCheck }) } as ReturnType<BridgeClient["request"]>)
-              : original(method, params),
-    )
+    const request = vi
+        .spyOn(bridge, "request")
+        .mockImplementation((method, params) =>
+            method === "updates.status" ? ({ id: "state", promise: Promise.resolve(state) } as ReturnType<BridgeClient["request"]>) : original(method, params),
+        )
     const wrapper = mount(SoftwareUpdatePanel, { props: { bridge } })
     await flushPromises()
     expect(wrapper.get(".update-result").attributes("data-status")).toBe(status)
     expect(wrapper.find(".release-notes img").exists()).toBe(false)
     expect(wrapper.find(".release-notes a").exists()).toBe(false)
-    expect(wrapper.find('[data-target="with-dotnet"]').exists()).toBe(false)
+    expect(wrapper.find('[data-target="without-dotnet"]').exists()).toBe(false)
     expect(wrapper.findAll(".update-actions button")).toHaveLength(2)
-    const download = wrapper.get('[data-target="without-dotnet"]')
-    expect(download.attributes("disabled")).toBeDefined()
-    await wrapper.get('[data-action="check"]').trigger("click")
-    await flushPromises()
-    if (status === "available" || status === "current") {
-        expect(wrapper.get(".release-notes").text()).toContain("<img")
-        await download.trigger("click")
-        expect(request.mock.calls).toContainEqual(["updates.open", { source: "github", version: "0.2.0", target: "without-dotnet" }])
-    } else expect(download.attributes("disabled")).toBeDefined()
+    const release = wrapper.get('[data-action="release"]')
+    expect(release.attributes("disabled")).toBeUndefined()
+    await release.trigger("click")
+    expect(request.mock.calls).toContainEqual(["updates.open", { source: "github" }])
+    expect(wrapper.find(".update-release").exists()).toBe(false)
+    expect(wrapper.find(".update-notes").exists()).toBe(false)
+    expect(wrapper.find(".release-notes").exists()).toBe(false)
+    expect(wrapper.find("summary").exists()).toBe(false)
+    expect(wrapper.get(".update-release-version").text()).toContain("0.2.0")
+    expect(wrapper.get(".update-actions").find('[data-action="check"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain("当前已是最新版本")
     wrapper.unmount()
     bridge.dispose()
 })
@@ -444,21 +450,32 @@ it.each([
     const time = wrapper.get(".update-details time")
     expect(time.text()).toBe(expected)
     expect(time.attributes("datetime")).toBe(expected === "-" ? undefined : timestamp)
-    expect(wrapper.get('[data-target="without-dotnet"]').text()).toBe("下载 ZIP 安装包")
-    expect(wrapper.find(".update-notes").attributes("open")).toBeUndefined()
+    expect(wrapper.get('[data-action="release"]').text()).toBe("打开软件发布页面")
+    expect(wrapper.find(".update-notes").exists()).toBe(false)
     const requestsBefore = request.mock.calls.length
     setLocale("en-us")
     await flushPromises()
     expect(time.text()).toBe(expected)
     expect(wrapper.get(".update-details dt").text()).toBe("Last checked")
-    expect(wrapper.get('[data-target="without-dotnet"]').text()).toBe("Download ZIP package")
+    expect(wrapper.get('[data-action="release"]').text()).toBe("Open software releases")
     expect(request).toHaveBeenCalledTimes(requestsBefore)
     expect(check.checkedAtUtc).toBe(timestamp)
     wrapper.unmount()
     bridge.dispose()
 })
 
-it("本次发布缺少不含 .NET 的 ZIP 安装包时只启用发布页面, 不回退其他附件", async () => {
+it("模拟打开只接受固定来源, 拒绝旧版本目标与任意 URL", async () => {
+    const bridge = markRaw(new BridgeClient(new MockTransport()))
+    await Promise.all(
+        [{ source: "github", version: "0.2.0", target: "release" }, { source: "github", url: "https://example.invalid" }, { source: "other" }].map((params) =>
+            expect(bridge.request("updates.open", params as never).promise).rejects.toMatchObject({ code: "VALIDATION_ERROR" }),
+        ),
+    )
+    await expect(bridge.request("updates.open", { source: "gitee" }).promise).resolves.toEqual({ opened: false, isSimulation: true })
+    bridge.dispose()
+})
+
+it("关闭自动检查会取消在途自动请求, 迟到发布列表不回填", async () => {
     const bridge = markRaw(new BridgeClient(new MockTransport()))
     const scope = effectScope()
     const updates = scope.run(() =>
@@ -469,20 +486,50 @@ it("本次发布缺少不含 .NET 的 ZIP 安装包时只启用发布页面, 不
         ),
     )!
     await flushPromises()
-    const check = result()
-    // 模拟旧缓存或异常宿主送入的其他模式, 前端必须仍按当前精确目标判断可用性.
-    check.assets = [{ ...check.assets[0]!, dotNetMode: "with-dotnet" } as unknown as ProductUpdateCheck["assets"][number]]
-    vi.spyOn(bridge, "request").mockReturnValueOnce({ id: "fresh", promise: Promise.resolve({ checkedNow: true, check }) })
-    await updates.check(false)
-    const wrapper = mount(SoftwareUpdatePanel, { props: { bridge, updates } })
-    expect(wrapper.get('[data-target="without-dotnet"]').attributes("disabled")).toBeDefined()
-    expect(wrapper.get('[data-target="without-dotnet"]').attributes("title")).toBe("此发布未提供 ZIP 安装包")
-    expect(wrapper.get('[data-target="release"]').attributes("disabled")).toBeUndefined()
-    expect(wrapper.find('[data-target="with-dotnet"]').exists()).toBe(false)
-    await expect(bridge.request("updates.open", { source: "github", version: "0.2.0", target: "with-dotnet" } as never).promise).rejects.toMatchObject({
-        code: "VALIDATION_ERROR",
-    })
-    wrapper.unmount()
+    const pending = deferred<{ checkedNow: boolean; check: ProductUpdateCheck }>()
+    const request = vi.spyOn(bridge, "request").mockReturnValueOnce({ id: "automatic", promise: pending.promise })
+    const task = updates.check(true)
+    await updates.save({ automaticCheck: false })
+    expect(request.mock.calls).toContainEqual(["request.cancel", { requestId: "automatic" }])
+    vi.mocked(showMessage).mockClear()
+    pending.resolve({ checkedNow: true, check: result() })
+    await task
+    expect(updates.state.value?.settings.automaticCheck).toBe(false)
+    expect(updates.checkResult.value).toBeNull()
+    expect(showMessage).not.toHaveBeenCalled()
+    await updates.check(true)
+    expect(request.mock.calls.filter(([method]) => method === "updates.check")).toHaveLength(1)
     scope.stop()
+    bridge.dispose()
+})
+
+it("切源后迟到的打开失败不污染新来源反馈, 卸载仍取消打开请求", async () => {
+    const bridge = markRaw(new BridgeClient(new MockTransport()))
+    const scope = effectScope()
+    const updates = scope.run(() =>
+        useProductUpdates(
+            () => bridge,
+            () => true,
+            false,
+        ),
+    )!
+    await flushPromises()
+    const pending = deferred<{ opened: boolean; isSimulation: boolean }>()
+    const request = vi.spyOn(bridge, "request").mockReturnValueOnce({ id: "old-open", promise: pending.promise })
+    const task = updates.open()
+    await updates.save({ source: "gitee" })
+    vi.mocked(showMessage).mockClear()
+    pending.reject(new Error("old source failure"))
+    await task
+    expect(showMessage).not.toHaveBeenCalled()
+    const next = deferred<{ opened: boolean; isSimulation: boolean }>()
+    request.mockReturnValueOnce({ id: "new-open", promise: next.promise })
+    const nextTask = updates.open()
+    expect(request).toHaveBeenLastCalledWith("updates.open", { source: "gitee" })
+    scope.stop()
+    expect(request.mock.calls).toContainEqual(["request.cancel", { requestId: "new-open" }])
+    next.resolve({ opened: true, isSimulation: false })
+    await nextTask
+    expect(showMessage).not.toHaveBeenCalled()
     bridge.dispose()
 })

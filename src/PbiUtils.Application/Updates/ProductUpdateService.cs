@@ -4,7 +4,6 @@
 // Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
 // Description : 共享软件更新用例, 独立于模型锁执行节流查询与受限链接解析.
 
-using System.Collections.Concurrent;
 using PbiUtils.Core;
 
 namespace PbiUtils.Application.Updates;
@@ -13,7 +12,6 @@ namespace PbiUtils.Application.Updates;
 public sealed class ProductUpdateService(IProductUpdateStore store, IProductReleaseSource releases, string currentVersion, TimeProvider? timeProvider = null)
 {
     private readonly TimeProvider clock = timeProvider ?? TimeProvider.System;
-    private readonly ConcurrentDictionary<string, ProductUpdateCheck> verified = new(StringComparer.Ordinal);
 
     /// <summary>读取独立设置及所选来源最近检查, 不触发网络或模型操作.</summary>
     public ProductUpdateState Read() => store.Read();
@@ -49,20 +47,8 @@ public sealed class ProductUpdateService(IProductUpdateStore store, IProductRele
             { check = Failed(source, error.Code); }
             token.ThrowIfCancellationRequested();
             if (!store.SaveCheck(check, automatic, token)) return new(false, store.Read().LastCheck);
-            if (check.Status is "available" or "current") verified[source] = check;
-            else verified.TryRemove(source, out _);
             return new(true, check);
         }
-    }
-
-    /// <summary>只解析当前实例已成功核验结果内的固定目标; 不接受URL或仅来自磁盘的权限.</summary>
-    public Uri ResolveLink(string source, string version, string target)
-    {
-        var expected = ProductUpdatePolicy.Link(source, version, target);
-        if (!verified.TryGetValue(source, out var check) || check.LatestVersion != version
-            || (target == "release" ? check.ReleaseUrl != expected : !check.Assets.Any(asset => asset.DotNetMode == target && asset.DownloadUrl == expected)))
-            throw new AppException("UPDATE_LINK_UNVERIFIED", "请先重新检查此来源的更新", 3);
-        return new Uri(expected, UriKind.Absolute);
     }
 
     /// <summary>自动开关/来源及来源专属24小时窗口共同决定是否跳过.</summary>
@@ -71,5 +57,5 @@ public sealed class ProductUpdateService(IProductUpdateStore store, IProductRele
             && clock.GetUtcNow() - last.CheckedAtUtc < TimeSpan.FromHours(24));
 
     /// <summary>构建安全失败结果, 不包含异常正文和部分响应.</summary>
-    private ProductUpdateCheck Failed(string source, string code) => new(source, currentVersion, "failed", clock.GetUtcNow(), null, null, "", [], code);
+    private ProductUpdateCheck Failed(string source, string code) => new(source, currentVersion, "failed", clock.GetUtcNow(), null, [], code);
 }

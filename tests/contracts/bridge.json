@@ -468,9 +468,7 @@
     "id": "updates-open-unavailable-contract",
     "method": "updates.open",
     "params": {
-      "source": "github",
-      "version": "0.2.0",
-      "target": "release"
+      "source": "github"
     },
     "error": {
       "code": "UNSUPPORTED",

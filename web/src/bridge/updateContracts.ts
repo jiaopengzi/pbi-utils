@@ -3,19 +3,20 @@
  * Author      : jiaopengzi
  * Blog        : https://jiaopengzi.com
  * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
- * Description : 声明固定发布源的更新设置、检查结果和受限打开目标.
+ * Description : 声明固定发布源的更新设置、检查结果和发布列表.
  */
 export type ProductUpdateSource = "github" | "gitee"
-export type ProductUpdateTarget = "release" | "without-dotnet"
 export interface ProductUpdateSettings {
     automaticCheck: boolean
     source: ProductUpdateSource
 }
-export interface ProductUpdateAsset {
-    dotNetMode: Exclude<ProductUpdateTarget, "release">
-    fileName: string
-    downloadUrl: string
-    size: number | null
+/** 按宿主顺序展示的发布记录; 版本保留预发布后缀, 说明始终作为纯文本. */
+export interface ProductUpdateRelease {
+    tag: string
+    version: string
+    prerelease: boolean
+    notes: string
+    notesTruncated: boolean
 }
 export interface ProductUpdateCheck {
     source: ProductUpdateSource
@@ -23,9 +24,7 @@ export interface ProductUpdateCheck {
     status: "available" | "current" | "noRelease" | "failed"
     checkedAtUtc: string
     latestVersion: string | null
-    releaseUrl: string | null
-    notes: string
-    assets: ProductUpdateAsset[]
+    releases: ProductUpdateRelease[]
     errorCode: string | null
     isSimulation: boolean
 }

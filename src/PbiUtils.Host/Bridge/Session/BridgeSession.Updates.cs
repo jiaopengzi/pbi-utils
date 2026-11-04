@@ -33,12 +33,11 @@ public sealed partial class BridgeSession
                 var (Source, Value) = ReadUpdateBoolean(parameters, "automatic");
                 return await (productUpdates ?? throw UpdatesUnsupported()).CheckAsync(Source, Value, flight.Cancellation.Token);
             case "updates.open":
-                var values = Strings(parameters, ["source", "version", "target"], 64);
+                var values = Strings(parameters, ["source"], 64);
                 RequireUpdateSource(values["source"]);
-                if (values["target"] is not ("release" or "without-dotnet")) throw UpdatesInvalid();
-                if (productUpdates is null || openUpdateLink is null) throw UpdatesUnsupported();
-                // 页面只提交身份, 真实地址必须由当前服务实例已核验的发布结果解析.
-                var uri = productUpdates.ResolveLink(values["source"], values["version"], values["target"]);
+                if (openUpdateLink is null) throw UpdatesUnsupported();
+                // 固定来源映射不依赖网络或磁盘缓存, 页面不能提交版本、下载目标或自由地址.
+                var uri = new Uri(ProductUpdatePolicy.ReleasesLink(values["source"]), UriKind.Absolute);
                 BeginCommit(flight);
                 await openUpdateLink(uri, CancellationToken.None);
                 return new { opened = true, isSimulation = false };

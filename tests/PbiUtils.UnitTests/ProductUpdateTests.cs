@@ -19,9 +19,19 @@ public sealed class ProductUpdateTests : IDisposable
 {
     private readonly string root = Path.Combine(Path.GetTempPath(), "pbi-updates-" + Guid.NewGuid().ToString("N"));
 
-    /// <summary>共享夹具验证两站字段差异、旧版隔离、最高版本和同版资产绑定.</summary>
+    /// <summary>实际发布流水线的预发布标签必须参与更新检查, 不能误报没有正式版本.</summary>
     [Fact]
-    public async Task SharedReleaseFixturesSelectCorrectVersionAndAssets()
+    public void PreviewReleaseFromCurrentWorkflowIsVisible()
+    {
+        var check = ProductUpdatePolicy.Select("github", "0.1.0",
+            [new("desktop-v0.2.0-v2.1", false, true, "preview")], DateTimeOffset.UtcNow);
+        Assert.Equal("available", check.Status);
+        Assert.Equal("0.2.0-v2.1", check.LatestVersion);
+    }
+
+    /// <summary>共享夹具验证两站字段差异、旧版隔离、最高版本与完整发布列表.</summary>
+    [Fact]
+    public async Task SharedReleaseFixturesSelectCorrectVersionAndList()
     {
         var repository = FindRepository();
         using var fixture = JsonDocument.Parse(File.ReadAllText(Path.Combine(repository, "tests/contracts/updates-releases.json")));
@@ -35,49 +45,80 @@ public sealed class ProductUpdateTests : IDisposable
             var expected = scenario.GetProperty("expected");
             Assert.Equal(expected.GetProperty("status").GetString(), check.Status);
             Assert.Equal(expected.GetProperty("latestVersion").GetString(), check.LatestVersion);
-            Assert.Equal(expected.GetProperty("assetModes").EnumerateArray().Select(item => item.GetString()), check.Assets.Select(asset => asset.DotNetMode));
+            Assert.Equal(expected.GetProperty("versions").EnumerateArray().Select(item => item.GetString()), check.Releases.Select(release => release.Version));
             if (scenario.GetProperty("name").GetString() == "github-both-modes")
-            {
-                Assert.Equal(scenario.GetProperty("releases")[0].GetProperty("body").GetString(), check.Notes);
-                Assert.Equal("pbi-utils-0.2.0-win-x64-without-dotnet.zip", Assert.Single(check.Assets).FileName);
-                Assert.Equal("https://github.com/jiaopengzi/pbi-utils/releases/download/desktop-v0.2.0/pbi-utils-0.2.0-win-x64-without-dotnet.zip", service.ResolveLink(source, "0.2.0", "without-dotnet").AbsoluteUri);
-                Assert.Equal("INVALID_UPDATE_TARGET", Assert.Throws<AppException>(() => service.ResolveLink(source, "0.2.0", "with-dotnet")).Code);
-                Assert.Throws<AppException>(() => service.ResolveLink(source, "0.3.0", "release"));
-            }
+                Assert.Equal(scenario.GetProperty("releases")[0].GetProperty("body").GetString(), Assert.Single(check.Releases).Notes);
         }
     }
 
-    /// <summary>正式下载仅选择不含运行时的 ZIP 包, 缺失时不得回退 EXE、其他模式或旧版本附件.</summary>
+    /// <summary>发布轮次按数字排序, 同版本正式版优先; 同基版本预发布不伪称已安装某个轮次.</summary>
+    [Fact]
+    public void StableAndPreviewReleasesAreOrderedAndRoundTrip()
+    {
+        var check = ProductUpdatePolicy.Select("gitee", "0.2.0",
+            [new("desktop-v0.2.0-v2.2", false, true, "two"), new("desktop-v0.2.0-v2.10", false, true, "ten"),
+             new("desktop-v0.2.0", false, false, "stable"), new("desktop-v0.3.0-v2.1", true, true, "draft")], DateTimeOffset.UtcNow);
+        Assert.Equal("current", check.Status);
+        Assert.Equal(["0.2.0", "0.2.0-v2.10", "0.2.0-v2.2"], check.Releases.Select(release => release.Version));
+        var store = new LocalProductUpdateStore(root);
+        store.SaveCheck(check, false, default);
+        Assert.Equal(check.Releases, store.Read("gitee").LastCheck!.Releases);
+    }
+
+    /// <summary>完整列表的纯文本预算有界, 不截断代理对, 不把大响应写成下次无法读取的缓存.</summary>
+    [Fact]
+    public void LargeReleaseListHasBoundedNotesAndReadableStorage()
+    {
+        var releases = Enumerable.Range(1, 1000).Select(index => new ProductRelease($"desktop-v0.2.0-v2.{index}", false, true,
+            new string('中', 4095) + "😀"));
+        var check = ProductUpdatePolicy.Select("github", "0.1.0", releases, DateTimeOffset.UtcNow);
+        Assert.Equal(1000, check.Releases.Length);
+        Assert.True(check.Releases.Sum(release => release.Notes.Length) <= ProductUpdatePolicy.MaximumNotesLength);
+        Assert.All(check.Releases, release => { Assert.True(release.NotesTruncated); Assert.False(release.Notes.Length > 0 && char.IsHighSurrogate(release.Notes[^1])); });
+        var store = new LocalProductUpdateStore(root);
+        store.SaveCheck(check, false, default);
+        store.SaveCheck(check with { Source = "gitee" }, false, default);
+        Assert.Equal(check.Releases, store.Read().LastCheck!.Releases);
+    }
+
+    /// <summary>非法缓存的标签/展示版本/预发布状态不得成为可用列表.</summary>
+    [Theory]
+    [InlineData("desktop-v0.2.0", "0.3.0", false)]
+    [InlineData("desktop-v0.2.0-v2.1", "0.2.0-v2.1", false)]
+    [InlineData("v1.0.0", "1.0.0", false)]
+    public void InvalidCachedReleaseCannotBeSaved(string tag, string version, bool preview)
+    {
+        var store = new LocalProductUpdateStore(root);
+        var check = new ProductUpdateCheck("github", "0.1.0", "available", DateTimeOffset.UtcNow, version,
+            [new(tag, version, preview, "", false)]);
+        Assert.Throws<JsonException>(() => store.SaveCheck(check, false, default));
+        Assert.False(File.Exists(Path.Combine(root, "product-updates.json")));
+    }
+
+    /// <summary>发布页映射无需网络或缓存, 且拒绝自由来源.</summary>
     [Theory]
     [InlineData("github")]
     [InlineData("gitee")]
-    public void MissingFrameworkDependentZipDoesNotFallBack(string source)
+    public void ReleasePageIsFixedAndIndependentOfCheck(string source)
     {
-        var check = ProductUpdatePolicy.Select(source, "0.1.0",
-            [new("desktop-v0.2.0", false, false, "latest",
-                [new("pbi-utils-0.2.0-win-x64-with-dotnet.zip", $"https://{source}.com/jiaopengzi/pbi-utils/releases/download/desktop-v0.2.0/pbi-utils-0.2.0-win-x64-with-dotnet.zip", 123),
-                 new("pbi-utils-0.2.0-win-x64-without-dotnet-setup.exe", $"https://{source}.com/jiaopengzi/pbi-utils/releases/download/desktop-v0.2.0/pbi-utils-0.2.0-win-x64-without-dotnet-setup.exe", 42)]),
-             new("desktop-v0.1.0", false, false, "older",
-                [new("pbi-utils-0.1.0-win-x64-without-dotnet.zip", $"https://{source}.com/jiaopengzi/pbi-utils/releases/download/desktop-v0.1.0/pbi-utils-0.1.0-win-x64-without-dotnet.zip", 42)])],
-            DateTimeOffset.UtcNow);
-        Assert.Equal("available", check.Status);
-        Assert.Equal("0.2.0", check.LatestVersion);
-        Assert.Empty(check.Assets);
-        Assert.Equal(ProductUpdatePolicy.Link(source, "0.2.0", "release"), check.ReleaseUrl);
+        Assert.Equal($"https://{source}.com/jiaopengzi/pbi-utils/releases", ProductUpdatePolicy.ReleasesLink(source));
+        Assert.Throws<AppException>(() => ProductUpdatePolicy.ReleasesLink("https://evil.test"));
     }
 
-    /// <summary>磁盘缓存只接受当前 ZIP 下载契约, 拒绝 EXE 及跨源/跨版地址且不产生配置文件.</summary>
-    [Theory]
-    [InlineData("pbi-utils-0.2.0-win-x64-without-dotnet-setup.exe", "https://github.com/jiaopengzi/pbi-utils/releases/download/desktop-v0.2.0/pbi-utils-0.2.0-win-x64-without-dotnet-setup.exe")]
-    [InlineData("pbi-utils-0.2.0-win-x64-without-dotnet.zip", "https://gitee.com/jiaopengzi/pbi-utils/releases/download/desktop-v0.2.0/pbi-utils-0.2.0-win-x64-without-dotnet.zip")]
-    [InlineData("pbi-utils-0.2.0-win-x64-without-dotnet.zip", "https://github.com/jiaopengzi/pbi-utils/releases/download/desktop-v0.1.0/pbi-utils-0.2.0-win-x64-without-dotnet.zip")]
-    public void InvalidCachedDownloadContractCannotBeSaved(string name, string url)
+    /// <summary>非当前格式按快速迭代约定重建默认设置, 不迁移旧结果也不阻断重新检查.</summary>
+    [Fact]
+    public void ObsoleteDocumentIsRebuiltOnNextSave()
     {
+        Directory.CreateDirectory(root);
+        var path = Path.Combine(root, "product-updates.json");
+        const string previous = """{"schemaVersion":1,"settings":{"source":"gitee","automaticCheck":false},"checks":{}}""";
+        File.WriteAllText(path, previous);
         var store = new LocalProductUpdateStore(root);
-        var check = new ProductUpdateCheck("github", "0.1.0", "available", DateTimeOffset.UtcNow, "0.2.0",
-            "https://github.com/jiaopengzi/pbi-utils/releases/tag/desktop-v0.2.0", "", [new("without-dotnet", name, url, 42)]);
-        Assert.Throws<JsonException>(() => store.SaveCheck(check, false, default));
-        Assert.False(File.Exists(Path.Combine(root, "product-updates.json")));
+        Assert.Equal(new ProductUpdateSettings(), store.Read().Settings);
+        Assert.Equal(previous, File.ReadAllText(path));
+        store.Save(new(Source: "gitee"), default);
+        Assert.Equal("gitee", store.Read().Settings.Source);
+        Assert.Contains("\"schemaVersion\":2", File.ReadAllText(path));
     }
 
     /// <summary>失败分类不伪装无发布, 保留限流与 HTTP 故障的区别.</summary>
@@ -129,7 +170,6 @@ public sealed class ProductUpdateTests : IDisposable
         clock.Now += TimeSpan.FromHours(24);
         Assert.True((await first.CheckAsync("github", true, default)).CheckedNow);
         Assert.Equal(4, calls);
-        Assert.Throws<AppException>(() => second.ResolveLink("github", "0.1.0", "release"));
     }
 
     /// <summary>满页必须继续读取, 达10页无法确认完整性时返回明确失败.</summary>
@@ -161,7 +201,7 @@ public sealed class ProductUpdateTests : IDisposable
         var check = (await Create(http).CheckAsync("github", false, default)).Check!;
         Assert.Equal(2, calls);
         Assert.Equal("0.9.0", check.LatestVersion);
-        Assert.Equal("<b>更新</b>\n[external](https://evil.test)", check.Notes);
+        Assert.Equal("<b>更新</b>\n[external](https://evil.test)", Assert.Single(check.Releases).Notes);
     }
 
     /// <summary>API通过分页头声明尚有数据时, 不把短页误判为读取完成或跟随外部URL.</summary>
@@ -208,9 +248,9 @@ public sealed class ProductUpdateTests : IDisposable
         var second = new LocalProductUpdateStore(root);
         Assert.ThrowsAny<OperationCanceledException>(() => first.Save(new(false, "gitee"), new CancellationToken(true)));
         Assert.False(File.Exists(Path.Combine(root, "product-updates.json")));
-        first.SaveCheck(new("github", "0.1.0", "noRelease", DateTimeOffset.UtcNow, null, null, "", []), false, default);
+        first.SaveCheck(new("github", "0.1.0", "noRelease", DateTimeOffset.UtcNow, null, []), false, default);
         second.Save(new(false, "gitee"), default);
-        first.SaveCheck(new("gitee", "0.1.0", "noRelease", DateTimeOffset.UtcNow, null, null, "", []), false, default);
+        first.SaveCheck(new("gitee", "0.1.0", "noRelease", DateTimeOffset.UtcNow, null, []), false, default);
         Assert.Equal(new(false, "gitee"), first.Read().Settings);
         Assert.Equal("github", first.Read("github").LastCheck!.Source);
         Assert.Equal("gitee", first.Read().LastCheck!.Source);

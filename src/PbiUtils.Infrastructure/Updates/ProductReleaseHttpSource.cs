@@ -54,7 +54,7 @@ public sealed class ProductReleaseHttpSource(HttpClient client) : IProductReleas
                 using var document = JsonDocument.Parse(buffer.ToArray(), new JsonDocumentOptions { MaxDepth = 32 });
                 var rows = document.RootElement;
                 if (rows.ValueKind != JsonValueKind.Array || rows.GetArrayLength() > 100) throw Error("UPDATE_INVALID_RESPONSE");
-                foreach (var row in rows.EnumerateArray()) result.Add(Parse(row, source));
+                foreach (var row in rows.EnumerateArray()) result.Add(Parse(row));
                 if (!HasMore(response, rows.GetArrayLength(), page)) return [.. result];
             }
             throw Error("UPDATE_PAGE_LIMIT");
@@ -79,8 +79,8 @@ public sealed class ProductReleaseHttpSource(HttpClient client) : IProductReleas
         return total > page;
     }
 
-    /// <summary>分别处理 GitHub 的 draft/size 与 Gitee 缺失字段, 不使用 html_url 作为可信链接.</summary>
-    private static ProductRelease Parse(JsonElement row, string source)
+    /// <summary>读取两站发布字段, 不读取附件或使用远端 html_url 作为浏览器地址.</summary>
+    private static ProductRelease Parse(JsonElement row)
     {
         if (row.ValueKind != JsonValueKind.Object || row.EnumerateObject().GroupBy(property => property.Name, StringComparer.Ordinal).Any(group => group.Count() > 1))
             throw Error("UPDATE_INVALID_RESPONSE");
@@ -88,24 +88,7 @@ public sealed class ProductReleaseHttpSource(HttpClient client) : IProductReleas
         var draft = Boolean(row, "draft");
         var preview = Boolean(row, "prerelease");
         var notes = Text(row, "body", false);
-        var assets = new List<ProductReleaseAsset>();
-        if (row.TryGetProperty("assets", out var values))
-        {
-            if (values.ValueKind != JsonValueKind.Array || values.GetArrayLength() > 100) throw Error("UPDATE_INVALID_RESPONSE");
-            foreach (var asset in values.EnumerateArray())
-            {
-                var name = Text(asset, "name", true);
-                var url = Text(asset, "browser_download_url", true);
-                long? size = null;
-                if (source == "github" && asset.TryGetProperty("size", out var rawSize) && rawSize.ValueKind != JsonValueKind.Null)
-                {
-                    if (!rawSize.TryGetInt64(out var parsed) || parsed < 0) throw Error("UPDATE_INVALID_RESPONSE");
-                    size = parsed;
-                }
-                assets.Add(new(name, url, size));
-            }
-        }
-        return new(tag, draft, preview, notes, [.. assets]);
+        return new(tag, draft, preview, notes);
     }
 
     /// <summary>缺少可选纯文本时使用空字符串, 类型错误或必要字段缺失则明确失败.</summary>

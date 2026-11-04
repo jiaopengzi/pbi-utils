@@ -7,7 +7,7 @@
  */
 import { computed, onScopeDispose, ref, shallowRef, watch } from "vue"
 import { BridgeError, type BridgeClient } from "@/bridge/client"
-import type { ProductUpdateCheck, ProductUpdateSettings, ProductUpdateState, ProductUpdateTarget } from "@/bridge/updateContracts"
+import type { ProductUpdateSettings, ProductUpdateState } from "@/bridge/updateContracts"
 import { useI18n } from "@/composables/i18n/useI18n"
 import { useFeedback } from "@/composables/ui/useFeedback"
 
@@ -27,19 +27,12 @@ export function useProductUpdates(bridge: () => BridgeClient | undefined, ready:
     const { t } = useI18n()
     const { showFeedback } = useFeedback()
     const notified = new Set<string>()
-    // 仅当前已接受的完整检查拥有链接授权; 缓存回读、失败和失效请求均保守撤销, 不累计版本授权.
-    const verifiedCheck = shallowRef<ProductUpdateCheck | null>(null)
     const activeRequests = new Map<string, BridgeClient>()
     let disposed = false
     let generation = 0
     let checkId = ""
     let checkAutomatic = false
     const checkResult = computed(() => (state.value?.lastCheck?.source === state.value?.settings.source ? state.value?.lastCheck : null))
-    const linksVerified = computed(() => {
-        const value = checkResult.value
-        return !!value?.latestVersion && value === verifiedCheck.value
-    })
-
     /** 将取消发送给原请求的桥接, 不把取消确认当作业务终态; 页面不显示原始宿主异常. */
     function cancelRequest(id: string): void {
         const client = activeRequests.get(id)
@@ -48,7 +41,6 @@ export function useProductUpdates(bridge: () => BridgeClient | undefined, ready:
     /** 失效当前检查身份并请求取消, 旧 finally 不会解锁新请求. */
     function invalidateCheck(): void {
         generation++
-        verifiedCheck.value = null
         if (checkId && !cancellationRequested.value) {
             cancellationRequested.value = true
             cancelRequest(checkId)
@@ -71,7 +63,6 @@ export function useProductUpdates(bridge: () => BridgeClient | undefined, ready:
         const client = bridge()
         if (!client || loading.value || disposed) return
         loading.value = true
-        verifiedCheck.value = null
         error.value = ""
         const request = client.request("updates.status", {})
         const info = client.request("app.info", {})
@@ -95,7 +86,7 @@ export function useProductUpdates(bridge: () => BridgeClient | undefined, ready:
             if (!disposed) loading.value = false
         }
     }
-    /** 仅提交本次变更字段, 宿主锁内合并最新设置后回读; 失败不改变设置, 缓存回读不继承检查授权. */
+    /** 仅提交本次变更字段, 宿主锁内合并最新设置后回读; 失败不改变设置, 回读只展示所选来源的列表. */
     async function save(patch: Partial<ProductUpdateSettings>): Promise<void> {
         const client = bridge()
         if (!client || !state.value || saving.value || disposed || !Object.keys(patch).length) return
@@ -123,7 +114,6 @@ export function useProductUpdates(bridge: () => BridgeClient | undefined, ready:
         if (!client || !settings || checking.value || saving.value || disposed || (automatic && !settings.automaticCheck)) return
         const identity = ++generation
         const source = settings.source
-        verifiedCheck.value = null
         checking.value = true
         checkAutomatic = automatic
         error.value = ""
@@ -133,18 +123,12 @@ export function useProductUpdates(bridge: () => BridgeClient | undefined, ready:
         try {
             const response = await request.promise
             if (disposed || generation !== identity || client !== bridge() || state.value?.settings.source !== source) return
-            state.value = { settings: state.value.settings, lastCheck: response.check?.source === source ? response.check : null }
-            if (response.check) currentVersion.value = response.check.currentVersion
-            if (
-                response.checkedNow &&
-                response.check?.source === source &&
-                ["available", "current"].includes(response.check.status) &&
-                response.check.latestVersion
-            )
-                verifiedCheck.value = response.check
+            const acceptedCheck = response.check?.source === source ? response.check : null
+            state.value = { settings: state.value.settings, lastCheck: acceptedCheck }
+            if (acceptedCheck) currentVersion.value = acceptedCheck.currentVersion
             notifyAvailable()
-            if (!automatic && response.check?.status !== "available")
-                showFeedback({ message: t(`updates.${response.check?.status ?? "notChecked"}`), type: response.check?.status === "failed" ? "error" : "info" })
+            if (!automatic && acceptedCheck?.status !== "available")
+                showFeedback({ message: t(`updates.${acceptedCheck?.status ?? "notChecked"}`), type: acceptedCheck?.status === "failed" ? "error" : "info" })
         } catch (cause) {
             if (disposed || generation !== identity || (cause instanceof BridgeError && cause.code === "CANCELLED")) return
             error.value = t("updates.failed")
@@ -158,39 +142,23 @@ export function useProductUpdates(bridge: () => BridgeClient | undefined, ready:
             }
         }
     }
-    /** 仅对当前成功检查中的精确版本和资产启用入口, 真实 URL 继续由宿主核验. */
-    function canOpen(target: ProductUpdateTarget): boolean {
-        const value = checkResult.value
-        return (
-            !checking.value &&
-            !saving.value &&
-            !opening.value &&
-            !error.value &&
-            linksVerified.value &&
-            !!value &&
-            ["available", "current"].includes(value.status) &&
-            (target === "release" ? !!value.releaseUrl : value.assets.some((asset) => asset.dotNetMode === target))
-        )
-    }
-    /** 用户点击才提交 source/version/target, 不传任意 URL; 模拟与未打开均不声明成功. */
-    async function open(target: ProductUpdateTarget): Promise<void> {
+    /** 用户点击时仅提交已保存来源, 未读取设置使用 GitHub; 不依赖检查结果或传入 URL, 失败不改写检查状态. */
+    async function open(): Promise<void> {
         const client = bridge()
-        const value = checkResult.value
-        if (!client || !value?.latestVersion || !canOpen(target) || disposed) return
+        if (!client || opening.value || disposed) return
+        const source = state.value?.settings.source ?? "github"
         opening.value = true
-        const identity = generation
-        const request = client.request("updates.open", { source: value.source, version: value.latestVersion, target })
+        const request = client.request("updates.open", { source })
         activeRequests.set(request.id, client)
         try {
             const response = await request.promise
-            if (disposed || generation !== identity) return
+            if (disposed || client !== bridge() || (state.value?.settings.source ?? "github") !== source) return
             showFeedback({
                 message: t(response.isSimulation ? "updates.simulationOpen" : response.opened ? "updates.opened" : "updates.openFailed"),
                 type: response.isSimulation ? "info" : response.opened ? "success" : "error",
             })
         } catch {
-            if (!disposed && generation === identity) {
-                verifiedCheck.value = null
+            if (!disposed && client === bridge() && (state.value?.settings.source ?? "github") === source) {
                 showFeedback({ message: t("updates.openFailed"), type: "error" })
             }
         } finally {
@@ -220,12 +188,10 @@ export function useProductUpdates(bridge: () => BridgeClient | undefined, ready:
         cancellationRequested,
         error,
         checkResult,
-        linksVerified,
         load,
         save,
         check,
         cancelCheck,
-        canOpen,
         open,
     }
 }

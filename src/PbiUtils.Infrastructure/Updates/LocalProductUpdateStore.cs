@@ -84,15 +84,17 @@ public sealed class LocalProductUpdateStore(string root) : IProductUpdateStore
     private Document Load()
     {
         UserDataStore.Check(path);
-        if (!File.Exists(path)) return new(1, new(), new(StringComparer.Ordinal));
+        if (!File.Exists(path)) return new(2, new(), new(StringComparer.Ordinal));
         try
         {
-            if (new FileInfo(path).Length > 1024 * 1024) throw new JsonException();
+            if (new FileInfo(path).Length > 2 * 1024 * 1024) throw new JsonException();
             var bytes = File.ReadAllBytes(path);
-            if (bytes.Length > 1024 * 1024) throw new JsonException();
+            if (bytes.Length > 2 * 1024 * 1024) throw new JsonException();
             using var parsed = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 12 });
             Strict(parsed.RootElement);
             Shape(parsed.RootElement, "schemaVersion", "settings", "checks");
+            // 快速迭代不迁移旧缓存/设置; 非当前完整文档只重建默认值, 写入仍经设置锁与原子替换.
+            if (parsed.RootElement.GetProperty("schemaVersion").GetInt32() != 2) return new(2, new(), new(StringComparer.Ordinal));
             var settings = parsed.RootElement.GetProperty("settings");
             Shape(settings, "automaticCheck", "source");
             if (settings.GetProperty("automaticCheck").ValueKind is not (JsonValueKind.True or JsonValueKind.False)) throw new JsonException();
@@ -101,12 +103,12 @@ public sealed class LocalProductUpdateStore(string root) : IProductUpdateStore
             foreach (var entry in checks.EnumerateObject())
             {
                 ProductUpdatePolicy.ValidateSource(entry.Name);
-                Shape(entry.Value, "source", "currentVersion", "status", "checkedAtUtc", "latestVersion", "releaseUrl", "notes", "assets", "errorCode", "isSimulation");
-                if (entry.Value.GetProperty("assets").ValueKind != JsonValueKind.Array) throw new JsonException();
-                foreach (var asset in entry.Value.GetProperty("assets").EnumerateArray()) Shape(asset, "dotNetMode", "fileName", "downloadUrl", "size");
+                Shape(entry.Value, "source", "currentVersion", "status", "checkedAtUtc", "latestVersion", "releases", "errorCode", "isSimulation");
+                if (entry.Value.GetProperty("releases").ValueKind != JsonValueKind.Array) throw new JsonException();
+                foreach (var release in entry.Value.GetProperty("releases").EnumerateArray()) Shape(release, "tag", "version", "prerelease", "notes", "notesTruncated");
             }
             var document = JsonSerializer.Deserialize<Document>(bytes, Json) ?? throw new JsonException();
-            if (document.SchemaVersion != 1 || document.Settings is null || document.Checks is null) throw new JsonException();
+            if (document.SchemaVersion != 2 || document.Settings is null || document.Checks is null) throw new JsonException();
             ProductUpdatePolicy.ValidateSource(document.Settings.Source);
             foreach (var entry in document.Checks)
             {
@@ -139,28 +141,30 @@ public sealed class LocalProductUpdateStore(string root) : IProductUpdateStore
             foreach (var item in value.EnumerateArray()) Strict(item);
     }
 
-    /// <summary>缓存同样校验版本、状态、ZIP 文件名和精确仓库地址; 旧 EXE、任意磁盘链接或失败码均拒绝.</summary>
+    /// <summary>缓存复用当前发布策略核验列表、顺序和状态, 拒绝非法标签、过量说明和伪造结果.</summary>
     private static void ValidateCheck(ProductUpdateCheck check)
     {
         if (check is null) throw new JsonException();
         ProductUpdatePolicy.ValidateSource(check.Source);
         if (!ProductUpdatePolicy.TryVersion(check.CurrentVersion, out _) || check.Status is not ("available" or "current" or "noRelease" or "failed")
-            || check.Notes is null || check.Notes.Length > 65536 || check.Assets is null || check.Assets.Length > 2 || check.Assets.Any(asset => asset is null) || check.IsSimulation) throw new JsonException();
-        if (check.Status is "available" or "current")
+            || check.Releases is null || check.Releases.Length > ProductUpdatePolicy.MaximumReleases || check.IsSimulation) throw new JsonException();
+        foreach (var release in check.Releases)
         {
-            if (!ProductUpdatePolicy.TryVersion(check.LatestVersion, out var latest) || check.ReleaseUrl != ProductUpdatePolicy.Link(check.Source, check.LatestVersion!, "release") || check.ErrorCode is not null)
+            if (release is null || !ProductUpdatePolicy.TryReleaseTag(release.Tag, out _, out var revision)
+                || release.Version != release.Tag[9..] || revision > 0 && !release.Prerelease
+                || release.Notes is null || release.Notes.Length > 4096) throw new JsonException();
+        }
+        if (check.Releases.Sum(release => release.Notes.Length) > ProductUpdatePolicy.MaximumNotesLength) throw new JsonException();
+        if (check.Status == "failed")
+        {
+            if (check.LatestVersion is not null || check.Releases.Length != 0 || check.ErrorCode is null || !Errors.Contains(check.ErrorCode, StringComparer.Ordinal))
                 throw new JsonException();
-            ProductUpdatePolicy.TryVersion(check.CurrentVersion, out var current);
-            if ((latest > current) != (check.Status == "available")) throw new JsonException();
+            return;
         }
-        else if (check.LatestVersion is not null || check.ReleaseUrl is not null || check.Assets.Length != 0 || check.Notes.Length != 0
-            || (check.Status == "failed" ? check.ErrorCode is null || !Errors.Contains(check.ErrorCode, StringComparer.Ordinal) : check.ErrorCode is not null)) throw new JsonException();
-        if (check.Assets.Select(asset => asset.DotNetMode).Distinct(StringComparer.Ordinal).Count() != check.Assets.Length) throw new JsonException();
-        foreach (var asset in check.Assets)
-        {
-            if (asset.DownloadUrl != ProductUpdatePolicy.Link(check.Source, check.LatestVersion!, asset.DotNetMode)
-                || asset.FileName != $"pbi-utils-{check.LatestVersion}-win-x64-{asset.DotNetMode}.zip" || asset.Size is < 0) throw new JsonException();
-        }
+        var expected = ProductUpdatePolicy.Select(check.Source, check.CurrentVersion,
+            check.Releases.Select(release => new ProductRelease(release.Tag, false, release.Prerelease, release.Notes)), check.CheckedAtUtc);
+        if (check.Status != expected.Status || check.LatestVersion != expected.LatestVersion || check.ErrorCode is not null
+            || !check.Releases.Select(release => release.Tag).SequenceEqual(expected.Releases.Select(release => release.Tag))) throw new JsonException();
     }
 
     private static readonly string[] Errors = ["UPDATE_RATE_LIMITED", "UPDATE_HTTP_FAILED", "UPDATE_TIMEOUT", "UPDATE_INVALID_RESPONSE", "UPDATE_RESPONSE_TOO_LARGE", "UPDATE_PAGE_LIMIT", "UPDATE_NETWORK_FAILED", "UPDATE_CHECK_BUSY"];

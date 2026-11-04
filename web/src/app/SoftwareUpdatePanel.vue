@@ -3,7 +3,7 @@
  * Author      : jiaopengzi
  * Blog        : https://jiaopengzi.com
  * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
- * Description : 紧凑展示软件更新设置、本地检查时间及经宿主核验的安装包入口, 保留纯文本发布说明.
+ * Description : 紧凑展示软件版本、更新状态与来源设置, 通过固定来源入口访问软件发布页面.
 -->
 <script setup lang="ts">
 import { computed, onUnmounted } from "vue"
@@ -22,26 +22,9 @@ const updates =
         () => true,
         false,
     )
-const {
-    state,
-    currentVersion,
-    loading,
-    saving,
-    checking,
-    opening,
-    cancellationRequested,
-    error,
-    checkResult,
-    linksVerified,
-    load,
-    save,
-    check,
-    canOpen,
-    open,
-    cancelCheck,
-} = updates
+const { state, currentVersion, loading, saving, checking, opening, cancellationRequested, error, checkResult, load, save, check, open, cancelCheck } = updates
 const { t } = useI18n()
-const settingsDisabled = computed(() => loading.value || saving.value || opening.value || !state.value)
+const settingsDisabled = computed(() => loading.value || saving.value || !state.value)
 const simulation = computed(() => __MOCK_BRIDGE__ || checkResult.value?.isSimulation === true)
 const status = computed(() => (error.value ? "failed" : (checkResult.value?.status ?? "notChecked")))
 /** 将宿主绝对时间显示为当前机器的 YYYY-MM-DD HH:mm:ss; 空值或无效时间保持未知值, 不改写保存值. */
@@ -68,7 +51,7 @@ const resultMessage = computed(
     () => error.value || t(status.value === "failed" ? (updateErrors[checkResult.value?.errorCode ?? ""] ?? "updates.failed") : `updates.${status.value}`),
 )
 useOperationMessage(() => {
-    const key = loading.value ? "loading" : saving.value ? "saving" : opening.value ? "opening" : checking.value ? "checking" : ""
+    const key = loading.value ? "loading" : saving.value ? "saving" : checking.value ? "checking" : ""
     return key
         ? {
               message: t(`updates.${key}`),
@@ -78,6 +61,7 @@ useOperationMessage(() => {
           }
         : undefined
 })
+useOperationMessage(() => (opening.value ? { message: t("updates.opening") } : undefined))
 /** 只接受真实开关值, 持久化成功后才改变控件的权威值. */
 function selectAutomatic(value: string | number | boolean): void {
     if (typeof value === "boolean" && state.value) void save({ automaticCheck: value })
@@ -86,24 +70,22 @@ function selectAutomatic(value: string | number | boolean): void {
 function selectSource(value: unknown): void {
     if ((value === "github" || value === "gitee") && state.value) void save({ source: value })
 }
-/** 仅在该发布确实缺少安装包时说明资产不可用; 不把在途或缓存核验禁用误说为缺资产. */
-const installerTitle = computed(() =>
-    checkResult.value && !checkResult.value.assets.some((asset) => asset.dotNetMode === "without-dotnet") ? t("updates.unavailable") : undefined,
-)
 onUnmounted(() => cancelCheck(true))
 </script>
 <template>
     <UiPanel class="software-update-panel" aria-labelledby="software-updates-heading" :aria-busy="loading || saving || checking || opening">
         <div class="update-heading">
             <h2 id="software-updates-heading">{{ t("updates.title") }}</h2>
-            <span class="update-current-version"
-                >{{ t("updates.currentVersion") }} <strong>{{ currentVersion }}</strong></span
-            >
             <el-tag v-if="simulation" type="info">{{ t("updates.simulation") }}</el-tag>
         </div>
         <div class="update-result" :data-status="status" :data-simulation="simulation" role="status" aria-live="polite">
+            <span class="update-current-version"
+                >{{ t("updates.currentVersion") }} <strong>{{ currentVersion }}</strong></span
+            >
+            <span class="update-release-version"
+                >{{ t("updates.latestVersion") }} <strong>{{ checkResult?.latestVersion ?? "-" }}</strong></span
+            >
             <span class="update-status">{{ resultMessage }}</span>
-            <span v-if="checkResult?.latestVersion" class="update-release-version">{{ t("updates.latestVersion") }} {{ checkResult.latestVersion }}</span>
         </div>
         <p v-if="simulation" class="hint">{{ t("updates.simulationHint") }}</p>
         <form class="update-controls" @submit.prevent>
@@ -130,10 +112,11 @@ onUnmounted(() => cancelCheck(true))
                     <el-option value="github" label="GitHub" /><el-option value="gitee" label="Gitee" />
                 </el-select>
             </div>
-            <div class="update-check-actions">
+            <div class="update-actions">
                 <el-button data-action="check" type="primary" :loading="checking" :disabled="settingsDisabled || checking" @click="check(false)">{{
                     t("updates.check")
                 }}</el-button>
+                <el-button data-action="release" @click="open()">{{ t("updates.release") }}</el-button>
                 <el-button v-if="!state && !loading" @click="load">{{ t("updates.retry") }}</el-button>
             </div>
         </form>
@@ -149,19 +132,6 @@ onUnmounted(() => cancelCheck(true))
                 <dd>{{ checkResult.errorCode }}</dd>
             </div>
         </dl>
-        <div class="update-actions">
-            <el-button data-target="without-dotnet" :disabled="!canOpen('without-dotnet')" :title="installerTitle" @click="open('without-dotnet')">{{
-                t("updates.download")
-            }}</el-button>
-            <el-button data-target="release" :disabled="!canOpen('release')" @click="open('release')">{{ t("updates.release") }}</el-button>
-        </div>
-        <p v-if="checkResult && !linksVerified && (checkResult.status === 'available' || checkResult.status === 'current')" class="hint">
-            {{ t("updates.recheckHint") }}
-        </p>
-        <details v-if="checkResult && (checkResult.status === 'available' || checkResult.status === 'current')" class="update-notes">
-            <summary>{{ t("updates.notes") }}</summary>
-            <pre class="release-notes">{{ checkResult.notes || t("updates.noNotes") }}</pre>
-        </details>
     </UiPanel>
 </template>
 <style scoped lang="scss">
@@ -169,7 +139,6 @@ onUnmounted(() => cancelCheck(true))
 .update-result,
 .update-controls,
 .update-control,
-.update-check-actions,
 .update-actions,
 .update-details,
 .update-details > div {
@@ -186,13 +155,13 @@ onUnmounted(() => cancelCheck(true))
 .update-details dt {
     color: var(--el-text-color-secondary);
 }
-.update-current-version strong {
+.update-current-version strong,
+.update-release-version strong {
     margin-left: 4px;
     color: var(--el-text-color-primary);
     font-weight: 600;
 }
-.update-actions .el-button + .el-button,
-.update-check-actions .el-button + .el-button {
+.update-actions .el-button + .el-button {
     margin-left: 0;
 }
 .update-controls {
@@ -232,7 +201,7 @@ onUnmounted(() => cancelCheck(true))
 }
 .update-details {
     gap: 8px 24px;
-    margin-block: 0 16px;
+    margin-block: 0;
     font-size: 13px;
 }
 .update-details > div {
@@ -242,32 +211,5 @@ onUnmounted(() => cancelCheck(true))
     margin: 0;
     overflow-wrap: anywhere;
     font-variant-numeric: tabular-nums;
-}
-.update-notes {
-    margin-top: 16px;
-    border-top: 1px solid var(--el-border-color-light);
-    padding-top: 12px;
-}
-.update-notes summary {
-    width: fit-content;
-    cursor: pointer;
-    color: var(--el-text-color-regular);
-}
-.update-notes summary:focus-visible {
-    outline: 2px solid var(--el-color-primary);
-    outline-offset: 4px;
-}
-.release-notes {
-    max-height: 200px;
-    overflow: auto;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    font-family: inherit;
-    line-height: 1.6;
-    padding: 12px;
-    margin: 12px 0 0;
-    border: 1px solid var(--el-border-color-light);
-    border-radius: var(--el-border-radius-base);
-    background: var(--el-fill-color-light);
 }
 </style>

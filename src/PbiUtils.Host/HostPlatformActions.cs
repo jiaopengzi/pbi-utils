@@ -75,8 +75,8 @@ internal static class HostPlatformActions
         return Task.CompletedTask;
     }
 
-    /// <summary>仅 GUI 显式点击打开共享更新服务已核验的发布/资产地址, 不执行下载文件.</summary>
-    /// <param name="uri">ResolveLink 返回的当前来源、版本和目标地址.</param>
+    /// <summary>仅 GUI 显式点击打开固定仓库发布根页, 不接受资产或其他网页地址.</summary>
+    /// <param name="uri">共享策略根据所选来源构造的 releases 根地址.</param>
     /// <param name="token">进入系统打开之前的取消令牌.</param>
     /// <returns>已向系统浏览器提交打开请求; 无有效目标或系统打开失败时抛错.</returns>
     public static Task OpenUpdateLinkAsync(Uri uri, CancellationToken token)
@@ -84,8 +84,8 @@ internal static class HostPlatformActions
         token.ThrowIfCancellationRequested();
         if (!uri.IsAbsoluteUri || uri.Scheme != Uri.UriSchemeHttps || !uri.IsDefaultPort
             || uri.Host is not ("github.com" or "gitee.com") || uri.UserInfo.Length != 0
-            || !uri.AbsolutePath.StartsWith("/jiaopengzi/pbi-utils/releases/", StringComparison.Ordinal))
-            throw new AppException("UPDATE_LINK_UNAVAILABLE", "请重新检查软件更新后打开", 3);
+            || uri.AbsolutePath != "/jiaopengzi/pbi-utils/releases" || uri.Query.Length != 0 || uri.Fragment.Length != 0)
+            throw new AppException("UPDATE_LINK_UNAVAILABLE", "软件发布页面地址无效", 3);
         using var process = Process.Start(new ProcessStartInfo { FileName = uri.AbsoluteUri, UseShellExecute = true });
         return Task.CompletedTask;
     }

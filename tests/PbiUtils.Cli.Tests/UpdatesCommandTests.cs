@@ -20,6 +20,27 @@ public sealed class UpdatesCommandTests : IDisposable
 {
     private readonly string root = Path.Combine(Path.GetTempPath(), "pbi-update-command-" + Guid.NewGuid().ToString("N"));
 
+    /// <summary>CLI 和只读 MCP 返回相同的正式/预发布列表, 不再返回下载资产.</summary>
+    [Fact]
+    public async Task CliAndMcpSharePublicReleaseList()
+    {
+        var source = new Releases { Entries = [new("desktop-v0.2.0-v2.10", false, true, "preview"), new("desktop-v0.1.0", false, false, "stable")] };
+        var service = new ProductUpdateService(new LocalProductUpdateStore(root), source, "0.1.0");
+        var result = await ProductUpdateCommands.RunAsync(["updates", "check", "--source", "gitee", "--json"], service, default);
+        Assert.Equal(["0.2.0-v2.10", "0.1.0"], result.Check!.Releases.Select(release => release.Version));
+        await using var runtime = new McpBusinessRuntime(false, root, NullLoggerFactory.Instance, productUpdates: service);
+        var response = await runtime.CallAsync(new CallToolRequestParams
+        {
+            Name = "updates_check",
+            Arguments = new Dictionary<string, JsonElement> { ["source"] = JsonSerializer.SerializeToElement("gitee") }
+        }, default);
+        Assert.False(response.IsError);
+        var check = response.StructuredContent!.Value.GetProperty("check");
+        Assert.Equal(2, check.GetProperty("releases").GetArrayLength());
+        Assert.True(check.GetProperty("releases")[0].GetProperty("prerelease").GetBoolean());
+        Assert.False(check.TryGetProperty("assets", out _));
+    }
+
     /// <summary>显式双源查询通过同一服务, 没有本产品发布与失败保持独立结果.</summary>
     [Fact]
     public async Task CliQueriesRequestedSourceAndRejectsNetworkFailure()
@@ -84,13 +105,14 @@ public sealed class UpdatesCommandTests : IDisposable
     {
         public string? LastSource { get; private set; }
         public bool Fail { get; set; }
+        public ProductRelease[] Entries { get; init; } = [];
         /// <summary>记录实际来源并注入确定失败, 无网络副作用.</summary>
         public Task<ProductRelease[]> ReadAsync(string source, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
             LastSource = source;
             return Fail ? Task.FromException<ProductRelease[]>(new AppException("UPDATE_NETWORK_FAILED", "更新查询失败", 3))
-                : Task.FromResult<ProductRelease[]>([]);
+                : Task.FromResult(Entries);
         }
     }
 }

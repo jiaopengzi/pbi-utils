@@ -42,33 +42,31 @@ public sealed class UpdatesBridgeTests
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
 
-    /// <summary>真实共享服务保存设置/查询后才开放对应来源与版本, 宿主不信页面缓存或自由地址.</summary>
+    /// <summary>未检查、失败及缓存损坏均可打开固定来源根页, 只由用户点击触发.</summary>
     [Fact]
-    public async Task QueryAuthorizesOnlyItsExactReleaseLinks()
+    public async Task ReleasePageOpensWithoutSuccessfulCheckOrReadableSettings()
     {
         var root = Path.Combine(Path.GetTempPath(), "pbi-update-bridge-" + Guid.NewGuid().ToString("N"));
         try
         {
-            var service = new ProductUpdateService(new LocalProductUpdateStore(root), new Releases(), "0.1.0");
+            var service = new ProductUpdateService(new LocalProductUpdateStore(root), new Releases(true), "0.1.0");
             JsonElement response = default;
             var opened = new List<Uri>();
             using var session = new BridgeSession(new(false, null), new(new RuntimeEnvironment()),
                 message => response = JsonSerializer.Deserialize<JsonElement>(message), "test", productUpdates: service,
                 openUpdateLink: (uri, _) => { opened.Add(uri); return Task.CompletedTask; });
-            await Send("updates.save", new { source = "gitee", automaticCheck = false });
-            Assert.False(response.GetProperty("result").GetProperty("settings").GetProperty("automaticCheck").GetBoolean());
-            await Send("updates.open", new { source = "gitee", version = "0.2.0", target = "release" });
-            Assert.Equal("UPDATE_LINK_UNVERIFIED", response.GetProperty("error").GetProperty("code").GetString());
-            await Send("updates.check", new { source = "gitee", automatic = false });
-            Assert.Equal("available", response.GetProperty("result").GetProperty("check").GetProperty("status").GetString());
-            await Send("updates.open", new { source = "github", version = "0.2.0", target = "release" });
-            Assert.Equal("UPDATE_LINK_UNVERIFIED", response.GetProperty("error").GetProperty("code").GetString());
-            Assert.Empty(opened);
-            await Send("updates.open", new { source = "gitee", version = "0.2.0", target = "without-dotnet" });
+            await Send("updates.open", new { source = "github" });
             Assert.True(response.GetProperty("result").GetProperty("opened").GetBoolean());
-            Assert.Equal(ProductUpdatePolicy.Link("gitee", "0.2.0", "without-dotnet"), Assert.Single(opened).AbsoluteUri);
+            await Send("updates.check", new { source = "gitee", automatic = false });
+            Assert.Equal("failed", response.GetProperty("result").GetProperty("check").GetProperty("status").GetString());
+            await Send("updates.open", new { source = "gitee" });
+            Assert.True(response.GetProperty("result").GetProperty("opened").GetBoolean());
+            File.WriteAllText(Path.Combine(root, "product-updates.json"), "{broken");
+            await Send("updates.open", new { source = "github" });
+            Assert.True(response.GetProperty("result").GetProperty("opened").GetBoolean());
+            Assert.Equal([ProductUpdatePolicy.ReleasesLink("github"), ProductUpdatePolicy.ReleasesLink("gitee"), ProductUpdatePolicy.ReleasesLink("github")], opened.Select(uri => uri.AbsoluteUri));
 
-            // 所有用例经过真实消息分发, 查询结果不由测试直接授予浏览器能力.
+            // 所有用例经过真实消息分发, 测试只替换操作系统浏览器适配.
             Task Send(string method, object parameters) => session.ReceiveAsync(OriginPolicy.Production,
                 JsonSerializer.Serialize(new { protocolVersion = 1, id = Guid.NewGuid().ToString("N"), method, @params = parameters }));
         }
@@ -82,11 +80,11 @@ public sealed class UpdatesBridgeTests
     [InlineData("updates.save", "{\"automaticCheck\":false}")]
     [InlineData("updates.save", "{\"source\":\"gitee\"}")]
     [InlineData("updates.check", "{\"source\":\"gitee\",\"automatic\":false}")]
-    [InlineData("updates.open", "{\"source\":\"github\",\"version\":\"0.2.0\",\"target\":\"release\"}")]
+    [InlineData("updates.open", "{\"source\":\"github\"}")]
     public async Task MissingCapabilityIsExplicit(string method, string parameters)
         => Assert.Equal("UNSUPPORTED", await ErrorAsync(method, parameters));
 
-    /// <summary>仅允许固定来源、明确布尔值与版本/目标身份, 任意地址不能进入系统打开.</summary>
+    /// <summary>仅允许固定来源、明确布尔值, 移除的下载目标仍拒绝, 任意地址不能进入系统打开.</summary>
     [Theory]
     [InlineData("updates.status", "{\"extra\":true}")]
     [InlineData("updates.save", "{\"source\":\"https://evil.test\",\"automaticCheck\":true}")]
@@ -112,16 +110,15 @@ public sealed class UpdatesBridgeTests
         return response.GetProperty("error").GetProperty("code").GetString();
     }
 
-    /// <summary>仅替换 HTTP, 保留版本策略、ZIP 缓存与桥接授权行为.</summary>
+    /// <summary>仅替换 HTTP, 保留版本策略、缓存与桥接行为.</summary>
     private sealed class Releases(bool fail = false) : IProductReleaseSource
     {
-        /// <summary>返回请求来源同一版本的 ZIP 安装包元数据, 不接触真实服务.</summary>
+        /// <summary>返回请求来源的公开发布, 不接触真实服务.</summary>
         public Task<ProductRelease[]> ReadAsync(string source, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
             if (fail) return Task.FromException<ProductRelease[]>(new AppException("UPDATE_NETWORK_FAILED", "固定传输错误", 3));
-            return Task.FromResult<ProductRelease[]>([new("desktop-v0.2.0", false, false, "plain text",
-                [new("pbi-utils-0.2.0-win-x64-without-dotnet.zip", ProductUpdatePolicy.Link(source, "0.2.0", "without-dotnet"), 42)])]);
+            return Task.FromResult<ProductRelease[]>([new("desktop-v0.2.0", false, false, "plain text")]);
         }
     }
 

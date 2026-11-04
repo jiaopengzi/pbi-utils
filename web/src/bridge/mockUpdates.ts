@@ -29,7 +29,7 @@ export class MockUpdates {
                   : method === "updates.check"
                     ? ["source", "automatic"]
                     : method === "updates.open"
-                      ? ["source", "version", "target"]
+                      ? ["source"]
                       : null
         if (
             !expected ||
@@ -57,17 +57,14 @@ export class MockUpdates {
                     status: "noRelease",
                     checkedAtUtc: new Date().toISOString(),
                     latestVersion: null,
-                    releaseUrl: null,
-                    notes: "",
-                    assets: [],
+                    releases: [],
                     errorCode: null,
                     isSimulation: true,
                 }
                 this.checks.set(check.source, check)
                 reply({ checkedNow: true, check })
             }
-        } else if (typeof params.version !== "string" || !["release", "without-dotnet"].includes(String(params.target))) fail("VALIDATION_ERROR")
-        else reply({ opened: false, isSimulation: true })
+        } else reply({ opened: false, isSimulation: true })
         return true
     }
 }

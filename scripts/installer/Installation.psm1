@@ -52,7 +52,7 @@ function Remove-PbiEmptyInstallationDirectories([string]$Root, [string[]]$Files)
 }
 
 <#
-.SYNOPSIS 安装、同版修复、升级或卸载当前用户产品, 普通失败恢复本轮程序和系统适配.
+.SYNOPSIS 安装、同版修复或升级时先备份并移除旧自有文件再写新包; 卸载仅清理自有文件, 普通失败恢复程序和系统适配.
 .PARAMETER Operation Install 或 Uninstall.
 .PARAMETER InstallRoot 只属于本产品且路径稳定的安装根目录.
 .PARAMETER PayloadRoot Install 时由 NSIS 解包的载荷根, Uninstall 不使用.
@@ -98,6 +98,12 @@ function Invoke-PbiApplicationInstallation {
         foreach ($relative in @($owned.Keys) + @($desired.Keys) + @('maintenance/installation-state.json')) {
             $path = Join-PbiOwnedInstallPath $root $relative
             if (!$owned.ContainsKey($relative) -and ([IO.File]::Exists($path) -or [IO.Directory]::Exists($path))) { throw "新版本路径与未知文件冲突, 未覆盖: $relative" }
+            # 保留文件/目录类型冲突的拒绝边界, 不在清旧后把旧文件路径变成目录而破坏失败恢复.
+            $parent = [IO.Path]::GetDirectoryName($path)
+            while ($parent -and $parent.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase)) {
+                if ([IO.File]::Exists($parent)) { throw "新版本目录与现有文件冲突, 未修改: $relative" }
+                $parent = [IO.Path]::GetDirectoryName($parent)
+            }
             $allFiles[$relative] = $path
         }
         & $Adapters.AssertIdle $root
@@ -123,6 +129,16 @@ function Invoke-PbiApplicationInstallation {
         }
         $mutationStarted = $true
         if ($Operation -ceq 'Install') {
+            # 完整备份后先移除全部旧自有文件, 包括同名文件及安装身份, 避免覆盖安装残留.
+            # 旧入口优先移除; 移除期间入口只会处于独占锁定或不存在状态, 不开放半更新程序.
+            foreach ($relative in @($owned.Keys | Sort-Object @{ Expression = { if (Test-PbiInstallEntry $_) { 0 } else { 1 } } }, { $_ })) {
+                $null = Resolve-PbiInstallPath $allFiles[$relative]
+                & $Adapters.DeleteOwnedFile $allFiles[$relative]
+                $deleted[$relative] = $true
+                # Windows 删除等待最后一个句柄关闭. 立即关闭旧租约, 后续只用 CreateNew 获取新文件身份.
+                $leases[$relative].Dispose()
+                $leases.Remove($relative)
+            }
             $stateRelative = 'maintenance/installation-state.json'
             foreach ($relative in @(@($desired.Keys) + @($stateRelative) | Sort-Object @{ Expression = { if (Test-PbiInstallEntry $_) { 0 } else { 1 } } }, { $_ })) {
                 if (!$leases.ContainsKey($relative)) {
@@ -130,7 +146,7 @@ function Invoke-PbiApplicationInstallation {
                     $null = Resolve-PbiInstallPath $path
                     $null = [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($path))
                     $leases[$relative] = [IO.File]::Open($path, [IO.FileMode]::CreateNew, [IO.FileAccess]::ReadWrite, [IO.FileShare]::Delete)
-                    $newFiles[$relative] = $true
+                    if (!$owned.ContainsKey($relative)) { $newFiles[$relative] = $true }
                 }
             }
             foreach ($relative in $desired.Keys) {
@@ -145,9 +161,9 @@ function Invoke-PbiApplicationInstallation {
         } else { $version = $state.Version }
         $shellStarted = $true
         & $Adapters.ApplyShell $root $version $Operation $shellSnapshot
-        # 仅删除有本次可靠备份的过期自有文件. 已删除文件的租约也保留到事务结束.
+        # 卸载仅删除有本次可靠备份的自有文件; 安装已在新载荷写入前完成旧文件移除.
         foreach ($relative in $owned.Keys) {
-            if ($Operation -ceq 'Install' -and ($desired.ContainsKey($relative) -or $relative -ceq 'maintenance/installation-state.json')) { continue }
+            if ($Operation -ceq 'Install') { continue }
             $null = Resolve-PbiInstallPath $allFiles[$relative]
             & $Adapters.DeleteOwnedFile $allFiles[$relative]
             $deleted[$relative] = $true
@@ -159,10 +175,15 @@ function Invoke-PbiApplicationInstallation {
         $firstFailure = $primary
         $recoveryErrors = New-Object 'Collections.Generic.List[string]'
         if ($mutationStarted) {
-            foreach ($relative in $owned.Keys) {
+            # 先重建并锁住缺失的旧入口, 再恢复其他文件; 所有入口租约仍保持到整个恢复结束.
+            foreach ($relative in @($owned.Keys | Sort-Object @{ Expression = { if (Test-PbiInstallEntry $_) { 0 } else { 1 } } }, { $_ })) {
                 try {
-                    if ($deleted.ContainsKey($relative)) {
-                        $leases[$relative].Dispose(); $leases.Remove($relative)
+                    if ($Operation -ceq 'Uninstall' -and $deleted.ContainsKey($relative)) {
+                        $leases[$relative].Dispose()
+                        $leases.Remove($relative)
+                    }
+                    if (!$leases.ContainsKey($relative)) {
+                        $null = Resolve-PbiInstallPath $allFiles[$relative]
                         $leases[$relative] = [IO.File]::Open($allFiles[$relative], [IO.FileMode]::CreateNew, [IO.FileAccess]::ReadWrite, [IO.FileShare]::Delete)
                     }
                     Write-PbiLeasedFile $leases[$relative] $backups[$relative]

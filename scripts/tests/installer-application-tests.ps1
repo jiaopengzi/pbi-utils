@@ -9,12 +9,14 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../installer/Installation.psm1') -Force
 $sandbox = Join-Path ([IO.Path]::GetTempPath()) ('pbi-utils-installer-' + [Guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $sandbox
-$environment = @{ Shell = 'original'; Fail = $false; Writes = 0; Idle = $true; Leased = $false; DeleteCount = 0; DeleteFailAfter = 0; RegistrationNonInteractive = $false }
+$environment = @{ Shell = 'original'; Fail = $false; Writes = 0; Idle = $true; Leased = $false; DeleteCount = 0; DeleteFailAfter = 0; RegistrationNonInteractive = $false
+    ExpectedDeletes = 0; NewPayloadFile = ''; EntryRoot = ''; EntryChecks = 0; CorruptSource = '' }
 $adapters = @{
     UserId = 'isolated-test-user'
     AssertIdle = { param($root) if (!$environment.Idle) { throw '请关闭正在运行的 pbi-utils' } }.GetNewClosure()
     CaptureShell = { param($root, $installed, $desktop, $startMenu, $payloadRoot, $nonInteractive) $environment.RegistrationNonInteractive = $nonInteractive; return $environment.Shell }.GetNewClosure()
     ApplyShell = { param($root, $version, $operation)
+        if ($environment.ExpectedDeletes -gt 0 -and $environment.DeleteCount -ne $environment.ExpectedDeletes) { throw '旧版全部自有文件必须先移除再登记新版' }
         $environment.Writes++
         if ($operation -eq 'Install') {
             $stream = $null
@@ -28,8 +30,20 @@ $adapters = @{
     RestoreShell = { param($snapshot) $environment.Shell = $snapshot }.GetNewClosure()
     DeleteOwnedFile = { param($path)
         $environment.DeleteCount++
+        if ($environment.NewPayloadFile -and [IO.File]::Exists($environment.NewPayloadFile)) { throw '旧文件尚未清理完成时不得写入新版载荷' }
+        if ($environment.EntryRoot) {
+            foreach ($entryName in @('pbi-utils.exe', 'PbiUtils.Host.exe', 'PbiUtils.Desktop.exe')) {
+                $entryStream = $null
+                try {
+                    $entryStream = [IO.File]::OpenRead((Join-Path $environment.EntryRoot $entryName))
+                    throw '清理旧文件期间产品入口不得可读或启动'
+                } catch [IO.IOException] { $environment.EntryChecks++ }
+                finally { if ($null -ne $entryStream) { $entryStream.Dispose() } }
+            }
+        }
         if ($environment.DeleteFailAfter -gt 0 -and $environment.DeleteCount -eq $environment.DeleteFailAfter) { throw 'injected second deletion failure' }
         [IO.File]::Delete($path)
+        if ($environment.CorruptSource -and $environment.DeleteCount -eq $environment.ExpectedDeletes) { [IO.File]::WriteAllText($environment.CorruptSource, 'injected payload corruption after old removal') }
     }.GetNewClosure()
 }
 
@@ -63,7 +77,9 @@ function New-Payload([string]$Name, [string]$Version, [string]$Extra = 'old.dll'
     foreach ($license in @('LICENSE', 'THIRD-PARTY-NOTICES.md', 'THIRD-PARTY-NOTICES.txt', 'licenses/manifest.json')) {
         if ($license -cne $OmitLicense) { [IO.File]::WriteAllText((Join-Path $directory "app/$license"), "$Version license fixture $license") }
     }
-    [IO.File]::WriteAllText((Join-Path $directory "app/$Extra"), $Version)
+    $extraPath = Join-Path $directory "app/$Extra"
+    $null = [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($extraPath))
+    [IO.File]::WriteAllText($extraPath, $Version)
     foreach ($name in @('Install-Application.ps1', 'Installation.psm1', 'InstallationPayload.psm1', 'InstallationShell.psm1', 'ExternalToolRegistration.psm1', 'ExternalToolDescriptor.psm1', 'ExternalToolFiles.psm1', 'ExternalTool-Worker.ps1')) { [IO.File]::WriteAllText((Join-Path $directory "maintenance/$name"), $Version) }
     [IO.File]::WriteAllText((Join-Path $directory 'uninstall.exe'), $Version)
     $files = @(Get-ChildItem -LiteralPath (Join-Path $directory 'app') -Recurse -File | ForEach-Object {
@@ -155,7 +171,13 @@ Export-ModuleMember -Function Invoke-PbiApplicationInstallation
         Assert (@($state.files | Where-Object { $_.file -ceq "app/$license" }).Count -eq 1) '安装身份必须记录许可文件以覆盖修复、回滚和卸载'
     }
     [IO.File]::WriteAllText((Join-Path $destination 'personal.txt'), 'preserve unknown user file')
+    $environment.DeleteCount = 0; $environment.ExpectedDeletes = @($state.files).Count + 1
+    $environment.NewPayloadFile = Join-Path $destination 'app/new.dll'
+    $environment.EntryRoot = Join-Path $destination 'app'
     $null = Invoke-PbiApplicationInstallation -Operation Install -PayloadRoot $next -InstallRoot $destination -Adapters $adapters
+    Assert ($environment.DeleteCount -eq $environment.ExpectedDeletes) '升级必须在写新版前移除所有旧自有文件, 包括同名文件和安装状态'
+    Assert ($environment.EntryChecks -eq 3 * $environment.ExpectedDeletes) '整个旧文件移除阶段的三个产品入口必须锁定或不存在'
+    $environment.ExpectedDeletes = 0; $environment.NewPayloadFile = ''; $environment.EntryRoot = ''
     [IO.File]::WriteAllText((Join-Path $destination 'app/PbiUtils.Host.dll'), 'damaged own product file')
     [IO.File]::Delete((Join-Path $destination 'app/new.dll'))
     $null = Invoke-PbiApplicationInstallation -Operation Install -PayloadRoot $next -InstallRoot $destination -Adapters $adapters
@@ -170,6 +192,27 @@ Export-ModuleMember -Function Invoke-PbiApplicationInstallation
     $third = New-Payload 'payload-three' '1.2.0' 'third.dll'
     $before = Snapshot $destination
     $shellBefore = $environment.Shell
+    $writesBefore = $environment.Writes
+    $typeConflict = New-Payload 'payload-file-directory-conflict' '1.2.0' 'new.dll/child.dll'
+    $deletesBefore = $environment.DeleteCount
+    Reject { Invoke-PbiApplicationInstallation -Operation Install -PayloadRoot $typeConflict -InstallRoot $destination -Adapters $adapters } '目录与现有文件冲突'
+    Assert ((Snapshot $destination) -ceq $before -and $environment.DeleteCount -eq $deletesBefore) '旧文件变目录的类型冲突必须在移除旧包之前拒绝'
+    $environment.DeleteCount = 0; $environment.DeleteFailAfter = 2
+    Reject { Invoke-PbiApplicationInstallation -Operation Install -PayloadRoot $third -InstallRoot $destination -Adapters $adapters } 'injected second deletion failure'
+    $environment.DeleteFailAfter = 0
+    Assert ((Snapshot $destination) -ceq $before -and $environment.Writes -eq $writesBefore) '升级部分移除旧文件后失败必须完整恢复旧包, 不得写入系统登记'
+
+    $currentState = Get-Content -LiteralPath (Join-Path $destination 'maintenance/installation-state.json') -Raw | ConvertFrom-Json
+    $environment.DeleteCount = 0; $environment.ExpectedDeletes = @($currentState.files).Count + 1
+    $environment.CorruptSource = Join-Path $third 'app/third.dll'
+    $sourceBytes = [IO.File]::ReadAllBytes($environment.CorruptSource)
+    try { Reject { Invoke-PbiApplicationInstallation -Operation Install -PayloadRoot $third -InstallRoot $destination -Adapters $adapters } '安装写入后哈希不一致' }
+    finally {
+        [IO.File]::WriteAllBytes($environment.CorruptSource, $sourceBytes)
+        $environment.CorruptSource = ''; $environment.ExpectedDeletes = 0
+    }
+    Assert ((Snapshot $destination) -ceq $before -and $environment.Writes -eq $writesBefore -and $environment.Shell -ceq $shellBefore) '旧包全清后新版写入失败必须恢复旧版及状态并移除本轮新增文件'
+
     $environment.Fail = $true
     Reject { Invoke-PbiApplicationInstallation -Operation Install -PayloadRoot $third -InstallRoot $destination -Adapters $adapters } 'injected shell failure'
     $environment.Fail = $false

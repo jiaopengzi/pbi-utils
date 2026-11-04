@@ -126,7 +126,7 @@ Debug 与 Release 互不覆盖。所选模式的临时产物完成编译、前�
 
 安装和卸载向导的中文页面使用 Microsoft YaHei UI 10 磅，英文页面使用 Segoe UI 9 磅，控件与窗口按字体度量一起布局。选择安装位置后，可分别勾选“创建桌面快捷方式”和“创建开始菜单快捷方式”，默认均选中，返回上一步后保留本轮选择。入口分别位于当前用户桌面和开始菜单的 `pbi-utils` 文件夹，指向实际安装的桌面程序。修复或升级时取消勾选会移除本次安装已有的对应入口；卸载始终检查两个位置，仅清理本安装拥有的快捷方式，缺失入口不影响卸载。实际写入或删除前再次核对快捷方式快照，用户后续修改和其他软件的同名入口保持不变。
 
-安装器面向当前用户，默认安装到 `%LOCALAPPDATA%\Programs\pbi-utils`，完整程序位于 `app` 子目录；桌面入口为 `app\PbiUtils.Desktop.exe`，CLI/MCP 为 `app\pbi-utils.exe`。维护文件与产品文件清单分开；当前代际安装沿用固定路径，支持升级和同版本修复，拒绝降级。旧安装身份不自动接管。桌面或开始菜单已有不属于本次安装的同名快捷方式时，保留原入口、在安装详情中提示跳过，并继续安装及创建其他未冲突入口；卸载和失败回滚也不会删除这些外部入口。可从安装目录的桌面入口或安装完成页启动新程序。升级和卸载要求正常关闭本软件及 MCP 连接，不强杀 Host 或 Power BI，也不清理用户数据或共享运行时。
+安装器面向当前用户，默认安装到 `%LOCALAPPDATA%\Programs\pbi-utils`，完整程序位于 `app` 子目录；桌面入口为 `app\PbiUtils.Desktop.exe`，CLI/MCP 为 `app\pbi-utils.exe`。维护文件与产品文件清单分开；当前代际安装沿用固定路径，支持升级和同版本修复，拒绝降级。升级和修复在身份、占用及完整备份核验后，先移除旧版清单中的全部自有文件，再写入新版，防止旧程序文件残留；普通失败恢复原程序与安装状态，未知文件及用户数据保留。旧安装身份不自动接管。桌面或开始菜单已有不属于本次安装的同名快捷方式时，保留原入口、在安装详情中提示跳过，并继续安装及创建其他未冲突入口；卸载和失败回滚也不会删除这些外部入口。可从安装目录的桌面入口或安装完成页启动新程序。升级和卸载要求正常关闭本软件及 MCP 连接，不强杀 Host 或 Power BI，也不清理用户数据或共享运行时。
 
 安装器在许可页之后、目录选择和完整程序解压之前，用系统 Windows PowerShell 5.1 检查 x64 .NET Desktop Runtime 和 Evergreen WebView2。`without-dotnet` 按发布入口要求检测 .NET，`with-dotnet` 使用包内运行时；两种包都检查 WebView2。初次检查已满足时直接进入下一步；否则显示环境页，用绿色表示满足、琥珀色表示需要安装、红色表示失败，并保留明确的文字状态。缺失或检测失败时禁用下一步，可安装缺失组件、重新检查或打开微软官网手动安装。只先释放小型引导文件，离开环境页及完整解压前再次核验。下载阶段可取消；微软安装程序启动后等待退出并复检，不强行中断。管理员授权用于确实需要提权的前置组件及外部工具注册步骤；需重启时提示并禁用安装后自动启动。静默安装只检查已有依赖，缺失退出 3，不隐式下载或安装运行时；静默安装和卸载的外部工具登记也不弹出 UAC，无写权限时返回 3，可在管理员上下文重试。
 
@@ -134,7 +134,7 @@ Debug 与 Release 互不覆盖。所选模式的临时产物完成编译、前�
 
 ### 软件更新与发布约定
 
-设置中的“软件更新”默认开启自动检查，默认来源为 GitHub，可切换至 Gitee。启动后后台检查，每个来源最多每 24 小时自动检查一次；“检查更新”可主动重试。紧凑面板显示当前版本、检查状态和本地时间（`YYYY-MM-DD HH:mm:ss`），更新说明可展开查看。结果区分有新版、当前版本、尚无本产品发布和检查失败，网络失败不等同于没有更新。通知每个版本在本次应用运行中最多一次。只有点击“下载安装包”或“打开发布页面”才在系统浏览器中打开对应地址，应用不自动下载、执行安装器或重启。重新启动后保存的结果只供查看，重新检查成功后才开放下载入口。
+设置中的“软件更新”默认开启自动检查，默认来源为 GitHub，可切换至 Gitee。启动后后台检查，每个来源最多每 24 小时自动检查一次；“检查更新”可主动重试。面板紧凑显示当前版本、最新发布版本、检查状态和本地时间（`YYYY-MM-DD HH:mm:ss`），检查更新与发布页入口位于同一操作行，不展示版本列表和更新说明。更新查询同时识别正式版与预发布版，按数字版本比较，同版本正式版优先，预发布轮次按数字排序；当前数字版本无法判定已安装的预发布轮次。结果区分有新版、当前版本、尚无本产品发布和检查失败，网络失败不等同于没有更新。通知每个版本在本次应用运行中最多一次。“打开软件发布页面”始终可点击，通过默认浏览器进入所选来源的 releases 页面，由用户自行选择版本下载；未检查、检查中、空列表或检查失败均不影响此入口。应用不提供直接下载按钮，不自动下载、执行安装器或重启。CLI/MCP 返回完整有界发布列表，说明有总量限制并带截断标记；完整说明和下载均可在发布页面查看。
 
 版本检查统一位于软件设置中，默认使用 GitHub；用户访问或下载不便时可选择 Gitee 并重新检查。NSIS 安装器只处理安装前运行环境检查和安装维护，不查询产品版本。CLI 可运行 `pbi-utils updates check --source github|gitee --json`；MCP 提供只读 `updates_check`，不提供浏览器或安装能力。
 
@@ -146,7 +146,7 @@ GitHub Actions 的 [build.yaml](.github/workflows/build.yaml) 仅在推送 `desk
 
 - `pbi-utils-<版本>-win-x64-without-dotnet-setup.exe`。
 
-安装器 JSON、`.sha256` 侧文件、目录锁和中间产物保留在本地，不进入 ZIP。归档前后核验安装器字节及本地校验值，发布时从实际 ZIP 内的 EXE 计算 SHA256，在 GitHub/Gitee 发布说明中使用 `### pbi-utils-<版本>-win-x64-without-dotnet-setup.exe SHA256` 标题，随后 `text` 代码块只写 64 位大写哈希；该摘要对应安装器，不是 ZIP。软件更新仅识别同源同版本的上述 ZIP；缺少、重复或地址不符时禁用下载。开发命令仍支持两种本地构建模式。更新检查仅访问匿名 Releases API，不读取仓库分支上的 changelog 文件，也不要求自建更新服务器。标签构建完成后，`push-github` 与 `push-gitee` 仅依赖 `build` 并行执行，分别调用 [.github/actions/push-github/action.yml](.github/actions/push-github/action.yml) 和 [.github/actions/push-gitee/action.yml](.github/actions/push-gitee/action.yml)，共用同一次构建的 ZIP、发布说明及完整性清单；本地 `run.ps1` 仍只生成文件，不创建远程 Release、不上传文件。
+安装器 JSON、`.sha256` 侧文件、目录锁和中间产物保留在本地，不进入 ZIP。归档前后核验安装器字节及本地校验值，发布时从实际 ZIP 内的 EXE 计算 SHA256，在 GitHub/Gitee 发布说明中使用 `### pbi-utils-<版本>-win-x64-without-dotnet-setup.exe SHA256` 标题，随后 `text` 代码块只写 64 位大写哈希；该摘要对应安装器，不是 ZIP。软件更新只读取发布标签、正式/预发布标记和说明，不解析下载资产；下载由所选来源的发布页面完成。开发命令仍支持两种本地构建模式。更新检查仅访问匿名 Releases API，不读取仓库分支上的 changelog 文件，也不要求自建更新服务器。标签构建完成后，`push-github` 与 `push-gitee` 仅依赖 `build` 并行执行，分别调用 [.github/actions/push-github/action.yml](.github/actions/push-github/action.yml) 和 [.github/actions/push-gitee/action.yml](.github/actions/push-gitee/action.yml)，共用同一次构建的 ZIP、发布说明及完整性清单；本地 `run.ps1` 仍只生成文件，不创建远程 Release、不上传文件。
 
 #### 标签、更新日志与 Git 别名
 
@@ -163,7 +163,7 @@ git savetag
 `git savetag` 使用 Git Bash 和项目已有的 PowerShell 7（仅解析 XML 产品版本），从 CHANGELOG 的最新发布章节读取标签，要求工作区干净、位于 `main` 或 `v2`、标签尚未在本地或 origin 存在。先正常提交审核后的文件，再执行此命令。它创建 annotated tag，并将当前分支和此标签原子推送至 origin；不自动暂存/提交、不 force、不附带其他标签，失败时如实保留并报告本地状态。`--dry-run` 只校验和预览，不创建标签或推送。
 
 - `main`：`desktop-v<版本>`，成功构建后创建正式 GitHub Release。
-- `v2`：`desktop-v<版本>-v2.<正整数>`，例如 `desktop-v0.1.0-v2.1`，成功构建后创建非 latest 的 GitHub 预发布，软件更新会忽略它。
+- `v2`：`desktop-v<版本>-v2.<正整数>`，例如 `desktop-v0.1.0-v2.1`，成功构建后创建非 latest 的 GitHub 预发布，软件更新同样识别它并保留完整版本后缀。
 
 CI 还会核验标签提交确实属于对应来源分支，Release 正文取精确 CHANGELOG 章节，附件只有上述 ZIP。已有同名 GitHub Release 复用，说明同步更新；已有附件必须精确一致，不覆盖附件。Gitee 发布 Action 只推送此次精确标签，不推送 `v2` 分支；使用已配置的 `GITEE_SSH_PRIVATE_KEY` 和 `GITEE_TOKEN`，预发布标记与 GitHub 一致。附件上传复用 [action-gitee-release v2.0.0](https://github.com/nICEnnnnnnnLee/action-gitee-release/releases/tag/v2.0.0)，明确指定数字发行版 ID 和唯一 ZIP，禁用自动重试并限制发布任务时长。上传前检查 ZIP 不超过 100,000,000 字节，上传后从公开链接下载核验长度和 SHA256，最后才开放正式发行版。若 GitHub 已发布而 Gitee 失败，使用“重新运行失败的作业”，或在 `Build pbi-utils` 手动入口填写已有 `release_tag`，不重复构建或创建 GitHub Release。独立入口也会核验 GitHub 已有的发行版、原标签提交、单 EXE ZIP 和发行说明中的 EXE 摘要；已有精确 Gitee 附件只在字节完全一致时复用，冲突明确失败，不删除重建。
 

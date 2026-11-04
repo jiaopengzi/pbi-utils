@@ -2,18 +2,18 @@
 // Author      : jiaopengzi
 // Blog        : https://jiaopengzi.com
 // Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-// Description : 固定仓库更新版本、附件和安全链接的共享选择策略.
+// Description : 固定仓库正式/预发布列表、版本排序和安全发布页地址的共享策略.
 
 using System.Globalization;
 using PbiUtils.Core;
 
 namespace PbiUtils.Application.Updates;
 
-/// <summary>只接受当前 desktop 正式发布, 不混用旧产品或其他版本附件.</summary>
+/// <summary>只接受当前 desktop 公开发布, 同时展示正式和预发布, 不混用旧产品版本.</summary>
 public static class ProductUpdatePolicy
 {
-    /// <summary>正式软件更新仅分发不含 .NET 的 ZIP 包, 内含安装器和 SHA256, 运行时由安装器按需补齐.</summary>
-    public static IReadOnlyList<string> Modes { get; } = Array.AsReadOnly(["without-dotnet"]);
+    public const int MaximumReleases = 1000;
+    public const int MaximumNotesLength = 65536;
 
     /// <summary>拒绝未知来源, 不允许自由主机或地址.</summary>
     public static void ValidateSource(string source)
@@ -47,40 +47,54 @@ public static class ProductUpdatePolicy
         return true;
     }
 
-    /// <summary>根据固定来源、版本和目标构建唯一发布页或 ZIP 包地址; 非法版本/目标抛参数错误.</summary>
-    public static string Link(string source, string version, string target)
+    /// <summary>将固定来源映射为 releases 根页; 不依赖更新状态, 非法来源抛参数错误.</summary>
+    public static string ReleasesLink(string source)
     {
         ValidateSource(source);
-        if (!TryVersion(version, out _) || (target != "release" && !Modes.Contains(target, StringComparer.Ordinal)))
-            throw new AppException("INVALID_UPDATE_TARGET", "更新目标无效");
-        var prefix = $"https://{source}.com/jiaopengzi/pbi-utils/releases/";
-        return target == "release" ? prefix + "tag/desktop-v" + version
-            : prefix + $"download/desktop-v{version}/pbi-utils-{version}-win-x64-{target}.zip";
+        return $"https://{source}.com/jiaopengzi/pbi-utils/releases";
     }
 
-    /// <summary>从完整发布列表选择最高正式版本和同源同版本唯一 ZIP; 正文保留原文本, 仅限制显示长度.</summary>
+    /// <summary>解析当前发布流水线的精确 desktop 标签及 v2 轮次; 非法标签返回 false.</summary>
+    public static bool TryReleaseTag(string? tag, out Version version, out int revision)
+    {
+        version = new Version(0, 0, 0, 0);
+        revision = 0;
+        if (tag is null || tag.Length > 64 || !tag.StartsWith("desktop-v", StringComparison.Ordinal)) return false;
+        var value = tag[9..];
+        var separator = value.IndexOf("-v2.", StringComparison.Ordinal);
+        if (separator < 0) return TryVersion(value, out version);
+        var number = value[(separator + 4)..];
+        return number.Length > 0 && number[0] != '0' && number.All(character => character is >= '0' and <= '9')
+            && int.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out revision) && revision > 0
+            && TryVersion(value[..separator], out version);
+    }
+
+    /// <summary>选择全部公开 desktop 发布, 按数字版本、正式优先和预发布轮次排序; 超量明确失败.</summary>
     public static ProductUpdateCheck Select(string source, string currentVersion, IEnumerable<ProductRelease> releases, DateTimeOffset checkedAt)
     {
         ValidateSource(source);
         if (!TryVersion(currentVersion, out var current)) throw new AppException("INVALID_UPDATE_VERSION", "当前产品版本无效");
-        var latest = releases.Where(release => !release.Draft && !release.Prerelease && release.Tag.StartsWith("desktop-v", StringComparison.Ordinal)
-                && TryVersion(release.Tag[9..], out _))
-            .OrderByDescending(release => { TryVersion(release.Tag[9..], out var version); return version; })
-            .ThenBy(release => release.Tag, StringComparer.Ordinal).FirstOrDefault();
-        if (latest is null) return new(source, currentVersion, "noRelease", checkedAt, null, null, "", []);
-        var value = latest.Tag[9..];
-        TryVersion(value, out var parsed);
-        var assets = new List<ProductUpdateAsset>();
-        foreach (var mode in Modes)
+        var candidates = releases.Where(release => !release.Draft && TryReleaseTag(release.Tag, out _, out _))
+            .Select(release =>
+            {
+                TryReleaseTag(release.Tag, out var version, out var revision);
+                return (Release: release, Version: version, Revision: revision, Preview: release.Prerelease || revision > 0);
+            })
+            .OrderByDescending(item => item.Version).ThenBy(item => item.Preview)
+            .ThenByDescending(item => item.Revision).ThenBy(item => item.Release.Tag, StringComparer.Ordinal)
+            .ToArray();
+        if (candidates.Length > MaximumReleases || candidates.Select(item => item.Release.Tag).Distinct(StringComparer.Ordinal).Count() != candidates.Length)
+            throw new AppException("UPDATE_INVALID_RESPONSE", "发布列表过大或包含重复标签", 4);
+        var remaining = MaximumNotesLength;
+        var entries = candidates.Select(item =>
         {
-            var name = $"pbi-utils-{value}-win-x64-{mode}.zip";
-            var url = Link(source, value, mode);
-            var candidates = latest.Assets.Where(asset => asset.Name == name && asset.Url == url && (asset.Size is null or >= 0)).ToArray();
-            if (candidates.Length == 1) assets.Add(new(mode, name, url, candidates[0].Size));
-        }
-        var length = Math.Min(latest.Notes.Length, 65536);
-        if (length < latest.Notes.Length && length > 0 && char.IsHighSurrogate(latest.Notes[length - 1])) length--;
-        var notes = latest.Notes[..length];
-        return new(source, currentVersion, parsed > current ? "available" : "current", checkedAt, value, Link(source, value, "release"), notes, [.. assets]);
+            var text = item.Release.Notes;
+            var length = Math.Min(text.Length, Math.Min(4096, remaining));
+            if (length < text.Length && length > 0 && char.IsHighSurrogate(text[length - 1])) length--;
+            remaining -= length;
+            return new ProductUpdateRelease(item.Release.Tag, item.Release.Tag[9..], item.Preview, text[..length], length < text.Length);
+        }).ToArray();
+        var status = candidates.Length == 0 ? "noRelease" : candidates[0].Version > current ? "available" : "current";
+        return new(source, currentVersion, status, checkedAt, entries.FirstOrDefault()?.Version, entries);
     }
 }

@@ -4251,25 +4251,10 @@
                   "github",
                   "gitee"
                 ]
-              },
-              "version": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 64,
-                "pattern": "\\S"
-              },
-              "target": {
-                "type": "string",
-                "enum": [
-                  "release",
-                  "without-dotnet"
-                ]
               }
             },
             "required": [
-              "source",
-              "version",
-              "target"
+              "source"
             ]
           }
         }

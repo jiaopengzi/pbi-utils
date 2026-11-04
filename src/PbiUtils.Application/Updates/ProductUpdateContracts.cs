@@ -10,20 +10,18 @@ namespace PbiUtils.Application.Updates;
 public sealed record ProductUpdateSettings(bool AutomaticCheck = true, string Source = "github");
 /// <summary>仅提交用户本次修改字段, 未提供的偏好由存储锁内最新值补齐.</summary>
 public sealed record ProductUpdateSettingsPatch(bool? AutomaticCheck = null, string? Source = null);
-/// <summary>同一正式发布中精确匹配的完整安装包, 大小未知时为 null.</summary>
-public sealed record ProductUpdateAsset(string DotNetMode, string FileName, string DownloadUrl, long? Size);
+/// <summary>当前产品的公开发布, 保留精确标签、预发布状态及有界纯文本说明.</summary>
+public sealed record ProductUpdateRelease(string Tag, string Version, bool Prerelease, string Notes, bool NotesTruncated);
 /// <summary>有界纯文本更新结果, 失败仅返回固定错误码, 不携带原始异常.</summary>
 public sealed record ProductUpdateCheck(string Source, string CurrentVersion, string Status, DateTimeOffset CheckedAtUtc,
-    string? LatestVersion, string? ReleaseUrl, string Notes, ProductUpdateAsset[] Assets,
+    string? LatestVersion, ProductUpdateRelease[] Releases,
     string? ErrorCode = null, bool IsSimulation = false);
 /// <summary>当前设置及当前所选来源的最近结果.</summary>
 public sealed record ProductUpdateState(ProductUpdateSettings Settings, ProductUpdateCheck? LastCheck);
 /// <summary>是否执行本轮查询以及实际结果; 关闭或节流时可能没有缓存.</summary>
 public sealed record ProductUpdateCheckResponse(bool CheckedNow, ProductUpdateCheck? Check);
-/// <summary>平台提供的发布字段, 不信任其 tag、正文或附件地址.</summary>
-public sealed record ProductRelease(string Tag, bool Draft, bool Prerelease, string Notes, ProductReleaseAsset[] Assets);
-/// <summary>平台发布附件的候选字段, 所有地址须由选择策略精确复核.</summary>
-public sealed record ProductReleaseAsset(string Name, string Url, long? Size);
+/// <summary>平台提供的发布字段, 标签和正文须经共享策略校验, 不读取附件地址.</summary>
+public sealed record ProductRelease(string Tag, bool Draft, bool Prerelease, string Notes);
 
 /// <summary>更新数据存储与模型/界面偏好分离, 锁内读最新值再合并.</summary>
 public interface IProductUpdateStore
