@@ -8,18 +8,18 @@
 - 基础项和宿主目录有效后可在任意步骤创建, 不要求看完五步, 不恢复上一步/下一步或仅末步创建限制. 操作栏稳定吸附在内容上方; 错误切到对应步骤/内部页签, 定位真实字段/行并关联 ARIA.
 - 往返和关闭可选段保留编辑, 仅校验并提交本次开启的段; 关闭段提交 null. 不把可选步骤关闭、未访问或位置靠前当成业务失败/完成. 模型页复用相同字段、校验和生成器.
 - 创建内部串行保存草稿、冻结校验与摘要发布; 网页不恢复整份工程代码/文件预览. CLI 显式 plan/create 与内部冻结仍共用同一业务契约.
-- 模板步骤的“辅助表”提供固定 `Hour24`、`MQHY`、`RefreshTime`、`TypeDetails` 多选及 `PQ(M)` 只读代码预览/复制, 未勾选仍可复制. 固定目录为 `web/src/features/scaffold/templateQueries.json`, Application 嵌入同一资源, 网页只提交 ID 集合 `templateQueries` 及已选项分组 map `templateQueryGroups`, 不提交任意 M. ID 集合可省略/null/空数组, 分组覆盖可省略/null以沿用默认, 保持旧 CLI 最小请求兼容; 此选项仅属于新建, 不扩展当前模型配置.
+- 模板步骤的“辅助表”提供固定 `Hour24`、`MQHY`、`RefreshTime`、`TypeDetails` 多选及 `PQ(M)` 只读代码预览/复制, 未勾选仍可复制. 固定目录为 `web/src/features/scaffold/templateQueries.json`, Application 嵌入同一资源, 网页只提交 ID 集合 `templateQueries` 及已选项分组 map `templateQueryGroups`, 不提交任意 M. 当前契约允许 ID 集合省略/null/空数组, 分组覆盖省略/null时沿用默认; 这是可选配置语义, 不据此新增历史兼容分支. 此选项仅属于新建, 不扩展当前模型配置.
 - 默认 `Hour24`/`MQHY`/`RefreshTime` 分组为 `model`, `TypeDetails` 为 `config`; 每项分组独立编辑, 空串表示不分组, 非空名称最多200个UTF-16字符且不能包含控制字符或全为空白, 正常中文和内部空格保留, 不在输入时trim. 选择与覆盖map按桥接会话跨步骤/语言/重挂载保留, 不修改宿主目录或M原文; 只校验并提交选中项, 默认分组也显式进入创建冻结. 非法已选分组沿template步骤字段问题定位真实输入, 关联错误与ARIA. 组map变化使旧计划失效; 操作锁阻止选择、分组编辑及复制.
 - 固定中文业务列名不随界面语言翻译. 选中的 `Hour24`/`MQHY`/`RefreshTime` 生成具有完整类型列和 Import M 分区的加载表, 分组绑定分区; `TypeDetails` 继续为 M NamedExpression. 四者标记 `PBI_ResultType=Table`, 元数据回读不代表引擎计算成功. 内置已有辅助查询保持; 选中 TypeDetails 的替换须核验内置来源, 用户同名表、M 分区或表达式保持冲突保护, 不按名称推定归属.
 - 无示例数据时, `RefreshTime` 仅在辅助表选中时加载. 其文本列在实际刷新时由本机 `DateTime.LocalNow()` 生成, 预览和创建共用同一固定M. 启用示例数据时, 基础刷新度量所需的该表仍自动保留; 若辅助表已显式选择, 复用同一表并保留选定分组, 不重复生成或转CSV.
 - 新建和模型页的显式模板度量配置均按全模型名称匹配原对象就地覆盖, 不存在时在 `Measure` 表创建; 不以旧生成归属或人工改动阻挡. 完整有效配置在创建准备阶段通过宿主用户目录记忆, 包含增删、禁用条目和空集, 关闭段不清空上次方案. 独占锁和完整内容基线保护其他窗口的新配置; 损坏或未知版本不覆盖.
-- 模板度量分类仅接受14种标准值, 不接受 RefreshTime 应用扩展. 已知 schema1 偏好只读地将精确旧 RefreshTime 转为 Uncategorized, 保留其他字段并以原文件完整字节作为保存基线; 读取不改写文件. 未知分类、损坏、未知版本继续拒绝覆盖, 新请求不使用旧值兼容例外.
+- 模板度量分类仅接受14种标准值, 不接受 RefreshTime 应用扩展. `LocalTemplateMeasurePreferencesStore` 按当前 schema1 和共享 `TemplateMeasureValidation` 严格读取, 不将旧 RefreshTime 偏好转换为 Uncategorized. 无效分类、损坏或未知版本返回带警告的默认配置及 invalid 基线, 保留原文件并拒绝保存覆盖; 合法读取以完整原始字节计算基线. 不把模型中 Config/TMDL 模式切换的物化逻辑当作偏好迁移规则.
 - 桌面目录由系统选择器绑定, 网页不能提交任意路径. 新建仅发布到尚不存在的本机子目录; 模板、参数、目标和基线进入冻结摘要, 计划15分钟有效, 提交前再次回核. 持久计划/回执保护同目标重放, 取消提交前生效、提交后排空并回读真实事实, 未知提交不删回执重做.
 - Git 默认关闭, 载入和冻结前检测可用性, 只在最终工程的 `pbip/` 目录初始化. 无论开关状态都在冻结前生成 `pbip/.gitignore`, 包含 `**/.pbi/localSettings.json` 和 `**/.pbi/cache.abf`; 模板已有规则保留并只补缺失项, 不改源文件. 缺 Git 提示并跳过初始化, 不改冻结摘要或吞没已完成的创建事实. 发布清单仅豁免显式请求对应的 `pbip/.git` 普通目录, 部分初始化/恢复回执不重放. 完整完成只反馈一次, 部分保存/待核验保留恢复入口.
 - 当前内置来源为 `src/PbiUtils.Infrastructure/Scaffolding/Assets/pbip/blank`. 名称与目录原名一致且不翻译; 用户模板与当前内置重名可见提示并由后端拒绝. 模板、报表/模型占位与许可证不能因 demo 字样删除.
 - 用户模板位于 `.pbi-utils/templates/pbip/<独立目录>`, 每目录只含一个完整 PBIP, 入口可位于根目录或直接 `pbip/` 子目录, 报表相对绑定 PBIP 目录内本地模型. 管理界面用 Vue; 固定说明文件首次原子创建且不覆盖已有内容. 发现/预览不执行外部源.
 - 保留模板来源快照、清单、原始字节和作者声明. 转换按真实表/列/sourceColumn/dataType/业务角色, 不全局字符串替换或仅删除路径参数. 没有模拟输入的零售业务表保留完整空结构, 不伪造业务数据.
-- 新建入口与绑定报表/模型统一为 `pbip/<项目名>.pbip`、同层 `<项目名>.Report`/`<项目名>.SemanticModel`, 按真实绑定映射路径, 不做业务文本替换. 原始11表仅在开启模拟数据时由共享示例生成器写入根 `data/`; 模板适配写 `data/model/`, 模板配置 CSV 写 `data/config/`, 业务 JSON 写根 `config/`. 资产 hash、UDF 精确安装锁与逐包原始许可统一保存在模型注解, 不生成 scaffold/README/配置归属/UDF锁/许可旁文件. 不生成 `data/sample/`; 新建在本轮 staging 内替换同名模拟表及其固定 CSV, 保留源模板字节和已有成员引用, 已有模型仍须完整归属与资产核验. 文件数据源移动后更新指向工程根的 `PbiUtilsProjectRoot`, 后续整树事务及资产根保持该层级, 定义文件清单仍相对 PBIP 父目录.
+- 新建入口与绑定报表/模型统一为 `pbip/<项目名>.pbip`、同层 `<项目名>.Report`/`<项目名>.SemanticModel`, 按真实绑定映射路径, 不做业务文本替换. 原始11表仅在开启模拟数据时由共享示例生成器写入根 `data/`; 模板适配写 `data/model/`, 页面/权限配置 CSV 写 `data/config/`. 两种模板度量模式均建立根 `pbi-utils/` 目录, Config 写 `pbi-utils/config.json` 的 `MeasureTemplates`, TMDL 不生成该 JSON; 不生成或迁移旧 `config/config.json`. 资产 hash、UDF 精确安装锁与逐包原始许可统一保存在模型注解, 不生成 scaffold/README/配置归属/UDF锁/许可旁文件. 不生成 `data/sample/`; 新建在本轮 staging 内替换同名模拟表及其固定 CSV, 保留源模板字节和已有成员引用, 已有模型仍须完整归属与资产核验. 文件数据源移动后更新指向工程根的 `PbiUtilsProjectRoot`, 后续整树事务及资产根保持该层级, 定义文件清单仍相对 PBIP 父目录.
 
 入口: `src/PbiUtils.Application/Scaffolding/ScaffoldService.cs`, `src/PbiUtils.Application/Scaffolding/ScaffoldInputJson.cs`, `src/PbiUtils.Infrastructure/Scaffolding/ScaffoldWorkspace.cs`, `src/PbiUtils.Infrastructure/Scaffolding/ScaffoldPlanStore.cs`, `src/PbiUtils.Infrastructure/Scaffolding/Assets/README.md`, `web/src/features/scaffold/ScaffoldPanel.vue`.
 

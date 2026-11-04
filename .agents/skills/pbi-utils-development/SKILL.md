@@ -1,6 +1,6 @@
 ---
 name: pbi-utils-development
-description: Use when developing, debugging, reviewing, cleaning source files, or validating changes in the pbi-utils Windows C#/Vue repository, including model operations, PBIP scaffolding, calendar, UDF, local MCP, and host bridge work.
+description: Use when developing, debugging, reviewing, cleaning source files, validating, or maintaining documentation in the pbi-utils Windows C#/Vue repository, including model operations, PBIP scaffolding, calendar, UDF, local MCP, host bridge, installer, and release work.
 ---
 
 # pbi-utils 开发与自检
@@ -21,6 +21,9 @@ description: Use when developing, debugging, reviewing, cleaning source files, o
 | 新建、示例、日期函数或 UDF | [scaffolding-calendar-udf.md](references/scaffolding-calendar-udf.md) |
 | 本地 MCP、第三方客户端接入、工具覆盖与权限 | [local-mcp.md](references/local-mcp.md) |
 | 构建、发布、真实验收与收尾 | [validation-and-delivery.md](references/validation-and-delivery.md) |
+| 安装器、软件更新、发布标签及 GitHub/Gitee 分发 | [release-and-updates.md](references/release-and-updates.md) |
+
+根 README 是用户指南, 不承担开发操作手册和历史验收索引. 维护文档时从对应功能入口、共享实现和机器契约核对事实; 涉及多个领域才按范围读取多份参考, 不将旧说明互相引用当作代码证据.
 
 ## 执行流程
 
@@ -28,7 +31,7 @@ description: Use when developing, debugging, reviewing, cleaning source files, o
 2. 用当前入口/调用方/契约/测试核实行为, 再决定最小改动. 保留当前仍使用的功能占位、真实示例数据、开发 mock 和测试夹具; 未明确要求兼容的 legacy 分支按授权范围清理, 不因历史存在而保留, 也不因名称像 demo 判断可删.
 3. 复用已有服务和组件, 保持完整身份、基线、MCP 一次写授权及提交边界. 普通保存直接执行, 不创建长期模型历史备份; 保留必要的事务临时回滚、未知提交核验材料与业务回执. 修改共享逻辑时核查所有调用方, 不用 UI 结果替代后端事实.
 4. 以行为验证需求和相邻边界: 空/上限/重复/过期输入、取消/超时/关闭、并发/目标变更/迟到结果、失败保留/部分保存/未知提交. 按实际影响选取, 不为任务无关场景重放真实写入、登录或付费请求.
-5. 执行受影响检查. 涉及产品代码的完整门禁按 C# check→test→build, 再 Vue check→test→build 及打包, 首错停止. 文档任务验证规则与路径, 不虚报产品重测.
+5. 执行受影响检查. 涉及产品代码的完整门禁按 C# check→test→build, 再 Vue check→test→build 及发布目录交付, 首错停止; NSIS 安装包由独立 package/release 动作生成. 文档任务验证事实、引用、路径与 skill 格式, 不虚报产品重测.
 6. 验收按模拟/发布宿主/真实引擎/真实外部服务分别取证; 仅将本轮实际执行结果写为 PASS/FAIL, 无证据为 UNRUN. 失败后保留原始记录, 修复后另记复验.
 7. 正常关闭本任务资源并确认端口/句柄释放, 保留用户与其他任务进程及并发配置. 报告实际改动、命令/退出码、证据与限制; 无明确指令不提交/推送.
 

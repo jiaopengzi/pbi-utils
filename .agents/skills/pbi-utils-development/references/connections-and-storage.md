@@ -6,6 +6,7 @@
 
 - 桌面连接页复用 Desktop、Service、SSAS/XMLA 三种来源. PBIP/PBIX 文件由官方 Desktop 打开并连接已就绪模型; 窗口启动不等于模型就绪. CLI 的 PBIP 离线读取及显式副本流程保持独立.
 - Desktop 文件入口与最近文件重开共用 `ModelConnectionService.FileAsync`. 由官方 Bridge 复核完整文件状态、PBIP/PBIR 绑定、PID、启动时间和引擎; 同文件已开时复用. 不凭标题、文件同名、单个 PID 或随机数据库名认定身份.
+- Power BI 外部工具启动由 GUI 接收 `--server`/`--database`, 复用共享连接用例; 核验当前 Windows 会话中的 Desktop、回环端点及数据库后才连接, 无效目标不自动改连其他模型. 此启动只连接读取, 不修改或保存报表. 开发/安装登记分别维护, 见 [release-and-updates.md](release-and-updates.md).
 - 当前 Desktop 模型只按宿主返回的完整非空 `instanceId` 匹配. 扫描仅关联当前会话 PBIDesktop 与 msmdsrv 父子进程和 IPv4/IPv6 回环端口, 连接前后复核身份. 歧义、多模型、缺失身份或失效快照不得合成成功连接.
 - 成功切换才替换旧工作区. 失败或提交前取消保留旧工作区; 取消等待原请求终态, 不自动关闭用户 Desktop. 待保存/待核验与在途状态继续阻止冲突操作. 当前模型的“查看模型”只导航, 不重新连接.
 - 同步 SDK 调用在线程池执行, 在调用边界检查取消并释放连接. 不宣称 CancellationToken 能立即中断 SDK 内部同步调用.
@@ -32,19 +33,20 @@
 ## 持久化与凭据
 
 - 用户数据统一位于操作系统用户主目录下 `.pbi-utils`, 不硬编码用户名, 不写安装目录. 设置、模型草稿、最近记录、日志、事务恢复材料与 WebView2 按职责隔离; 不创建长期模型历史备份, 不添加浏览器 localStorage 作为第二真源.
+- Host 启动/维护协调及用户数据会话租约在同一 UserProfile 下的 `.pbi-utils-runtime`, 位于业务数据树之外. Host 协调按规范化数据根与安装路径隔离, 数据租约按数据根隔离; 不以可能被打包客户端重定向的 AppData 建立另一组锁. 权威入口为 `src/PbiUtils.Infrastructure/Diagnostics/RuntimeEnvironment.cs`, `src/PbiUtils.Infrastructure/Hosting/BusinessHostSettings.cs` 和 `src/PbiUtils.Infrastructure/Storage/UserDataSessionLease.cs`.
 - 持久存储复用原有修订检查、跨实例锁、原子替换、取消和损坏保护. 按各格式的严格 schema 处理重复字段、未知版本与未知字段; 只在格式明确允许时保留未知字段, 不把单一存储例外推广到全部 JSON. 不能为修复读取而覆盖损坏原文件或恢复覆盖用户并发修改.
 - 本地最近文件和 Service 最近模型各自隔离. 只用宿主绑定记录 ID 删除历史, 不删除工程/远端模型或断开当前工作区. 确认期间锁来源/导航; 取消、目标改变或卸载不得删除. SSAS/XMLA 不新增连接页最近模型模块.
 - 远端连接密码由 C# CurrentUser DPAPI 保护, 按目标/账号隔离, 损坏不得降级为明文或静默改变认证身份; 不保存云令牌. 产品不再管理 LLM API 密钥.
 - 新 SSAS 密码只通过可信本地 Vue 限定字段和宿主签发的一次性表单身份进入后端. 不接受 MCP 密码参数, 不回传既存明文/密文/令牌; 清空状态和真实 DOM, 禁用浏览器密码保存和自动填充.
 - SSAS 保存密码按服务器、模型、认证模式和账号共同绑定 CurrentUser DPAPI; 最多20条最近连接. 临时明文缓冲区清理, 不进入网页存储、草稿、历史、日志、错误正文、测试快照或仓库. 其他实例清除已存密码后不得静默改用当前身份.
-- UI 语言/显示偏好、日志级别和 MCP 一次写授权独立. 显示与日志偏好不能授予模型写权限; 不提供“模型保存”设置或普通保存确认偏好. MCP 精确提案仍须独立的一次授权. 当前语言持久保存成功后才切换显示.
+- UI 语言/显示与 DAX 格式偏好、日志级别和 MCP 一次写授权独立. 显示与日志偏好不能授予模型写权限; 不提供“模型保存”设置或普通保存确认偏好. MCP 精确提案由宿主在启动权限和身份核验后自动签发一次授权, 不额外弹窗. 当前语言持久保存成功后才切换显示. 软件更新使用独立的 `product-updates.json`, 规则见 [release-and-updates.md](release-and-updates.md).
 - 示例结果缓存仅保存目录和统计. 命中先核当前规范化目录及固定产物元数据; 真实目录/链接探测在后台门闩内执行. 缓存不复制产物、不授予网页路径权限、不代替覆盖/清空确认; 缓存失败不抹除已提交业务事实.
 
 入口: `src/PbiUtils.Infrastructure/Connections/LocalRemoteConnectionStore.cs`, `src/PbiUtils.Infrastructure/Connections/LocalRecentProjects.cs`, `src/PbiUtils.Infrastructure/Connections/PowerBiService/LocalPowerBiRecentModelStore.cs`, `src/PbiUtils.Infrastructure/Gui/UiDialogBroker.cs`, `README.md` 的用户数据目录说明.
 
 ## 日志与调试
 
-- CLI/Desktop composition root 创建并拥有 `LoggingRuntime`. Serilog 及文件 sink 只在 Infrastructure; Application 注入 `ILogger`, Core 不依赖日志库. 不另建全局 Logger 或旁路日志文件.
+- CLI/Desktop/Host composition root 分别创建并拥有各自的 `LoggingRuntime`. Serilog 及文件 sink 只在 Infrastructure; Application 注入 `ILogger`, Core 不依赖日志库. 不另建全局 Logger 或旁路日志文件.
 - 业务入口共用 `BusinessLog.Run/RunAsync` 或 `BusinessOperation`: Started 与唯一 Completed/Failed/Cancelled、ElapsedMs、宿主 RequestId、嵌套 OperationId/ParentOperationId. 工具调用前校验失败也属于业务边界; 纯校验/格式化/映射/哈希及流式片段不逐项记常规日志.
 - 固定结构化事件在 `BusinessLog.Events.cs` 封装, 使用强类型方法和 LoggerMessage. 昂贵诊断先在封装内判等级, 不拼接文本、解构 DTO 或在调用点重复通用日志包装. 终态先裁决再写日志, 仍遵守最低级别过滤.
 - 禁止日志包含账号/邮箱、服务器、用户路径、模型/对象名、DAX/M/TMDL、聊天/业务值、请求响应正文、完整配置、密码/令牌/密钥或凭据连接串. 不传原始 Exception, 不输出 Message/ToString/Data. 仅记录最多六层类型/HRESULT/稳定码及无源码路径的有界代码调用栈; SDK 原异常先转安全摘要.

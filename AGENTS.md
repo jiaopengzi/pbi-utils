@@ -4,10 +4,11 @@
 
 ## 1. 范围与事实来源
 
-- 产品面向 Windows, 由共享 C# 业务服务、独立 CLI、WinForms/WebView2 宿主及 Vue 界面组成. 当前业务包括模型连接/读取/编辑/保存、示例数据、新建 PBIP、日期与时间智能、UDF 和本地 MCP.
+- 产品面向 Windows x64, 由共享 C# 业务服务、独立 CLI、WinForms/WebView2 宿主及 Vue 界面组成. 当前业务包括模型连接/读取/编辑、表统计与导出、模板度量值、示例数据、新建 PBIP、日期与时间智能、UDF、本地 MCP 和软件更新检查. 已连接 Desktop 的模型提交与用户在 Desktop 保存报表文件分别处理.
 - 当前用户需求决定任务范围和授权. 开始前阅读需求、本文、`README.md` 及相关模块说明, 核对工作目录、Git 状态、用户已有改动和实际平台.
-- 项目当前未发布, 默认处于变化较大的快速开发迭代阶段. 除非用户明确要求兼容某项 `legacy`, 否则以最新开发迭代、当前需求与实际效果为准, 不默认承担历史接口、配置、数据格式、行为或流程的保留、兼容及迁移义务. 明确要求的兼容仅覆盖指定范围, 不推定其他历史实现也需保留.
+- 项目处于快速开发迭代阶段, 已有 Windows 安装包及正式/预发布流程; 不再以“尚未发布”描述现状. 本地构建、远端发布和真实安装验收分别取证. 除非用户明确要求兼容某项 `legacy`, 否则以最新开发迭代、当前需求与实际效果为准, 不默认承担历史接口、配置、数据格式、行为或流程的保留、兼容及迁移义务. 明确要求的兼容仅覆盖指定范围, 不推定其他历史实现也需保留.
 - 以当前源码、配置与机器契约核验现状. `.docs` 保存设计、进度与历史证据; 历史实现及 PASS 不自动代表当前规则或本次验证结果.
+- 根 `README.md` 面向使用者, 说明下载安装、实际功能、操作边界与常见问题; 开发命令、内部架构及发布维护规则放在本文件和项目 skill, 当次验收记录留在 `.docs`. 用户文档不依赖未随仓库分发的 `.docs` 链接, 不把源码已有功能等同于某个远端版本已经包含.
 - 执行开发/排障/源码整理/验收时, 使用仓库级 [pbi-utils-development](.agents/skills/pbi-utils-development/SKILL.md), 按任务选择相关参考文件, 不默认加载全部资料.
 
 ## 2. 结构与依赖
@@ -184,7 +185,7 @@ WHERE WITH WORK WRITE WTD XOR YTD
 - 产品不内嵌聊天、提供方目录、AI 密钥或会话管理. 新业务同时评估 CLI、Desktop 和 MCP 可用性; MCP 复用已有共享用例, 不复制官方 Power BI MCP 的通用能力.
 - 本地 `pbi-utils.exe mcp serve` 以官方 C# SDK 提供 stdio 服务, 随包含和不包含 .NET 运行时的发布包分发. 不自动注册客户端、开放网络端口或安装常驻服务; stdout 仅协议, 诊断走 stderr 与既有业务日志.
 - 所有 MCP 文件与模型工具及相关 CLI 共享资源操作经同用户、同安装副本的受限本机通道进入专用 Host, 核验真实 PID/启动时间. 每条连接固定 kind/allowWrite 并拥有独立目标、账号、草稿、计划与观察基线; 工具参数或 GUI 权限不能提升 MCP 权限. 不用通用反射、shell 或任意桥接代理扩大能力.
-- 所有现有业务能力保持可发现的 MCP 映射. UI 几何、弹窗回复、凭据输入、全量数据重置等内部控制不暴露; 选择器、登录和确认由用户在可信本地 UI 完成. 只读标记是说明, 实际授权必须在服务端强制执行.
+- 所有现有业务能力保持可发现的 MCP 映射. UI 几何、弹窗回复、凭据输入、全量数据重置及跨客户端连接管理等内部控制不暴露. MCP 选择器入口返回 `MCP_INTERACTION_REQUIRED`, 有精确路径入口的用例使用其受限文件流程; GUI 选择器绑定不能传给另一个 MCP 上下文. 显式 Service 登录可打开微软系统浏览器. 只读标记是说明, 实际授权必须在服务端强制执行; 每个 MCP 初始独立未连接, 连接/切换/断开也需要启动写权限.
 - GUI、多个 MCP 与相关 CLI 可同时连接按需启动的无 UI Host, 不共享当前模型或权限. Host 统一协调写入、可靠回执与未知结果阻断, 原文件锁、引擎事务、完整基线及回读继续执行. 客户端 EOF 仅排空其上下文, 最后连接与操作排空后 Host 退出; 旧连接及票据失效时不自动重放. 不按陈旧元数据或进程名授权, 不强杀在途提交.
 - MCP 启用启动写权限后静默执行, 目标身份、连接代际、精确授权、旧观察基线、取消和回执保持. SSAS 通过无秘密 server/database 参数使用当前 Windows 身份, 不复用 GUI 密码契约. 显式 Service 登录可打开微软系统浏览器, 不打开 pbi-utils 前台. GUI 普通草稿保护保持.
 - MCP 副作用保留独立可靠回执, 未知提交阻止新写和重置, 取消后排空提交. 本机通信不代表第三方 AI 不会外传工具结果; 设置说明须清楚表达边界.
@@ -193,13 +194,13 @@ WHERE WITH WORK WRITE WTD XOR YTD
 
 ## 5. UI、桥接、数据和日志
 
-- 应用自有页面、表单、消息、进度、确认、授权和关闭提示全部使用 Vue 与共享 UI. WinForms 仅保留外壳、WebView2、生命周期和受限系统适配. 系统文件/目录选择器、微软登录和 Power BI Desktop 自身 UI 为系统/外部例外.
+- 桌面应用自有页面、表单、消息、进度、确认、授权和关闭提示全部使用 Vue 与共享 UI. WinForms 仅保留外壳、WebView2、生命周期和受限系统适配. 系统文件/目录选择器、微软登录和 Power BI Desktop 自身 UI 为系统/外部例外. 安装与卸载向导由 NSIS 负责, 不迁入应用业务 UI; 学习网站使用无应用桥接的独立 WebView2, 不放宽应用页面来源策略.
 - 复用 UiTabs、UiSteps、CodeEditor、HostDialog、useOperationMessage 和 operation-lock; 不重复造组件或用视觉稳定绕过业务 disabled/guard. 连接页自动核验静默仍执行真实请求; 用户主动操作保留在途与取消入口.
 - 前端固定文案集中在 `web/src/i18n`, 支持 zh-cn/en-us, 默认中文. 偏好持久化成功后才切换; 不用 localStorage 或系统区域另建来源. 切语言保留草稿/选区/历史, 不改写业务名称或已有源码. 未知值共用 `-`; 未读取报表页数仅 UI 显示 0, 后台仍为 null.
 - 桌面最小内容区 1422×800, 保留侧栏折叠和并排工作区, 验证较宽窗口及双语布局. 所有模态双轴居中、正文可滚动、操作可达, 确认按钮间距 12px. 样式使用 SCSS、共享品牌变量及本地资源, 不加载远程字体/图标/脚本.
 - 生产仅接受打包资源固定虚拟 HTTPS origin. Debug 开发 origin 必须显式启用并精确匹配, Release 不启用开发入口. 校验真实来源/导航、请求身份、参数/长度、超时和取消; 不提供通用文件、shell、eval 或反射桥接.
 - 桥接变更同步 `BridgeMethods.cs`、`BridgeSession.cs`、TypeScript Methods 及 `tests/contracts/bridge.schema.json`/样例; 以一致性测试为准, 不将旧固定方法数量或 `.docs` 副本当机器契约. 生产缺桥接明确失败, 不降级模拟成功.
-- 当前版本应用用户数据统一在 UserProfile 下 `.pbi-utils`, 不硬编码用户名或写安装目录. 原子存储、独占锁、修订核验、损坏检测及账号/云/目标隔离保持; 不覆盖用户并发改动. 共享后台协调锁位于用户数据树之外; 全量重置必须持独占维护租约并确认其他客户端已退出, 排空业务与日志后执行, 阻止自动重连抢占.
+- 当前版本应用用户数据统一在 UserProfile 下 `.pbi-utils`, 不硬编码用户名或写安装目录. 原子存储、独占锁、修订核验、损坏检测及账号/云/目标隔离保持; 不覆盖用户并发改动. 共享后台协调锁和用户数据会话租约位于同一 UserProfile 下独立的 `.pbi-utils-runtime`, 不使用可能被客户端重定向的 AppData 分裂协调目录; 全量重置必须持独占维护租约并确认其他客户端已退出, 排空业务与日志后执行, 阻止自动重连抢占.
 - 快速迭代期间, 当前及旧版应用用户数据(包括设置、缓存、会话及历史记录)均可不保留, 不受支持的数据格式可按当前任务需要清理或重建, 不作为延续旧实现的约束. 除非用户明确要求, 不为这些数据增加或保留兼容读取、迁移、恢复及多版本共存逻辑. 当前版本正常运行所需的原子存储、并发保护、凭据安全与目标隔离仍须满足; 此数据重置约定不授权删除用户源码、Power BI 模型、报表或工程文件, 不扩大模型/报表写入授权.
 - 新密码/密钥仅可经可信本地 Vue 一次性受限字段单向进入宿主; 清空状态和真实 DOM, 禁止自动保存/填充. 既存凭据、密文、令牌不回网页; CurrentUser DPAPI, 不明文降级. 不写 VITE_*、草稿、历史、日志或测试快照.
 - 业务日志复用 LoggingRuntime/BusinessLog/集中 Events, 记录安全阶段、关联和唯一终态; 不记录账号、地址、路径、聊天/模型/DAX/M正文、业务值、凭据或异常原文. 不另起日志体系或自动上传.
@@ -208,8 +209,7 @@ WHERE WITH WORK WRITE WTD XOR YTD
 
 - 非平凡任务在 `.docs/<任务>/` 保留计划、发现、进度和报告. 恢复前核对当前需求、Git/cwd 和任务归属; 不串用其他活动任务. 交接记录已完成/待办、证据和阻塞, 不依赖缺失的个人 skill、未知 hook 或未提供的精确 token 数据.
 - 修改前确定受影响路径与验证边界; 修改后检查需求覆盖、相邻输入、失败/取消/并发/迟到结果、共享复用、双语、契约、权限和资源释放. 测试关注真实行为与不变量, 不为低影响文档修改增加重复实现测试.
-- 开发入口为 PowerShell 7 `run.ps1`, 动作/参数以注册表和 `-List/-Help` 为准. C# 与 Vue 均按 check → test → build, C# 先于 Vue, 首错停止. 正式总门禁:
-- **注意：** 由于`.\run.ps1 -Choice all` 大约需要3分钟的执行时间，仅在AI单轮开发完毕后（不要在开发过程中频繁使用），交付给人类的时候，需要执行校验，保证全量通过。
+- 开发入口为 PowerShell 7 `run.ps1`, 动作/参数以注册表和 `-List/-Help` 为准. 产品源码、契约或发布行为改动在本轮开发完毕后执行完整门禁, 不在开发过程中频繁重复. C# 与 Vue 均按 check → test → build, C# 先于 Vue, 首错停止. 纯文档/skill 修订核对事实、路径、引用和格式, 不据此宣称产品已重测. 正式总门禁:
 
   ```powershell
   pwsh -NoProfile -File ./run.ps1 -Choice all -Scope All -Configuration Release -NonInteractive
@@ -220,7 +220,8 @@ WHERE WITH WORK WRITE WTD XOR YTD
 - 发布模块独立设置终止错误策略, 枚举/读取失败不得生成部分清单. 清理单独失败也返回非零; 与主操作同时失败时保留最先阶段和退出码, 并报告清理原因及产物实际状态.
 - 前端测试覆盖模块导入与窗口 error/unhandledrejection, 全部 skip/todo 失败, 部分跳过单列 UNRUN. 正式构建均为独立Vite CLI, 进入日志器的warn/warnOnce/error立即标记进程失败且保留既有非零码, 晚期回调吞异常也不能成功交付; error日志不另抛通用横幅覆盖解析/写盘首因. 不把程序内build() promise完成当作成功判据. 保留500kB阈值, 写盘前按所有压缩后chunk的UTF-8字节硬校验. 分包按共享依赖归属和纯数据边界, 核验真实chunk字节、循环与重复模块, 不改页面挂载/草稿生命周期或提高阈值.
 - `all/buildAll/buildC#` 接受 `-DotNetMode with-dotnet|without-dotnet`, Release 默认 without-dotnet, Debug 默认 with-dotnet, 一次只构建选中模式. Debug 发布到 `artifacts/build/debug/win-x64`; Release 发布到 `artifacts/build/release/win-x64/<模式>`. 编译、前端与清单校验后再交付, 固定目标持互斥锁并逐文件覆盖、删除过期文件、manifest 最后写, 失败恢复本轮文件. 清单使用 schemaVersion=3、layout=shared 和 deploymentMode=self-contained/framework-dependent, 按真实 runtimeconfig/deps 与文件核验模式. 不重命名根/子目录, 不通过更换输出目录或结束用户进程逃避真实文件锁. 影响发布时运行 `scripts/tests/published-smoke.ps1` 验证所选模式, 默认为 without-dotnet.
-- `release` 执行完整 Release/All 和 NSIS 打包; `package` 仅打包同版本已验证 Release/All 产物, 均接受 DotNetMode, 默认 without-dotnet. 使用本机 makensis, 输出 artifacts/release/win-x64/<模式>, 不自动签名/安装/上传. 用户运行安装器时由 Windows PowerShell 5.1 检测并按需安装官方 .NET Desktop Runtime/WebView2, 仅对必要前置组件及固定的 Power BI 外部工具注册步骤请求管理员授权. all -Scope All 完成交付后注册开发入口, 安装器维护独立安装入口; Core/buildC#/buildAll/release/package 不修改开发登记. 注册失败明确返回非零, 卸载与回滚仅处理自有且未被并发修改的登记. 当前用户固定目录升级, 精确文件归属/占用/回滚, 不强杀进程或删除用户数据与共享运行时; 真实安装验收与编译/隔离测试分别报告.
+- `release` 执行完整 Release/All 和 NSIS 打包; `package` 仅打包同版本已验证 Release/All 产物, 均接受 DotNetMode, 默认 without-dotnet. 使用本机 makensis, 输出 artifacts/release/win-x64/<模式>, 不自动签名/安装/上传. 用户运行安装器时由 Windows PowerShell 5.1 检测并按需安装官方 .NET Desktop Runtime/WebView2, 仅对必要前置组件及固定的 Power BI 外部工具注册步骤请求管理员授权. all -Scope All 完成交付后注册开发入口, 安装器维护独立安装入口; Core/buildC#/buildAll/release/package 不修改开发登记. 注册失败明确返回非零, 卸载与回滚仅处理自有且未被并发修改的登记. 安装面向当前用户, 默认 `%LOCALAPPDATA%\Programs\pbi-utils`, 目录页可选择安全本机路径并回填已有安装登记; 在核实的安装根内升级/修复, 保持精确文件归属/占用/回滚, 不强杀进程或删除用户数据与共享运行时. 真实安装验收与编译/隔离测试分别报告.
+- 远端发布由 `.github/workflows/build.yaml` 的 build、push-github、push-gitee 分工, 复用同一已验证 ZIP; 正式标签为 `desktop-v<版本>`, v2 预发布为 `desktop-v<版本>-v2.N`. 更新检查包含两类公开发布, 下载与安装由用户在所选来源发布页完成, 安装器不查询产品更新. 维护入口、归档内容和重试约束见 skill 的 [release-and-updates.md](.agents/skills/pbi-utils-development/references/release-and-updates.md), 不因文档或构建任务获得推送、打标签或发版授权.
 - 验收分别记录自动化、浏览器显式模拟、真实发布 WebView2、真实 Desktop 提交/计算/保存重开、真实云/网络和物理异机. 浏览器不能替代 Windows 实测; 文档起始采集 window.error/unhandledrejection, 同时检查 console/pageerror. 未实际执行的项目为 UNRUN, 保留原始 FAIL 及后续解释.
 - CLI JSON stdout 恰好一个完整文档, 进度/诊断到 stderr; 退出码 0/2/3/4/130 分别为成功/参数/前置/执行失败/取消. 元命令与取消规则保持, 不恢复已移除的开发包装动作. 保留 doctor 正式诊断, 不恢复已获准移除的 Hello/mock 演示命令和桥接.
 - 交付前正常关闭并排空本任务窗口、服务、watch/测试宿主和自动化, 核实自有 PID/启动时间/命令行/路径、端口和文件锁. 不按进程名批量结束 node/dotnet/WebView2/Explorer/用户 Desktop, 不关闭归属不明句柄; 终端不得停留在发布目录.

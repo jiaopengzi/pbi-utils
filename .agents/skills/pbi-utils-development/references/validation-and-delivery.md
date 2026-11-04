@@ -10,7 +10,9 @@
 pwsh -NoProfile -File ./run.ps1 -Choice all -Scope All -Configuration Release -NonInteractive
 ```
 
-严格顺序: checkC# → testC# → C# 编译 → checkVue → testVue → buildVue → 打包交付. 首错停止并说明实际失败阶段/原因; Scope/Configuration 沿现有脚本传递, check 不接 Configuration.
+完整门禁顺序: checkC# → testC# → C# 编译 → checkVue → testVue → buildVue → 发布目录交付, 成功的 all -Scope All 随后注册开发外部工具. NSIS 安装包由 package/release 生成, 不把 all 的发布目录交付称为安装包已完成. 首错停止并说明实际失败阶段/原因; Scope/Configuration 沿现有脚本传递, check 不接 Configuration.
+
+首次准备、依赖/锁文件或工具链变化、还原资产缺失时显式运行 setupC#/setupVue/setupAll; 资产完整且依赖未变不重复 setup. Scope=Core 包含共享业务、CLI、Host、Windows 适配及相应测试, All 另含桌面与桌面测试; Vue 动作不接 Scope. devDesktop/devWeb 为开发入口, 独立产品诊断使用 CLI doctor. 根 README 只保留用户运行说明.
 
 - C# 工具链使用 `global.json` 的精确绑定; 缺失/无效/不匹配时报告配置、期望、可见和实际 SDK, 不自动改绑定、滚动或安装. SDK 查询的真实原生错误保留.
 - clean 后必须先 `pwsh -NoProfile -File ./run.ps1 -Choice 'setupC#' -Scope All -NonInteractive`. NETSDK1004 是缺少还原前提, 不添加隐式还原或重复盲跑 all.
@@ -37,7 +39,9 @@ pwsh -NoProfile -File ./run.ps1 -Choice all -Scope All -Configuration Release -N
 
 - smoke 默认验证 Release without-dotnet, `-DotNetMode with-dotnet` 验证另一模式, `-Configuration Debug` 验证开发包, `-PublishRoot` 验证指定包. 直接运行产品 CLI/MCP, 保持环境隔离/manifest 校验, 核对自包含模式从发布目录加载 .NET、框架依赖模式从系统 shared 加载; 不恢复已移除的开发包装命令. 发布启动成功不等于无 SDK 物理机器或无外网实测.
 - with-dotnet 自带 .NET, without-dotnet 需要匹配版本的 x64 .NET Desktop Runtime, 不能用普通 .NET/ASP.NET Runtime 或已安装 Power BI 推定前提满足. Evergreen WebView2 Runtime 对两包均为独立依赖. release=完整 Release/All 后 package; package 仅从已验证产物编译 NSIS. 使用已有 makensis, 不安装开发工具或自动修改系统策略. 本地命令只生成安装包, 不签名/运行/上传. 用户启动安装器后才按需安装官方前置运行时并请求必要授权.
-- NSIS 安装维护脚本兼容 Windows PowerShell 5.1. 检测实际 x64 桌面运行时, SDK 仅用于构建时解析官方下载 URL/hash; 已满足则不下载. 固定当前用户安装路径, 安装/修复/升级注册独立的 Power BI 外部工具并在卸载时仅移除自有登记, 必要时仅注册 helper 提权; 注册失败参与事务回滚. 升级/修复/降级拒绝、进程和文件占用、精确归属、失败恢复及卸载保留数据需行为测试. 编译安装器和模拟适配测试不等于真实干净机器安装/升级/卸载验收.
+- NSIS 安装维护脚本兼容 Windows PowerShell 5.1. 检测实际 x64 桌面运行时, SDK 仅用于构建时解析官方下载 URL/hash; 已满足则不下载. 当前用户安装默认 `%LOCALAPPDATA%\Programs\pbi-utils`, 目录页允许选择安全本机路径并回填已有安装登记; 安装/修复/升级注册独立的 Power BI 外部工具并在卸载时仅移除自有登记, 必要时仅注册 helper 提权; 注册失败参与事务回滚. 升级/修复/降级拒绝、进程和文件占用、精确归属、失败恢复及卸载保留数据需行为测试. 编译安装器和模拟适配测试不等于真实干净机器安装/升级/卸载验收.
+
+软件更新、安装替换、标签、ZIP 分发及 GitHub/Gitee 独立发布见 [release-and-updates.md](release-and-updates.md). 本地 release 生成安装器与远端 Release 发布是两个独立动作.
 
 ## 验收分层
 

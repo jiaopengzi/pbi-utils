@@ -1,11 +1,12 @@
 # UI 与桌面桥接
 
-本文件约束应用自有界面、Vue/WebView2 桥接及其验收。它不授予额外的模型写入、磁盘路径、凭据或外部服务权限；业务确认、保存偏好与 MCP 一次写授权仍各自独立。
+本文件约束应用自有界面、Vue/WebView2 桥接及其验收。它不授予额外的模型写入、磁盘路径、凭据或外部服务权限；业务风险确认、UI 偏好与 MCP 一次写授权仍各自独立，普通模型保存没有额外确认或确认偏好。
 
 ## 界面归属与共享组件
 
 - 应用页面、表单、输入校验、消息、进度、确认、授权与关闭提示统一使用 Vue 和 `web/src/ui`。WinForms 只承载主窗口、WebView2、生命周期和受限系统适配；禁止新增 WinForms 业务窗口、业务控件、`MessageBox` 或 `TaskDialog`。
 - 系统文件/目录选择器负责绑定真实路径；Windows 标题栏、微软系统浏览器登录、Power BI Desktop 窗口属于系统或外部 UI。不得借系统例外新增任意路径输入、磁盘枚举、shell、通用文件桥接或自建凭据登录。前端初始化前的致命错误走安全日志与非零退出码。
+- 安装/卸载向导由 NSIS 和受限维护脚本实现, 不适用桌面业务页面全部 Vue 的要求. 学习页固定外站由独立 WebView2 承载, 使用 `WebView2Learning` 数据目录且不提供应用桥接; 不能据此放开主应用的导航、消息来源或任意 URL 能力.
 - 同类二级页签复用 `web/src/ui/UiTabs.vue` 和共享 `.tabs` 样式。整组锁定时在真实根元素捕获方向/激活键，保留 Tab 离开焦点，卸载前移除原监听器；不新增只为拦截事件的布局包裹。
 - 新建五步复用 `web/src/ui/UiSteps.vue`：模板 → 模拟数据 → 模板度量值 → 日期与时间智能 → UDF。数字、文字、边缘属于同一真实按钮目标；支持方向/Home/End，阻止导航键冒泡到外层页签。可自由往返保留编辑；基础条件有效即可在任意步骤创建，关闭的可选段保留编辑但提交 `null`。业务完成状态不得由步骤位置推断。
 - 日期与时间智能内部复用 `UiTabs`；日期代码预览复用 `web/src/features/code/CodeEditor.vue`，显示完整函数定义和调用，保持只读、聚焦、搜索与复制。无效或过期预览立即禁止复制旧代码；不恢复整个工程的文件/代码预览。
@@ -25,7 +26,7 @@
 - 页面只经 `web/src/bridge/client.ts` 的类型化客户端调用宿主能力；业务用例不依赖 WebView2、窗口句柄或进程启动类型。生产缺少宿主时明确报错，禁止自动转为 mock 成功。
 - 生产来源由 `src/PbiUtils.Infrastructure/Gui/OriginPolicy.cs` 固定为 `https://app.pbi-utils.local` 并映射发布静态资源。开发来源仅允许 Debug 显式启用精确的 `http://127.0.0.1:5173`；Release 拒绝开发 URL。按真实消息/导航 URI 的 scheme、host、port 和凭据核验，不信 JSON 自报 origin，不用前缀或通配匹配。
 - `src/PbiUtils.Desktop/Shell/MainForm.cs` 的 WebMessage 回调只复制真实来源和 JSON，回调返回后经 UI 队列处理；执行前重验窗口、句柄、桥接和当前文档来源。阻止未允许导航、子框架导航、新窗口、下载和非必要权限；外部文档只按现有明确地址白名单及真实用户点击交给系统浏览器。
-- `web/vite.config.ts` 管理 CSP：生产脚本仅本地、禁止远程连接与 `unsafe-eval`；编辑器样式使用构建 nonce，现有属性样式例外不扩展到脚本。HMR 的回环 WebSocket 例外只用于开发。助手输出默认纯文本，若引入 Markdown，须禁原始 HTML、净化内容并验证链接协议，不能直接写入 `innerHTML`。
+- `web/vite.config.ts` 管理 CSP：生产脚本仅本地、禁止远程连接与 `unsafe-eval`；编辑器样式使用构建 nonce，现有属性样式例外不扩展到脚本。HMR 的回环 WebSocket 例外只用于开发。UDF 文档复用 `web/src/features/markdown/` 的 Marked 与 DOMPurify 白名单管线, 禁原始 HTML、远程媒体和危险协议; 不直接注入未净化内容, 不恢复内嵌助手输出通道.
 - 请求使用 `protocolVersion/id/method/params`，响应使用匹配 ID 的 `result` 或 `error`，事件保留 `requestId/sequence/type`。仅固定方法白名单与严格 DTO 可调用；拒绝未知协议/方法、重复在途 ID、畸形输入、未知字段和越界值。禁止任意 shell、eval、反射、文件读写能力。
 - 更改桥接方法时同时核对四处：C# 的 `BridgeMethods.cs` 白名单及 `BridgeSession.cs` 分发/参数校验；TypeScript `client.ts` 的 `Methods` 与 DTO；显式模拟传输及相关 mock；`tests/contracts/bridge.schema.json`、`bridge.json` 和双端契约测试。以仓库契约为准，`.docs` 私有副本不充当机器契约。
 - 普通请求按完整 JSON 信封的 UTF-8 字节数限制为 64 KiB; 日历专用包绝对上限 4 MiB. 只有 calendar.preview 的 calendar、scaffold.updateDraft/configuration.apply 的 calendar 段及 calendar.parseWorkdays 的纯文本可使用例外, 剔除该段后仍须不超过 64 KiB. 解析日历原文最多 2 MiB, 最终覆盖集合最多 10000 日且 512 KiB; 重复或错误整批拒绝. calendarBudget.ts 与 CalendarBridgeBudget.cs 保持一致, 不恢复聊天图片容量例外.
@@ -35,7 +36,7 @@
 
 - 全前端支持 `zh-cn`、`en-us`；唯一 UI 偏好由共享服务保存到用户目录 `.pbi-utils/ui-settings.json`。启动语言加载前锁住依赖语言的业务入口，保存成功后才切换显示，失败或提交前取消保留原语言；不另建 localStorage、系统区域推断或示例语言来源。
 - 文案集中 `web/src/i18n`，按钮、校验、placeholder、ARIA 名称、加载/失败/取消/模拟提示与弹窗均提供双语键和具名参数。不能在模块初始化时缓存翻译标签；Element Plus locale 共享，CodeMirror phrases 热更新现有视图，保留输入法、原文、历史、选区和搜索。
-- 业务名称、DAX/M/TMDL、路径、格式、邮箱和助手回复保持原文；模板名称保持目录原名。固定宿主提示使用稳定键或精确 `hostText`，未知第三方诊断保留原文，不猜测或抹去部分保存事实。
+- 业务名称、DAX/M/TMDL、路径、格式、邮箱及第三方函数文档保持原文；模板名称保持目录原名。固定宿主提示使用稳定键或精确 `hostText`，未知第三方诊断保留原文，不猜测或抹去部分保存事实。
 - 未知值统一显示 `-`。未提供报表页数的 UI 例外显示 `0`，后台继续保留 `null`/未读取，不用引擎或 SDK 版本猜兼容级别。连接/凭据真实成功用成功态、真实失败用错误态，未测试、取消和模拟用中性态。
 - 切语言保留业务参数、日期、草稿和选择；不重放请求、生成或保存，不改已有产物。英文长文案、两种语言及窄/低/宽窗口均需保持滚动和操作可达。
 

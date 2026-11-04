@@ -17,19 +17,21 @@
 ## 权限、身份与事务
 
 - 默认只读, `--allow-write` 只能由用户客户端配置在进程启动时开启. SDK tool annotations 用于说明, 不代替 `McpBusinessRuntime` 的实际服务端检查. 参数中的批准、布尔值或提示词不能打开写能力.
-- 选择、切换或断开宿主连接归为写工具, 需要启动--allow-write; 所有MCP通用确认移除, 默认只读可读取已连接目标, Service/SSAS模型始终只读.
+- 选择、切换或断开宿主连接归为写工具, 需要启动 --allow-write; MCP 无通用操作确认, Service/SSAS 模型始终只读. 每个 MCP 上下文初始未连接, 默认只读可做实例发现、诊断、离线读取及纯预览, 不能借用 GUI 当前模型或登录状态; 已连接目标读取仍受本上下文身份和观察基线约束.
 - 本机管道要求 CurrentUserOnly 及同安装 PID/启动时间核验. GUI、多个 MCP 与相关 CLI 同时运行; 每个客户端拥有独立上下文, 注册时固定 kind/allowWrite. desktop_sessions 只返回本客户端身份, 错误/其他客户端 sessionId 明确拒绝; 不枚举或采用其他窗口的模型.
 - MCP后台模型操作无通用弹窗, ToolWritePolicy/Proposal/Grant及真实before/after、基线、一次消费、可靠回执不变. 配置兼容升级由MCP精确请求allowCompatibilityUpgrade显式表达, GUI仍保留独立升级确认. 示例覆盖/清空MCP按明确工具意图执行, 共享归属与文件事务保持.
 - 按需启动的 PbiUtils.Host.exe 不加载 WebView2. 后台不依附首个客户端, EOF 仅取消并排空本连接, 其他客户端继续运行; 最后连接及在途操作排空后退出. 写入统一协调, 冲突明确反馈; 旧观察基线、未知提交阻断及可靠回执不能换入口绕过. 故障使连接/观察票据失效, 不自动重放. 全量重置先持用户数据树之外的独占维护租约, 确认无其他客户端, 排空 Host/GUI/日志后执行, 防止自动重连抢占.
 - 维护状态探测使用相互兼容的只读句柄, 不把另一探测误判为真实维护; 真正维护继续排他. 后台启动不继承启动客户端的 stdio 句柄; 启动客户端先结束时, stdout/stderr 均须有界到达 EOF, 其余客户端仍可调用, 不等待共享后台一起退出.
 - 新建/离线配置按精确预览计划与摘要应用. 摘要是参数和计划绑定, 不是人类确认凭证; 不把模型自己读到摘要解释成用户批准. 已配置写权限的文件工具仍保留各用例的覆盖/删除确认、目标安全、基线及原子文件事务.
-- 只有业务方法映射为工具; `ui.dialogRespond`、密码写入、页面浏览器几何、请求内部取消及全量用户数据重置不公开. 系统选择器、登录、秘密输入和确认由用户在可信本地 UI 完成. 不允许第三方 AI 伪造宿主答复.
+- 只有业务方法映射为工具; `ui.dialogRespond`、密码写入、页面浏览器几何、请求内部取消、全量用户数据重置及跨客户端连接管理不公开. MCP 选择器调用返回 `MCP_INTERACTION_REQUIRED`, 文件打开可使用受限的 `desktop_project_openPath`; GUI 独立选择的目标不会传给 MCP. 显式 Service 登录仅打开微软系统浏览器, 其他凭据输入留在可信 GUI. 不允许第三方 AI 伪造宿主答复.
 - 调用取消经专用通道进入既有门闩, 提交前取消准备, 提交后排空实际提交、权威回读与回执. 客户端断开不能宣称未提交或触发自动重放. 未知提交可靠保留, 阻止新写和数据重置; 详细约束见 [model-safety.md](model-safety.md).
 - 非抛异常不等于成功. 根据类型化业务结果区分完整成功、已知部分失败与未知提交/回读/回执, MCP 的 isError 和可靠回执保持一致, 保留工程已创建等实际事实. 已知 Git 初始化失败不能虚报创建失败或未知提交, 回读/回执未确定则仍阻止新写; 本机 IPC 不丢弃这种结果分类.
 - 回执 `completed` 表示完整业务成功, `failed` 表示已知部分失败且保留已完成事实, 后者不要求未知结果核销; `needs_verification`/`commit_started` 继续阻止新写和重置. 工具错误仍返回原始分项结果, 已知 Git 失败不能通过重建已创建工程重试.
 - `mcp executions` 和 `mcp resolve` 是人工 CLI 入口, 不注册为 MCP 工具. 核销绑定完整回执摘要、人工结论和固定句柄读取的证据 SHA256, 保留原始未知状态, 仅解除 MCP 阻塞; 不代替现有模型权威恢复, 不自动宣称已提交、计算或文件保存, 不重放原调用.
 
 ## 设置说明与依赖
+
+- 软件更新通过只读 `updates_check` 复用共享查询, 与 GUI/CLI 接受相同的正式及预发布标签, 不提供浏览器或安装器执行能力; 详见 [release-and-updates.md](release-and-updates.md). Host 协调与用户数据租约目录为 UserProfile 下 `.pbi-utils-runtime`, 隔离规则见 [connections-and-storage.md](connections-and-storage.md).
 
 - `mcp.configuration` 由宿主生成真实安装绝对路径和显式写入参数, 返回 executablePath/readWrite/isSimulation; 前端只展示/复制. 模拟环境明确标注, 路径不可从网页输入反向授予宿主执行能力. 请求方法与空参数契约保持, 已移除选项不保留 readOnly 输出; CLI 不带 --allow-write 的默认只读仍由服务端强制执行.
 - 设置将接入和允许修改说明合并为介绍段, 不单列权限标题; 保留单一接入提示词, 内含宿主真实安装路径及 --allow-write JSON, 无权限 tab 或第二个 JSON 复制入口. 提示词先检查当前 AI 客户端已有配置: 正确则复用, 缺失才添加, 不匹配仅修正该服务必要项, 保留其他服务. 所有分支最后统一执行当前客户端实际发现, 再调用 server_info 核验 version/transport/allowWrite、desktop_sessions 读取 sessions[0].id、desktop_app_info 带本客户端 sessionId 核验后台; 只读诊断不连接或修改用户模型. 分别记录配置、发现、调用和权限, 未执行为 UNRUN, 不以 shell 另起进程替代目标客户端证据. 失败/冲突不无限重试或自动重放写入. 不要求关闭桌面或配置 LLM 密钥.
