@@ -154,7 +154,8 @@ try {
     $subdirectory = Join-Path $fixture.Repository 'subdirectory'
     $null = New-Item -ItemType Directory -Path $subdirectory
     $preview = Invoke-TestGit $subdirectory @('savetag', '--dry-run')
-    Assert-ReleaseTest ($preview.Code -eq 0 -and $preview.Output.Contains('DRY RUN') -and $preview.Output.Contains($fixture.Tag)) "子目录调用预览核验已提交的 version 与 CHANGELOG: $($preview.Output)"
+    $previewHeading = ($preview.Output -split '\r?\n')[0]
+    Assert-ReleaseTest ($preview.Code -eq 0 -and $previewHeading -ceq "DRY RUN: 分支 v2, 版本 $($fixture.Tag).") "子目录调用预览只显示已提交 CHANGELOG 的完整版本: $($preview.Output)"
     Assert-ReleaseTest ((Invoke-RequiredGit $fixture.Repository @('tag', '--list')).Length -eq 0 -and (Invoke-RequiredGit $fixture.Remote @('for-each-ref', '--format=%(refname)')).Length -eq 0) '预览不创建标签或推送'
     $release = Invoke-TestGit $fixture.Repository @('savetag')
     Assert-ReleaseTest ($release.Code -eq 0) "v2 发布成功: $($release.Output)"

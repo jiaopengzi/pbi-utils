@@ -52,7 +52,7 @@ assert_baseline() {
 }
 
 # 复用发布规范, 首参为分支, 可选次参为待发布提交.
-# 准备输出完整标签, 提交核验另输出数字版本和预发布标记; 失败给出诊断并返回非零.
+# 准备输出完整版本, 提交核验另输出预发布标记; 失败给出诊断并返回非零.
 invoke_release_spec() {
     PBI_SAVETAG_BRANCH="$1" PBI_SAVETAG_COMMIT="${2:-}" pwsh -NoProfile -NonInteractive -Command '
         $ErrorActionPreference = "Stop"
@@ -62,7 +62,7 @@ invoke_release_spec() {
             Import-Module (Join-Path $PWD "scripts/ReleaseAutomation.psm1") -Force
             if ($env:PBI_SAVETAG_COMMIT) {
                 $context = (Get-PbiCommitReleaseSpec -RepositoryRoot $PWD -Commit $env:PBI_SAVETAG_COMMIT).Context
-                [Console]::Write(("{0} {1} {2}" -f $context.ReleaseTag, $context.Version, $context.Prerelease))
+                [Console]::Write(("{0} {1}" -f $context.ReleaseTag, $context.Prerelease))
             } else {
                 $release = Initialize-PbiReleaseVersion -RepositoryRoot $PWD -Branch $env:PBI_SAVETAG_BRANCH
                 [Console]::Write($release.Tag)
@@ -97,7 +97,7 @@ head=$(read_git '无法读取当前 HEAD' rev-parse --verify HEAD)
 assert_baseline "$branch" "$head"
 
 release_spec=$(invoke_release_spec "$branch" "$head") || exit 1
-read -r tag product_version prerelease <<< "$release_spec"
+read -r tag prerelease <<< "$release_spec"
 if [[ "$branch" == v2 && "$prerelease" != True ]]; then
     fail 'v2 分支仅允许 vX.Y.Z-rcN 预发布标签.'
 elif [[ "$branch" == main && "$prerelease" != False ]]; then
@@ -123,8 +123,8 @@ else
 fi
 assert_baseline "$branch" "$head"
 if [[ "$action" == --dry-run ]]; then
-    printf 'DRY RUN: 分支 %s, 产品版本 %s, 标签 %s.\n' "$branch" "$product_version" "$tag"
-    printf '将对当前 HEAD %s 创建 annotated tag, 并原子推送该分支和精确标签到 origin. 未修改本地或远端 refs.\n' "$head"
+    printf 'DRY RUN: 分支 %s, 版本 %s.\n' "$branch" "$tag"
+    printf '将为当前提交 %s 创建注释标签, 并将其与当前分支一起原子推送到 origin. 本次仅预览.\n' "$head"
     exit 0
 fi
 
@@ -137,7 +137,7 @@ fi
 assert_baseline "$branch" "$head"
 # 显式关闭 followTags, 不顺带推送其他本地标签; 不 force, 不修改 upstream 或自动重试.
 if git push --atomic --no-follow-tags --recurse-submodules=no origin "$head:refs/heads/$branch" "$tag_ref:$tag_ref" >/dev/null 2>&1; then
-    printf '发布完成: %s 和 %s 已原子推送到 origin; 未创建提交或修改产品版本.\n' "$branch" "$tag"
+    printf '发布完成: 分支 %s 和版本 %s 已原子推送到 origin.\n' "$branch" "$tag"
 else
     code=$?
     fail "原子推送失败 (Git 退出码 $code). 不会自动重试; 请核验 origin 的分支和标签状态."
