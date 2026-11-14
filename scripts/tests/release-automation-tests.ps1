@@ -21,38 +21,53 @@ function Assert-Rejected([scriptblock]$Action) {
 
 try {
     $null = New-Item -ItemType Directory -Path $sandbox
-    '<Project><PropertyGroup><Version>0.1.0</Version></PropertyGroup></Project>' | Set-Content -LiteralPath (Join-Path $sandbox 'Directory.Build.props')
     @'
 # 更新日志
 
-## [desktop-v0.1.0-v2.1] - 2026-11-03
+## [v0.1.0-rc1] - 2026-11-03
 
 ### Changed
 
 - 构建验证与 ZIP 安装包.
 
-## [desktop-v0.1.0] - 2026-11-03
+## [v0.1.0] - 2026-11-03
 
 ### Added
 
 - 首个正式版.
+
+## [desktop-v0.1.0-v2.7] - 2026-11-03
+
+### Added
+
+- 旧格式预发布说明.
 '@ | Set-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md')
     $validChangelog = Get-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Raw
+    $current = Get-PbiCurrentRelease -RepositoryRoot $sandbox
+    Assert ($current.Tag -ceq 'v0.1.0-rc1' -and $current.Version -ceq '0.1.0' -and $current.Prerelease) '当前安装包身份取自最新 CHANGELOG 标题'
+    foreach ($heading in @('## [Unreleased]', '## [v00.1.0]', '## [v65535.1.0]', '## [v0.1.0-rc0]', '## [v0.1.0-rc01]', '## [v0.1.0-rc2147483648]', '## [v0.1.0.1]', '## [desktop-v0.1.0-v2.8]')) {
+        "$heading - 2026-11-03`n- 内容。`n$validChangelog" | Set-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md')
+        Assert-Rejected { Get-PbiCurrentRelease -RepositoryRoot $sandbox }
+    }
+    "## [v0.2.0] - 2026-11-14`n- 内容。`n$validChangelog" | Set-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md')
+    $stable = Get-PbiReleaseContext -RepositoryRoot $sandbox -Ref 'refs/tags/v0.2.0'
+    Assert ($stable.Version -ceq '0.2.0' -and !$stable.Prerelease -and $stable.SourceBranch -ceq 'main') '替换 CHANGELOG 标题即可切换版本和发布类型'
+    Assert ($stable.ArchiveName -ceq 'pbi-utils-v0.2.0-win-x64-without-dotnet.zip') '正式版文件名必须带精确发布标签'
+    $validChangelog | Set-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md')
     $branch = Get-PbiReleaseContext -RepositoryRoot $sandbox -Ref 'refs/heads/v2'
     Assert (!$branch.ReleaseTag -and $branch.SourceBranch -ceq 'v2') 'v2 push 必须只构建'
-    $stable = Get-PbiReleaseContext -RepositoryRoot $sandbox -Ref 'refs/tags/desktop-v0.1.0'
-    Assert (!$stable.Prerelease -and $stable.SourceBranch -ceq 'main') '正式标签必须属于 main'
-    $preview = Get-PbiReleaseContext -RepositoryRoot $sandbox -Ref 'refs/tags/desktop-v0.1.0-v2.1'
+    $preview = Get-PbiReleaseContext -RepositoryRoot $sandbox -Ref 'refs/tags/v0.1.0-rc1'
     Assert ($preview.Prerelease -and $preview.SourceBranch -ceq 'v2') 'v2 标签必须为预发布'
-    foreach ($ref in @('refs/tags/v0.1.0', 'refs/tags/desktop-v0.2.0', 'refs/tags/desktop-v0.1.0-v2.0', 'refs/tags/desktop-v0.1.0-rc.1', 'refs/heads/other')) {
+    Assert ($branch.ArchiveName -ceq $preview.ArchiveName -and $branch.InstallerName -ceq $preview.InstallerName) '无标签构建和标签构建须生成相同名称'
+    foreach ($ref in @('refs/tags/desktop-v0.1.0-v2.1', 'refs/tags/v0.2.0', 'refs/tags/v0.1.0', 'refs/tags/v0.1.0-rc0', 'refs/tags/v0.1.0-rc.1', 'refs/heads/other')) {
         Assert-Rejected { Get-PbiReleaseContext -RepositoryRoot $sandbox -Ref $ref }
     }
     $notes = Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag $preview.ReleaseTag
     Assert ($notes.Contains('构建验证与 ZIP') -and !$notes.Contains('首个正式版')) '更新说明必须精确选中当前章节'
-    Assert-Rejected { Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag 'desktop-v0.1.0-v2.2' }
-    Add-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Value "`n## [desktop-v0.1.0-v2.1] - 2026-11-03`n重复章节"
+    Assert-Rejected { Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag 'v0.1.0-rc2' }
+    Add-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Value "`n## [v0.1.0-rc1] - 2026-11-03`n重复章节"
     Assert-Rejected { Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag $preview.ReleaseTag }
-    Set-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Value "## [desktop-v0.1.0-v2.1] - 2026-11-03`n`n### Changed`n"
+    Set-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Value "## [v0.1.0-rc1] - 2026-11-03`n`n### Changed`n"
     Assert-Rejected { Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag $preview.ReleaseTag }
     Add-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Value '<!-- 仅有注释, 不能当作发版说明. -->'
     Assert-Rejected { Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag $preview.ReleaseTag }
@@ -62,16 +77,17 @@ try {
 
     $package = Join-Path $sandbox 'artifacts/release/win-x64/without-dotnet'
     $null = New-Item -ItemType Directory -Path $package -Force
-    $name = 'pbi-utils-0.1.0-win-x64-without-dotnet-setup'
+    $name = 'pbi-utils-v0.1.0-rc1-win-x64-without-dotnet-setup'
     $exe = Join-Path $package "$name.exe"
     [IO.File]::WriteAllBytes($exe, [byte[]](1, 4, 7, 11))
     $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash
     "$hash  $name.exe" | Set-Content -LiteralPath (Join-Path $package "$name.sha256") -Encoding ascii
-    foreach ($extra in @("$name.json", '.package.lock', 'old-setup.exe')) {
+    @{ releaseTag = $preview.ReleaseTag; installer = "$name.exe"; sha256 = $hash } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $package "$name.json")
+    foreach ($extra in @('.package.lock', 'old-setup.exe')) {
         'excluded' | Set-Content -LiteralPath (Join-Path $package $extra)
     }
     $zip = New-PbiReleaseArchive -RepositoryRoot $sandbox -Destination (Join-Path $sandbox 'dist')
-    Assert ([IO.Path]::GetFileName($zip) -ceq 'pbi-utils-0.1.0-win-x64-without-dotnet.zip') 'ZIP 名必须匹配更新下载契约'
+    Assert ([IO.Path]::GetFileName($zip) -ceq 'pbi-utils-v0.1.0-rc1-win-x64-without-dotnet.zip') '预发布 ZIP 名必须保留 v 前缀和 rc 轮次'
     $archive = [IO.Compression.ZipFile]::OpenRead($zip)
     try {
         $entries = @($archive.Entries.FullName | Sort-Object)
@@ -80,6 +96,11 @@ try {
         try { Assert (($reader.ReadBytes(4) -join ',') -ceq '1,4,7,11') 'ZIP 内容必须保持安装器原字节' } finally { $reader.Dispose() }
     } finally { $archive.Dispose() }
     $zipHash = (Get-FileHash -LiteralPath $zip).Hash
+    Assert-Rejected { New-PbiReleaseArchive -RepositoryRoot $sandbox -Destination (Join-Path $sandbox 'dist') -ExpectedTag 'v0.1.0-rc2' }
+    @{ releaseTag = 'v0.1.0-rc2'; installer = "$name.exe"; sha256 = $hash } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $package "$name.json")
+    Assert-Rejected { New-PbiReleaseArchive -RepositoryRoot $sandbox -Destination (Join-Path $sandbox 'dist') }
+    Assert ((Get-FileHash -LiteralPath $zip).Hash -ceq $zipHash) '版本标签不符时不得覆盖现有 ZIP'
+    @{ releaseTag = $preview.ReleaseTag; installer = "$name.exe"; sha256 = $hash } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $package "$name.json")
     Assert ($hash -cne $zipHash) '夹具必须区分安装器摘要与 ZIP 摘要'
     Assert ((Get-Content -LiteralPath (Join-Path $package "$name.sha256") -Raw).Trim() -ceq "$hash  $name.exe") '本地 SHA256 侧文件仍保留且不加入 ZIP'
     $hashNotes = Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag $preview.ReleaseTag -InstallerSha256 $hash.ToLowerInvariant()
@@ -96,8 +117,7 @@ try {
         function global:git {
             $global:LASTEXITCODE = 0
             if ($args[0] -ceq '-C' -and $args[2] -ceq 'show') {
-                if ($args[3].EndsWith(':Directory.Build.props')) { return '<Project><PropertyGroup><Version>0.1.0</Version></PropertyGroup></Project>' }
-                if ($args[3].EndsWith(':CHANGELOG.md')) { return $global:releaseSpecTestChangelog }
+                if ($args[3].EndsWith(':CHANGELOG.md')) { return $global:releaseSpecTestChangelog -split '\r?\n' }
                 throw '未预期的标签文件读取'
             }
             switch ($args[0]) {
@@ -122,10 +142,12 @@ try {
             $env:RELEASE_TAG = $preview.ReleaseTag
             $env:ARCHIVE_NAME = $preview.ArchiveName
             $env:GITHUB_REPOSITORY = 'fixture/repository'
+            $historical = Get-PbiTaggedReleaseSpec -RepositoryRoot $sandbox -Tag 'desktop-v0.1.0-v2.7' -InstallerSha256 $hash
+            Assert ($historical.Context.Prerelease -and $historical.Context.ArchiveName -ceq 'pbi-utils-0.1.0-win-x64-without-dotnet.zip' -and $historical.Notes.Contains('旧格式预发布说明')) '历史 desktop 标签保持其原始附件名'
+            Assert ($historical.Context.InstallerName -ceq 'pbi-utils-0.1.0-win-x64-without-dotnet-setup.exe' -and $historical.Notes.Contains("### $($historical.Context.InstallerName) SHA256")) '历史发行说明沿用原安装器名称'
             $dist = Join-Path $sandbox 'dist'
             & $bundleScript -Mode Create -Directory $dist | Out-Null
             # 运行分支升级或修改说明后, 仍须使用原标签规范复验原包.
-            '<Project><PropertyGroup><Version>0.2.0</Version></PropertyGroup></Project>' | Set-Content (Join-Path $sandbox 'Directory.Build.props')
             'changed branch notes' | Set-Content (Join-Path $sandbox 'CHANGELOG.md')
             & $bundleScript -Mode Verify -Directory $dist | Out-Null
             $notesPath = Join-Path $dist 'release-notes.md'
@@ -146,7 +168,6 @@ try {
             Assert-Rejected { & $bundleScript -Mode Download -Directory (Join-Path $sandbox 'duplicate-asset') }
             Assert (!(Test-Path (Join-Path $sandbox 'duplicate-asset'))) '重复附件必须在下载前拒绝'
         } finally {
-            '<Project><PropertyGroup><Version>0.1.0</Version></PropertyGroup></Project>' | Set-Content (Join-Path $sandbox 'Directory.Build.props')
             $validChangelog | Set-Content (Join-Path $sandbox 'CHANGELOG.md')
             Remove-Item Function:\git
             Remove-Variable releaseSpecTestChangelog -Scope Global
@@ -158,9 +179,9 @@ try {
     foreach ($invalid in @('', ' ', ('A' * 63), ('A' * 65), ('g' * 64), "$hash`n", " $hash")) {
         Assert-Rejected { Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag $preview.ReleaseTag -InstallerSha256 $invalid }
     }
-    Add-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Value "`n## [desktop-v0.2.0] - 2026-11-03`n- 其他产品版本."
-    Assert-Rejected { Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag 'desktop-v0.2.0' -InstallerSha256 $hash }
-    Assert-Rejected { Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag 'desktop-v0.2.0' }
+    Add-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Value "`n## [v0.2.0] - 2026-11-03`n- 其他产品版本."
+    Assert-Rejected { Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag 'v0.2.0' -InstallerSha256 $hash }
+    Assert-Rejected { Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag 'v0.2.0' }
     'invalid checksum' | Set-Content -LiteralPath (Join-Path $package "$name.sha256")
     Assert-Rejected { New-PbiReleaseArchive -RepositoryRoot $sandbox -Destination (Join-Path $sandbox 'dist') }
     Assert ((Get-FileHash -LiteralPath $zip).Hash -ceq $zipHash) '失败不得覆盖原 ZIP'

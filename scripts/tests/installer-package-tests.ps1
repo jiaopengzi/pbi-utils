@@ -24,6 +24,7 @@ $state = @{
     CompileFailure = $false
     CleanupFailure = $false
     LicenseChangeOnCompile = ''
+    ChangelogChangeOnCompile = ''
     ErrorOutput = ''
     Scenario = $Scenario
 }
@@ -89,7 +90,7 @@ function New-TestPackageSource([string]$Root) {
     $files = @(Get-ChildItem -LiteralPath $Root -Recurse -File | ForEach-Object {
         @{ file = [IO.Path]::GetRelativePath($Root, $_.FullName).Replace('\', '/'); sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
     })
-    @{ schemaVersion = 3; layout = 'shared'; runtime = 'win-x64'; scope = 'All'; configuration = 'Release'; deploymentMode = 'framework-dependent'; version = '1.2.3'; sdkVersion = '10.0.403'; files = $files } |
+    @{ schemaVersion = 3; layout = 'shared'; runtime = 'win-x64'; scope = 'All'; configuration = 'Release'; deploymentMode = 'framework-dependent'; version = '1.2.3'; releaseTag = 'v1.2.3-rc4'; sdkVersion = '10.0.403'; files = $files } |
         ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $Root 'manifest.json') -Encoding utf8
 }
 <# .SYNOPSIS 读取隔离交付目录的精确字节快照, 不包含临时目录, 枚举或哈希失败直接传播. #>
@@ -136,7 +137,7 @@ function Remove-TestPackageTemporaries([string]$Root) {
 
 try {
     $null = New-Item -ItemType Directory -Path (Join-Path $sandbox 'scripts/installer') -Force
-    foreach ($sourceFile in @('CommandRegistry.psm1', 'package.ps1', 'PublishArtifacts.psm1', 'PublishRuntime.psm1', 'ThirdPartyLicenses.psm1', 'ThirdPartyLicenseSources.psm1', 'LicenseNpmDependencies.mjs')) {
+    foreach ($sourceFile in @('CommandRegistry.psm1', 'package.ps1', 'PublishArtifacts.psm1', 'PublishRuntime.psm1', 'ReleaseAutomation.psm1', 'ThirdPartyLicenses.psm1', 'ThirdPartyLicenseSources.psm1', 'LicenseNpmDependencies.mjs')) {
         Copy-Item -LiteralPath (Join-Path $repositoryRoot "scripts/$sourceFile") -Destination (Join-Path $sandbox 'scripts')
     }
     # 元数据生成已由独立行为测试覆盖; 此替身禁止联网, 保留维护清单的文件写入边界.
@@ -159,6 +160,7 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
     }
     Set-Content -LiteralPath (Join-Path $sandbox 'scripts/installer/installer.nsi') -Value '; synthetic NSIS input; never compiled'
     Set-Content -LiteralPath (Join-Path $sandbox 'Directory.Build.props') -Value '<Project><PropertyGroup><Version>1.2.3</Version></PropertyGroup></Project>'
+    Set-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Value @('# Changelog', '', '## [v1.2.3-rc4] - 2026-11-14', '', '- Synthetic release notes.')
     Set-Content -LiteralPath (Join-Path $sandbox 'global.json') -Value '{"sdk":{"version":"10.0.403"}}'
     $source = Join-Path $sandbox 'artifacts/build/release/win-x64/without-dotnet'
     $destination = Join-Path $sandbox 'artifacts/release/win-x64/without-dotnet'
@@ -191,11 +193,12 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
                 $displayBytes = [IO.File]::ReadAllBytes($licenseArguments[0].Substring('/DPBI_LICENSE_TEXT='.Length))
                 if ($displayBytes.Length -lt 3 -or $displayBytes[0] -ne 0xEF -or $displayBytes[1] -ne 0xBB -or $displayBytes[2] -ne 0xBF) { throw 'NSIS 许可阅读文件必须包含 UTF-8 BOM' }
                 $licenseText = Get-Content -LiteralPath (Join-Path $appRoot 'LICENSE') -Raw
-                if ([Text.Encoding]::UTF8.GetString($displayBytes, 3, $displayBytes.Length - 3) -cne $licenseText) { throw 'NSIS 阅读文本必须等于实际载荷 LICENSE' }
+                $aggregate = Get-Content -LiteralPath (Join-Path $appRoot 'THIRD-PARTY-NOTICES.txt') -Raw
+                if ([Text.Encoding]::UTF8.GetString($displayBytes, 3, $displayBytes.Length - 3) -cne $aggregate) { throw 'NSIS 许可页必须使用已验证的完整许可聚合文本' }
                 $script:PackageTest.Payload = @{
                     License = $licenseText
                     Notices = Get-Content -LiteralPath (Join-Path $appRoot 'THIRD-PARTY-NOTICES.md') -Raw
-                    Aggregate = Get-Content -LiteralPath (Join-Path $appRoot 'THIRD-PARTY-NOTICES.txt') -Raw
+                    Aggregate = $aggregate
                     ManifestHash = (Get-FileHash -LiteralPath (Join-Path $appRoot 'manifest.json')).Hash
                 }
             }
@@ -204,6 +207,11 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
             [IO.File]::WriteAllText($outputs[0].Substring('/DPBI_OUTFILE='.Length), 'synthetic NSIS output; not executable')
             if ($script:PackageTest.LicenseChangeOnCompile) {
                 Add-Content -LiteralPath $script:PackageTest.LicenseChangeOnCompile -Value 'concurrent source license edit' -Encoding utf8
+            }
+            if ($script:PackageTest.ChangelogChangeOnCompile) {
+                $path = $script:PackageTest.ChangelogChangeOnCompile
+                $history = Get-Content -LiteralPath $path -Raw
+                Set-Content -LiteralPath $path -Encoding utf8 -Value "## [v1.2.3-rc5] - 2026-11-14`n`n- Synthetic concurrent release.`n`n$history"
             }
         }
         <# .SYNOPSIS 在第一次复制前替换完整有效版本, 模拟源目录在初始校验后被另一次发布交付. #>
@@ -228,12 +236,16 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
         function script:Get-AuthenticodeSignature([string]$LiteralPath) { return [pscustomobject]@{ Status = 'NotSigned' } }
     } $state
 
-    $baseName = 'pbi-utils-1.2.3-win-x64-without-dotnet-setup'
+    $baseName = 'pbi-utils-v1.2.3-rc4-win-x64-without-dotnet-setup'
     if ($Scenario -in @('PackageFailure', 'LicenseRefreshFailure')) {
         # 失败用例仅要求旧交付字节保持; 直接放入明确替身, 不重复成功用例已覆盖的编译过程.
         $null = New-Item -ItemType Directory -Path $destination -Force
         foreach ($suffix in @('exe', 'json', 'sha256')) { Set-Content -LiteralPath (Join-Path $destination "$baseName.$suffix") -Value "previous synthetic delivery $suffix" }
     } else {
+        $previousInstaller = Join-Path $destination 'pbi-utils-v1.2.3-rc3-win-x64-without-dotnet-setup.exe'
+        $null = New-Item -ItemType Directory -Path $destination -Force
+        Set-Content -LiteralPath $previousInstaller -Value 'previous release candidate'
+        $previousHash = (Get-FileHash -LiteralPath $previousInstaller -Algorithm SHA256).Hash
         $result = Invoke-TestPackage
         Assert ($result -eq 0) ('有效 Release All 快照应能完成隔离打包: ' + (($state.Messages | ForEach-Object Message) -join '; '))
         Assert ($state.Commands.Count -eq 1) '一次 package 只能编译一个选中模式安装包'
@@ -241,11 +253,16 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
         Assert ($arguments -contains '/V3' -and $arguments -contains '/WX') 'NSIS 必须启用既定日志等级并把警告视为失败'
         Assert ($arguments -contains '/INPUTCHARSET' -and $arguments -contains 'UTF8') 'NSIS 必须显式按 UTF-8 读取双语安装向导源码'
         Assert ($arguments -contains '/DPBI_NSIS_VERSION=3.13') '编译器版本必须绑定载荷中审核过的 NSIS 许可版本'
+        Assert ($arguments -contains '/DPBI_RELEASE_TAG=v1.2.3-rc4' -and $arguments -contains '/DPBI_FILE_VERSION=1.2.3.0') '安装器展示读取 CHANGELOG 标签, Windows 数字文件版本保持独立'
         Assert (@($arguments | Where-Object { $_ -clike '/DPBI_PAYLOAD=*' }).Count -eq 1) '含空格路径必须作为完整的单个 NSIS 定义参数传递'
         Assert (@($state.Messages | Where-Object { $_.Message -match '^完成 package \(' -and $_.Level -eq 'Success' }).Count -eq 1) 'dot-source 打包脚本不得把完成动作名覆盖为交付文件名'
         $record = Get-Content -LiteralPath (Join-Path $destination "$baseName.json") -Raw | ConvertFrom-Json
         Assert ($record.version -ceq '1.2.3' -and $record.dotNetMode -ceq 'without-dotnet' -and $record.signatureStatus -ceq 'NotSigned') '安装记录必须保存当前版本、模式和真实签名分类'
+        Assert ($record.releaseTag -ceq 'v1.2.3-rc4') '安装记录必须绑定向 NSIS 传递的 CHANGELOG 标签'
+        Assert ($record.installer -ceq "$baseName.exe") '安装包记录中的文件名必须含完整发布标签'
         Assert ($record.sha256 -ceq (Get-FileHash -LiteralPath (Join-Path $destination "$baseName.exe") -Algorithm SHA256).Hash) '安装记录必须对应实际交付字节'
+        Assert ((Get-Content -LiteralPath (Join-Path $destination "$baseName.sha256")).Trim() -ceq "$($record.sha256)  $baseName.exe") '校验文件必须对应带完整标签的安装包'
+        Assert ((Get-FileHash -LiteralPath $previousInstaller -Algorithm SHA256).Hash -ceq $previousHash) '同数字版本的另一发布标签产物必须原样保留'
         Assert ($record.bytes -eq (Get-Item -LiteralPath (Join-Path $destination "$baseName.exe")).Length -and $record.giteeAttachmentLimitBytes -eq 100000000 -and $record.fitsGiteeAttachmentLimit) 'Gitee 保守阈值报告必须对应实际包体积'
     }
     Assert-TestPackageReleased $destination
@@ -372,7 +389,7 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
                 [IO.File]::WriteAllBytes($manifestPath, $originalManifest)
             }
         }
-        foreach ($change in @(@{ Field = 'version'; Value = '2.0.0' }, @{ Field = 'sdkVersion'; Value = '10.0.402' })) {
+        foreach ($change in @(@{ Field = 'version'; Value = '2.0.0' }, @{ Field = 'releaseTag'; Value = 'v1.2.3-rc3' }, @{ Field = 'sdkVersion'; Value = '10.0.402' })) {
             $state.SwapField = $change.Field
             $state.SwapValue = $change.Value
             try {
@@ -407,6 +424,20 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
         Assert-TestPackageReleased $destination
     } finally { $state.CompileFailure = $false }
 
+    $changelogPath = Join-Path $sandbox 'CHANGELOG.md'
+    $changelogBytes = [IO.File]::ReadAllBytes($changelogPath)
+    $state.ChangelogChangeOnCompile = $changelogPath
+    try {
+        Assert ((Invoke-TestPackage) -eq 4) '打包期间当前发布标签变化必须拒绝交付旧标签安装包'
+        Assert ($state.Commands.Count -eq 1) '并发发版测试必须在进入真实编译边界后改动 CHANGELOG'
+        Assert (@($state.Messages | Where-Object Message -Like '*CHANGELOG*标签已改变*').Count -eq 1) '并发发布版本变更必须明确报告 CHANGELOG 标签变化'
+        Assert ((Get-TestPackageSnapshot $destination) -ceq $before) '并发发布版本变更不得覆盖已有安装包及旁车'
+        Assert-TestPackageReleased $destination
+    } finally {
+        $state.ChangelogChangeOnCompile = ''
+        [IO.File]::WriteAllBytes($changelogPath, $changelogBytes)
+    }
+
     $lease = [IO.File]::Open((Join-Path $destination '.package.lock'), 'Open', 'ReadWrite', 'None')
     try {
         Assert ((Invoke-TestPackage) -eq 3) '另一任务持有打包锁时必须拒绝本轮打包'
@@ -440,7 +471,7 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
         Remove-TestPackageTemporaries $destination
     }
     Assert-TestPackageReleased $destination
-    Write-Host 'PASS installer compiler failure, lock release and cleanup failure preservation'
+    Write-Host 'PASS installer compiler failure, lock release and cleanup failure preservation (including concurrent release identity)'
 }
 finally {
     Set-Location -LiteralPath $savedDirectory

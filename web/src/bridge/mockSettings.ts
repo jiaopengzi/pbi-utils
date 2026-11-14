@@ -145,6 +145,7 @@ export class MockSettings {
         if (method === "app.info") {
             reply({
                 version: "browser-preview",
+                releaseTag: null,
                 webView2: "未连接",
                 hasExternalToolTarget: false,
             })
@@ -190,6 +191,7 @@ export class MockSettings {
                     version: "browser-preview",
                     environment: { os: "浏览器模拟", architecture: "未检测", runtime: "未检测", desktop: "simulation", powerBi: "simulation" },
                 },
+                releaseTag: null,
                 webView2: "未检测",
                 isSimulation: true,
             })

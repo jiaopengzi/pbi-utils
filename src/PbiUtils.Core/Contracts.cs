@@ -2,7 +2,9 @@
 // Author      : jiaopengzi
 // Blog        : https://jiaopengzi.com
 // Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-// Description : 定义稳定应用错误与统一产品版本访问方式.
+// Description : 定义稳定应用错误与统一产品版本、发布标签访问方式.
+
+using System.Reflection;
 
 namespace PbiUtils.Core;
 
@@ -18,7 +20,7 @@ public sealed class AppException(string code, string message, int exitCode = 2) 
 /// <summary>由统一构建版本派生产品版本.</summary>
 public static class Product
 {
-    /// <summary>产品 SemVer, 不包含可选构建元数据.</summary>
-    public static string Version => typeof(Product).Assembly.GetCustomAttributes(false)
-        .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().Single().InformationalVersion.Split('+')[0];
+    /// <summary>返回完整产品发布标签; 程序集版本属性缺失时抛出异常.</summary>
+    public static string ReleaseTag => typeof(Product).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? throw new InvalidOperationException("发布标签元数据缺失");
 }

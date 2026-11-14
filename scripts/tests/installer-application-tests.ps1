@@ -85,7 +85,7 @@ function New-Payload([string]$Name, [string]$Version, [string]$Extra = 'old.dll'
     $files = @(Get-ChildItem -LiteralPath (Join-Path $directory 'app') -Recurse -File | ForEach-Object {
         @{ file = $_.FullName.Substring((Join-Path $directory 'app').Length + 1).Replace('\', '/'); sha256 = (Get-FileHash -LiteralPath $_.FullName).Hash }
     })
-    @{ schemaVersion = 3; layout = 'shared'; runtime = 'win-x64'; scope = 'All'; configuration = 'Release'; deploymentMode = $DeploymentMode; version = $Version; files = $files } |
+    @{ schemaVersion = 3; layout = 'shared'; runtime = 'win-x64'; scope = 'All'; configuration = 'Release'; deploymentMode = $DeploymentMode; version = $Version; releaseTag = "v$Version"; files = $files } |
         ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $directory 'app/manifest.json') -Encoding UTF8
     return $directory
 }
@@ -153,6 +153,16 @@ Export-ModuleMember -Function Invoke-PbiApplicationInstallation
     $invalidMode = New-Payload 'payload-invalid-mode' '1.0.0' -DeploymentMode 'unknown'
     Reject { Invoke-PbiApplicationInstallation -Operation Install -PayloadRoot $invalidMode -InstallRoot $bundledRoot -Adapters $adapters } '发布清单'
     Assert (!(Test-Path -LiteralPath $bundledRoot)) '未知部署模式必须在修改文件前拒绝'
+    $badRelease = New-Payload 'payload-invalid-release' '1.0.0'
+    $badReleaseManifest = Join-Path $badRelease 'app/manifest.json'
+    $writesBefore = $environment.Writes
+    foreach ($tag in @('v1.0.1-rc3', 'v1.0.0-rc0', 'v1.0.0-rc2147483648', $null)) {
+        $badManifest = Get-Content -LiteralPath $badReleaseManifest -Raw | ConvertFrom-Json
+        if ($null -eq $tag) { $badManifest.PSObject.Properties.Remove('releaseTag') } else { $badManifest.releaseTag = $tag }
+        $badManifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $badReleaseManifest -Encoding UTF8
+        Reject { Invoke-PbiApplicationInstallation -Operation Install -PayloadRoot $badRelease -InstallRoot $bundledRoot -Adapters $adapters } '发布标签无效'
+        Assert (!(Test-Path -LiteralPath $bundledRoot) -and $environment.Writes -eq $writesBefore) '非法或缺失的发布标签须在安装文件和系统入口写入前拒绝'
+    }
     foreach ($license in @('LICENSE', 'THIRD-PARTY-NOTICES.md', 'THIRD-PARTY-NOTICES.txt', 'licenses/manifest.json')) {
         $missing = New-Payload ('payload-missing-' + $license.Replace('/', '-')) '1.0.0' -OmitLicense $license
         $writesBefore = $environment.Writes

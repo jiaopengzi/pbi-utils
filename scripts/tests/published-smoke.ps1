@@ -33,9 +33,21 @@ else { @(Join-Path $root "artifacts/build/release/win-x64/$($DotNetMode.ToLowerI
 $runEvidence = Join-Path $root ('artifacts/evidence/published-smoke-' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '-' + [Guid]::NewGuid().ToString('N'))
 foreach ($packageRoot in $publishRoots) {
 $manifest = Assert-PbiPublishedArtifacts $packageRoot
+$releaseTag = $manifest['releaseTag']
+if ([string]::IsNullOrWhiteSpace($releaseTag)) { throw '发布清单缺少完整发布标签' }
 $modeDirectory = if ($manifest.deploymentMode -ceq 'self-contained') { 'with-dotnet' } else { 'without-dotnet' }
 $evidenceRoot = Join-Path $runEvidence ($manifest.configuration.ToLowerInvariant() + '/' + $modeDirectory)
 $null = New-Item -ItemType Directory -Path $evidenceRoot -Force
+# apphost 复制入口程序集的 Windows 版本资源; 完整标签和供系统比较的数值字段同时核验.
+$numericVersion = [Version]"$($manifest.version).0"
+$productFiles = @('pbi-utils.exe', 'PbiUtils.Host.exe', 'PbiUtils.Core.dll')
+if ($manifest.scope -ceq 'All') { $productFiles += 'PbiUtils.Desktop.exe' }
+$productVersions = @(foreach ($name in $productFiles) {
+    $info = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $packageRoot $name))
+    $fileVersion = [Version]::new($info.FileMajorPart, $info.FileMinorPart, $info.FileBuildPart, $info.FilePrivatePart)
+    if ($info.ProductVersion -cne $releaseTag -or $fileVersion -ne $numericVersion) { throw "Windows 产品标签或文件版本与发布清单不一致: $name" }
+    @{ file = $name; productVersion = $info.ProductVersion; fileVersion = $fileVersion.ToString() }
+})
 $sharedAssets = @()
 if ($manifest.deploymentMode -ceq 'self-contained') {
     $cliDeps = Get-Content -LiteralPath (Join-Path $packageRoot 'pbi-utils.deps.json') -Raw | ConvertFrom-Json -AsHashtable
@@ -112,7 +124,7 @@ foreach ($case in $cases) {
         elseif ($case.format -eq 'json') {
             $data = $output | ConvertFrom-Json
             if (!$data.ok -or $data.schemaVersion -ne 1 -or $data.command -ne $case.command) { throw '发布 CLI JSON 不符合契约' }
-            if ($case.name -eq 'doctor' -and ($data.data.version -ne $manifest.version -or !$data.data.environment.runtime)) { throw '发布诊断缺少产品版本或运行时信息' }
+            if ($case.name -eq 'doctor' -and ($data.data.version -cne $releaseTag -or !$data.data.environment.runtime)) { throw '发布诊断的发布标签不符或缺少运行时信息' }
             if ($case.name -eq 'templates') {
                 $templateIds = @($data.data.templates | ForEach-Object { $_.id })
                 foreach ($id in @('builtin:blank')) {
@@ -123,7 +135,7 @@ foreach ($case in $cases) {
         elseif ($case.format -eq 'help') {
             if (!$output.Contains('pbi-utils doctor') -or !$output.Contains('pbi-utils new templates') -or $output.Contains('pbi-utils hello') -or $output.Contains('pbi-utils agent hello')) { throw '发布帮助不符合当前命令契约' }
         }
-        elseif ($output.Trim() -cne $manifest.version) { throw '发布版本与清单不一致' }
+        elseif ($output.Trim() -cne $releaseTag) { throw 'CLI 发布标签与清单不一致' }
         $results += @{ command = $case.command; status = 'PASS'; exitCode = $process.ExitCode; developmentToolsRemovedFromPath = $true; runtimeResolution = $runtimeResolution }
     }
     catch {
@@ -146,6 +158,6 @@ foreach ($case in $cases) {
     }
 }
 & (Join-Path $PSScriptRoot 'mcp-published-smoke.ps1') -PublishRoot $packageRoot -EvidenceRoot $evidenceRoot
-@{ platform = 'Windows x64'; version = $manifest.version; scope = $manifest.scope; configuration = $manifest.configuration; package = $modeDirectory; deploymentMode = $manifest.deploymentMode; layout = $manifest.layout; exactFileSetVerified = $true; manifestFilesVerified = $manifest.files.Count; sharedFrameworkAssets = $sharedAssets; runtimeResolutionVerified = $true; commands = $results; mcp = 'PASS'; isolatedCleanMachine = 'UNRUN'; physicallyOfflineMachine = 'UNRUN'; desktopInteraction = 'UNRUN' } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $evidenceRoot 'published-smoke.json') -Encoding utf8
+@{ platform = 'Windows x64'; version = $releaseTag; scope = $manifest.scope; configuration = $manifest.configuration; package = $modeDirectory; deploymentMode = $manifest.deploymentMode; layout = $manifest.layout; exactFileSetVerified = $true; manifestFilesVerified = $manifest.files.Count; productFiles = $productVersions; sharedFrameworkAssets = $sharedAssets; runtimeResolutionVerified = $true; commands = $results; mcp = 'PASS'; isolatedCleanMachine = 'UNRUN'; physicallyOfflineMachine = 'UNRUN'; desktopInteraction = 'UNRUN' } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $evidenceRoot 'published-smoke.json') -Encoding utf8
 Write-Output "PASS $($manifest.configuration)/$modeDirectory CLI/MCP、运行时来源与发布文件清单: $evidenceRoot; 不等同干净机器或断网验收."
 }

@@ -19,13 +19,13 @@ try {
     # 与固定 C# 进程测试的 UTF-8 读取契约一致, 不依赖调用者控制台代码页.
     [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
     $null = New-Item -ItemType Directory -Path (Join-Path $sandbox 'scripts') -Force
-    foreach ($file in @('CommandRegistry.psm1', 'check.ps1', 'test.ps1', 'build.ps1', 'PublishArtifacts.psm1', 'SharedPublish.psm1', 'PublishRuntime.psm1', 'TestResults.psm1')) {
+    foreach ($file in @('CommandRegistry.psm1', 'check.ps1', 'test.ps1', 'build.ps1', 'PublishArtifacts.psm1', 'SharedPublish.psm1', 'PublishRuntime.psm1', 'TestResults.psm1', 'ReleaseAutomation.psm1')) {
         Copy-Item -LiteralPath (Join-Path $sourceRoot "scripts/$file") -Destination (Join-Path $sandbox 'scripts')
     }
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LicenseBundleStub.psm1') -Destination (Join-Path $sandbox 'scripts/ThirdPartyLicenses.psm1')
     $null = New-Item -ItemType Directory -Path (Join-Path $sandbox 'web')
     Set-Content -LiteralPath (Join-Path $sandbox 'web/package.json') -Value '{"scripts":{"test":"pnpm lint && vitest run","build":"pnpm lint && vite build"}}'
-    Set-Content -LiteralPath (Join-Path $sandbox 'Directory.Build.props') -Value '<Project><PropertyGroup><Version>1.2.3</Version></PropertyGroup></Project>'
+    Set-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Value "## [v1.2.3] - 2026-11-14`n- 发布夹具."
     Set-Content -LiteralPath (Join-Path $sandbox 'global.json') -Value '{"sdk":{"version":"10.0.403"}}'
     Import-Module (Join-Path $sandbox 'scripts/CommandRegistry.psm1') -Force
     $module = Get-Module CommandRegistry

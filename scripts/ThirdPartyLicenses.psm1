@@ -68,10 +68,11 @@ function Export-PbiLicenseBundle {
         $files.Add($fileRecord)
     }
     $text = [Text.StringBuilder]::new()
-    $null = $text.AppendLine('pbi-utils — Third-party notices / 第三方声明').AppendLine()
-    $null = $text.AppendLine('Important Microsoft terms / 重要 Microsoft 条款: Microsoft.AnalysisServices and Microsoft.AnalysisServices.AdomdClient are distributed under their own Microsoft software license terms, not the pbi-utils MIT license. Their complete English and Chinese terms are reproduced below and retained under licenses/nuget/. The installer separately asks you to accept these Microsoft terms.').AppendLine()
-    $null = $text.AppendLine('This offline document contains the source notices, an exact version index, and the full license/NOTICE/COPYING texts. npm entries conservatively cover the installed production dependency and peer closure; inclusion does not assert every module is present in a JavaScript chunk. Development-only root dependencies are excluded.').AppendLine()
+    $null = $text.AppendLine('pbi-utils — Licenses and notices / 许可与声明').AppendLine()
     $null = $text.AppendLine('PROJECT LICENSE / 项目许可证').AppendLine((Get-Content -LiteralPath (Join-Path $publish 'LICENSE') -Raw)).AppendLine()
+    $null = $text.AppendLine('THIRD-PARTY LICENSES AND NOTICES / 第三方许可与声明').AppendLine()
+    $null = $text.AppendLine('Important Microsoft terms / 重要 Microsoft 条款: Microsoft.AnalysisServices and Microsoft.AnalysisServices.AdomdClient are distributed under their own Microsoft software license terms, not the pbi-utils MIT license. Their complete English and Chinese terms are reproduced below and retained under licenses/nuget/. The acceptance checkbox on the installer license page applies only to these Microsoft terms.').AppendLine()
+    $null = $text.AppendLine('This offline document contains the source notices, an exact version index, and the full license/NOTICE/COPYING texts. npm entries conservatively cover the installed production dependency and peer closure; inclusion does not assert every module is present in a JavaScript chunk. Development-only root dependencies are excluded.').AppendLine()
     $null = $text.AppendLine((Get-Content -LiteralPath (Join-Path $publish 'THIRD-PARTY-NOTICES.md') -Raw)).AppendLine()
     $null = $text.AppendLine('INDEX / 索引')
     foreach ($component in $components) { $null = $text.AppendLine("$($component.ecosystem) | $($component.name) | $($component.version) | $($component.license)") }

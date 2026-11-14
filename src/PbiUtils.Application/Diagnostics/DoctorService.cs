@@ -21,7 +21,7 @@ public interface IRuntimeEnvironment
 
 /// <summary>平台诊断信息; unsupported 不表示核心失败.</summary>
 public sealed record RuntimeSnapshot(string Os, string Architecture, string Runtime, string Desktop, string PowerBi);
-/// <summary>带版本与能力状态的诊断结果.</summary>
+/// <summary>带完整产品发布标签与能力状态的诊断结果.</summary>
 public sealed record DoctorResult(string Version, RuntimeSnapshot Environment);
 
 /// <summary>共享只读诊断用例.</summary>
@@ -32,10 +32,10 @@ public sealed class DoctorService(IRuntimeEnvironment environment, ILogger<Docto
 
     /// <summary>执行只读检查.</summary>
     /// <param name="cancellationToken">取消令牌.</param>
-    /// <returns>环境和产品版本.</returns>
+    /// <returns>运行环境及产品的精确发布标签.</returns>
     public DoctorResult Execute(CancellationToken cancellationToken = default) => BusinessLog.Run<DoctorResult>(log, "Doctor.Execute", () =>
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return new(Product.Version, environment.Read());
+        return new(Product.ReleaseTag, environment.Read());
     });
 }

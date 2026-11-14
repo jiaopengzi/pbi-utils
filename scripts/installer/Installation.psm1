@@ -59,7 +59,7 @@ function Remove-PbiEmptyInstallationDirectories([string]$Root, [string[]]$Files)
 .PARAMETER CreateDesktopShortcut Install 时创建桌面入口, 默认 true; false 只移除本安装拥有的入口, Uninstall 忽略此选择.
 .PARAMETER CreateStartMenuShortcut Install 时创建开始菜单入口, 默认 true; Uninstall 始终核验并清理两处自有入口.
 .PARAMETER RegistrationNonInteractive true 时外部工具登记不得申请 UAC, 权限不足返回前置错误.
-.PARAMETER Adapters 测试可注入身份、进程和系统适配; ApplyShell 接收捕获快照限定修改范围, 正式 CLI 不暴露此参数.
+.PARAMETER Adapters 测试可注入身份、进程和系统适配; ApplyShell 接收捕获快照限定修改范围, 安装时接收载荷验证过的发布标签, 正式 CLI 不暴露此参数.
 .OUTPUTS 动作和版本; 并发、占用、身份错误、降级或事务失败时抛错. 不承诺断电原子性或用户数据回滚.
 #>
 function Invoke-PbiApplicationInstallation {
@@ -160,7 +160,8 @@ function Invoke-PbiApplicationInstallation {
             $version = $payload.Version
         } else { $version = $state.Version }
         $shellStarted = $true
-        & $Adapters.ApplyShell $root $version $Operation $shellSnapshot
+        $releaseTag = if ($null -ne $payload) { $payload.ReleaseTag } else { '' }
+        & $Adapters.ApplyShell $root $version $Operation $shellSnapshot $releaseTag
         # 卸载仅删除有本次可靠备份的自有文件; 安装已在新载荷写入前完成旧文件移除.
         foreach ($relative in $owned.Keys) {
             if ($Operation -ceq 'Install') { continue }

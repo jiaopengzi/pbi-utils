@@ -56,7 +56,7 @@ public sealed class LoggingRuntime : ILoggingSettings, IDisposable
             foreach (var file in Directory.EnumerateFiles(DirectoryPath, host + "-*.clef")) UserDataStore.Check(file);
             logger = new LoggerConfiguration().MinimumLevel.ControlledBy(levelSwitch)
                 .Enrich.FromLogContext().Enrich.WithProperty("Application", "pbi-utils").Enrich.WithProperty("Host", host)
-                .Enrich.WithProperty("Version", Product.Version).Enrich.WithProperty("ProcessId", Environment.ProcessId)
+                .Enrich.WithProperty("Version", Product.ReleaseTag).Enrich.WithProperty("ProcessId", Environment.ProcessId)
                 .WriteTo.File(new CompactJsonFormatter(), logPath, rollingInterval: RollingInterval.Day,
                     fileSizeLimitBytes: 10 * 1024 * 1024, rollOnFileSizeLimit: true, retainedFileCountLimit: 31,
                     retainedFileTimeLimit: TimeSpan.FromDays(14), shared: true, buffered: false)

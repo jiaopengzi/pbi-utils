@@ -126,6 +126,7 @@ it("打开运行环境自动检测一次, 使用描述列表且不展示 Hello�
     expect(wrapper.findAll(".el-descriptions__label")).toHaveLength(7)
     expect(wrapper.text()).toContain("WebView2")
     expect(wrapper.text()).toContain("浏览器模拟")
+    expect(wrapper.get(".environment-descriptions strong").text()).toBe("-")
     expect(wrapper.text()).not.toContain("Hello")
     expect(wrapper.text()).not.toContain("Mock Agent")
     expect(wrapper.find("pre").exists()).toBe(false)
@@ -204,8 +205,9 @@ it("英文诊断翻译标签与状态并保留宿主原始系统信息, 切换�
     setLocale("en-us")
     const transport = new DiagnosticTransport()
     transport.diagnosticOverride = {
+        releaseTag: "v1.2.3-rc4",
         diagnostic: {
-            version: "1.2.3",
+            version: "v1.2.3-rc4",
             environment: {
                 os: "Microsoft Windows 11 10.0.26100",
                 architecture: "X64",
@@ -225,10 +227,12 @@ it("英文诊断翻译标签与状态并保留宿主原始系统信息, 切换�
     expect(wrapper.text()).toContain("Microsoft Windows 11 10.0.26100")
     expect(wrapper.text()).toContain(".NET 10.0.1")
     expect(wrapper.text()).toContain("140.0.3485.81")
+    expect(wrapper.get(".environment-descriptions strong").text()).toBe("pbi-utils v1.2.3-rc4")
     expect(wrapper.text()).not.toContain("运行环境")
     setLocale("zh-cn")
     await flushPromises()
     expect(wrapper.text()).toContain("运行环境")
+    expect(wrapper.get(".environment-descriptions strong").text()).toBe("pbi-utils v1.2.3-rc4")
     expect(transport.methods).toEqual(["doctor"])
     wrapper.unmount()
     bridge.dispose()

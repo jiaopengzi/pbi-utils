@@ -59,9 +59,9 @@ export const mcpMessages = {
 | --- | --- | --- |
 | 配置 | <状态> | <客户端；配置位置；处理结果；程序存在性>；readback=\`<JSON>\`；match=<true/false/unknown> |
 | 工具发现 | <状态> | <本次三项诊断是否成功> |
-| server_info | <状态> | <version 非空；transport=stdio> |
+| server_info | <状态> | <version 的完整发布标签；transport=stdio> |
 | desktop_sessions | <状态> | <上下文数量；本次 sessionId> |
-| desktop_app_info | <状态> | <返回的非空 version> |
+| desktop_app_info | <状态> | <version 的完整发布标签> |
 | 写权限 | <状态> | <本次 server_info.allowWrite，须为 true> |
 | 实际写入测试 | 未验证 | 仅验证接入，未执行写入。 |
 
@@ -125,9 +125,9 @@ Result: <PASS/PENDING/FAIL>
 | --- | --- | --- |
 | Configuration | <status> | <Client; config location; action; executable exists>; readback=\`<JSON>\`; match=<true/false/unknown> |
 | Tool discovery | <status> | <Whether all three diagnostics succeeded this run> |
-| server_info | <status> | <Nonempty version; transport=stdio> |
+| server_info | <status> | <Full release tag from version; transport=stdio> |
 | desktop_sessions | <status> | <Context count; this run's sessionId> |
-| desktop_app_info | <status> | <Returned nonempty version> |
+| desktop_app_info | <status> | <Full release tag from version> |
 | Write permission | <status> | <This run's server_info.allowWrite, must be true> |
 | Actual write test | UNRUN | Setup verification only; no writes performed. |
 

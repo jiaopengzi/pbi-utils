@@ -10,6 +10,7 @@ import { BridgeError, type BridgeClient } from "@/bridge/client"
 import type { ProductUpdateSettings, ProductUpdateState } from "@/bridge/updateContracts"
 import { useI18n } from "@/composables/i18n/useI18n"
 import { useFeedback } from "@/composables/ui/useFeedback"
+import { productReleaseName } from "@/app/productReleaseName"
 
 /**
  * 创建当前应用实例的更新通道; bridge 和 ready 明确控制启动, startup 控制是否自动检查.
@@ -51,12 +52,13 @@ export function useProductUpdates(bridge: () => BridgeClient | undefined, ready:
         if (!checkId || (manualOnly && checkAutomatic)) return
         invalidateCheck()
     }
-    /** 只在当前应用实例首次见到非模拟新版本时发非阻塞通知, 不占用模型导航锁. */
+    /** 每个新发布标签只通知一次, 模拟结果不触发通知. */
     function notifyAvailable(): void {
         const value = checkResult.value
-        if (!value || value.status !== "available" || !value.latestVersion || value.isSimulation || notified.has(value.latestVersion)) return
-        notified.add(value.latestVersion)
-        showFeedback({ message: t("updates.availableNotice", { version: value.latestVersion }), type: "info" })
+        const tag = value?.releases[0]?.tag
+        if (!value || value.status !== "available" || !tag || value.isSimulation || notified.has(tag)) return
+        notified.add(tag)
+        showFeedback({ message: t("updates.availableNotice", { release: productReleaseName(tag) }), type: "info" })
     }
     /** 读取设置及产品版本; 仅明确的自动启动路径发后台检查, 失败可在设置重试. */
     async function load(): Promise<void> {
@@ -69,14 +71,14 @@ export function useProductUpdates(bridge: () => BridgeClient | undefined, ready:
         activeRequests.set(request.id, client)
         activeRequests.set(info.id, client)
         try {
-            const [settings, version] = await Promise.allSettled([request.promise, info.promise])
+            const [settings, application] = await Promise.allSettled([request.promise, info.promise])
             if (disposed || client !== bridge()) return
+            currentVersion.value = productReleaseName(application.status === "fulfilled" ? application.value.releaseTag : null)
             if (settings.status === "rejected") {
                 error.value = t("updates.loadFailed")
                 return
             }
             state.value = settings.value
-            currentVersion.value = version.status === "fulfilled" ? version.value.version : (settings.value.lastCheck?.currentVersion ?? "-")
             if (startup && settings.value.settings.automaticCheck) void check(true)
         } catch {
             if (!disposed && client === bridge()) error.value = t("updates.loadFailed")
@@ -125,7 +127,6 @@ export function useProductUpdates(bridge: () => BridgeClient | undefined, ready:
             if (disposed || generation !== identity || client !== bridge() || state.value?.settings.source !== source) return
             const acceptedCheck = response.check?.source === source ? response.check : null
             state.value = { settings: state.value.settings, lastCheck: acceptedCheck }
-            if (acceptedCheck) currentVersion.value = acceptedCheck.currentVersion
             notifyAvailable()
             if (!automatic && acceptedCheck?.status !== "available")
                 showFeedback({ message: t(`updates.${acceptedCheck?.status ?? "notChecked"}`), type: acceptedCheck?.status === "failed" ? "error" : "info" })

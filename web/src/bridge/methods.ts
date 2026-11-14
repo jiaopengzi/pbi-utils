@@ -109,6 +109,7 @@ export interface Methods extends ScaffoldMethods {
         params: Record<string, never>
         result: {
             version: string
+            releaseTag: string | null
             webView2: string
             hasExternalToolTarget?: boolean
         }
@@ -118,6 +119,7 @@ export interface Methods extends ScaffoldMethods {
         params: Record<string, never>
         result: {
             diagnostic: { version: string; environment: { os: string; architecture: string; runtime: string; desktop: string; powerBi: string } }
+            releaseTag: string | null
             webView2: string
             isSimulation?: boolean
         }

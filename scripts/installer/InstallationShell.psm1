@@ -117,8 +117,8 @@ function Confirm-PbiInstallationShortcut([string]$Path, $Snapshot) {
     return $false
 }
 
-<# .SYNOPSIS 按快照选择创建或移除已拥有入口, 卸载始终检查两处; 参数为安装根、版本、动作和可变快照, 迟到冲突保留并排除恢复范围, I/O 失败抛错. #>
-function Set-PbiInstallationShell([string]$Root, [string]$Version, [string]$Operation, $Snapshot) {
+<# .SYNOPSIS 按快照选择创建或移除已拥有入口, 卸载始终检查两处; 参数为安装根、数字版本、动作、可变快照及已验证发布标签, 迟到冲突保留并排除恢复范围, I/O 失败抛错. #>
+function Set-PbiInstallationShell([string]$Root, [string]$Version, [string]$Operation, $Snapshot, [string]$ReleaseTag) {
     # 安装和卸载只处理预检确认的入口, 不重新扩大范围; 晚到的用户更改也不纳入回滚.
     foreach ($path in @($Snapshot.Shortcuts.Keys)) { $null = Confirm-PbiInstallationShortcut $path $Snapshot }
     if ($Operation -ceq 'Uninstall') {
@@ -136,7 +136,7 @@ function Set-PbiInstallationShell([string]$Root, [string]$Version, [string]$Oper
     }
     $keys = @{
         $script:ProductKey = @{ InstallRoot = $Root; Version = $Version }
-        $script:UninstallKey = @{ DisplayName = 'pbi-utils'; DisplayVersion = $Version; InstallLocation = $Root; DisplayIcon = (Join-Path $Root 'app\PbiUtils.Desktop.exe'); Publisher = 'jiaopengzi'; UninstallString = ('"' + (Join-Path $Root 'uninstall.exe') + '"'); URLInfoAbout = 'https://jiaopengzi.com' }
+        $script:UninstallKey = @{ DisplayName = 'pbi-utils'; DisplayVersion = $ReleaseTag; InstallLocation = $Root; DisplayIcon = (Join-Path $Root 'app\PbiUtils.Desktop.exe'); Publisher = 'jiaopengzi'; UninstallString = ('"' + (Join-Path $Root 'uninstall.exe') + '"'); URLInfoAbout = 'https://jiaopengzi.com' }
     }
     foreach ($path in $keys.Keys) {
         $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($path)
@@ -209,7 +209,7 @@ function Get-PbiInstallationAdapters {
         UserId = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
         AssertIdle = { param($root) Assert-PbiInstallationIdle $root }
         CaptureShell = { param($root, $installed, $desktop, $startMenu, $payloadRoot, $nonInteractive) Get-PbiInstallationShellSnapshot $root $installed $desktop $startMenu $payloadRoot $nonInteractive }
-        ApplyShell = { param($root, $version, $operation, $snapshot) Set-PbiInstallationShell $root $version $operation $snapshot }
+        ApplyShell = { param($root, $version, $operation, $snapshot, $releaseTag) Set-PbiInstallationShell $root $version $operation $snapshot $releaseTag }
         RestoreShell = { param($snapshot) Restore-PbiInstallationShell $snapshot }
         DeleteOwnedFile = { param($path) [IO.File]::Delete($path) }
     }

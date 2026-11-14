@@ -113,7 +113,7 @@ public sealed class CliTests
         Assert.DoesNotContain("pbi-utils agent hello", Out);
         Assert.Empty(Error);
         var version = await Cli("unknown", "--json", "--version");
-        Assert.Equal(PbiUtils.Core.Product.Version, version.Out.Trim());
+        Assert.Equal(PbiUtils.Core.Product.ReleaseTag, version.Out.Trim());
         Assert.Equal(0, version.Code);
     }
 
@@ -129,7 +129,7 @@ public sealed class CliTests
         Assert.True(json.RootElement.GetProperty("ok").GetBoolean());
         Assert.Equal("doctor", json.RootElement.GetProperty("command").GetString());
         var data = json.RootElement.GetProperty("data");
-        Assert.Equal(PbiUtils.Core.Product.Version, data.GetProperty("version").GetString());
+        Assert.Equal(PbiUtils.Core.Product.ReleaseTag, data.GetProperty("version").GetString());
         Assert.False(string.IsNullOrWhiteSpace(data.GetProperty("environment").GetProperty("os").GetString()));
         Assert.False(string.IsNullOrWhiteSpace(data.GetProperty("environment").GetProperty("runtime").GetString()));
     }

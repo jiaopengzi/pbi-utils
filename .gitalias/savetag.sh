@@ -7,7 +7,7 @@
 
 # 用法: git savetag [--dry-run]. 无参数时发布当前干净仓库中已提交的版本.
 # 配置: git config --local alias.savetag '!bash ./.gitalias/savetag.sh'.
-# 使用 Git Bash 自带工具, 仅 XML 版本读取使用仓库已有的 PowerShell 7.
+# 使用 Git Bash 执行 Git 操作, 通过 PowerShell 7 复用仓库发布规范.
 # 不自动提交、修改版本或合并分支; 任何失败返回非零, 推送失败保留本地标签供人工核验.
 
 set -euo pipefail
@@ -69,78 +69,26 @@ branch=$(read_git '当前必须位于 main 或 v2 分支' symbolic-ref --quiet -
 head=$(read_git '无法读取当前 HEAD' rev-parse --verify HEAD)
 assert_baseline "$branch" "$head"
 
-[[ -f CHANGELOG.md ]] || fail '找不到 CHANGELOG.md.'
-heading=$(awk '/^##[[:space:]]/ { sub(/\r$/, ""); print; exit }' CHANGELOG.md)
-heading_pattern='^## \[([^]]+)\] - ([0-9]{4}-[0-9]{2}-[0-9]{2})$'
-[[ "$heading" =~ $heading_pattern ]] || fail 'CHANGELOG 版本标题格式无效, 必须精确使用 ## [desktop-v<版本>] - YYYY-MM-DD.'
-tag=${BASH_REMATCH[1]}
-release_date=${BASH_REMATCH[2]}
-if ! normalized_date=$(date --date="$release_date" +%F 2>/dev/null); then
-    fail 'CHANGELOG 发布日期无效.'
-fi
-[[ "$normalized_date" == "$release_date" && "$release_date" != 0000-* ]] || fail 'CHANGELOG 发布日期无效.'
-duplicate_count=$(awk -v target="$tag" '
-    /^##[[:space:]]+\[/ {
-        line = $0
-        sub(/^##[[:space:]]+\[/, "", line)
-        closing = index(line, "]")
-        if (closing && substr(line, 1, closing - 1) == target) count++
-    }
-    END { print count + 0 }
-' CHANGELOG.md)
-[[ "$duplicate_count" == 1 ]] || fail 'CHANGELOG 版本章节重复.'
-
-# 只检查最新版本正文, 排除空行、分类标题、空列表以及跨行 HTML 注释; 不拿其他版本补说明.
-if ! awk '
-    /^##[[:space:]]/ { if (capturing) exit; capturing = 1; next }
-    capturing {
-        line = $0
-        visible = ""
-        while (length(line)) {
-            if (in_comment) {
-                closing = index(line, "-->")
-                if (!closing) { line = ""; break }
-                line = substr(line, closing + 3)
-                in_comment = 0
-            } else {
-                opening = index(line, "<!--")
-                if (!opening) { visible = visible line; line = ""; break }
-                visible = visible substr(line, 1, opening - 1)
-                line = substr(line, opening + 4)
-                in_comment = 1
-            }
-        }
-        gsub(/^[[:space:]]+|[[:space:]]+$/, "", visible)
-        if (visible != "" && visible !~ /^#/ && visible !~ /^[-*+]?[[:space:]]*$/) meaningful = 1
-    }
-    END { exit meaningful ? 0 : 1 }
-' CHANGELOG.md; then
-    fail 'CHANGELOG 变更说明不能为空, 小节标题或注释不能代替变更内容.'
-fi
-
-tag_pattern='^desktop-v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))?)(-v2\.[1-9][0-9]*)?$'
-[[ "$tag" =~ $tag_pattern ]] || fail '标签格式无效, 使用 desktop-v<版本> 或 desktop-v<版本>-v2.<正整数>, 产品版本为三段或四段无前导零数字.'
-tag_version=${BASH_REMATCH[1]}
-if [[ "$branch" == v2 && "$tag" != *-v2.* ]]; then
-    fail 'v2 分支仅允许 desktop-v<版本>-v2.<正整数> 测试标签.'
-elif [[ "$branch" == main && "$tag" == *-v2.* ]]; then
-    fail 'main 分支仅允许 desktop-v<版本> 稳定标签.'
-fi
-
-# XML 是产品版本的权威来源, 仅此读取使用已有 pwsh 的 XML 解析器, 不执行另一个发布脚本.
-if ! product_version=$(pwsh -NoProfile -NonInteractive -Command '
+# 静态 PowerShell 命令只读取当前仓库的发布规范, 不将文件内容拼接为脚本.
+release_spec=$(pwsh -NoProfile -NonInteractive -Command '
     $ErrorActionPreference = "Stop"
+    [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
     try {
-        if ($PSVersionTable.PSVersion.Major -lt 7) { exit 1 }
-        $document = [xml][IO.File]::ReadAllText("Directory.Build.props")
-        $versions = @($document.SelectNodes("/Project/PropertyGroup/Version"))
-        if ($versions.Count -ne 1) { exit 1 }
-        [Console]::Write($versions[0].InnerText)
-    } catch { exit 1 }
-' 2>/dev/null); then
-    fail '无法通过 PowerShell 7 读取 Directory.Build.props 的唯一产品版本.'
+        if ($PSVersionTable.PSVersion.Major -lt 7) { throw "读取发布版本需要 PowerShell 7." }
+        Import-Module (Join-Path $PWD "scripts/ReleaseAutomation.psm1") -Force
+        $release = Get-PbiCurrentRelease -RepositoryRoot $PWD
+        [Console]::Write(("{0} {1} {2}" -f $release.Tag, $release.Version, $release.Prerelease))
+    } catch {
+        [Console]::Error.WriteLine($_.Exception.Message)
+        exit 1
+    }
+') || exit 1
+read -r tag product_version prerelease <<< "$release_spec"
+if [[ "$branch" == v2 && "$prerelease" != True ]]; then
+    fail 'v2 分支仅允许 vX.Y.Z-rcN 预发布标签.'
+elif [[ "$branch" == main && "$prerelease" != False ]]; then
+    fail 'main 分支仅允许 vX.Y.Z 正式标签.'
 fi
-[[ "$product_version" == "$tag_version" ]] || fail 'CHANGELOG 标签与 Directory.Build.props 产品版本不一致; 脚本不会自动改版本.'
 
 tag_ref="refs/tags/$tag"
 if git show-ref --verify --quiet "$tag_ref" >/dev/null 2>&1; then

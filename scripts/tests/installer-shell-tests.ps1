@@ -91,7 +91,7 @@ function New-Payload([string]$Directory) {
     $files = @(Get-ChildItem -LiteralPath $app -Recurse -File | ForEach-Object {
         @{ file = $_.FullName.Substring($app.Length + 1).Replace('\', '/'); sha256 = (Get-FileHash -LiteralPath $_.FullName).Hash }
     })
-    @{ schemaVersion = 3; layout = 'shared'; runtime = 'win-x64'; scope = 'All'; configuration = 'Release'; deploymentMode = 'framework-dependent'; version = '1.0.0'; files = $files } |
+    @{ schemaVersion = 3; layout = 'shared'; runtime = 'win-x64'; scope = 'All'; configuration = 'Release'; deploymentMode = 'framework-dependent'; version = '1.0.0'; releaseTag = 'v1.0.0-rc3'; files = $files } |
         ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $app 'manifest.json') -Encoding UTF8
     return $payload
 }
@@ -109,12 +109,14 @@ try {
             $adapters.AssertIdle = { param($root) }
             $null = Invoke-PbiApplicationInstallation -Operation Install -InstallRoot $scenario.Root -PayloadRoot $payload -Adapters $adapters -CreateDesktopShortcut $desktop -CreateStartMenuShortcut $startMenu
             Assert ([IO.File]::Exists($scenario.Desktop) -eq $desktop -and [IO.File]::Exists($scenario.Start) -eq $startMenu) '首次安装必须准确应用桌面和开始菜单的四种选择组合'
+            Assert ((Read-RegistryValue $scenario.UninstallKey 'DisplayVersion') -ceq 'v1.0.0-rc3') 'Windows 已安装应用的显示版本必须来自载荷发布标签'
+            Assert ((Read-RegistryValue $scenario.ProductKey 'Version') -ceq '1.0.0') '产品安装登记必须保留数字版本'
             $before = @{}
             foreach ($path in @($scenario.Start, $scenario.Desktop)) { $before[$path] = if ([IO.File]::Exists($path)) { (Get-FileHash -LiteralPath $path).Hash } else { $null } }
             $applyShell = $adapters.ApplyShell
             $adapters.ApplyShell = {
-                param($root, $version, $operation, $saved)
-                & $applyShell $root $version $operation $saved
+                param($root, $version, $operation, $saved, $releaseTag)
+                & $applyShell $root $version $operation $saved $releaseTag
                 throw 'injected option repair failure'
             }.GetNewClosure()
             $failure = $null
@@ -153,7 +155,7 @@ try {
         $snapshot = & $shellModule { param($root) Get-PbiInstallationShellSnapshot $root $true $false $false } $scenario.Root
         New-Shortcut $scenario.Start (Join-Path $sandbox 'reassigned-after-option-snapshot.exe')
         $foreignHash = (Get-FileHash -LiteralPath $scenario.Start).Hash
-        & $shellModule { param($root, $saved, $action) Set-PbiInstallationShell $root '1.0.0' $action $saved } $scenario.Root $snapshot $operation
+        & $shellModule { param($root, $saved, $action) Set-PbiInstallationShell $root '1.0.0' $action $saved 'v1.0.0' } $scenario.Root $snapshot $operation
         Assert ((Get-FileHash -LiteralPath $scenario.Start).Hash -ceq $foreignHash -and ![IO.File]::Exists($scenario.Desktop)) '取消勾选和卸载只可移除快照未变的自有入口, 必须保留迟到改动'
         & $shellModule { param($saved) Restore-PbiInstallationShell $saved } $snapshot
         Assert ((Get-FileHash -LiteralPath $scenario.Start).Hash -ceq $foreignHash -and (Get-FileHash -LiteralPath $scenario.Desktop).Hash -ceq $desktopHash) '取消勾选和卸载回滚必须恢复本轮删除并保留用户迟到改动'
@@ -179,7 +181,7 @@ try {
                 return $matches
             }
         } $originalCheck $scenario.Desktop $foreignBytes
-        try { & $shellModule { param($root, $saved, $action) Set-PbiInstallationShell $root '1.0.0' $action $saved } $scenario.Root $snapshot $operation }
+        try { & $shellModule { param($root, $saved, $action) Set-PbiInstallationShell $root '1.0.0' $action $saved 'v1.0.0' } $scenario.Root $snapshot $operation }
         finally { & $shellModule { param($original) Set-Item -LiteralPath Function:script:Test-PbiShortcutSnapshot -Value $original } $originalCheck }
         Assert ([IO.File]::Exists($scenario.Desktop)) '统一复核后被改写的入口不得由取消勾选或卸载删除'
         Assert ((Get-FileHash -LiteralPath $scenario.Desktop).Hash -ceq (Get-FileHash -LiteralPath $foreignPath).Hash) '实际修改前发现迟到入口必须保留其原始字节'
@@ -191,11 +193,11 @@ try {
     New-Shortcut $scenario.Start (Join-Path $sandbox 'other-app.exe')
     $foreignHash = (Get-FileHash -LiteralPath $scenario.Start).Hash
     $snapshot = & $shellModule { param($root) Get-PbiInstallationShellSnapshot $root $false } $scenario.Root
-    & $shellModule { param($root, $saved) Set-PbiInstallationShell $root '1.0.0' 'Install' $saved } $scenario.Root $snapshot
+    & $shellModule { param($root, $saved) Set-PbiInstallationShell $root '1.0.0' 'Install' $saved 'v1.0.0' } $scenario.Root $snapshot
     Assert ((Get-FileHash -LiteralPath $scenario.Start).Hash -ceq $foreignHash) '安装必须保留外部快捷方式原始字节'
     Assert ((Read-ShortcutTarget $scenario.Desktop) -ieq (Join-Path $scenario.Root 'app/PbiUtils.Desktop.exe')) '不冲突的桌面入口必须创建'
     Assert ((Read-RegistryValue $scenario.ProductKey 'InstallRoot') -ieq $scenario.Root) '快捷方式冲突不得阻止产品安装登记'
-    Assert ((Read-RegistryValue $scenario.UninstallKey 'DisplayVersion') -eq '1.0.0') '快捷方式冲突不得阻止卸载登记'
+    Assert ((Read-RegistryValue $scenario.UninstallKey 'DisplayVersion') -ceq 'v1.0.0') '快捷方式冲突不得阻止记录完整正式版标签'
 
     & $shellModule { param($saved) Restore-PbiInstallationShell $saved } $snapshot
     Assert ((Get-FileHash -LiteralPath $scenario.Start).Hash -ceq $foreignHash) '失败恢复必须保留快照外的外部快捷方式'
@@ -204,14 +206,16 @@ try {
 
     $scenario = New-Scenario 'owned-upgrade'
     $snapshot = & $shellModule { param($root) Get-PbiInstallationShellSnapshot $root $false } $scenario.Root
-    & $shellModule { param($root, $saved) Set-PbiInstallationShell $root '1.0.0' 'Install' $saved } $scenario.Root $snapshot
+    & $shellModule { param($root, $saved) Set-PbiInstallationShell $root '1.0.0' 'Install' $saved 'v1.0.0' } $scenario.Root $snapshot
     $ownedHash = (Get-FileHash -LiteralPath $scenario.Desktop).Hash
     $snapshot = & $shellModule { param($root) Get-PbiInstallationShellSnapshot $root $true } $scenario.Root
-    & $shellModule { param($root, $saved) Set-PbiInstallationShell $root '1.1.0' 'Install' $saved } $scenario.Root $snapshot
+    & $shellModule { param($root, $saved) Set-PbiInstallationShell $root '1.1.0' 'Install' $saved 'v1.1.0-rc3' } $scenario.Root $snapshot
     Assert ((Read-RegistryValue $scenario.ProductKey 'Version') -eq '1.1.0') '自有安装升级必须更新版本登记'
+    Assert ((Read-RegistryValue $scenario.UninstallKey 'DisplayVersion') -ceq 'v1.1.0-rc3') '自有安装升级必须更新 Windows 已安装应用显示版本'
     Assert ((Read-ShortcutTarget $scenario.Start) -ieq (Join-Path $scenario.Root 'app/PbiUtils.Desktop.exe')) '升级必须保持自有开始菜单入口'
     & $shellModule { param($saved) Restore-PbiInstallationShell $saved } $snapshot
     Assert ((Read-RegistryValue $scenario.ProductKey 'Version') -eq '1.0.0' -and (Get-FileHash -LiteralPath $scenario.Desktop).Hash -ceq $ownedHash) '升级失败恢复必须还原旧版本登记和快捷方式原始字节'
+    Assert ((Read-RegistryValue $scenario.UninstallKey 'DisplayVersion') -ceq 'v1.0.0') '升级失败必须还原旧显示版本'
 
     New-Shortcut $scenario.Start (Join-Path $sandbox 'user-reassigned.exe')
     $foreignHash = (Get-FileHash -LiteralPath $scenario.Start).Hash
@@ -225,7 +229,7 @@ try {
     $snapshot = & $shellModule { param($root) Get-PbiInstallationShellSnapshot $root $false } $scenario.Root
     New-Shortcut $scenario.Start (Join-Path $sandbox 'arrived-after-snapshot.exe')
     $foreignHash = (Get-FileHash -LiteralPath $scenario.Start).Hash
-    & $shellModule { param($root, $saved) Set-PbiInstallationShell $root '1.0.0' 'Install' $saved } $scenario.Root $snapshot
+    & $shellModule { param($root, $saved) Set-PbiInstallationShell $root '1.0.0' 'Install' $saved 'v1.0.0' } $scenario.Root $snapshot
     Assert ((Get-FileHash -LiteralPath $scenario.Start).Hash -ceq $foreignHash) '预检后出现的外部入口不得被安装覆盖'
     & $shellModule { param($saved) Restore-PbiInstallationShell $saved } $snapshot
     Assert ((Get-FileHash -LiteralPath $scenario.Start).Hash -ceq $foreignHash) '预检后出现的外部入口不得被回滚删除'
@@ -236,7 +240,7 @@ try {
     $keep = Join-Path $scenario.Start 'keep.txt'
     [IO.File]::WriteAllText($keep, 'preserve directory')
     $snapshot = & $shellModule { param($root) Get-PbiInstallationShellSnapshot $root $false } $scenario.Root
-    & $shellModule { param($root, $saved) Set-PbiInstallationShell $root '1.0.0' 'Install' $saved } $scenario.Root $snapshot
+    & $shellModule { param($root, $saved) Set-PbiInstallationShell $root '1.0.0' 'Install' $saved 'v1.0.0' } $scenario.Root $snapshot
     Assert ([IO.File]::ReadAllText($keep) -ceq 'preserve directory') '快捷方式同名目录及内容必须保留'
     Assert ([IO.File]::Exists($scenario.Desktop)) '同名目录不得阻止其他入口创建'
     & $shellModule { param($saved) Restore-PbiInstallationShell $saved } $snapshot
@@ -244,7 +248,7 @@ try {
 
     $scenario = New-Scenario 'changed-after-apply'
     $snapshot = & $shellModule { param($root) Get-PbiInstallationShellSnapshot $root $false } $scenario.Root
-    & $shellModule { param($root, $saved) Set-PbiInstallationShell $root '1.0.0' 'Install' $saved } $scenario.Root $snapshot
+    & $shellModule { param($root, $saved) Set-PbiInstallationShell $root '1.0.0' 'Install' $saved 'v1.0.0' } $scenario.Root $snapshot
     # 固定冲突入口先恢复, 验证失败不阻止后续无冲突入口恢复.
     $snapshot.ShortcutChanges = [ordered]@{
         $scenario.Start = $snapshot.ShortcutChanges[$scenario.Start]
@@ -267,8 +271,8 @@ try {
     $adapters.AssertIdle = { param($root) }
     $applyShell = $adapters.ApplyShell
     $adapters.ApplyShell = {
-        param($root, $version, $operation, $saved)
-        & $applyShell $root $version $operation $saved
+        param($root, $version, $operation, $saved, $releaseTag)
+        & $applyShell $root $version $operation $saved $releaseTag
         throw 'injected failure after real shell changes'
     }.GetNewClosure()
     $failure = $null

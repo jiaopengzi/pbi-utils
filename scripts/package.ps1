@@ -15,24 +15,24 @@ $repository = [IO.Path]::GetFullPath((Split-Path $PSScriptRoot -Parent))
 Import-Module (Join-Path $PSScriptRoot 'PublishArtifacts.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'InstallerMetadata.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'ThirdPartyLicenses.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'ReleaseAutomation.psm1') -Force
+$release = Get-PbiCurrentRelease -RepositoryRoot $repository
+$version = $release.Version
+$releaseTag = $release.Tag
 $source = Join-Path $repository "artifacts/build/release/win-x64/$($options.DotNetMode)"
 $manifest = Assert-PbiPublishedArtifacts $source
 $null = Assert-PbiLicenseBundle -PublishRoot $source
-$version = [string]([xml](Get-Content -LiteralPath (Join-Path $repository 'Directory.Build.props') -Raw)).Project.PropertyGroup.Version
 $sdkVersion = [string](Get-Content -LiteralPath (Join-Path $repository 'global.json') -Raw | ConvertFrom-Json).sdk.version
 $mode = if ($options.DotNetMode -eq 'with-dotnet') { 'self-contained' } else { 'framework-dependent' }
-if ($manifest.configuration -cne 'Release' -or $manifest.scope -cne 'All' -or $manifest.deploymentMode -cne $mode -or $manifest.version -cne $version -or !$manifest.ContainsKey('sdkVersion') -or $manifest.sdkVersion -cne $sdkVersion) {
-    Stop-Pbi 3 '安装包需要与当前产品/SDK 版本一致的 Release/All 所选模式产物; 请先运行 release 或对应 all 命令'
+if ($manifest.configuration -cne 'Release' -or $manifest.scope -cne 'All' -or $manifest.deploymentMode -cne $mode -or $manifest.version -cne $version -or $manifest['releaseTag'] -cne $releaseTag -or $manifest['sdkVersion'] -cne $sdkVersion) {
+    Stop-Pbi 3 '安装包需要与当前产品版本、发布标签和 SDK 版本一致的 Release/All 所选模式产物; 请先运行 release 或对应 all 命令'
 }
-if ($version -notmatch '^\d+\.\d+\.\d+(?:\.\d+)?$' -or @($version.Split('.') | Where-Object { [long]$_ -gt 65535 }).Count) {
-    Stop-Pbi 3 '安装包版本必须为三段或四段数字, 每段不超过 65535'
-}
-$fileVersion = if ($version.Split('.').Count -eq 3) { "$version.0" } else { $version }
+$fileVersion = "$version.0"
 $destination = Join-Path $repository "artifacts/release/win-x64/$($options.DotNetMode)"
 Assert-PbiPublishPath $destination
 $null = New-Item -ItemType Directory -Path $destination -Force
 $stage = Join-Path $destination ('.pbi-utils-installer-' + [Guid]::NewGuid().ToString('N'))
-$baseName = "pbi-utils-$version-win-x64-$($options.DotNetMode)-setup"
+$baseName = (Get-PbiPackageBaseName -Release $release -DotNetMode $options.DotNetMode) + '-setup'
 $gate = $null; $failure = $null; $keepStage = $false
 $delivered = [Collections.Generic.List[string]]::new()
 $previous = @{}
@@ -53,7 +53,7 @@ try {
     # 校验复制后的独立快照; 不让并发构建产生新旧混合载荷.
     $snapshotManifest = Assert-PbiPublishedArtifacts $app
     $null = Assert-PbiLicenseBundle -PublishRoot $app
-    if ($snapshotManifest.configuration -cne 'Release' -or $snapshotManifest.scope -cne 'All' -or $snapshotManifest.deploymentMode -cne $mode -or $snapshotManifest.version -cne $version -or !$snapshotManifest.ContainsKey('sdkVersion') -or $snapshotManifest.sdkVersion -cne $sdkVersion) {
+    if ($snapshotManifest.configuration -cne 'Release' -or $snapshotManifest.scope -cne 'All' -or $snapshotManifest.deploymentMode -cne $mode -or $snapshotManifest.version -cne $version -or $snapshotManifest['releaseTag'] -cne $releaseTag -or $snapshotManifest['sdkVersion'] -cne $sdkVersion) {
         throw '复制期间发布产物已改变配置、模式或版本, 未生成安装包; 请重试'
     }
     $inputManifestHash = (Get-FileHash -LiteralPath (Join-Path $app 'manifest.json') -Algorithm SHA256).Hash
@@ -124,17 +124,16 @@ try {
     $prerequisites = Export-PbiInstallerPrerequisites -RepositoryRoot $repository -PublishRoot $app -OutputPath $prerequisitesPath
     if ($prerequisites.dotnet.sdkVersion -cne $sdkVersion) { throw '生成安装依赖时 SDK 绑定发生变化, 未生成安装包; 请重试' }
     $installer = Join-Path $stage "$baseName.exe"
-    # LicenseData 不按脚本 INPUTCHARSET 解码无 BOM 文本. 阅读副本显式标记 UTF-8, app/LICENSE 保留上游原始字节.
-    $installerLicense = Join-Path $stage 'installer-license.txt'
-    $licenseText = [IO.File]::ReadAllText((Join-Path $app 'LICENSE'), [Text.UTF8Encoding]::new($false, $true))
-    [IO.File]::WriteAllText($installerLicense, $licenseText, [Text.UTF8Encoding]::new($true))
+    # LicenseData 直接使用已校验的 UTF-8 BOM 聚合文本, 与安装后阅读的完整声明一致.
+    $installerLicense = Join-Path $app 'THIRD-PARTY-NOTICES.txt'
     $licenseManifest = Get-Content -LiteralPath (Join-Path $app 'licenses/manifest.json') -Raw | ConvertFrom-Json
     $nsisLicenses = @($licenseManifest.components | Where-Object { $_.ecosystem -ceq 'resource' -and $_.name -ceq 'NSIS-COPYING' })
     if ($nsisLicenses.Count -ne 1 -or $nsisLicenses[0].version -notmatch '^\d+\.\d+(?:\.\d+)?$') { throw '安装器缺少精确版本的 NSIS 分发许可' }
     # NSIS 在编译期核对自身版本, 防止开发工具升级后继续分发旧版本许可快照.
-    $arguments = @('/V3', '/WX', '/INPUTCHARSET', 'UTF8', "/DPBI_NSIS_VERSION=$($nsisLicenses[0].version)", "/DPBI_PAYLOAD=$payload", "/DPBI_LICENSE_TEXT=$installerLicense", "/DPBI_OUTFILE=$installer", "/DPBI_VERSION=$version", "/DPBI_FILE_VERSION=$fileVersion", "/DPBI_ICON=$(Join-Path $repository 'web/public/branding/logo.ico')", (Join-Path $PSScriptRoot 'installer/installer.nsi'))
+    $arguments = @('/V3', '/WX', '/INPUTCHARSET', 'UTF8', "/DPBI_NSIS_VERSION=$($nsisLicenses[0].version)", "/DPBI_PAYLOAD=$payload", "/DPBI_LICENSE_TEXT=$installerLicense", "/DPBI_OUTFILE=$installer", "/DPBI_RELEASE_TAG=$releaseTag", "/DPBI_FILE_VERSION=$fileVersion", "/DPBI_ICON=$(Join-Path $repository 'web/public/branding/logo.ico')", (Join-Path $PSScriptRoot 'installer/installer.nsi'))
     Invoke-PbiNative makensis $arguments
     & $assertLicenseInputs
+    if ((Get-PbiCurrentRelease -RepositoryRoot $repository).Tag -cne $releaseTag) { throw '打包期间 CHANGELOG 最新发布标签已改变, 请重新打包' }
     if (!(Test-Path -LiteralPath $installer -PathType Leaf) -or (Get-Item -LiteralPath $installer).Length -le 0) { throw 'makensis 未生成有效安装包' }
     $installerBytes = (Get-Item -LiteralPath $installer).Length
     # 官方标记为 100M, 未明确进制, 使用十进制 100,000,000 字节保守判断.
@@ -142,7 +141,7 @@ try {
     Write-Host ("Gitee 单附件 100M 保守阈值: $installerBytes / $giteeLimitBytes bytes; 在阈值内: " + ($installerBytes -le $giteeLimitBytes))
     $installerHash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash
     $packageRecord = [ordered]@{
-        schemaVersion = 1; productId = 'pbi-utils-desktop'; version = $version; dotNetMode = $options.DotNetMode
+        schemaVersion = 1; productId = 'pbi-utils-desktop'; version = $version; releaseTag = $releaseTag; dotNetMode = $options.DotNetMode
         builtAtUtc = [DateTime]::UtcNow.ToString('O'); installer = "$baseName.exe"; sha256 = $installerHash
         bytes = $installerBytes
         giteeAttachmentLimitBytes = $giteeLimitBytes; fitsGiteeAttachmentLimit = ($installerBytes -le $giteeLimitBytes)

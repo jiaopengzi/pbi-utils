@@ -28,7 +28,7 @@ public sealed class UpdatesBridgeTests
         try
         {
             var log = new CaptureLogger();
-            var service = new ProductUpdateService(new LocalProductUpdateStore(root), new Releases(true), "0.1.0");
+            var service = new ProductUpdateService(new LocalProductUpdateStore(root), new Releases(true), "v0.1.0-rc1");
             JsonElement response = default;
             using var session = new BridgeSession(new(false, null), new(new RuntimeEnvironment()),
                 message => response = JsonSerializer.Deserialize<JsonElement>(message), "test", logger: log, productUpdates: service);
@@ -49,7 +49,7 @@ public sealed class UpdatesBridgeTests
         var root = Path.Combine(Path.GetTempPath(), "pbi-update-bridge-" + Guid.NewGuid().ToString("N"));
         try
         {
-            var service = new ProductUpdateService(new LocalProductUpdateStore(root), new Releases(true), "0.1.0");
+            var service = new ProductUpdateService(new LocalProductUpdateStore(root), new Releases(true), "v0.1.0-rc1");
             JsonElement response = default;
             var opened = new List<Uri>();
             using var session = new BridgeSession(new(false, null), new(new RuntimeEnvironment()),

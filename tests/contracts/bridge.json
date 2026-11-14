@@ -12,13 +12,13 @@
     "id": "info-contract",
     "method": "app.info",
     "params": {},
-    "expectedField": "version"
+    "expectedField": "releaseTag"
   },
   {
     "id": "doctor-contract",
     "method": "doctor",
     "params": {},
-    "expectedField": "webView2"
+    "expectedField": "releaseTag"
   },
   {
     "id": "reset-unavailable-contract",

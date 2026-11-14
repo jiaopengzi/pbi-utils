@@ -91,11 +91,11 @@ public sealed partial class BridgeSession
                 break;
             case "app.info":
                 RequireEmpty(parameters);
-                result = new { version = Product.Version, webView2 = runtime, hasExternalToolTarget = Volatile.Read(ref pendingExternalToolTarget) is not null };
+                result = new { version = Product.ReleaseTag, releaseTag = Product.ReleaseTag, webView2 = runtime, hasExternalToolTarget = Volatile.Read(ref pendingExternalToolTarget) is not null };
                 break;
             case "doctor":
                 RequireEmpty(parameters);
-                result = new { diagnostic = doctor.Execute(flight.Cancellation.Token), webView2 = runtime };
+                result = new { diagnostic = doctor.Execute(flight.Cancellation.Token), releaseTag = Product.ReleaseTag, webView2 = runtime };
                 break;
             default: throw new AppException("UNKNOWN_METHOD", "未注册的方法");
         }

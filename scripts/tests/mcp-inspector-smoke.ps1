@@ -20,6 +20,8 @@ $acceptanceLease = Enter-AcceptanceUserDataLease
 try {
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $executable = (Resolve-Path (Join-Path $PublishRoot 'pbi-utils.exe')).Path
+$releaseTag = (Get-Content -LiteralPath (Join-Path $PublishRoot 'manifest.json') -Raw | ConvertFrom-Json -AsHashtable)['releaseTag']
+if ([string]::IsNullOrWhiteSpace($releaseTag)) { throw '发布清单缺少完整发布标签' }
 $evidence = Join-Path $root ('artifacts/evidence/mcp-inspector-' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '-' + [Guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $evidence -Force
 $launchArguments = @('mcp', 'serve')
@@ -63,7 +65,7 @@ if ($connected.result.protocolVersion -cne '2026-07-28') { throw '协议版本�
 $checks.modernDiscovery = 'PASS'
 $checks.legacyDiscovery = 'FAIL'
 $handshake = Invoke-Inspector 'handshake-published' @('--method', 'initialize') -Era legacy
-if ($handshake.result.protocolVersion -cne '2025-11-25') { throw 'initialize 未协商到支持握手的协议版本' }
+if ($handshake.result.protocolVersion -cne '2025-11-25' -or $handshake.result.serverInfo.version -cne $releaseTag) { throw '握手入口的协议协商或服务发布标签不符' }
 $handshakeTools = Invoke-Inspector 'handshake-tools-published' @('--method', 'tools/list', '--strict') -Era legacy
 if ((Compare-Object @($listed.result.tools.name) @($handshakeTools.result.tools.name) -CaseSensitive) -or
     @($handshakeTools.schemaFindings).Where({ $null -ne $_ }).Count -ne 0) { throw '握手入口工具集合或 schema 诊断与新版入口不一致' }
@@ -76,19 +78,21 @@ $checks.formatter = 'UNRUN'
 $checks.modernPermission = 'FAIL'
 $info = Invoke-Inspector 'server-info-published' @('--method', 'tools/call', '--tool-name', 'server_info')
 if ($info.result.structuredContent.allowWrite -isnot [bool] -or $info.result.structuredContent.allowWrite -ne [bool]$AllowWrite) { throw '逐请求入口的实际启动权限与请求配置不一致' }
+if ($info.result.structuredContent.version -cne $releaseTag) { throw '逐请求入口的服务发布标签与清单不一致' }
 $checks.modernPermission = 'PASS'
 $checks.legacyPermission = 'FAIL'
 $handshakeInfo = Invoke-Inspector 'handshake-server-info-published' @('--method', 'tools/call', '--tool-name', 'server_info') -Era legacy
 if ($handshakeInfo.result.structuredContent.allowWrite -isnot [bool] -or $handshakeInfo.result.structuredContent.allowWrite -ne [bool]$AllowWrite) { throw '握手入口的实际启动权限与请求配置不一致' }
+if ($handshakeInfo.result.structuredContent.version -cne $releaseTag) { throw '握手入口的服务发布标签与清单不一致' }
 $checks.legacyPermission = 'PASS'
 # 每次 Inspector 调用均建立独立客户端上下文; 不携带另一进程返回的 sessionId.
 $checks.modernBackgroundCall = 'FAIL'
 $appInfo = Invoke-Inspector 'app-info-published' @('--method', 'tools/call', '--tool-name', 'desktop_app_info', '--tool-args-json', '{"parameters":{}}')
-if ([string]::IsNullOrWhiteSpace($appInfo.result.structuredContent.version)) { throw '逐请求入口未返回真实后台产品版本' }
+if ($appInfo.result.structuredContent.version -cne $releaseTag) { throw '逐请求入口的共享后台发布标签与清单不一致' }
 $checks.modernBackgroundCall = 'PASS'
 $checks.legacyBackgroundCall = 'FAIL'
 $handshakeAppInfo = Invoke-Inspector 'handshake-app-info-published' @('--method', 'tools/call', '--tool-name', 'desktop_app_info', '--tool-args-json', '{"parameters":{}}') -Era legacy
-if ([string]::IsNullOrWhiteSpace($handshakeAppInfo.result.structuredContent.version)) { throw '握手入口未返回真实后台产品版本' }
+if ($handshakeAppInfo.result.structuredContent.version -cne $releaseTag) { throw '握手入口的共享后台发布标签与清单不一致' }
 $checks.legacyBackgroundCall = 'PASS'
 $checks.formatter = 'FAIL'
 $format = Invoke-Inspector 'format-code-published' @('--method', 'tools/call', '--tool-name', 'format_code', '--tool-arg', 'language=dax', 'text=SUM(Sales[Amount])')

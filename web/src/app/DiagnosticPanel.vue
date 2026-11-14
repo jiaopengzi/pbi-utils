@@ -10,6 +10,7 @@ import UiPanel from "@/ui/UiPanel.vue"
 import { useMessageNotices } from "@/composables/ui/useMessageNotices"
 import { useOperationMessage } from "@/composables/ui/useFeedback"
 import { useI18n } from "@/composables/i18n/useI18n"
+import { productReleaseName } from "./productReleaseName"
 
 import { computed, onMounted, onUnmounted, ref } from "vue"
 import type { BridgeClient, Methods } from "../bridge/client"
@@ -37,7 +38,7 @@ const rows = computed(() => {
     if (!result.value) return []
     const data = result.value.diagnostic.environment
     return [
-        { label: t("diagnostic.version"), value: result.value.diagnostic.version, note: t("diagnostic.versionNote") },
+        { label: t("diagnostic.version"), value: productReleaseName(result.value.releaseTag), note: t("diagnostic.versionNote") },
         { label: t("diagnostic.os"), value: result.value.isSimulation ? t("diagnostic.browserSimulation") : data.os, note: t("diagnostic.osNote") },
         {
             label: t("diagnostic.architecture"),

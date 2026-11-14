@@ -3,7 +3,7 @@
  * Author      : jiaopengzi
  * Blog        : https://jiaopengzi.com
  * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
- * Description : 集中配置目标框架, 产品版本, 可空检查与依赖锁定.
+ * Description : 集中配置目标框架, 从 CHANGELOG 读取产品数字版本和发布标签, 并启用可空检查与依赖锁定.
 -->
 
 <Project>
@@ -13,9 +13,14 @@
     <!-- 编译/可空性/分析器警告必须阻止测试或发布, 不依赖人工读取成功输出中的警告. -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>0.1.0</Version>
-    <AssemblyVersion>0.1.0.0</AssemblyVersion>
-    <FileVersion>0.1.0.0</FileVersion>
+    <!-- 仅取首个二级标题. 发布脚本还会核验章节唯一、日期和正文. SDK 从 Version 生成程序集和文件版本. -->
+    <_PbiReleaseHeading>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)CHANGELOG.md')), '(?m)^##[^\S\r\n][^\r\n]*').Value)</_PbiReleaseHeading>
+    <_PbiReleasePattern>^## \[(v((?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){2})(?:-rc[1-9][0-9]*)?)\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$</_PbiReleasePattern>
+    <_PbiVersion>$([System.Text.RegularExpressions.Regex]::Match('$(_PbiReleaseHeading)', '$(_PbiReleasePattern)').Groups[2].Value)</_PbiVersion>
+    <Version Condition="'$(_PbiVersion)' != ''">$(_PbiVersion)</Version>
+    <PbiReleaseTag Condition="'$(PbiReleaseTag)' == ''">$([System.Text.RegularExpressions.Regex]::Match('$(_PbiReleaseHeading)', '$(_PbiReleasePattern)').Groups[1].Value)</PbiReleaseTag>
+    <!-- Windows 文件属性和程序集描述显示完整标签. SDK 的 AssemblyVersion/FileVersion 仍从数字 Version 生成. -->
+    <InformationalVersion Condition="'$(PbiReleaseTag)' != ''">$(PbiReleaseTag)</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Deterministic>true</Deterministic>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>

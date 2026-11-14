@@ -23,5 +23,5 @@ public static class ProductUpdateFactory
     { Timeout = Timeout.InfiniteTimeSpan };
 
     /// <summary>在宿主提供的用户数据根目录创建独立服务; 实际 HTTP 有20秒总预算且无自动重定向.</summary>
-    public static ProductUpdateService Create(string userData) => new(new LocalProductUpdateStore(userData), new ProductReleaseHttpSource(Client), Product.Version);
+    public static ProductUpdateService Create(string userData) => new(new LocalProductUpdateStore(userData), new ProductReleaseHttpSource(Client), Product.ReleaseTag);
 }

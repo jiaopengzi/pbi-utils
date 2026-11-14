@@ -23,7 +23,7 @@ $commit = git rev-parse "refs/tags/$env:RELEASE_TAG^{commit}"
 if ($LASTEXITCODE -ne 0 -or $commit -cnotmatch '^[0-9a-f]{40}$') { throw '标签提交无效' }
 git merge-base --is-ancestor $commit "refs/remotes/origin/$($context.SourceBranch)"
 if ($LASTEXITCODE -ne 0) { throw '标签不属于指定来源分支' }
-$installerName = "pbi-utils-$($context.Version)-win-x64-without-dotnet-setup.exe"
+$installerName = $context.InstallerName
 $zipPath = Join-Path $Directory $context.ArchiveName
 if ($Mode -ceq 'Download') {
     $json = (& gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG") -join "`n"

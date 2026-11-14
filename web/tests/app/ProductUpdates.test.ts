@@ -31,22 +31,22 @@ function deferred<T>() {
 function result(source: "github" | "gitee" = "github", status: ProductUpdateCheck["status"] = "available"): ProductUpdateCheck {
     return {
         source,
-        currentVersion: "0.1.0",
+        currentVersion: "v0.1.0-rc1",
         status,
         checkedAtUtc: "2026-11-03T00:00:00Z",
-        latestVersion: "0.2.0",
+        latestVersion: status === "failed" || status === "noRelease" ? null : "v0.2.0",
         releases:
             status === "failed" || status === "noRelease"
                 ? []
                 : [
                       {
                           tag: "v0.2.0",
-                          version: "0.2.0",
+                          version: "v0.2.0",
                           prerelease: false,
                           notes: "<img src=x onerror=alert(1)>\n[link](javascript:alert(1))",
                           notesTruncated: false,
                       },
-                      { tag: "v0.1.0-v2.1", version: "0.1.0-v2.1", prerelease: true, notes: "Preview notes", notesTruncated: true },
+                      { tag: "desktop-v0.1.0-v2.1", version: "desktop-v0.1.0-v2.1", prerelease: true, notes: "Preview notes", notesTruncated: true },
                   ],
         errorCode: status === "failed" ? "UPDATE_TIMEOUT" : null,
         isSimulation: false,
@@ -78,7 +78,7 @@ it("等待全局桥接就绪, 读取权威设置后后台检查, 同版本在应
     await updates.check(false)
     await updates.check(false)
     expect(showMessage).toHaveBeenCalledTimes(1)
-    expect(showMessage).toHaveBeenCalledWith(expect.stringContaining("0.2.0"), "info")
+    expect(showMessage).toHaveBeenCalledWith(expect.stringContaining("pbi-utils v0.2.0"), "info")
     scope.stop()
     bridge.dispose()
 })
@@ -396,15 +396,22 @@ it("离开设置只取消手动检查, 全局自动检查继续且不会锁住�
     bridge.dispose()
 })
 
-it.each(["available", "current", "noRelease", "failed"] as const)("展示 %s 状态与简洁版本号, 不渲染发布列表或说明", async (status) => {
+it.each(["available", "current", "noRelease", "failed"] as const)("展示 %s 状态和完整发布标签, 不渲染发布列表或说明", async (status) => {
     const bridge = markRaw(new BridgeClient(new MockTransport()))
-    const state: ProductUpdateState = { settings: { automaticCheck: false, source: "github" }, lastCheck: result("github", status) }
+    const lastCheck = result("github", status)
+    if (status === "current") {
+        lastCheck.latestVersion = "desktop-v0.1.0-v2.7"
+        lastCheck.releases = [{ tag: "desktop-v0.1.0-v2.7", version: "desktop-v0.1.0-v2.7", prerelease: true, notes: "", notesTruncated: false }]
+    }
+    const state: ProductUpdateState = { settings: { automaticCheck: false, source: "github" }, lastCheck }
     const original = bridge.request.bind(bridge)
-    const request = vi
-        .spyOn(bridge, "request")
-        .mockImplementation((method, params) =>
-            method === "updates.status" ? ({ id: "state", promise: Promise.resolve(state) } as ReturnType<BridgeClient["request"]>) : original(method, params),
-        )
+    const request = vi.spyOn(bridge, "request").mockImplementation((method, params) => {
+        if (method === "app.info" && status !== "failed") {
+            return { id: "app", promise: Promise.resolve({ version: "v0.1.0-rc1", releaseTag: "v0.1.0-rc1", webView2: "available" }) }
+        }
+        if (method === "updates.status") return { id: "state", promise: Promise.resolve(state) } as ReturnType<BridgeClient["request"]>
+        return original(method, params)
+    })
     const wrapper = mount(SoftwareUpdatePanel, { props: { bridge } })
     await flushPromises()
     expect(wrapper.get(".update-result").attributes("data-status")).toBe(status)
@@ -420,9 +427,40 @@ it.each(["available", "current", "noRelease", "failed"] as const)("展示 %s 状
     expect(wrapper.find(".update-notes").exists()).toBe(false)
     expect(wrapper.find(".release-notes").exists()).toBe(false)
     expect(wrapper.find("summary").exists()).toBe(false)
-    expect(wrapper.get(".update-release-version").text()).toContain("0.2.0")
+    expect(wrapper.get(".update-current-version strong").text()).toBe(status === "failed" ? "-" : "pbi-utils v0.1.0-rc1")
+    const latestLabels = { available: "pbi-utils v0.2.0", current: "pbi-utils desktop-v0.1.0-v2.7", noRelease: "-", failed: "-" }
+    expect(wrapper.get(".update-release-version strong").text()).toBe(latestLabels[status])
     expect(wrapper.get(".update-actions").find('[data-action="check"]').exists()).toBe(true)
     expect(wrapper.text()).not.toContain("当前已是最新版本")
+    wrapper.unmount()
+    bridge.dispose()
+})
+
+it("检查新预发布时用原始标签展示并通知, 已安装版本仍以应用信息为准", async () => {
+    const bridge = markRaw(new BridgeClient(new MockTransport()))
+    const original = bridge.request.bind(bridge)
+    const check = {
+        ...result(),
+        currentVersion: "v0.1.0-rc3",
+        latestVersion: "v0.2.0-rc2",
+        releases: [{ tag: "v0.2.0-rc2", version: "v0.2.0-rc2", prerelease: true, notes: "", notesTruncated: false }],
+    }
+    vi.spyOn(bridge, "request").mockImplementation((method, params) => {
+        if (method === "app.info") {
+            return { id: "app", promise: Promise.resolve({ version: "v0.1.0-rc1", releaseTag: "v0.1.0-rc1", webView2: "available" }) }
+        }
+        if (method === "updates.check") return { id: "check", promise: Promise.resolve({ checkedNow: true, check }) }
+        return original(method, params)
+    })
+    const wrapper = mount(SoftwareUpdatePanel, { props: { bridge } })
+    await flushPromises()
+    expect(wrapper.get(".update-release-version strong").text()).toBe("-")
+    vi.mocked(showMessage).mockClear()
+    await wrapper.get('[data-action="check"]').trigger("click")
+    await flushPromises()
+    expect(wrapper.get(".update-current-version strong").text()).toBe("pbi-utils v0.1.0-rc1")
+    expect(wrapper.get(".update-release-version strong").text()).toBe("pbi-utils v0.2.0-rc2")
+    expect(showMessage).toHaveBeenCalledWith(expect.stringContaining("pbi-utils v0.2.0-rc2"), "info")
     wrapper.unmount()
     bridge.dispose()
 })

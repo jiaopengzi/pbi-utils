@@ -9,6 +9,7 @@
 <Project>
   <Target Name="RequireWindowsHost" BeforeTargets="PrepareForBuild;Restore">
     <Error Condition="'$(OS)' != 'Windows_NT'" Text="pbi-utils 仅支持 Windows 开发和运行." />
+    <Error Condition="'$(_PbiVersion)' == ''" Text="CHANGELOG.md 首个二级标题必须是有效的发布版本标题." />
   </Target>
   <!-- WebView2 包同时注册 WPF 和 WinForms, 本宿主只使用 WinForms. -->
   <Target Name="RemoveUnusedWebView2WpfReference" BeforeTargets="ResolveAssemblyReferences">

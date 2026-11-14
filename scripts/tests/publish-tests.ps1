@@ -156,13 +156,13 @@ function Assert-TestPublishedPackage([string]$Path, [string]$Configuration, [str
 try {
     [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
     $null = New-Item -ItemType Directory -Path (Join-Path $sandbox 'scripts') -Force
-    foreach ($file in @('build.ps1', 'PublishArtifacts.psm1', 'SharedPublish.psm1', 'PublishRuntime.psm1')) {
+    foreach ($file in @('build.ps1', 'PublishArtifacts.psm1', 'SharedPublish.psm1', 'PublishRuntime.psm1', 'ReleaseAutomation.psm1')) {
         if (Test-Path -LiteralPath (Join-Path $sourceRoot "scripts/$file")) { Copy-Item -LiteralPath (Join-Path $sourceRoot "scripts/$file") -Destination (Join-Path $sandbox 'scripts') }
     }
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LicenseBundleStub.psm1') -Destination (Join-Path $sandbox 'scripts/ThirdPartyLicenses.psm1')
     $null = New-Item -ItemType Directory -Path (Join-Path $sandbox 'web/dist') -Force
     Set-Content -LiteralPath (Join-Path $sandbox 'web/dist/index.html') -Value 'synthetic web'
-    Set-Content -LiteralPath (Join-Path $sandbox 'Directory.Build.props') -Value '<Project><PropertyGroup><Version>1.2.3</Version></PropertyGroup></Project>'
+    Set-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Value "## [v1.2.3-rc4] - 2026-11-14`n- 发布夹具."
     Set-Content -LiteralPath (Join-Path $sandbox 'global.json') -Value '{"sdk":{"version":"10.0.403"}}'
     Set-Location -LiteralPath $sandbox
     $script:FailPublish = $false
@@ -218,6 +218,7 @@ try {
     Import-Module (Join-Path $sandbox 'scripts/PublishArtifacts.psm1') -Force
     $manifest = Assert-PbiPublishedArtifacts $published
     Assert ($manifest.scope -eq 'Core' -and $manifest.configuration -eq 'Debug') '清单声明本次范围与配置'
+    Assert ($manifest.version -ceq '1.2.3' -and $manifest.releaseTag -ceq 'v1.2.3-rc4') '清单从最新 CHANGELOG 标题取得数字版本和完整标签'
     # 清单不能通过同步哈希集合绕过布局版本、Core 范围或自包含必需文件约束.
     foreach ($invalidLayout in @(@{ schemaVersion = 2; layout = 'shared' }, @{ schemaVersion = 3; layout = 'split' })) {
         $altered = $manifestBefore | ConvertFrom-Json

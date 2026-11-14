@@ -9,7 +9,7 @@ using PbiUtils.Core;
 
 namespace PbiUtils.Application.Updates;
 
-/// <summary>只接受当前 desktop 公开发布, 同时展示正式和预发布, 不混用旧产品版本.</summary>
+/// <summary>筛选当前产品的公开发布, 同时识别现行发布标签和历史 desktop 标签.</summary>
 public static class ProductUpdatePolicy
 {
     public const int MaximumReleases = 1000;
@@ -30,7 +30,7 @@ public static class ProductUpdatePolicy
     }
 
     /// <summary>解析无前导零的三段或四段稳定版本, 以四段零补齐比较.</summary>
-    public static bool TryVersion(string? value, out Version version)
+    private static bool TryVersion(string? value, out Version version)
     {
         version = new Version(0, 0, 0, 0);
         if (value is null || value.Length > 43) return false;
@@ -54,33 +54,49 @@ public static class ProductUpdatePolicy
         return $"https://{source}.com/jiaopengzi/pbi-utils/releases";
     }
 
-    /// <summary>解析当前发布流水线的精确 desktop 标签及 v2 轮次; 非法标签返回 false.</summary>
+    /// <summary>解析当前或历史发布标签, 仅接受对应流水线的精确版本和预发布编号格式.</summary>
+    /// <param name="tag">从固定来源读取的原始 Git 标签.</param>
+    /// <param name="version">用于比较的四段数字版本.</param>
+    /// <param name="revision">正整数预发布编号, 正式版为 0.</param>
+    /// <returns>标签语法和版本范围符合发布规则时返回 true.</returns>
     public static bool TryReleaseTag(string? tag, out Version version, out int revision)
     {
+        const string historicalPrefix = "desktop-v";
         version = new Version(0, 0, 0, 0);
         revision = 0;
-        if (tag is null || tag.Length > 64 || !tag.StartsWith("desktop-v", StringComparison.Ordinal)) return false;
-        var value = tag[9..];
-        var separator = value.IndexOf("-v2.", StringComparison.Ordinal);
-        if (separator < 0) return TryVersion(value, out version);
-        var number = value[(separator + 4)..];
-        return number.Length > 0 && number[0] != '0' && number.All(character => character is >= '0' and <= '9')
-            && int.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out revision) && revision > 0
-            && TryVersion(value[..separator], out version);
+        if (tag is null || tag.Length > 64) return false;
+        var historical = tag.StartsWith(historicalPrefix, StringComparison.Ordinal);
+        if (!historical && !tag.StartsWith('v')) return false;
+        var value = tag[(historical ? historicalPrefix.Length : 1)..];
+        var suffix = historical ? "-v2." : "-rc";
+        var separator = value.IndexOf(suffix, StringComparison.Ordinal);
+        var numeric = separator < 0 ? value : value[..separator];
+        if (!TryVersion(numeric, out version)) return false;
+        if (!historical && (numeric.Count(character => character == '.') != 2
+            || version.Major > 65534 || version.Minor > 65534 || version.Build > 65534)) return false;
+        if (separator >= 0)
+        {
+            var number = value[(separator + suffix.Length)..];
+            if (number.Length == 0 || number[0] == '0' || number.Any(character => character is < '0' or > '9')
+                || !int.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out revision) || revision == 0) return false;
+        }
+        return true;
     }
 
-    /// <summary>选择全部公开 desktop 发布, 按数字版本、正式优先和预发布轮次排序; 超量明确失败.</summary>
+    /// <summary>选择全部公开发布, 按数字版本、正式优先、现行标签优先和预发布编号排序; 超量明确失败.</summary>
     public static ProductUpdateCheck Select(string source, string currentVersion, IEnumerable<ProductRelease> releases, DateTimeOffset checkedAt)
     {
         ValidateSource(source);
-        if (!TryVersion(currentVersion, out var current)) throw new AppException("INVALID_UPDATE_VERSION", "当前产品版本无效");
-        var candidates = releases.Where(release => !release.Draft && TryReleaseTag(release.Tag, out _, out _))
+        if (!TryReleaseTag(currentVersion, out var current, out _)) throw new AppException("INVALID_UPDATE_VERSION", "当前产品发布标签无效");
+        var candidates = releases.Where(release => !release.Draft)
             .Select(release =>
             {
-                TryReleaseTag(release.Tag, out var version, out var revision);
-                return (Release: release, Version: version, Revision: revision, Preview: release.Prerelease || revision > 0);
+                var valid = TryReleaseTag(release.Tag, out var version, out var revision);
+                return (Release: release, Valid: valid, Version: version, Revision: revision, Preview: release.Prerelease || revision > 0);
             })
+            .Where(item => item.Valid)
             .OrderByDescending(item => item.Version).ThenBy(item => item.Preview)
+            .ThenByDescending(item => item.Release.Tag.StartsWith('v'))
             .ThenByDescending(item => item.Revision).ThenBy(item => item.Release.Tag, StringComparer.Ordinal)
             .ToArray();
         if (candidates.Length > MaximumReleases || candidates.Select(item => item.Release.Tag).Distinct(StringComparer.Ordinal).Count() != candidates.Length)
@@ -92,7 +108,7 @@ public static class ProductUpdatePolicy
             var length = Math.Min(text.Length, Math.Min(4096, remaining));
             if (length < text.Length && length > 0 && char.IsHighSurrogate(text[length - 1])) length--;
             remaining -= length;
-            return new ProductUpdateRelease(item.Release.Tag, item.Release.Tag[9..], item.Preview, text[..length], length < text.Length);
+            return new ProductUpdateRelease(item.Release.Tag, item.Release.Tag, item.Preview, text[..length], length < text.Length);
         }).ToArray();
         var status = candidates.Length == 0 ? "noRelease" : candidates[0].Version > current ? "available" : "current";
         return new(source, currentVersion, status, checkedAt, entries.FirstOrDefault()?.Version, entries);

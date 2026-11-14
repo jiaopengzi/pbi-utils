@@ -23,6 +23,8 @@ Import-Module (Join-Path $root 'scripts/PublishArtifacts.psm1') -Force
 . (Join-Path $PSScriptRoot 'PublishedRuntimeSmoke.ps1')
 $PublishRoot = [IO.Path]::GetFullPath($PublishRoot)
 $manifest = Assert-PbiPublishedArtifacts $PublishRoot
+$releaseTag = $manifest['releaseTag']
+if ([string]::IsNullOrWhiteSpace($releaseTag)) { throw '发布清单缺少完整发布标签' }
 $modeDirectory = if ($manifest.deploymentMode -ceq 'self-contained') { 'with-dotnet' } else { 'without-dotnet' }
 $evidence = if ($EvidenceRoot) { [IO.Path]::GetFullPath($EvidenceRoot) } else { Join-Path $root ('artifacts/evidence/mcp-published-' + $modeDirectory + '-' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '-' + [Guid]::NewGuid().ToString('N')) }
 $null = New-Item -ItemType Directory -Path $evidence -Force
@@ -80,7 +82,10 @@ function Invoke-McpSmoke([string]$Method, [hashtable]$Parameters, [Nullable[int]
                 return $response.error
             }
             if ($response.ContainsKey('error')) { throw "MCP 协议错误: $($response.error.code)" }
-            if (!$Handshake -and ($response.result.resultType -cne 'complete' -or $response.result._meta.'io.modelcontextprotocol/serverInfo'.name -cne 'pbi-utils')) { throw 'MCP 新版完成结果或服务身份缺失' }
+            if (!$Handshake) {
+                $serverInfo = $response.result._meta.'io.modelcontextprotocol/serverInfo'
+                if ($response.result.resultType -cne 'complete' -or $serverInfo.name -cne 'pbi-utils' -or $serverInfo.version -cne $releaseTag) { throw 'MCP 新版完成结果或服务身份不符' }
+            }
             return $response.result
         }
     }
@@ -116,8 +121,10 @@ try {
     if (!$invalidUpdate.isError -or $invalidUpdate.structuredContent.error.code -cne 'INVALID_UPDATE_SOURCE') { throw 'MCP 更新工具没有拒绝任意来源' }
     $format = Invoke-McpSmoke 'tools/call' @{ _meta = $meta; name = 'format_code'; arguments = @{ language = 'dax'; text = 'SUM(Sales[Amount])' } }
     if ($format.isError -or $format.structuredContent.text -cne 'SUM ( Sales[Amount] )') { throw 'MCP 正式业务调用失败' }
+    $server = Invoke-McpSmoke 'tools/call' @{ _meta = $meta; name = 'server_info'; arguments = @{} }
+    if ($server.isError -or $server.structuredContent.version -cne $releaseTag) { throw 'MCP 服务信息的发布标签与清单不一致' }
     $hostInfo = Invoke-McpSmoke 'tools/call' @{ _meta = $meta; name = 'desktop_app_info'; arguments = @{ parameters = @{} } }
-    if ($hostInfo.isError -or [string]::IsNullOrWhiteSpace($hostInfo.structuredContent.version)) { throw 'MCP 共享后台真实 IPC 调用失败' }
+    if ($hostInfo.isError -or $hostInfo.structuredContent.version -cne $releaseTag) { throw 'MCP 共享后台的发布标签与清单不一致' }
     $denied = Invoke-McpSmoke 'tools/call' @{ _meta = $meta; name = 'configuration_apply'; arguments = @{ planId = 'unapproved'; approve = 'unapproved' } }
     if (!$denied.isError -or $denied.structuredContent.error.code -cne 'MCP_WRITE_DISABLED') { throw 'MCP 默认只读未强制执行' }
     $desktopDenied = Invoke-McpSmoke 'tools/call' @{ _meta = $meta; name = 'desktop_model_edit'; arguments = @{ parameters = @{} } }
@@ -136,7 +143,7 @@ try {
     $process = [Diagnostics.Process]::Start($start)
     $errors = $process.StandardError.ReadToEndAsync()
     $initialized = Invoke-McpSmoke 'initialize' @{ protocolVersion = '2025-11-25'; capabilities = @{}; clientInfo = @{ name = 'pbi-utils-handshake-smoke'; version = '1' } } -Handshake
-    if ($initialized.protocolVersion -cne '2025-11-25' -or $initialized.serverInfo.name -cne 'pbi-utils') { throw 'MCP initialize 协商或服务身份错误' }
+    if ($initialized.protocolVersion -cne '2025-11-25' -or $initialized.serverInfo.name -cne 'pbi-utils' -or $initialized.serverInfo.version -cne $releaseTag) { throw 'MCP initialize 协商或服务身份错误' }
     $process.StandardInput.WriteLine('{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}')
     $process.StandardInput.Flush()
     $handshakeTools = Invoke-McpSmoke 'tools/list' @{} -Handshake

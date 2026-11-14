@@ -12,6 +12,7 @@ using PbiUtils.Application.Connections;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using PbiUtils.Application;
+using PbiUtils.Core;
 using PbiUtils.Host.Bridge;
 using PbiUtils.Infrastructure.Gui;
 using PbiUtils.Infrastructure;
@@ -50,6 +51,24 @@ public sealed class BridgeTests
             else if (fixture.TryGetProperty("result", out var expectedResult)) AssertSubset(expectedResult, response.GetProperty("result"));
             else Assert.True(response.GetProperty("result").TryGetProperty(fixture.GetProperty("expectedField").GetString()!, out _));
         }
+    }
+
+    /// <summary>应用信息和诊断的真实桥接响应都使用精确构建标签.</summary>
+    [Fact]
+    public async Task SettingsVersionResponsesUseTheSameReleaseTag()
+    {
+        ConcurrentQueue<JsonElement> output = new();
+        using var session = Session(new BridgeTestReader(), output);
+        await session.ReceiveAsync(OriginPolicy.Production, Request("info-version", "app.info"));
+        await session.ReceiveAsync(OriginPolicy.Production, Request("doctor-version", "doctor"));
+
+        var info = output.First().GetProperty("result");
+        var doctor = output.Last().GetProperty("result");
+        var tag = info.GetProperty("releaseTag").GetString();
+        Assert.Equal(Product.ReleaseTag, tag);
+        Assert.Equal(tag, doctor.GetProperty("releaseTag").GetString());
+        Assert.Equal(tag, info.GetProperty("version").GetString());
+        Assert.Equal(tag, doctor.GetProperty("diagnostic").GetProperty("version").GetString());
     }
 
     /// <summary>固定字段金样与实际 dispatcher 返回值比较, 时钟和运行身份仍由宿主生成.</summary>

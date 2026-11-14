@@ -14,8 +14,17 @@ reject_input() { echo "::error::Gitee release input rejected: $1."; exit 2; }
 [[ "$#" == 1 ]] || reject_input 'exactly one prepare or verify phase is required'
 phase="$1"
 [[ "$phase" == prepare || "$phase" == verify ]] || reject_input 'phase must be prepare or verify'
-[[ "${RELEASE_TAG:-}" =~ ^desktop-v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?(-v2\.[1-9][0-9]*)?$ ]] || reject_input 'release tag is invalid'
-[[ "${ARCHIVE_NAME:-}" =~ ^pbi-utils-[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?-win-x64-without-dotnet\.zip$ ]] || reject_input 'archive name is invalid'
+# CI 已核验完整发布规范. 新附件使用完整标签, 历史附件复验保持原数字文件名.
+current_tag='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc[1-9][0-9]*)?$'
+historical_tag='^desktop-v([0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?)(-v2\.[1-9][0-9]*)?$'
+if [[ "${RELEASE_TAG:-}" =~ $current_tag ]]; then
+  archive_version="$RELEASE_TAG"
+elif [[ "${RELEASE_TAG:-}" =~ $historical_tag ]]; then
+  archive_version="${BASH_REMATCH[1]}"
+else
+  reject_input 'release tag is invalid'
+fi
+[[ "${ARCHIVE_NAME:-}" == "pbi-utils-$archive_version-win-x64-without-dotnet.zip" ]] || reject_input 'archive name does not match the release tag'
 [[ "${PRERELEASE:-}" == true || "${PRERELEASE:-}" == false ]] || reject_input 'prerelease must be true or false'
 [[ "${RELEASE_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] || reject_input 'release commit must be a resolved commit SHA'
 [[ -n "${GITEE_TOKEN:-}" ]] || reject_input 'Gitee token is missing'

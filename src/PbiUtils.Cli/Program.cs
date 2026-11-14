@@ -59,7 +59,7 @@ public static class Program
             }
             // 函数包查询的版本是业务输入, 其余命令仍保留既有产品版本元命令优先级.
             var packageVersion = args.Length >= 3 && args[0] == "udf" && args[1] == "catalog" && args[2] == "show";
-            if (args.Contains("--version") && !packageVersion) { Console.WriteLine(Product.Version); return 0; }
+            if (args.Contains("--version") && !packageVersion) { Console.WriteLine(Product.ReleaseTag); return 0; }
             logging = new LoggingRuntime(RuntimeEnvironment.UserDataDirectory(), "cli");
             logging.EnableDiagnostics();
             var logs = logging.Factory;

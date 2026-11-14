@@ -14,10 +14,10 @@
 
 ## 下载与安装
 
-当前分发面向 **Windows x64**。在发布页面选择 `v2` 开头的版本，请阅读对应发布说明。
+当前分发面向 **Windows x64**。在发布页面选择所需版本并阅读对应发布说明。新正式版使用 `vX.Y.Z`，预发布版使用 `vX.Y.Z-rcN`。安装向导显示对应的完整发布标签。
 
-1. 下载发布附件 `pbi-utils-<版本>-win-x64-without-dotnet.zip`，解压后运行其中的 `pbi-utils-<版本>-win-x64-without-dotnet-setup.exe`。
-2. 按向导阅读许可、检查运行环境并选择安装位置。默认目录为 `%LOCALAPPDATA%\Programs\pbi-utils`。
+1. 下载发布附件 `pbi-utils-<发布标签>-win-x64-without-dotnet.zip`，解压后运行其中的 `pbi-utils-<发布标签>-win-x64-without-dotnet-setup.exe`。例如，标签 `v0.1.0-rc1` 对应 `pbi-utils-v0.1.0-rc1-win-x64-without-dotnet.zip`。历史版本的附件使用数字版本，文件名以对应发布页为准。
+2. 在向导的许可页阅读项目及第三方许可，接受 Microsoft AMO/ADOMD 组件条款后，继续检查运行环境并选择安装位置。默认目录为 `%LOCALAPPDATA%\Programs\pbi-utils`。
 3. 安装完成后，从桌面或开始菜单启动 pbi-utils。快捷方式可在安装时选择是否创建。
 
 安装器会检查所需的 **x64 .NET Desktop Runtime** 和 **Microsoft Edge WebView2 Runtime**，缺失时提供安装入口。安装运行环境及注册 Power BI 外部工具时，可能需要 Windows 管理员授权。使用本软件无需安装开发 SDK、Node.js 或 pnpm；连接本地模型需要另行安装 Power BI Desktop。
@@ -99,12 +99,15 @@ UDF 首次使用时，先选择来源并点击“更新来源”。内置来源�
 
 MCP 可用于模型读取与编辑、格式化、工程创建、示例数据、日期和 UDF 等业务。本机通信不代表 AI 的后续处理也在本机：第三方客户端可能将工具返回的信息发送给其模型提供方，请按所用客户端的数据规则管理访问。
 
+MCP 的 `server_info` 和 `desktop_app_info` 返回与安装向导一致的完整发布标签，例如 `v0.1.0-rc1`。
+
 ## 命令行
 
 安装目录的 `app` 子目录中包含 `pbi-utils.exe`。可在该目录打开 PowerShell，执行：
 
 ```powershell
 .\pbi-utils.exe --help
+.\pbi-utils.exe --version
 .\pbi-utils.exe doctor --json
 .\pbi-utils.exe inspect --project "D:\Reports\Sales.pbip" --json
 .\pbi-utils.exe new templates --json
@@ -113,11 +116,13 @@ MCP 可用于模型读取与编辑、格式化、工程创建、示例数据、�
 
 命令行还提供格式化、示例生成、新建工程、UDF 目录和副本变更等功能，参数以 `--help` 为准。`inspect` 读取本地 PBIP 工程；`change` 预览并应用到新目录副本，不覆盖源工程。
 
+`--version` 和 `doctor --json` 使用完整发布标签，可与安装向导和设置中的应用版本核对。
+
 ## 软件更新
 
 在“设置 → 软件更新”选择 GitHub 或 Gitee，点击“检查更新”或“打开软件发布页面”。自动检查默认开启，每个来源最多每 24 小时自动检查一次。
 
-更新列表同时识别正式版和预发布版。是否提示新版按产品数字版本比较，同一数字版本下的不同预发布轮次请到发布页面核对。应用不会自动下载、运行安装器或重启。
+更新列表同时识别正式版和预发布版。设置页、CLI 和 MCP 的更新结果都使用完整发布标签。是否提示新版按产品数字版本比较，同一数字版本下的不同预发布轮次可通过完整标签核对。应用不会自动下载、运行安装器或重启。
 
 更新时，先断开 MCP 客户端并正常关闭 pbi-utils，再运行新版安装包。安装器支持升级和同版本修复，拒绝降级；卸载保留应用用户数据和共享运行环境。
 

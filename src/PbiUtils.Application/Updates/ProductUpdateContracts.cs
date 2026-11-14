@@ -10,9 +10,9 @@ namespace PbiUtils.Application.Updates;
 public sealed record ProductUpdateSettings(bool AutomaticCheck = true, string Source = "github");
 /// <summary>仅提交用户本次修改字段, 未提供的偏好由存储锁内最新值补齐.</summary>
 public sealed record ProductUpdateSettingsPatch(bool? AutomaticCheck = null, string? Source = null);
-/// <summary>当前产品的公开发布, 保留精确标签、预发布状态及有界纯文本说明.</summary>
+/// <summary>当前产品的公开发布, Tag 和 Version 均保留精确标签, 同时返回预发布状态及有界纯文本说明.</summary>
 public sealed record ProductUpdateRelease(string Tag, string Version, bool Prerelease, string Notes, bool NotesTruncated);
-/// <summary>有界纯文本更新结果, 失败仅返回固定错误码, 不携带原始异常.</summary>
+/// <summary>有界纯文本更新结果, 当前和最新版本均为完整发布标签; 失败仅返回固定错误码.</summary>
 public sealed record ProductUpdateCheck(string Source, string CurrentVersion, string Status, DateTimeOffset CheckedAtUtc,
     string? LatestVersion, ProductUpdateRelease[] Releases,
     string? ErrorCode = null, bool IsSimulation = false);

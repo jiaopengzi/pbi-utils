@@ -12,6 +12,7 @@ import { useProductUpdates, type ProductUpdates } from "@/composables/app/usePro
 import { useI18n } from "@/composables/i18n/useI18n"
 import { useOperationMessage } from "@/composables/ui/useFeedback"
 import UiPanel from "@/ui/UiPanel.vue"
+import { productReleaseName } from "./productReleaseName"
 
 /** 接收应用级更新通道; 独立挂载时只读取设置, 不重复启动后台检查; 错误由共享反馈与结果展示. */
 const props = defineProps<{ bridge: BridgeClient; updates?: ProductUpdates }>()
@@ -83,7 +84,7 @@ onUnmounted(() => cancelCheck(true))
                 >{{ t("updates.currentVersion") }} <strong>{{ currentVersion }}</strong></span
             >
             <span class="update-release-version"
-                >{{ t("updates.latestVersion") }} <strong>{{ checkResult?.latestVersion ?? "-" }}</strong></span
+                >{{ t("updates.latestVersion") }} <strong>{{ productReleaseName(checkResult?.releases[0]?.tag) }}</strong></span
             >
             <span class="update-status">{{ resultMessage }}</span>
         </div>

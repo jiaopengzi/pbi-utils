@@ -12,6 +12,7 @@ using System.Text;
 using System.Text.Json;
 using System.Security.Cryptography;
 using ModelContextProtocol.Client;
+using PbiUtils.Core;
 using PbiUtils.Infrastructure;
 using PbiUtils.Infrastructure.Mcp;
 using Xunit;
@@ -97,6 +98,7 @@ public sealed class McpProtocolTests
         var result = await client.CallToolAsync("server_info", new Dictionary<string, object?>(), cancellationToken: deadline.Token);
         Assert.False(result.IsError ?? false);
         Assert.False(result.StructuredContent!.Value.GetProperty("allowWrite").GetBoolean());
+        Assert.Equal(Product.ReleaseTag, result.StructuredContent.Value.GetProperty("version").GetString());
     }
 
     /// <summary>新版客户端无需握手即可列出核心工具, 调用只读格式化并正常关闭.</summary>
@@ -146,6 +148,7 @@ public sealed class McpProtocolTests
         Assert.True(response.TryGetProperty("result", out var initialized), response.ToString());
         Assert.Equal("2025-11-25", initialized.GetProperty("protocolVersion").GetString());
         Assert.Equal("pbi-utils", initialized.GetProperty("serverInfo").GetProperty("name").GetString());
+        Assert.Equal(Product.ReleaseTag, initialized.GetProperty("serverInfo").GetProperty("version").GetString());
         await client.NotifyAsync("notifications/initialized", new { });
         var listed = await client.RequestAsync("tools/list", new { }, includeMetadata: false);
         Assert.Contains(listed.GetProperty("result").GetProperty("tools").EnumerateArray(), tool => tool.GetProperty("name").GetString() == "format_code");
@@ -203,7 +206,9 @@ public sealed class McpProtocolTests
     {
         Assert.True(response.TryGetProperty("result", out var result), response.ToString());
         Assert.Equal("complete", result.GetProperty("resultType").GetString());
-        Assert.Equal("pbi-utils", result.GetProperty("_meta").GetProperty("io.modelcontextprotocol/serverInfo").GetProperty("name").GetString());
+        var serverInfo = result.GetProperty("_meta").GetProperty("io.modelcontextprotocol/serverInfo");
+        Assert.Equal("pbi-utils", serverInfo.GetProperty("name").GetString());
+        Assert.Equal(Product.ReleaseTag, serverInfo.GetProperty("version").GetString());
     }
 
     /// <summary>工具参数不能开启写权限, 默认模式在任何业务副作用前拒绝写工具.</summary>

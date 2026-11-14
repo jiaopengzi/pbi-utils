@@ -32,8 +32,8 @@ function Invoke-RequiredGit([string]$Repository, [string[]]$Arguments) {
     return $result.Output
 }
 
-<# .SYNOPSIS 创建独立工作仓库及 bare origin, 参数为场景名、分支、精确 CHANGELOG 标签和产品版本; 返回本地路径. #>
-function New-ReleaseFixture([string]$Name, [string]$Branch = 'v2', [string]$Tag = 'desktop-v0.1.0-v2.1', [string]$Version = '0.1.0') {
+<# .SYNOPSIS 创建独立工作仓库及 bare origin, 参数为场景名、分支和精确 CHANGELOG 标签; 返回本地路径. #>
+function New-ReleaseFixture([string]$Name, [string]$Branch = 'v2', [string]$Tag = 'v0.1.0-rc1') {
     $directory = Join-Path $sandbox $Name
     $repository = Join-Path $directory 'repository'
     $remote = Join-Path $directory 'origin.git'
@@ -43,9 +43,9 @@ function New-ReleaseFixture([string]$Name, [string]$Branch = 'v2', [string]$Tag 
     foreach ($setting in @(@('user.name', 'Release Test'), @('user.email', 'release-test@example.invalid'), @('core.autocrlf', 'false'), @('alias.savetag', '!bash ./.gitalias/savetag.sh'))) {
         $null = Invoke-RequiredGit $repository @('config', '--local', $setting[0], $setting[1])
     }
-    $null = New-Item -ItemType Directory -Path (Join-Path $repository '.gitalias')
+    $null = New-Item -ItemType Directory -Path (Join-Path $repository '.gitalias'), (Join-Path $repository 'scripts')
     Copy-Item -LiteralPath $source -Destination (Join-Path $repository '.gitalias/savetag.sh')
-    [IO.File]::WriteAllText((Join-Path $repository 'Directory.Build.props'), "<Project><PropertyGroup><Version>$Version</Version></PropertyGroup></Project>")
+    Copy-Item -LiteralPath (Join-Path $root 'scripts/ReleaseAutomation.psm1') -Destination (Join-Path $repository 'scripts/ReleaseAutomation.psm1')
     [IO.File]::WriteAllText((Join-Path $repository 'CHANGELOG.md'), "# Changelog`n`n## [$Tag] - 2026-11-03`n`n### Added`n`n- 隔离发布测试.`n")
     [IO.File]::WriteAllText((Join-Path $repository 'payload.txt'), "fixture`n")
     $null = Invoke-RequiredGit $repository @('add', '--', '.')
@@ -96,7 +96,7 @@ try {
     $subdirectory = Join-Path $fixture.Repository 'subdirectory'
     $null = New-Item -ItemType Directory -Path $subdirectory
     $preview = Invoke-TestGit $subdirectory @('savetag', '--dry-run')
-    Assert-ReleaseTest ($preview.Code -eq 0 -and $preview.Output.Contains('DRY RUN') -and $preview.Output.Contains($fixture.Tag)) '子目录调用预览'
+    Assert-ReleaseTest ($preview.Code -eq 0 -and $preview.Output.Contains('DRY RUN') -and $preview.Output.Contains($fixture.Tag)) "子目录调用预览从 CHANGELOG 读取版本: $($preview.Output)"
     Assert-ReleaseTest ((Invoke-RequiredGit $fixture.Repository @('tag', '--list')).Length -eq 0 -and (Invoke-RequiredGit $fixture.Remote @('for-each-ref', '--format=%(refname)')).Length -eq 0) '预览不创建标签或推送'
     $release = Invoke-TestGit $fixture.Repository @('savetag')
     Assert-ReleaseTest ($release.Code -eq 0) "v2 发布成功: $($release.Output)"
@@ -106,26 +106,29 @@ try {
     $repeat = Invoke-TestGit $fixture.Repository @('savetag')
     Assert-ReleaseTest ($repeat.Code -ne 0 -and $repeat.Output.Contains('本地标签已存在')) '拒绝重复本地标签'
 
-    $fixture = New-ReleaseFixture 'main-success' 'main' 'desktop-v0.1.0'
+    $fixture = New-ReleaseFixture 'main-success' 'main' 'v0.1.0'
     $null = Invoke-RequiredGit $fixture.Repository @('tag', '--annotate', 'unrelated', '--message', 'Do not publish')
     $null = Invoke-RequiredGit $fixture.Repository @('config', '--local', 'push.followTags', 'true')
     $release = Invoke-TestGit $fixture.Repository @('savetag')
-    Assert-ReleaseTest ($release.Code -eq 0 -and (Invoke-RequiredGit $fixture.Remote @('tag', '--list')) -ceq 'desktop-v0.1.0') 'main 稳定发布且不附带其他 tag'
+    Assert-ReleaseTest ($release.Code -eq 0 -and (Invoke-RequiredGit $fixture.Remote @('tag', '--list')) -ceq 'v0.1.0') 'main 稳定发布且不附带其他 tag'
 
-    $fixture = New-ReleaseFixture 'four-part-version' 'v2' 'desktop-v0.1.0.1-v2.1' '0.1.0.1'
+    $fixture = New-ReleaseFixture 'multi-digit-rc' 'v2' 'v0.1.0-rc12'
+    $history = "`n## [desktop-v0.1.0-v2.7] - 2026-11-03`n`n- 历史发布。`n"
+    [IO.File]::AppendAllText((Join-Path $fixture.Repository 'CHANGELOG.md'), $history)
+    Save-Fixture $fixture
     $release = Invoke-TestGit $fixture.Repository @('savetag')
-    Assert-ReleaseTest ($release.Code -eq 0 -and (Invoke-RequiredGit $fixture.Remote @('tag', '--list')) -ceq $fixture.Tag) "支持当前四段产品版本契约: $($release.Output)"
+    Assert-ReleaseTest ($release.Code -eq 0 -and (Invoke-RequiredGit $fixture.Remote @('tag', '--list')) -ceq 'v0.1.0-rc12') "最新 RC 标签可多位并兼容保留的历史章节: $($release.Output)"
 
     foreach ($scenario in @(
-        @{ Name = 'wrong-version'; Branch = 'v2'; Tag = 'desktop-v0.2.0-v2.1'; Reason = '产品版本不一致' },
-        @{ Name = 'wrong-branch'; Branch = 'feature'; Tag = 'desktop-v0.1.0-v2.1'; Reason = '仅支持 main 或 v2' },
-        @{ Name = 'v2-stable'; Branch = 'v2'; Tag = 'desktop-v0.1.0'; Reason = 'v2 分支仅允许' },
-        @{ Name = 'main-preview'; Branch = 'main'; Tag = 'desktop-v0.1.0-v2.1'; Reason = 'main 分支仅允许' },
-        @{ Name = 'zero-preview'; Branch = 'v2'; Tag = 'desktop-v0.1.0-v2.0'; Reason = '标签格式无效' },
-        @{ Name = 'leading-zero-preview'; Branch = 'v2'; Tag = 'desktop-v0.1.0-v2.01'; Reason = '标签格式无效' },
-        @{ Name = 'leading-zero-version'; Branch = 'v2'; Tag = 'desktop-v0.01.0-v2.1'; Reason = '标签格式无效' },
-        @{ Name = 'leading-zero-revision'; Branch = 'v2'; Tag = 'desktop-v0.1.0.01-v2.1'; Reason = '标签格式无效' },
-        @{ Name = 'legacy-tag'; Branch = 'main'; Tag = 'v1.0.3.1'; Reason = '标签格式无效' }
+        @{ Name = 'out-of-range-version'; Branch = 'v2'; Tag = 'v0.65535.0-rc1'; Reason = '版本超出范围' },
+        @{ Name = 'wrong-branch'; Branch = 'feature'; Tag = 'v0.1.0-rc1'; Reason = '仅支持 main 或 v2' },
+        @{ Name = 'v2-stable'; Branch = 'v2'; Tag = 'v0.1.0'; Reason = 'v2 分支仅允许 vX.Y.Z-rcN' },
+        @{ Name = 'main-preview'; Branch = 'main'; Tag = 'v0.1.0-rc1'; Reason = 'main 分支仅允许 vX.Y.Z' },
+        @{ Name = 'zero-preview'; Branch = 'v2'; Tag = 'v0.1.0-rc0'; Reason = '标签格式无效' },
+        @{ Name = 'leading-zero-preview'; Branch = 'v2'; Tag = 'v0.1.0-rc01'; Reason = '标签格式无效' },
+        @{ Name = 'leading-zero-version'; Branch = 'v2'; Tag = 'v0.01.0-rc1'; Reason = '标签格式无效' },
+        @{ Name = 'four-part-version'; Branch = 'main'; Tag = 'v1.0.3.1'; Reason = '标签格式无效' },
+        @{ Name = 'historical-desktop-tag'; Branch = 'v2'; Tag = 'desktop-v0.1.0-v2.7'; Reason = '标签格式无效' }
     )) {
         $fixture = New-ReleaseFixture $scenario.Name $scenario.Branch $scenario.Tag
         Assert-ReleaseRejected $fixture $scenario.Reason

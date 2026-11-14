@@ -86,6 +86,8 @@ function Assert-StandalonePublishedArtifacts([string]$Root) {
     $actualFiles = @(Get-StandalonePublishFiles $absolute)
     $manifest = Get-Content -LiteralPath (Join-Path $absolute 'manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($manifest.schemaVersion -ne 3 -or $manifest.layout -cne 'shared' -or $manifest.runtime -cne 'win-x64' -or $manifest.scope -cnotin @('Core', 'All') -or $manifest.configuration -cnotin @('Debug', 'Release') -or !$manifest.version -or $manifest.deploymentMode -cnotin @('self-contained', 'framework-dependent')) { throw '发布清单版本、布局、目标、范围、配置或模式无效' }
+    $releasePattern = '\Av' + [regex]::Escape($manifest.version) + '(?:-rc[1-9][0-9]*)?\z'
+    if ($manifest.releaseTag -isnot [string] -or $manifest.releaseTag -cnotmatch $releasePattern) { throw '发布清单缺少有效且匹配数字版本的完整发布标签' }
     if ($manifest.configuration -ceq 'Debug' -and $manifest.deploymentMode -cne 'self-contained') { throw 'Debug 发布必须为自包含模式' }
     $expected = [Collections.Generic.Dictionary[string, string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($item in $manifest.files) {
@@ -129,6 +131,7 @@ function Assert-StandalonePublishedArtifacts([string]$Root) {
 try {
     if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { throw '此验收脚本需要 Windows' }
     $manifest = Assert-StandalonePublishedArtifacts $root
+    $releaseTag = $manifest.releaseTag
     $nodeOnPath = $null -ne (Get-Command node.exe -ErrorAction SilentlyContinue)
     $dotnetOnPath = $null -ne (Get-Command dotnet.exe -ErrorAction SilentlyContinue)
     $knownSdkPresent = $false
@@ -233,7 +236,7 @@ try {
             elseif ($case.format -eq 'json') {
                 $data = $text | ConvertFrom-Json
                 if ($data.schemaVersion -ne 1 -or !$data.ok -or $data.command -ne $case.command) { throw 'CLI JSON 不符合契约' }
-                if ($case.name -eq 'doctor' -and ($data.data.version -ne $manifest.version -or !$data.data.environment.runtime)) { throw '诊断缺少产品版本或运行时信息' }
+                if ($case.name -eq 'doctor' -and ($data.data.version -cne $releaseTag -or !$data.data.environment.runtime)) { throw '诊断的发布标签不符或缺少运行时信息' }
                 if ($case.name -eq 'templates') {
                     $templateIds = @($data.data.templates | ForEach-Object { $_.id })
                     foreach ($id in @('builtin:blank')) {
@@ -244,12 +247,12 @@ try {
             elseif ($case.format -eq 'help') {
                 if (!$text.Contains('pbi-utils doctor') -or !$text.Contains('pbi-utils new templates') -or $text.Contains('pbi-utils hello') -or $text.Contains('pbi-utils agent hello')) { throw '帮助不符合当前命令契约' }
             }
-            elseif ($text.Trim() -cne $manifest.version) { throw '产品版本与发布清单不一致' }
+            elseif ($text.Trim() -cne $releaseTag) { throw 'CLI 发布标签与清单不一致' }
             $report.commands += @{ command = $case.command; status = 'PASS'; exitCode = $process.ExitCode; coreClrPath = $coreClrPath }
         }
         finally { $process.Dispose() }
     }
-    $report.version = $manifest.version
+    $report.version = $releaseTag
     $report.publishLayout = $manifest.layout
     $report.publishScope = $manifest.scope
     $report.deploymentMode = $manifest.deploymentMode

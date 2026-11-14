@@ -16,6 +16,7 @@ namespace PbiUtils.Infrastructure.Updates;
 /// <summary>设置锁只保护短文件提交, 网络检查使用另外的来源专用锁.</summary>
 public sealed class LocalProductUpdateStore(string root) : IProductUpdateStore
 {
+    private const int CurrentSchemaVersion = 3;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = false,
@@ -80,11 +81,11 @@ public sealed class LocalProductUpdateStore(string root) : IProductUpdateStore
         UserDataStore.Check(root);
     }
 
-    /// <summary>按严格当前 schema 读取有界文件, 重复/未知/缺字段都不自动重建覆盖.</summary>
+    /// <summary>按严格 schema 读取有界文件, 旧数字版本缓存失效时保留已经核验的更新偏好.</summary>
     private Document Load()
     {
         UserDataStore.Check(path);
-        if (!File.Exists(path)) return new(2, new(), new(StringComparer.Ordinal));
+        if (!File.Exists(path)) return new(CurrentSchemaVersion, new(), new(StringComparer.Ordinal));
         try
         {
             if (new FileInfo(path).Length > 2 * 1024 * 1024) throw new JsonException();
@@ -93,8 +94,8 @@ public sealed class LocalProductUpdateStore(string root) : IProductUpdateStore
             using var parsed = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 12 });
             Strict(parsed.RootElement);
             Shape(parsed.RootElement, "schemaVersion", "settings", "checks");
-            // 快速迭代不迁移旧缓存/设置; 非当前完整文档只重建默认值, 写入仍经设置锁与原子替换.
-            if (parsed.RootElement.GetProperty("schemaVersion").GetInt32() != 2) return new(2, new(), new(StringComparer.Ordinal));
+            var schemaVersion = parsed.RootElement.GetProperty("schemaVersion").GetInt32();
+            if (schemaVersion is not (2 or CurrentSchemaVersion)) return new(CurrentSchemaVersion, new(), new(StringComparer.Ordinal));
             var settings = parsed.RootElement.GetProperty("settings");
             Shape(settings, "automaticCheck", "source");
             if (settings.GetProperty("automaticCheck").ValueKind is not (JsonValueKind.True or JsonValueKind.False)) throw new JsonException();
@@ -108,8 +109,10 @@ public sealed class LocalProductUpdateStore(string root) : IProductUpdateStore
                 foreach (var release in entry.Value.GetProperty("releases").EnumerateArray()) Shape(release, "tag", "version", "prerelease", "notes", "notesTruncated");
             }
             var document = JsonSerializer.Deserialize<Document>(bytes, Json) ?? throw new JsonException();
-            if (document.SchemaVersion != 2 || document.Settings is null || document.Checks is null) throw new JsonException();
+            if (document.Settings is null || document.Checks is null) throw new JsonException();
             ProductUpdatePolicy.ValidateSource(document.Settings.Source);
+            // 旧缓存不带已安装 RC 身份, 让下次检查重新取得确切标签; 只读仍不写磁盘.
+            if (schemaVersion == 2) return new(CurrentSchemaVersion, document.Settings, new(StringComparer.Ordinal));
             foreach (var entry in document.Checks)
             {
                 ValidateCheck(entry.Value);
@@ -146,12 +149,12 @@ public sealed class LocalProductUpdateStore(string root) : IProductUpdateStore
     {
         if (check is null) throw new JsonException();
         ProductUpdatePolicy.ValidateSource(check.Source);
-        if (!ProductUpdatePolicy.TryVersion(check.CurrentVersion, out _) || check.Status is not ("available" or "current" or "noRelease" or "failed")
+        if (!ProductUpdatePolicy.TryReleaseTag(check.CurrentVersion, out _, out _) || check.Status is not ("available" or "current" or "noRelease" or "failed")
             || check.Releases is null || check.Releases.Length > ProductUpdatePolicy.MaximumReleases || check.IsSimulation) throw new JsonException();
         foreach (var release in check.Releases)
         {
             if (release is null || !ProductUpdatePolicy.TryReleaseTag(release.Tag, out _, out var revision)
-                || release.Version != release.Tag[9..] || revision > 0 && !release.Prerelease
+                || release.Version != release.Tag || revision > 0 && !release.Prerelease
                 || release.Notes is null || release.Notes.Length > 4096) throw new JsonException();
         }
         if (check.Releases.Sum(release => release.Notes.Length) > ProductUpdatePolicy.MaximumNotesLength) throw new JsonException();

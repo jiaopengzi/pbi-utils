@@ -35,6 +35,8 @@ try {
     foreach ($required in @('pbi-utils.exe', 'PbiUtils.Host.exe')) {
         if (!(Test-Path -LiteralPath (Join-Path $PublishRoot $required) -PathType Leaf)) { throw ('发布产物缺失: ' + $required) }
     }
+    $releaseTag = (Get-Content -LiteralPath (Join-Path $PublishRoot 'manifest.json') -Raw | ConvertFrom-Json -AsHashtable)['releaseTag']
+    if ([string]::IsNullOrWhiteSpace($releaseTag)) { throw '发布清单缺少完整发布标签' }
     # 只读验收需要独占其测试后台, 发现既有同安装后台时不接管/关闭用户资源.
     $existing = [Diagnostics.Process]::GetProcessesByName('PbiUtils.Host')
     try {
@@ -61,8 +63,9 @@ try {
     $checks.crossClientRejected = 'PASS'
     foreach ($client in @($a, $b)) {
         $info = Invoke-ProbeTool $client 'desktop_app_info' @{ parameters = @{} }
-        if ([string]::IsNullOrWhiteSpace($info.version)) { throw '真实 IPC 缺少产品版本' }
+        if ($info.version -cne $releaseTag) { throw '真实 IPC 的共享后台发布标签与清单不一致' }
         $permission = Invoke-ProbeTool $client 'server_info' @{}
+        if ($permission.version -cne $releaseTag) { throw 'MCP 服务信息的发布标签与清单不一致' }
         if ($permission.allowWrite) { throw '默认客户端意外取得写权限' }
         $null = Invoke-ProbeTool $client 'desktop_model_edit' @{ parameters = @{} } 'MCP_WRITE_DISABLED'
     }

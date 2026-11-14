@@ -59,7 +59,7 @@ MCP 入口和本机宿主通道见 [local-mcp.md](local-mcp.md). CLI 引用官�
 | 内容 | 权威位置 |
 | --- | --- |
 | .NET SDK 完整版本及滚动策略 | `global.json` |
-| 目标框架、产品/程序集版本和公共构建属性 | `Directory.Build.props`, `Directory.Build.targets` |
+| 目标框架、产品/程序集版本和公共构建属性 | `CHANGELOG.md`, `Directory.Build.props`, `Directory.Build.targets` |
 | NuGet 精确版本及解析结果 | `Directory.Packages.props`, 各项目 `packages.lock.json` |
 | Node 精确版本 | `web/package.json` 的 `engines.node` |
 | pnpm 精确版本 | `web/package.json` 的 `packageManager` |

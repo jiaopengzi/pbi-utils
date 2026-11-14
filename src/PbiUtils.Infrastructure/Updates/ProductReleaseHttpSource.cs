@@ -33,7 +33,7 @@ public sealed class ProductReleaseHttpSource(HttpClient client) : IProductReleas
                 var api = source == "github" ? "https://api.github.com/repos/jiaopengzi/pbi-utils/releases"
                     : "https://gitee.com/api/v5/repos/jiaopengzi/pbi-utils/releases";
                 using var request = new HttpRequestMessage(HttpMethod.Get, $"{api}?per_page=100&page={page}");
-                request.Headers.UserAgent.ParseAdd("pbi-utils/" + Product.Version);
+                request.Headers.UserAgent.ParseAdd("pbi-utils/" + Product.ReleaseTag);
                 request.Headers.Accept.ParseAdd("application/json");
                 using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, budget.Token).ConfigureAwait(false);
                 if (response.StatusCode == HttpStatusCode.TooManyRequests || response.StatusCode == HttpStatusCode.Forbidden

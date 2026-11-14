@@ -8,7 +8,7 @@ name: Build pbi-utils
 
 on:
   push:
-    tags: ['desktop-v*']
+    tags: ['v[0-9]+.[0-9]+.[0-9]+', 'v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+']
     branches: [v2]
     paths: ['.github/**']
   pull_request:
@@ -59,16 +59,16 @@ jobs:
           Import-Module ./scripts/ReleaseAutomation.psm1 -Force
           $requestedTag = $env:REQUESTED_TAG
           if ($env:GITHUB_REF -ceq 'refs/heads/v2' -and $env:GITHUB_EVENT_NAME -ceq 'push') {
-            $markers = [regex]::Matches($env:COMMIT_MESSAGE, '\[release-retry: (desktop-v[0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?-v2\.[1-9][0-9]*)\]')
-            if ($markers.Count -ne 1) { throw '附件重试提交必须指定唯一有效标签' }
+            # 重试允许现行及历史预发布, 具体标签格式由原标签规范解析.
+            $markers = [regex]::Matches($env:COMMIT_MESSAGE, '\[release-retry:(?: ([^\[\]\s]+)\])?')
+            if ($markers.Count -ne 1 -or !$markers[0].Groups[1].Success) { throw '附件重试提交必须指定唯一有效标签' }
             $requestedTag = $markers[0].Groups[1].Value
           }
           $reuse = ![string]::IsNullOrEmpty($requestedTag)
           if ($reuse -and $env:GITHUB_REF -cne 'refs/heads/v2') { throw '已有发行版重试只允许 v2' }
-          $releaseRef = if ($reuse) { "refs/tags/$requestedTag" } else { $env:GITHUB_REF }
           $context = if ($reuse) {
             (Get-PbiTaggedReleaseSpec -RepositoryRoot $PWD -Tag $requestedTag).Context
-          } else { Get-PbiReleaseContext -RepositoryRoot $PWD -Ref $releaseRef }
+          } else { Get-PbiReleaseContext -RepositoryRoot $PWD -Ref $env:GITHUB_REF }
           if ($reuse -and !$context.Prerelease) { throw 'v2 不能重试正式发行版' }
           "reuse=$($reuse.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
           if ($context.ReleaseTag) {
@@ -142,9 +142,11 @@ jobs:
         run: pwsh -NoProfile -File ./scripts/tests/published-smoke.ps1 -Configuration Release -DotNetMode without-dotnet
       - name: Create and verify installer ZIP
         if: steps.metadata.outputs.reuse != 'true'
+        env:
+          EXPECTED_RELEASE_TAG: ${{ steps.metadata.outputs.release_tag }}
         run: |
           Import-Module ./scripts/ReleaseAutomation.psm1 -Force
-          New-PbiReleaseArchive -RepositoryRoot $PWD -Destination ./artifacts/release-zip
+          New-PbiReleaseArchive -RepositoryRoot $PWD -Destination ./artifacts/release-zip -ExpectedTag $env:EXPECTED_RELEASE_TAG
       - name: Reuse the existing release ZIP
         if: steps.metadata.outputs.reuse == 'true'
         env:

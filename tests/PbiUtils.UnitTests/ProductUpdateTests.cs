@@ -23,10 +23,11 @@ public sealed class ProductUpdateTests : IDisposable
     [Fact]
     public void PreviewReleaseFromCurrentWorkflowIsVisible()
     {
-        var check = ProductUpdatePolicy.Select("github", "0.1.0",
+        var check = ProductUpdatePolicy.Select("github", "v0.1.0-rc1",
             [new("desktop-v0.2.0-v2.1", false, true, "preview")], DateTimeOffset.UtcNow);
         Assert.Equal("available", check.Status);
-        Assert.Equal("0.2.0-v2.1", check.LatestVersion);
+        Assert.Equal("v0.1.0-rc1", check.CurrentVersion);
+        Assert.Equal("desktop-v0.2.0-v2.1", check.LatestVersion);
     }
 
     /// <summary>共享夹具验证两站字段差异、旧版隔离、最高版本与完整发布列表.</summary>
@@ -55,14 +56,36 @@ public sealed class ProductUpdateTests : IDisposable
     [Fact]
     public void StableAndPreviewReleasesAreOrderedAndRoundTrip()
     {
-        var check = ProductUpdatePolicy.Select("gitee", "0.2.0",
+        var check = ProductUpdatePolicy.Select("gitee", "v0.2.0-rc2",
             [new("desktop-v0.2.0-v2.2", false, true, "two"), new("desktop-v0.2.0-v2.10", false, true, "ten"),
              new("desktop-v0.2.0", false, false, "stable"), new("desktop-v0.3.0-v2.1", true, true, "draft")], DateTimeOffset.UtcNow);
         Assert.Equal("current", check.Status);
-        Assert.Equal(["0.2.0", "0.2.0-v2.10", "0.2.0-v2.2"], check.Releases.Select(release => release.Version));
+        Assert.Equal(["desktop-v0.2.0", "desktop-v0.2.0-v2.10", "desktop-v0.2.0-v2.2"], check.Releases.Select(release => release.Version));
         var store = new LocalProductUpdateStore(root);
         store.SaveCheck(check, false, default);
         Assert.Equal(check.Releases, store.Read("gitee").LastCheck!.Releases);
+    }
+
+    /// <summary>新版标签与历史 desktop 标签共同排序和保存, 旧产品标签和无效候选编号不参与检查.</summary>
+    [Fact]
+    public void ReleaseCandidatesUseCurrentTagsAndRoundTrip()
+    {
+        var check = ProductUpdatePolicy.Select("github", "v0.2.0-rc2",
+            [new("v0.2.0-rc2", false, false, "two"), new("v0.2.0-rc10", false, true, "ten"),
+             new("v0.2.0", false, false, "stable"), new("desktop-v0.2.0", false, false, "historical stable"),
+             new("desktop-v0.2.0-v2.20", false, true, "historical preview"),
+             new("v0.3.0-rc1", true, true, "draft"), new("v0.4.0-rc01", false, true, "invalid"),
+             new("v0.4.0-rc2147483648", false, true, "overflow"), new("v0.4.0-rc0", false, true, "zero"),
+             new("v0.4.0-RC1", false, true, "capitalized"), new("v1.0.3.1", false, false, "old product"),
+             new("v65535.0.0", false, false, "version overflow")], DateTimeOffset.UtcNow);
+        Assert.Equal("current", check.Status);
+        Assert.Equal("v0.2.0", check.LatestVersion);
+        Assert.Equal(["v0.2.0", "desktop-v0.2.0", "v0.2.0-rc10", "v0.2.0-rc2", "desktop-v0.2.0-v2.20"], check.Releases.Select(release => release.Tag));
+        Assert.Equal(["v0.2.0", "desktop-v0.2.0", "v0.2.0-rc10", "v0.2.0-rc2", "desktop-v0.2.0-v2.20"], check.Releases.Select(release => release.Version));
+        Assert.All(check.Releases.Skip(2), release => Assert.True(release.Prerelease));
+        var store = new LocalProductUpdateStore(root);
+        store.SaveCheck(check, false, default);
+        Assert.Equal(check.Releases, store.Read("github").LastCheck!.Releases);
     }
 
     /// <summary>完整列表的纯文本预算有界, 不截断代理对, 不把大响应写成下次无法读取的缓存.</summary>
@@ -71,7 +94,7 @@ public sealed class ProductUpdateTests : IDisposable
     {
         var releases = Enumerable.Range(1, 1000).Select(index => new ProductRelease($"desktop-v0.2.0-v2.{index}", false, true,
             new string('中', 4095) + "😀"));
-        var check = ProductUpdatePolicy.Select("github", "0.1.0", releases, DateTimeOffset.UtcNow);
+        var check = ProductUpdatePolicy.Select("github", "v0.1.0-rc1", releases, DateTimeOffset.UtcNow);
         Assert.Equal(1000, check.Releases.Length);
         Assert.True(check.Releases.Sum(release => release.Notes.Length) <= ProductUpdatePolicy.MaximumNotesLength);
         Assert.All(check.Releases, release => { Assert.True(release.NotesTruncated); Assert.False(release.Notes.Length > 0 && char.IsHighSurrogate(release.Notes[^1])); });
@@ -84,12 +107,13 @@ public sealed class ProductUpdateTests : IDisposable
     /// <summary>非法缓存的标签/展示版本/预发布状态不得成为可用列表.</summary>
     [Theory]
     [InlineData("desktop-v0.2.0", "0.3.0", false)]
-    [InlineData("desktop-v0.2.0-v2.1", "0.2.0-v2.1", false)]
-    [InlineData("v1.0.0", "1.0.0", false)]
+    [InlineData("desktop-v0.2.0-v2.1", "desktop-v0.2.0-v2.1", false)]
+    [InlineData("v1.0.3.1", "v1.0.3.1", false)]
+    [InlineData("v0.2.0-rc1", "v0.2.0-rc1", false)]
     public void InvalidCachedReleaseCannotBeSaved(string tag, string version, bool preview)
     {
         var store = new LocalProductUpdateStore(root);
-        var check = new ProductUpdateCheck("github", "0.1.0", "available", DateTimeOffset.UtcNow, version,
+        var check = new ProductUpdateCheck("github", "v0.1.0-rc1", "available", DateTimeOffset.UtcNow, version,
             [new(tag, version, preview, "", false)]);
         Assert.Throws<JsonException>(() => store.SaveCheck(check, false, default));
         Assert.False(File.Exists(Path.Combine(root, "product-updates.json")));
@@ -118,7 +142,34 @@ public sealed class ProductUpdateTests : IDisposable
         Assert.Equal(previous, File.ReadAllText(path));
         store.Save(new(Source: "gitee"), default);
         Assert.Equal("gitee", store.Read().Settings.Source);
-        Assert.Contains("\"schemaVersion\":2", File.ReadAllText(path));
+        Assert.Contains("\"schemaVersion\":3", File.ReadAllText(path));
+    }
+
+    /// <summary>升级后保留已有更新偏好, 丢弃只有数字版本的旧检查记录并允许立即检查.</summary>
+    [Fact]
+    public async Task NumericVersionCacheDoesNotReplaceCurrentReleaseIdentity()
+    {
+        Directory.CreateDirectory(root);
+        var path = Path.Combine(root, "product-updates.json");
+        const string previous = """
+            {"schemaVersion":2,"settings":{"source":"gitee","automaticCheck":true},"checks":{
+                "gitee":{"source":"gitee","currentVersion":"0.1.0","status":"noRelease","checkedAtUtc":"2026-11-03T00:00:00Z",
+                         "latestVersion":null,"releases":[],"errorCode":null,"isSimulation":false}}}
+            """;
+        File.WriteAllText(path, previous);
+        using var http = new HttpClient(new Handler((request, _) =>
+        {
+            Assert.Contains($"pbi-utils/{Product.ReleaseTag}", request.Headers.UserAgent.ToString());
+            return Task.FromResult(Json("[]"));
+        }));
+        var service = Create(http, new Clock());
+        Assert.Equal(new ProductUpdateSettings(true, "gitee"), service.Read().Settings);
+        Assert.Null(service.Read().LastCheck);
+        Assert.Equal(previous, File.ReadAllText(path));
+        var result = await service.CheckAsync("gitee", true, default);
+        Assert.True(result.CheckedNow);
+        Assert.Equal("v0.1.0-rc1", result.Check!.CurrentVersion);
+        Assert.Equal(result.Check.CurrentVersion, service.Read().LastCheck!.CurrentVersion);
     }
 
     /// <summary>失败分类不伪装无发布, 保留限流与 HTTP 故障的区别.</summary>
@@ -177,7 +228,7 @@ public sealed class ProductUpdateTests : IDisposable
     public async Task PaginationDoesNotClaimLatestFromTruncatedList()
     {
         var calls = 0;
-        var full = "[" + string.Join(',', Enumerable.Repeat("{\"tag_name\":\"v1.0.0\"}", 100)) + "]";
+        var full = "[" + string.Join(',', Enumerable.Repeat("{\"tag_name\":\"v1.0.3.1\"}", 100)) + "]";
         using var http = new HttpClient(new Handler((request, _) =>
         {
             Interlocked.Increment(ref calls);
@@ -195,12 +246,12 @@ public sealed class ProductUpdateTests : IDisposable
     public async Task PaginationIncludesLastPageAndPreservesPlainText()
     {
         var calls = 0;
-        var first = "[" + string.Join(',', Enumerable.Repeat("{\"tag_name\":\"v1.0.0\"}", 100)) + "]";
-        const string last = """[{"tag_name":"desktop-v0.9.0","body":"<b>更新</b>\n[external](https://evil.test)","assets":[]}]""";
+        var first = "[" + string.Join(',', Enumerable.Repeat("{\"tag_name\":\"v1.0.3.1\"}", 100)) + "]";
+        const string last = """[{"tag_name":"v0.9.0","body":"<b>更新</b>\n[external](https://evil.test)","assets":[]}]""";
         using var http = new HttpClient(new Handler((_, _) => Task.FromResult(Json(Interlocked.Increment(ref calls) == 1 ? first : last))));
         var check = (await Create(http).CheckAsync("github", false, default)).Check!;
         Assert.Equal(2, calls);
-        Assert.Equal("0.9.0", check.LatestVersion);
+        Assert.Equal("v0.9.0", check.LatestVersion);
         Assert.Equal("<b>更新</b>\n[external](https://evil.test)", Assert.Single(check.Releases).Notes);
     }
 
@@ -218,7 +269,7 @@ public sealed class ProductUpdateTests : IDisposable
         }));
         var check = (await Create(http).CheckAsync("github", false, default)).Check!;
         Assert.Equal(2, calls);
-        Assert.Equal("0.4.0", check.LatestVersion);
+        Assert.Equal("desktop-v0.4.0", check.LatestVersion);
     }
 
     /// <summary>自动关闭/切源发生在网络期间时, 迟到结果不覆盖用户最新设置和缓存.</summary>
@@ -248,9 +299,9 @@ public sealed class ProductUpdateTests : IDisposable
         var second = new LocalProductUpdateStore(root);
         Assert.ThrowsAny<OperationCanceledException>(() => first.Save(new(false, "gitee"), new CancellationToken(true)));
         Assert.False(File.Exists(Path.Combine(root, "product-updates.json")));
-        first.SaveCheck(new("github", "0.1.0", "noRelease", DateTimeOffset.UtcNow, null, []), false, default);
+        first.SaveCheck(new("github", "v0.1.0-rc1", "noRelease", DateTimeOffset.UtcNow, null, []), false, default);
         second.Save(new(false, "gitee"), default);
-        first.SaveCheck(new("gitee", "0.1.0", "noRelease", DateTimeOffset.UtcNow, null, []), false, default);
+        first.SaveCheck(new("gitee", "v0.1.0-rc1", "noRelease", DateTimeOffset.UtcNow, null, []), false, default);
         Assert.Equal(new(false, "gitee"), first.Read().Settings);
         Assert.Equal("github", first.Read("github").LastCheck!.Source);
         Assert.Equal("gitee", first.Read().LastCheck!.Source);
@@ -327,7 +378,7 @@ public sealed class ProductUpdateTests : IDisposable
     }
 
     /// <summary>隔离服务使用可注入HTTP和时钟.</summary>
-    private ProductUpdateService Create(HttpClient http, TimeProvider? clock = null) => new(new LocalProductUpdateStore(root), new ProductReleaseHttpSource(http), "0.1.0", clock);
+    private ProductUpdateService Create(HttpClient http, TimeProvider? clock = null) => new(new LocalProductUpdateStore(root), new ProductReleaseHttpSource(http), "v0.1.0-rc1", clock);
 
     /// <summary>创建UTF8 API响应.</summary>
     private static HttpResponseMessage Json(string body) => new(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") };

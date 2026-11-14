@@ -25,9 +25,10 @@ public sealed class UpdatesCommandTests : IDisposable
     public async Task CliAndMcpSharePublicReleaseList()
     {
         var source = new Releases { Entries = [new("desktop-v0.2.0-v2.10", false, true, "preview"), new("desktop-v0.1.0", false, false, "stable")] };
-        var service = new ProductUpdateService(new LocalProductUpdateStore(root), source, "0.1.0");
+        var service = new ProductUpdateService(new LocalProductUpdateStore(root), source, "v0.1.0-rc1");
         var result = await ProductUpdateCommands.RunAsync(["updates", "check", "--source", "gitee", "--json"], service, default);
-        Assert.Equal(["0.2.0-v2.10", "0.1.0"], result.Check!.Releases.Select(release => release.Version));
+        Assert.Equal("v0.1.0-rc1", result.Check!.CurrentVersion);
+        Assert.Equal(["desktop-v0.2.0-v2.10", "desktop-v0.1.0"], result.Check!.Releases.Select(release => release.Version));
         await using var runtime = new McpBusinessRuntime(false, root, NullLoggerFactory.Instance, productUpdates: service);
         var response = await runtime.CallAsync(new CallToolRequestParams
         {
@@ -36,6 +37,8 @@ public sealed class UpdatesCommandTests : IDisposable
         }, default);
         Assert.False(response.IsError);
         var check = response.StructuredContent!.Value.GetProperty("check");
+        Assert.Equal(result.Check.CurrentVersion, check.GetProperty("currentVersion").GetString());
+        Assert.Equal(result.Check.LatestVersion, check.GetProperty("latestVersion").GetString());
         Assert.Equal(2, check.GetProperty("releases").GetArrayLength());
         Assert.True(check.GetProperty("releases")[0].GetProperty("prerelease").GetBoolean());
         Assert.False(check.TryGetProperty("assets", out _));
@@ -46,7 +49,7 @@ public sealed class UpdatesCommandTests : IDisposable
     public async Task CliQueriesRequestedSourceAndRejectsNetworkFailure()
     {
         var source = new Releases();
-        var service = new ProductUpdateService(new LocalProductUpdateStore(root), source, "0.1.0");
+        var service = new ProductUpdateService(new LocalProductUpdateStore(root), source, "v0.1.0-rc1");
         var result = await ProductUpdateCommands.RunAsync(["updates", "check", "--source", "gitee", "--json"], service, default);
         Assert.Equal("gitee", source.LastSource);
         Assert.Equal("noRelease", result.Check!.Status);
@@ -65,7 +68,7 @@ public sealed class UpdatesCommandTests : IDisposable
     public async Task CliRejectsInvalidArguments(string command)
     {
         var source = new Releases();
-        var service = new ProductUpdateService(new LocalProductUpdateStore(root), source, "0.1.0");
+        var service = new ProductUpdateService(new LocalProductUpdateStore(root), source, "v0.1.0-rc1");
         await Assert.ThrowsAsync<AppException>(() => ProductUpdateCommands.RunAsync(command.Split(' '), service, default));
         Assert.Null(source.LastSource);
     }
@@ -75,7 +78,7 @@ public sealed class UpdatesCommandTests : IDisposable
     public async Task McpReadOnlyQueryPreservesFailedOutcome()
     {
         var source = new Releases();
-        var service = new ProductUpdateService(new LocalProductUpdateStore(root), source, "0.1.0");
+        var service = new ProductUpdateService(new LocalProductUpdateStore(root), source, "v0.1.0-rc1");
         await using var runtime = new McpBusinessRuntime(false, root, NullLoggerFactory.Instance, productUpdates: service);
         var tool = Assert.Single(runtime.Tools, tool => tool.Name == "updates_check");
         Assert.True(tool.Annotations!.ReadOnlyHint);

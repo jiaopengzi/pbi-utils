@@ -18,18 +18,19 @@ SetCompressorDictSize 32
 !include "nsDialogs.nsh"
 !include "FileFunc.nsh"
 
-Name "pbi-utils ${PBI_VERSION}"
+!define PBI_DISPLAY_NAME "pbi-utils ${PBI_RELEASE_TAG}"
+Name "${PBI_DISPLAY_NAME}"
 OutFile "${PBI_OUTFILE}"
 InstallDir "$LOCALAPPDATA\Programs\pbi-utils"
 InstallDirRegKey HKCU "Software\pbi-utils\Desktop" "InstallRoot"
 VIProductVersion "${PBI_FILE_VERSION}"
 VIAddVersionKey "ProductName" "pbi-utils"
-VIAddVersionKey "ProductVersion" "${PBI_VERSION}"
-VIAddVersionKey "FileVersion" "${PBI_VERSION}"
+VIAddVersionKey "ProductVersion" "${PBI_RELEASE_TAG}"
+VIAddVersionKey "FileVersion" "${PBI_RELEASE_TAG}"
 VIAddVersionKey "CompanyName" "jiaopengzi"
 VIAddVersionKey "FileDescription" "pbi-utils Setup"
 VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 jiaopengzi"
-BrandingText "pbi-utils"
+BrandingText "${PBI_DISPLAY_NAME}"
 ShowInstDetails show
 ShowUninstDetails show
 
@@ -66,21 +67,15 @@ Var JobWait
 !define MUI_CUSTOMFUNCTION_ABORT OnAbortCheck
 !define MUI_WELCOMEPAGE_TEXT "$(WelcomeDescription)"
 !insertmacro MUI_PAGE_WELCOME
-; MIT 阅读不附加点击同意条件; AMO/ADOMD 的分发条款在下一页单独明确接受.
+; 同页显示项目 MIT 与完整第三方许可, 勾选项只用于明确接受 AMO/ADOMD 条款.
 !define MUI_PAGE_HEADER_TEXT "$(LicenseTitle)"
 !define MUI_PAGE_HEADER_SUBTEXT "$(LicenseSubtitle)"
 !define MUI_LICENSEPAGE_TEXT_TOP "$(LicenseIntroduction)"
 !define MUI_LICENSEPAGE_TEXT_BOTTOM "$(LicenseContinue)"
 !define MUI_LICENSEPAGE_BUTTON "$(^NextBtn)"
-!insertmacro MUI_PAGE_LICENSE "${PBI_LICENSE_TEXT}"
-!define MUI_PAGE_HEADER_TEXT "$(NoticesTitle)"
-!define MUI_PAGE_HEADER_SUBTEXT "$(NoticesSubtitle)"
-!define MUI_LICENSEPAGE_TEXT_TOP "$(NoticesIntroduction)"
-!define MUI_LICENSEPAGE_TEXT_BOTTOM "$(NoticesContinue)"
-!define MUI_LICENSEPAGE_BUTTON "$(^NextBtn)"
 !define MUI_LICENSEPAGE_CHECKBOX
 !define MUI_LICENSEPAGE_CHECKBOX_TEXT "$(MicrosoftTermsAccept)"
-!insertmacro MUI_PAGE_LICENSE "${PBI_PAYLOAD}\app\THIRD-PARTY-NOTICES.txt"
+!insertmacro MUI_PAGE_LICENSE "${PBI_LICENSE_TEXT}"
 Page custom PrerequisitePageCreate PrerequisitePageLeave
 !insertmacro MUI_PAGE_DIRECTORY
 Page custom ShortcutOptionsCreate ShortcutOptionsLeave
@@ -103,24 +98,16 @@ Page custom ShortcutOptionsCreate ShortcutOptionsLeave
 SetFont /LANG=${LANG_SIMPCHINESE} "Microsoft YaHei UI" 10
 SetFont /LANG=${LANG_ENGLISH} "Segoe UI" 9
 
-LangString WelcomeDescription ${LANG_SIMPCHINESE} "此向导将安装 pbi-utils ${PBI_VERSION}。$\r$\n$\r$\n继续前，请关闭正在运行的 pbi-utils 窗口，并断开其 MCP 客户端。$\r$\n$\r$\n安装程序会检查所需运行环境，并创建你选择的快捷方式。$\r$\n$\r$\n点击“下一步”继续。"
-LangString WelcomeDescription ${LANG_ENGLISH} "This wizard will install pbi-utils ${PBI_VERSION}.$\r$\n$\r$\nBefore continuing, close running pbi-utils windows and disconnect its MCP clients.$\r$\n$\r$\nSetup will check the required runtimes and create the shortcuts you select.$\r$\n$\r$\nClick Next to continue."
-LangString LicenseTitle ${LANG_SIMPCHINESE} "pbi-utils 开源许可"
-LangString LicenseTitle ${LANG_ENGLISH} "pbi-utils license"
-LangString LicenseSubtitle ${LANG_SIMPCHINESE} "本项目采用 MIT 许可，原文如下。"
-LangString LicenseSubtitle ${LANG_ENGLISH} "This project is licensed under the MIT License."
-LangString LicenseIntroduction ${LANG_SIMPCHINESE} "请阅读许可原文。第三方组件适用各自条款，详见下一页。"
-LangString LicenseIntroduction ${LANG_ENGLISH} "Read the license below. Third-party terms are on the next page."
-LangString LicenseContinue ${LANG_SIMPCHINESE} "点击“下一步”继续。安装后可在 app 目录查看 LICENSE。"
-LangString LicenseContinue ${LANG_ENGLISH} "Click Next to continue. LICENSE is kept in the installed app folder."
-LangString NoticesTitle ${LANG_SIMPCHINESE} "第三方许可与声明"
-LangString NoticesTitle ${LANG_ENGLISH} "Third-party licenses and notices"
-LangString NoticesSubtitle ${LANG_SIMPCHINESE} "查看随本安装包分发的依赖和资源许可。"
-LangString NoticesSubtitle ${LANG_ENGLISH} "Licenses for dependencies and resources distributed with this package."
-LangString NoticesIntroduction ${LANG_SIMPCHINESE} "请阅读声明。随包分发的 Microsoft AMO/ADOMD 组件要求接受其许可条款。"
-LangString NoticesIntroduction ${LANG_ENGLISH} "Read the notices, including the Microsoft AMO/ADOMD license terms."
-LangString NoticesContinue ${LANG_SIMPCHINESE} "接受微软组件条款后继续。完整声明保存在安装目录的 app 文件夹。"
-LangString NoticesContinue ${LANG_ENGLISH} "Accept the Microsoft component terms to continue. Full notices are kept in the installed app folder."
+LangString WelcomeDescription ${LANG_SIMPCHINESE} "此向导将安装 ${PBI_DISPLAY_NAME}。$\r$\n$\r$\n继续前，请关闭正在运行的 pbi-utils 窗口，并断开其 MCP 客户端。$\r$\n$\r$\n安装程序会检查所需运行环境，并创建你选择的快捷方式。$\r$\n$\r$\n点击“下一步”继续。"
+LangString WelcomeDescription ${LANG_ENGLISH} "This wizard will install ${PBI_DISPLAY_NAME}.$\r$\n$\r$\nBefore continuing, close running pbi-utils windows and disconnect its MCP clients.$\r$\n$\r$\nSetup will check the required runtimes and create the shortcuts you select.$\r$\n$\r$\nClick Next to continue."
+LangString LicenseTitle ${LANG_SIMPCHINESE} "许可与声明"
+LangString LicenseTitle ${LANG_ENGLISH} "Licenses and notices"
+LangString LicenseSubtitle ${LANG_SIMPCHINESE} "pbi-utils 的 MIT 许可及随包分发的第三方许可。"
+LangString LicenseSubtitle ${LANG_ENGLISH} "The pbi-utils MIT License and the bundled third-party licenses."
+LangString LicenseIntroduction ${LANG_SIMPCHINESE} "请滚动阅读许可全文，包括 Microsoft AMO/ADOMD 组件条款。"
+LangString LicenseIntroduction ${LANG_ENGLISH} "Scroll to read the full licenses, including the Microsoft AMO/ADOMD terms."
+LangString LicenseContinue ${LANG_SIMPCHINESE} "接受微软组件条款后继续。安装后可在 app 文件夹查看完整声明。"
+LangString LicenseContinue ${LANG_ENGLISH} "Accept the Microsoft component terms to continue. Full notices are kept in the installed app folder."
 LangString MicrosoftTermsAccept ${LANG_SIMPCHINESE} "我接受 Microsoft AMO/ADOMD 组件许可条款(&A)"
 LangString MicrosoftTermsAccept ${LANG_ENGLISH} "I &accept the Microsoft AMO/ADOMD component license terms"
 LangString SilentTermsRequired ${LANG_SIMPCHINESE} "静默安装前须阅读随包许可，并用 /ACCEPTMICROSOFTTERMS=1 明确接受 Microsoft AMO/ADOMD 组件条款。"

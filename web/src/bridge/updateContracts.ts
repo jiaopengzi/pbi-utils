@@ -10,7 +10,7 @@ export interface ProductUpdateSettings {
     automaticCheck: boolean
     source: ProductUpdateSource
 }
-/** 按宿主顺序展示的发布记录; 版本保留预发布后缀, 说明始终作为纯文本. */
+/** 按宿主顺序展示的发布记录; version 与 tag 均保留精确发布标签, 说明始终作为纯文本. */
 export interface ProductUpdateRelease {
     tag: string
     version: string
@@ -20,9 +20,11 @@ export interface ProductUpdateRelease {
 }
 export interface ProductUpdateCheck {
     source: ProductUpdateSource
+    /** 当前应用的完整发布标签. */
     currentVersion: string
     status: "available" | "current" | "noRelease" | "failed"
     checkedAtUtc: string
+    /** 所选来源最新发布的完整标签, 无发布时为 null. */
     latestVersion: string | null
     releases: ProductUpdateRelease[]
     errorCode: string | null

@@ -46,15 +46,27 @@ function Join-PbiOwnedInstallPath([string]$Root, [string]$Relative) {
 <# .SYNOPSIS 返回文件 SHA256, 参数为路径, 读取失败抛错. #>
 function Get-PbiInstallHash([string]$Path) { return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash }
 
-<# .SYNOPSIS 读取并验证两种 .NET 部署模式的 Release All 载荷、许可声明及维护文件, 参数为解包根目录, 返回版本和精确相对文件映射; 清单、许可或文件无效抛错. #>
+<# .SYNOPSIS 读取并验证两种 .NET 部署模式的 Release All 载荷、许可声明及维护文件, 参数为解包根目录, 返回数字版本、发布标签和精确相对文件映射; 清单、许可或文件无效抛错. #>
 function Read-PbiInstallPayload([string]$PayloadRoot) {
     $root = Resolve-PbiInstallPath $PayloadRoot
     $actualFiles = @(Get-PbiInstallFiles $root)
     $app = Join-Path $root 'app'
-    $manifest = Get-Content -LiteralPath (Join-Path $app 'manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    $manifestPath = Join-Path $app 'manifest.json'
+    # 同一只读租约内读取并固定清单, 避免写入另一份清单却登记本轮读到的发布标签.
+    $manifestLease = [IO.File]::Open($manifestPath, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    try {
+        $manifestHash = Get-PbiInstallHash $manifestPath
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    } finally { $manifestLease.Dispose() }
     $version = $null
     if ($manifest.schemaVersion -ne 3 -or $manifest.layout -cne 'shared' -or $manifest.runtime -cne 'win-x64' -or $manifest.scope -cne 'All' -or
         $manifest.configuration -cne 'Release' -or $manifest.deploymentMode -cnotin @('framework-dependent', 'self-contained') -or ![Version]::TryParse($manifest.version, [ref]$version)) { throw '安装载荷必须为有效 Release All framework-dependent 或 self-contained 发布清单' }
+    $releaseTagProperty = $manifest.PSObject.Properties['releaseTag']
+    $releaseTag = if ($null -ne $releaseTagProperty) { $releaseTagProperty.Value } else { $null }
+    $revision = 0
+    if ($releaseTag -isnot [string] -or $releaseTag -cnotmatch '\Av(?<version>(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){2})(?:-rc(?<revision>[1-9][0-9]*))?\z' -or
+        $Matches.version -cne $manifest.version -or $version.Major -gt 65534 -or $version.Minor -gt 65534 -or $version.Build -gt 65534 -or
+        ($Matches.ContainsKey('revision') -and ![int]::TryParse($Matches.revision, [ref]$revision))) { throw '安装载荷发布标签无效或与数字版本不一致' }
     $expected = @{}
     foreach ($item in $manifest.files) {
         $path = Join-PbiOwnedInstallPath $app $item.file
@@ -71,7 +83,7 @@ function Read-PbiInstallPayload([string]$PayloadRoot) {
             if ($appRelative -cne 'manifest.json' -and !$expected.ContainsKey($appRelative)) { throw '安装载荷文件集合与清单不一致' }
         } elseif (!$relative.StartsWith('maintenance/', [StringComparison]::Ordinal) -and $relative -cne 'uninstall.exe') { throw '安装载荷包含范围外文件' }
         if ($relative -ieq 'maintenance/installation-state.json') { throw '安装载荷不得携带既有安装身份' }
-        $files[$relative] = Get-PbiInstallHash $file.FullName
+        $files[$relative] = if ($relative -ceq 'app/manifest.json') { $manifestHash } else { Get-PbiInstallHash $file.FullName }
     }
     foreach ($entry in @('pbi-utils', 'PbiUtils.Host', 'PbiUtils.Desktop')) {
         foreach ($suffix in @('exe', 'dll', 'deps.json', 'runtimeconfig.json')) {
@@ -81,7 +93,7 @@ function Read-PbiInstallPayload([string]$PayloadRoot) {
     foreach ($required in @('app/web/index.html', 'app/web/branding/logo.svg', 'app/LICENSE', 'app/THIRD-PARTY-NOTICES.md', 'app/THIRD-PARTY-NOTICES.txt', 'app/licenses/manifest.json', 'maintenance/Install-Application.ps1', 'maintenance/Installation.psm1', 'maintenance/InstallationPayload.psm1', 'maintenance/InstallationShell.psm1', 'maintenance/ExternalToolRegistration.psm1', 'maintenance/ExternalToolDescriptor.psm1', 'maintenance/ExternalToolFiles.psm1', 'maintenance/ExternalTool-Worker.ps1', 'uninstall.exe')) {
         if (!$files.ContainsKey($required)) { throw "安装载荷必需文件缺失: $required" }
     }
-    return @{ Root = $root; Version = $version.ToString(); Files = $files }
+    return @{ Root = $root; Version = $version.ToString(); ReleaseTag = $releaseTag; Files = $files }
 }
 
 <# .SYNOPSIS 读取当前用户且同目录的安装状态, 参数为目录、用户身份和可选同版修复版本; 返回现存自有文件真实哈希, 陌生身份或非修复修改抛错. #>

@@ -182,12 +182,11 @@ describe("类型化桥接", () => {
         }
     })
 
-    it("应用信息仅包含版本、WebView2 与启动目标标记, 不携带目标地址或旧诊断演示字段", async () => {
+    it("应用信息仅包含版本、发布标签、WebView2 与启动目标标记, 不携带目标地址或旧诊断演示字段", async () => {
         const bridge = new BridgeClient(new MockTransport())
         try {
             const result = await bridge.request("app.info", {}).promise
-            expect(Object.keys(result).toSorted()).toEqual(["hasExternalToolTarget", "version", "webView2"])
-            expect(result).toEqual({ version: "browser-preview", webView2: "未连接", hasExternalToolTarget: false })
+            expect(result).toEqual({ version: "browser-preview", releaseTag: null, webView2: "未连接", hasExternalToolTarget: false })
         } finally {
             bridge.dispose()
         }

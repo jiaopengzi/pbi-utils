@@ -22,6 +22,8 @@ if ($options.Scope -eq 'All') { $entries += ,@('src/PbiUtils.Desktop', 'desktop'
 Import-Module (Join-Path $PSScriptRoot 'PublishArtifacts.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'SharedPublish.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'ThirdPartyLicenses.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'ReleaseAutomation.psm1') -Force
+$release = Get-PbiCurrentRelease -RepositoryRoot (Get-Location).Path
 $mode = if ($options.DotNetMode -eq 'with-dotnet') { 'self-contained' } else { 'framework-dependent' }
 $label = if ($mode -eq 'self-contained') { '包含 .NET 运行时' } else { '不包含 .NET 运行时' }
 $relativeDestination = if ($options.Configuration -eq 'Release') { "artifacts/build/release/win-x64/$($options.DotNetMode)" } else { 'artifacts/build/debug/win-x64' }
@@ -40,7 +42,7 @@ try {
         $output = Join-Path $compiled $entry[1]
         $selfContained = if ($mode -eq 'self-contained') { 'true' } else { 'false' }
         # 由 SDK 生成选中模式的真实依赖闭包, 不删除运行时文件伪造框架依赖包.
-        $publishArguments = @('publish', $entry[0], '--no-restore', '--nologo', '-c', $options.Configuration, '-r', 'win-x64', '--self-contained', $selfContained, '-p:PublishSingleFile=false', '-p:PublishTrimmed=false', '-p:PublishAot=false', '-o', $output)
+        $publishArguments = @('publish', $entry[0], '--no-restore', '--nologo', '-c', $options.Configuration, '-r', 'win-x64', '--self-contained', $selfContained, "-p:Version=$($release.Version)", "-p:PbiReleaseTag=$($release.Tag)", '-p:PublishSingleFile=false', '-p:PublishTrimmed=false', '-p:PublishAot=false', '-o', $output)
         if ($afterCompile) { $publishArguments += '-p:IncludePbiFrontend=false' }
         Invoke-PbiNative dotnet $publishArguments
     }
@@ -49,7 +51,6 @@ try {
     if ($afterCompile) {
         & $afterCompile
     }
-    $version = ([xml](Get-Content 'Directory.Build.props' -Raw)).Project.PropertyGroup.Version
     # 固化入口已核验的 SDK 基线, 后续安装包可拒绝来自其他工具链的旧产物.
     $sdkVersion = [string](Get-Content -LiteralPath 'global.json' -Raw | ConvertFrom-Json).sdk.version
     Write-PbiMessage '开始打包: 校验选中模式的完整文件清单后交付.'
@@ -65,9 +66,10 @@ try {
     $files = @(Get-PbiPublishFiles $staging | Sort-Object FullName | ForEach-Object {
         @{ file = [IO.Path]::GetRelativePath($staging, $_.FullName).Replace('\', '/'); sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
     })
-    @{ schemaVersion = 3; layout = 'shared'; deploymentMode = $mode; version = $version; sdkVersion = $sdkVersion; builtAtUtc = $stamp; runtime = 'win-x64'; scope = $options.Scope; configuration = $options.Configuration; files = $files } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $staging 'manifest.json') -Encoding utf8
+    @{ schemaVersion = 3; layout = 'shared'; deploymentMode = $mode; version = $release.Version; releaseTag = $release.Tag; sdkVersion = $sdkVersion; builtAtUtc = $stamp; runtime = 'win-x64'; scope = $options.Scope; configuration = $options.Configuration; files = $files } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $staging 'manifest.json') -Encoding utf8
     $null = Assert-PbiPublishedArtifacts $staging
     $publishedBytes = [long](Get-PbiPublishFiles $staging | Measure-Object Length -Sum).Sum
+    if ((Get-PbiCurrentRelease -RepositoryRoot (Get-Location).Path).Tag -cne $release.Tag) { throw '构建期间 CHANGELOG 最新发布标签已改变, 请重新构建' }
     Set-PbiPublishedArtifacts $staging $destination
 }
 catch {

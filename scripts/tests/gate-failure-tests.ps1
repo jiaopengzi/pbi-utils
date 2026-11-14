@@ -180,7 +180,7 @@ function Invoke-GateFailure([string]$Mode, [string]$DotNetMode, [string]$Action 
     $root = Join-Path $sandbox ($Mode + '-' + $DotNetMode)
     $null = New-Item -ItemType Directory -Path (Join-Path $root 'scripts') -Force
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'run.ps1') -Destination $root
-    foreach ($scriptName in @('build.ps1', 'check.ps1', 'test.ps1', 'TestResults.psm1', 'SharedPublish.psm1', 'PublishRuntime.psm1')) {
+    foreach ($scriptName in @('build.ps1', 'check.ps1', 'test.ps1', 'TestResults.psm1', 'SharedPublish.psm1', 'PublishRuntime.psm1', 'ReleaseAutomation.psm1')) {
         if (Test-Path -LiteralPath (Join-Path $sourceRoot "scripts/$scriptName")) { Copy-Item -LiteralPath (Join-Path $sourceRoot "scripts/$scriptName") -Destination (Join-Path $root 'scripts') }
     }
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LicenseBundleStub.psm1') -Destination (Join-Path $root 'scripts/ThirdPartyLicenses.psm1')
@@ -188,7 +188,7 @@ function Invoke-GateFailure([string]$Mode, [string]$DotNetMode, [string]$Action 
     $modeSource = "`$script:GateFailureMode = '$Mode'`n"
     [IO.File]::WriteAllText((Join-Path $root 'scripts/CommandRegistry.psm1'), $registrySource.Replace('Export-ModuleMember -Function *-Pbi*', $modeSource + $registryBoundary + "`nExport-ModuleMember -Function *-Pbi*"))
     [IO.File]::WriteAllText((Join-Path $root 'scripts/PublishArtifacts.psm1'), $publisherSource.Replace('Export-ModuleMember -Function *-Pbi*', $modeSource + $publisherBoundary + "`nExport-ModuleMember -Function *-Pbi*"))
-    [IO.File]::WriteAllText((Join-Path $root 'Directory.Build.props'), '<Project><PropertyGroup><Version>1.2.3</Version></PropertyGroup></Project>')
+    [IO.File]::WriteAllText((Join-Path $root 'CHANGELOG.md'), "## [v1.2.3] - 2026-11-14`n- 发布夹具.")
     [IO.File]::WriteAllText((Join-Path $root 'global.json'), '{"sdk":{"version":"10.0.403"}}')
     $published = Join-Path $root "artifacts/build/release/win-x64/$DotNetMode"
     $otherMode = if ($DotNetMode -eq 'with-dotnet') { 'without-dotnet' } else { 'with-dotnet' }

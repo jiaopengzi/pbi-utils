@@ -39,7 +39,7 @@ public sealed class McpHostLifetimeTests
             Assert.False(host.HasExited);
             var info = await peer.RequestAsync("tools/call", new { name = "desktop_app_info", arguments = new { parameters = new { } } });
             Assert.False(info.GetProperty("result").GetProperty("isError").GetBoolean());
-            Assert.False(string.IsNullOrWhiteSpace(info.GetProperty("result").GetProperty("structuredContent").GetProperty("version").GetString()));
+            Assert.Equal(PbiUtils.Core.Product.ReleaseTag, info.GetProperty("result").GetProperty("structuredContent").GetProperty("version").GetString());
             Assert.Equal(0, await peer.CloseAsync());
         }
         finally
