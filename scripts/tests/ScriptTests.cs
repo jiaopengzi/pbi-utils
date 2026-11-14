@@ -43,7 +43,7 @@ public sealed partial class ScriptTests
     [InlineData("-Help", "-Json")]
     [InlineData("-Choice", "help", "-Unknown")]
     [InlineData("-Choice", "buildC#", "-AfterCompile", "callback")]
-    [InlineData("-Choice", "all", "-DotNetMode", "both")]
+    [InlineData("-Choice", "verifyAndBuild", "-DotNetMode", "both")]
     [InlineData("-Choice", "buildC#", "-DotNetMode")]
     [InlineData("-Choice", "testC#", "-DotNetMode", "without-dotnet")]
     [InlineData("-Choice", "testAll", "-DotNetMode", "with-dotnet")]
@@ -56,18 +56,18 @@ public sealed partial class ScriptTests
     [Fact]
     public async Task HelpAliasesAndRegistry()
     {
-        var (Code, Out, Error) = await Run("-List");
-        var help = await Run("-Choice", "0");
-        var named = await Run("-Choice", "HELP");
+        var (Code, Out, _) = await Run("-List");
         Assert.Equal(0, Code);
+        var entries = MenuEntryRegex().Matches(Out);
+        var helpEntry = Assert.Single(entries, entry => entry.Groups[2].Value == "help");
+        var help = await Run("-Choice", helpEntry.Groups[1].Value);
+        var named = await Run("-Choice", "HELP");
+        Assert.Equal(0, help.Code);
+        Assert.Equal(0, named.Code);
         Assert.Equal(Out, help.Out);
         Assert.Equal(help.Out, named.Out);
-        Assert.Contains("19  all", named.Out);
-        Assert.Contains("20  package", named.Out);
-        Assert.Contains("21  release", named.Out);
-        var ids = MenuIdRegex().Matches(named.Out)
-            .Select(match => int.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture));
-        Assert.Equal(Enumerable.Range(0, 22), ids);
+        var ids = entries.Select(match => int.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(Enumerable.Range(0, entries.Count), ids);
     }
 
     /// <summary>下层脚本同样拒绝未知参数和重复 Scope, 不暴露内部调度参数.</summary>
@@ -189,7 +189,7 @@ public sealed partial class ScriptTests
         Assert.DoesNotContain("\u001b", plainOutput, StringComparison.Ordinal);
     }
 
-    /// <summary>编译生成菜单编号提取规则, 返回共享缓存实例.</summary>
-    [System.Text.RegularExpressions.GeneratedRegex(@"(?m)^\s*(\d+)  \w")]
-    private static partial System.Text.RegularExpressions.Regex MenuIdRegex();
+    /// <summary>编译生成菜单编号与动作名的提取规则, 返回共享缓存实例.</summary>
+    [System.Text.RegularExpressions.GeneratedRegex(@"(?m)^\s*(\d+)  (\S+)")]
+    private static partial System.Text.RegularExpressions.Regex MenuEntryRegex();
 }

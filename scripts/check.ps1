@@ -13,7 +13,7 @@ $options = $PbiInvocation.Options
 $action = $PbiInvocation.Action
 if (Invoke-PbiGroup 'check' $action $options) { return }
 if ($action -eq 'checkVue') {
-    # lint 共用格式、脚本、模板、样式与类型门禁; all 内仅在输入一致时复用本轮成功.
+    # lint 共用格式、脚本、模板、样式与类型门禁; 验证构建中仅在输入一致时复用本轮成功.
     Invoke-PbiFrontendCommand $action
     return
 }

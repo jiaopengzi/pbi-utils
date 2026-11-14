@@ -11,31 +11,35 @@ $script:ValidatedTools = $null
 $script:FrontendValidation = $null
 $script:Projects = @('src/PbiUtils.Core', 'src/PbiUtils.Application', 'src/PbiUtils.Infrastructure', 'src/PbiUtils.Windows', 'src/PbiUtils.Host', 'src/PbiUtils.Cli', 'tests/PbiUtils.UnitTests', 'tests/PbiUtils.Cli.Tests')
 $script:WindowsProjects = @('src/PbiUtils.Desktop', 'tests/PbiUtils.Desktop.Tests')
+# 注册顺序决定菜单展示顺序.
 $script:Registry = @(
     @{ Name = 'help'; Parameters = @(); Script = ''; Description = '查看帮助'; Defaults = @{}; Requires = @() }
-    @{ Name = 'devDesktop'; Parameters = @(); Script = 'dev.ps1'; Description = '真实桌面开发'; Defaults = @{}; Requires = @('dotnet', 'node', 'pnpm') }
-    @{ Name = 'devWeb'; Parameters = @(); Script = 'dev.ps1'; Description = '浏览器 mock 预览'; Defaults = @{}; Requires = @('node', 'pnpm') }
-    @{ Name = 'setupC#'; Parameters = @('Scope'); Script = 'setup.ps1'; Description = '锁定还原 C#'; Defaults = @{}; Requires = @('dotnet') }
-    @{ Name = 'setupVue'; Parameters = @(); Script = 'setup.ps1'; Description = '锁定还原 Vue'; Defaults = @{}; Requires = @('node', 'pnpm') }
-    @{ Name = 'setupAll'; Parameters = @('Scope'); Script = 'setup.ps1'; Description = '锁定还原 All'; Defaults = @{}; Requires = @('dotnet', 'node', 'pnpm') }
-    @{ Name = 'buildC#'; Parameters = @('Scope', 'Configuration', 'DotNetMode'); Script = 'build.ps1'; Description = '构建 C# (按配置和 .NET 模式输出)'; Defaults = @{ Configuration = 'Debug' }; Requires = @('dotnet') }
-    @{ Name = 'buildVue'; Parameters = @(); Script = 'build.ps1'; Description = '构建 Vue'; Defaults = @{}; Requires = @('node', 'pnpm') }
-    @{ Name = 'buildAll'; Parameters = @('Scope', 'Configuration', 'DotNetMode'); Script = 'build.ps1'; Description = '构建 All (按配置和 .NET 模式输出)'; Defaults = @{ Configuration = 'Debug' }; Requires = @('dotnet', 'node', 'pnpm') }
-    @{ Name = 'testC#'; Parameters = @('Scope', 'Configuration'); Script = 'test.ps1'; Description = '测试 C#'; Defaults = @{ Configuration = 'Debug' }; Requires = @('dotnet') }
-    @{ Name = 'testVue'; Parameters = @(); Script = 'test.ps1'; Description = '测试 Vue'; Defaults = @{}; Requires = @('node', 'pnpm') }
-    @{ Name = 'testAll'; Parameters = @('Scope', 'Configuration'); Script = 'test.ps1'; Description = '测试 All'; Defaults = @{ Configuration = 'Debug' }; Requires = @('dotnet', 'node', 'pnpm') }
+
+    @{ Name = 'setupAll'; Parameters = @('Scope'); Script = 'setup.ps1'; Description = '还原 C# 和 Vue 依赖'; Defaults = @{}; Requires = @('dotnet', 'node', 'pnpm') }
+    @{ Name = 'setupC#'; Parameters = @('Scope'); Script = 'setup.ps1'; Description = '还原 C# 依赖'; Defaults = @{}; Requires = @('dotnet') }
+    @{ Name = 'setupVue'; Parameters = @(); Script = 'setup.ps1'; Description = '还原 Vue 依赖'; Defaults = @{}; Requires = @('node', 'pnpm') }
+    @{ Name = 'devDesktop'; Parameters = @(); Script = 'dev.ps1'; Description = '启动桌面开发'; Defaults = @{}; Requires = @('dotnet', 'node', 'pnpm') }
+    @{ Name = 'devWeb'; Parameters = @(); Script = 'dev.ps1'; Description = '浏览器模拟预览'; Defaults = @{}; Requires = @('node', 'pnpm') }
+
+    @{ Name = 'formatAll'; Parameters = @('Scope'); Script = 'format.ps1'; Description = '格式化 C# 和 Vue'; Defaults = @{}; Requires = @('dotnet', 'node', 'pnpm') }
     @{ Name = 'formatC#'; Parameters = @('Scope'); Script = 'format.ps1'; Description = '格式化 C#'; Defaults = @{}; Requires = @('dotnet') }
     @{ Name = 'formatVue'; Parameters = @(); Script = 'format.ps1'; Description = '格式化 Vue'; Defaults = @{}; Requires = @('node', 'pnpm') }
-    @{ Name = 'formatAll'; Parameters = @('Scope'); Script = 'format.ps1'; Description = '格式化 All'; Defaults = @{}; Requires = @('dotnet', 'node', 'pnpm') }
-    @{ Name = 'checkC#'; Parameters = @('Scope'); Script = 'check.ps1'; Description = '只读检查 C# 格式/分析器'; Defaults = @{}; Requires = @('dotnet') }
+    @{ Name = 'checkAll'; Parameters = @('Scope'); Script = 'check.ps1'; Description = '只读检查 C# 和 Vue'; Defaults = @{}; Requires = @('dotnet', 'node', 'pnpm') }
+    @{ Name = 'checkC#'; Parameters = @('Scope'); Script = 'check.ps1'; Description = '只读检查 C# 格式与分析器'; Defaults = @{}; Requires = @('dotnet') }
     @{ Name = 'checkVue'; Parameters = @(); Script = 'check.ps1'; Description = '只读检查 Vue'; Defaults = @{}; Requires = @('node', 'pnpm') }
-    @{ Name = 'checkAll'; Parameters = @('Scope'); Script = 'check.ps1'; Description = '只读检查 All'; Defaults = @{}; Requires = @('dotnet', 'node', 'pnpm') }
-    @{ Name = 'clean'; Parameters = @('WhatIf'); Script = 'clean.ps1'; Description = '白名单生成目录清理'; Defaults = @{ WhatIf = $false }; Requires = @() }
-    @{ Name = 'all'; Parameters = @('Scope', 'Configuration', 'DotNetMode'); Script = ''; Description = 'C# 检查/测试/构建 → Vue 检查/测试/构建 → 交付选中模式并注册开发外部工具, 首错停止'; Defaults = @{ Configuration = 'Debug' }; Requires = @('dotnet', 'node', 'pnpm') }
-    @{ Name = 'package'; Parameters = @('DotNetMode'); Script = 'package.ps1'; Description = '从已有 Release All 产物生成 NSIS 安装包'; Defaults = @{ DotNetMode = 'without-dotnet' }; Requires = @('makensis') }
-    @{ Name = 'release'; Parameters = @('DotNetMode'); Script = ''; Description = '完整 Release 门禁后生成 NSIS 安装包'; Defaults = @{ DotNetMode = 'without-dotnet' }; Requires = @('dotnet', 'node', 'pnpm', 'makensis') }
+    @{ Name = 'testAll'; Parameters = @('Scope', 'Configuration'); Script = 'test.ps1'; Description = '测试 C# 和 Vue'; Defaults = @{ Configuration = 'Debug' }; Requires = @('dotnet', 'node', 'pnpm') }
+    @{ Name = 'testC#'; Parameters = @('Scope', 'Configuration'); Script = 'test.ps1'; Description = '测试 C#'; Defaults = @{ Configuration = 'Debug' }; Requires = @('dotnet') }
+    @{ Name = 'testVue'; Parameters = @(); Script = 'test.ps1'; Description = '测试 Vue'; Defaults = @{}; Requires = @('node', 'pnpm') }
+    @{ Name = 'buildAll'; Parameters = @('Scope', 'Configuration', 'DotNetMode'); Script = 'build.ps1'; Description = '构建 C# 和 Vue'; Defaults = @{ Configuration = 'Debug' }; Requires = @('dotnet', 'node', 'pnpm') }
+    @{ Name = 'buildC#'; Parameters = @('Scope', 'Configuration', 'DotNetMode'); Script = 'build.ps1'; Description = '构建 C#'; Defaults = @{ Configuration = 'Debug' }; Requires = @('dotnet') }
+    @{ Name = 'buildVue'; Parameters = @(); Script = 'build.ps1'; Description = '构建 Vue'; Defaults = @{}; Requires = @('node', 'pnpm') }
+    @{ Name = 'verifyAndBuild'; Parameters = @('Scope', 'Configuration', 'DotNetMode'); Script = ''; Description = '检查、测试并构建 C# 和 Vue'; Defaults = @{ Configuration = 'Debug' }; Requires = @('dotnet', 'node', 'pnpm') }
+
+    @{ Name = 'package'; Parameters = @('DotNetMode'); Script = 'package.ps1'; Description = '用已有 Release/All 产物打包'; Defaults = @{ DotNetMode = 'without-dotnet' }; Requires = @('makensis') }
+    @{ Name = 'release'; Parameters = @('DotNetMode'); Script = ''; Description = '检查、测试、构建 Release 并打包'; Defaults = @{ DotNetMode = 'without-dotnet' }; Requires = @('dotnet', 'node', 'pnpm', 'makensis') }
+    @{ Name = 'clean'; Parameters = @('WhatIf'); Script = 'clean.ps1'; Description = '清理白名单内的生成目录'; Defaults = @{ WhatIf = $false }; Requires = @() }
 )
-# 菜单编号按注册顺序自动生成, 插入或删除动作后仍从 0 连续递增.
+# 菜单编号按注册顺序从 0 自动生成.
 for ($index = 0; $index -lt $script:Registry.Count; $index++) { $script:Registry[$index].Id = $index }
 
 <# .SYNOPSIS 返回单一动作注册表, 菜单和分发共享此数据. #>
@@ -66,20 +70,40 @@ function Stop-Pbi([int]$Code, [string]$Message) {
     throw $exception
 }
 
-<# .SYNOPSIS 从注册表生成动作、配置及发布目录帮助, 无工具链依赖, 无返回值. #>
+<# .SYNOPSIS 显示常用命令和注册表中的完整动作目录, 无工具链依赖, 无返回值. #>
 function Show-PbiHelp {
-    Write-Host 'pbi-utils 开发入口: -Choice <编号|动作名> [-NonInteractive] | -List | -Help'
+    Write-Host 'pbi-utils 开发入口（PowerShell 7）'
+    Write-Host '  .\run.ps1                            交互菜单，输入编号或动作名，q 退出'
+    Write-Host '  .\run.ps1 -Choice <动作名或编号>     直接执行，可加 -NonInteractive'
+    Write-Host '  .\run.ps1 -Help                      查看帮助（也可用 -List）'
+    Write-Host ''
+    Write-Host '常用命令'
+    Write-Host '  .\run.ps1 -Choice setupAll                             # 首次还原依赖'
+    Write-Host '  .\run.ps1 -Choice devDesktop                           # 启动桌面开发'
+    Write-Host '  .\run.ps1 -Choice devWeb                               # 浏览器模拟预览'
+    Write-Host '  .\run.ps1 -Choice checkAll                             # 只读检查'
+    Write-Host '  .\run.ps1 -Choice testAll                              # 运行测试'
+    Write-Host '  .\run.ps1 -Choice verifyAndBuild                       # 完整验证并构建'
+    Write-Host ''
+    Write-Host '生成轻量安装包'
+    Write-Host '  .\run.ps1 -Choice package -DotNetMode without-dotnet    # 使用已有产物'
+    Write-Host '  .\run.ps1 -Choice release -DotNetMode without-dotnet    # 完整验证、构建后打包'
+    Write-Host '  package 需要已有的同模式 Release/All 产物。缺少产物时用 release。'
+    Write-Host '  轻量安装包位于 artifacts/release/win-x64/without-dotnet。'
+    Write-Host ''
+    Write-Host '动作与可选参数（按开发流程排列）'
     foreach ($item in $script:Registry) {
-        Write-Host ("{0,2}  {1,-12} {2}  参数: {3}" -f $item.Id, $item.Name, $item.Description, ($item.Parameters -join ', '))
+        $details = if ($item.Parameters.Count) { "  (-$($item.Parameters -join ', -'))" } else { '' }
+        Write-Host ("{0,2}  {1,-14}  {2}{3}" -f $item.Id, $item.Name, $item.Description, $details)
     }
-    Write-Host 'Scope: Windows C# 项目范围, 默认 All; Vue 动作不接 Scope. Configuration 默认 Debug; WhatIf 默认 false. C# 名称建议加引号, 菜单 q 退出.'
-    Write-Host 'DotNetMode: with-dotnet 或 without-dotnet, 每次只生成选中模式. Debug 默认 with-dotnet; Release、package、release 默认 without-dotnet.'
-    Write-Host 'Debug: .\run.ps1 -Choice all -Configuration Debug → artifacts/build/debug/win-x64.'
-    Write-Host 'Release: .\run.ps1 -Choice all -Configuration Release [-DotNetMode with-dotnet] → artifacts/build/release/win-x64/<DotNetMode>.'
-    Write-Host 'all -Scope All 成功交付后注册 Power BI 外部工具 pbi-utils (开发); 点击后连接当前报表模型. Core 不注册; buildAll/buildC#/release/package 不修改开发登记.'
-    Write-Host '注册到系统 External Tools 目录, 必要时仅此步骤请求管理员授权; -NonInteractive 无写权限会明确失败, 请在管理员终端重跑. Power BI Desktop 重启后加载入口.'
-    Write-Host '安装包: .\run.ps1 -Choice package 从已有 Release All 产物打包; -Choice release 先运行完整 Release 门禁再打包, 两者均可显式传 -DotNetMode.'
-    Write-Host 'with-dotnet 包含 .NET 运行时; without-dotnet 需要目标电脑安装匹配的 x64 .NET Desktop Runtime. 桌面两包均需 Evergreen WebView2 Runtime.'
+    Write-Host ''
+    Write-Host '  -Scope          All（默认）或 Core'
+    Write-Host '  -Configuration  Debug（默认）或 Release'
+    Write-Host '  -DotNetMode     Debug 默认 with-dotnet，Release 和打包动作默认 without-dotnet'
+    Write-Host '  -WhatIf         预览 clean 将清理的目录'
+    Write-Host ''
+    Write-Host '  verifyAndBuild 在 All 范围交付后注册 Power BI 开发外部工具，可能需要管理员权限。'
+    Write-Host '  用法与产物路径见 README 中的「开发命令速查」。'
 }
 
 <# .SYNOPSIS 严格解析参数数组, 未知、缺值和重复参数返回 2. #>
@@ -257,7 +281,7 @@ function Assert-PbiDotnetSdk {
         Stop-Pbi 3 "SDK 配置无效: $configPath. 请将 global.json 的 sdk.version 绑定到完整的稳定版本号."
     }
     $expected = $config.sdk.version
-    $guidance = "请开发者检查版本: 如需保持现有绑定, 安装 SDK $expected 或检查 PATH 是否指向正确的 dotnet; 如计划升级, 请确认是否更新 global.json 的 sdk.version 绑定, 更新后重新还原依赖并运行 all 验证. 本脚本不会自动安装 SDK 或修改 global.json."
+    $guidance = "请开发者检查版本: 如需保持现有绑定, 安装 SDK $expected 或检查 PATH 是否指向正确的 dotnet; 如计划升级, 请确认是否更新 global.json 的 sdk.version 绑定, 更新后重新还原依赖并运行 verifyAndBuild. 本脚本不会自动安装 SDK 或修改 global.json."
     $command = Get-Command dotnet -ErrorAction SilentlyContinue
     if (!$command) { Stop-Pbi 3 "未找到 dotnet. global.json 绑定 SDK: $expected.`n$guidance" }
     $PSNativeCommandUseErrorActionPreference = $false
@@ -348,7 +372,7 @@ function Get-PbiFrontendInputFingerprint {
 }
 
 <#
-.SYNOPSIS 独立动作完整自检, 仅同一 all 内且输入一致时复用已通过的 Vue 静态检查.
+.SYNOPSIS 独立动作完整自检, 仅同一轮验证构建内且输入一致时复用已通过的 Vue 静态检查.
 .PARAMETER Action 固定的 checkVue、testVue 或 buildVue, 不接受通用命令字符串.
 .NOTES 源码按内容、依赖按实际文件元数据核对; 包脚本变化或存在生命周期脚本时执行完整包脚本, 失败不保留本轮凭据.
 #>
@@ -390,7 +414,7 @@ function Invoke-PbiFrontendCommand([string]$Action) {
 .PARAMETER RegisterExternalTool 是否在完整桌面交付后注册开发入口; release 内部调用关闭此步骤.
 .NOTES 前端或测试失败不替换旧产物; 本轮 Vue 检查上下文在 finally 恢复. 注册失败保留已构建产物并报告独立失败阶段.
 #>
-function Invoke-PbiAll([hashtable]$Options, [bool]$RegisterExternalTool = $true) {
+function Invoke-PbiVerifyAndBuild([hashtable]$Options, [bool]$RegisterExternalTool = $true) {
     Invoke-PbiAction 'checkC#' @{ Scope = $Options.Scope }
     Invoke-PbiAction 'testC#' @{ Scope = $Options.Scope; Configuration = $Options.Configuration }
     $buildOptions = @{ Scope = $Options.Scope; Configuration = $Options.Configuration }
@@ -442,7 +466,7 @@ function Invoke-PbiDevelopmentRegistration([hashtable]$Options) {
 .NOTES 编译、测试或打包失败保留原始退出码, 不自动重试或改用其他模式.
 #>
 function Invoke-PbiRelease([hashtable]$Options) {
-    Invoke-PbiAll @{ Scope = 'All'; Configuration = 'Release'; DotNetMode = $Options.DotNetMode } -RegisterExternalTool $false
+    Invoke-PbiVerifyAndBuild @{ Scope = 'All'; Configuration = 'Release'; DotNetMode = $Options.DotNetMode } -RegisterExternalTool $false
     Invoke-PbiAction 'package' @{ DotNetMode = $Options.DotNetMode }
 }
 
@@ -492,11 +516,11 @@ function Invoke-PbiAction([string]$Name, [hashtable]$Options, [scriptblock]$Afte
     $Options.Choice = $Name
     $item = Resolve-PbiAction $Options
     Assert-PbiTools $item.Requires
-    if ($item.Name -in @('all', 'buildC#', 'testC#', 'checkC#', 'formatC#')) {
+    if ($item.Name -in @('verifyAndBuild', 'buildC#', 'testC#', 'checkC#', 'formatC#')) {
         Assert-PbiRestoreAssets $Options.Scope ($item.Name -ne 'buildC#')
     }
     if ($item.Name -eq 'help') { Show-PbiHelp; return }
-    if ($item.Name -eq 'all') { Invoke-PbiAll $Options; return }
+    if ($item.Name -eq 'verifyAndBuild') { Invoke-PbiVerifyAndBuild $Options; return }
     if ($item.Name -eq 'release') { Invoke-PbiRelease $Options; return }
     $PbiInvocation = @{ Options = $Options; Action = $item.Name; AfterCompile = $AfterCompile }
     $leaf = !$item.Name.EndsWith('All')
@@ -564,7 +588,7 @@ function Invoke-PbiEntry([object[]]$Arguments, [string]$Action = '') {
         }
         $item = Resolve-PbiAction $options
         Invoke-PbiAction $item.Name $options
-        if ($item.Name -eq 'all') { Write-PbiMessage ("all 全部通过 ({0:N1}s)" -f $timer.Elapsed.TotalSeconds) 'Success' }
+        if ($item.Name -eq 'verifyAndBuild') { Write-PbiMessage ("verifyAndBuild 全部通过 ({0:N1}s)" -f $timer.Elapsed.TotalSeconds) 'Success' }
         if ($item.Name -eq 'release') { Write-PbiMessage ("release 全部通过 ({0:N1}s)" -f $timer.Elapsed.TotalSeconds) 'Success' }
         return 0
     }

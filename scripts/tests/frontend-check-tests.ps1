@@ -67,7 +67,7 @@ try {
 
         <# .SYNOPSIS 合成检查、测试和对应部署模式的最小产物; 不执行还原、安装或真实构建. #>
         function Invoke-PbiNative([string]$File, [string[]]$Arguments) {
-            Assert ($Arguments -notcontains 'restore' -and $Arguments -notcontains 'install') 'all 和独立测试/构建不得执行 setup 或依赖还原'
+            Assert ($Arguments -notcontains 'restore' -and $Arguments -notcontains 'install') 'verifyAndBuild 和独立测试/构建不得执行 setup 或依赖还原'
             if ($File -eq 'pnpm') {
                 $script:NativeFrontendCalls.Add($Arguments -join ' ')
                 switch ($Arguments[2]) {
@@ -155,22 +155,22 @@ try {
 
         $outer = @{ Fingerprint = 'outer-context' }
         $script:FrontendValidation = $outer
-        Invoke-PbiAll @{ Scope = 'Core'; Configuration = 'Release' }
-        Assert (($script:FrontendEvents -join ',') -eq 'lint,vitest,vite') '同一次 all 必须仅执行一轮完整 lint, 然后测试、构建'
-        Assert (Test-Path -LiteralPath (Join-Path $script:Root 'artifacts/build/release/win-x64/without-dotnet/manifest.json')) 'Release all 默认交付 without-dotnet'
+        Invoke-PbiVerifyAndBuild @{ Scope = 'Core'; Configuration = 'Release' }
+        Assert (($script:FrontendEvents -join ',') -eq 'lint,vitest,vite') '同一次 verifyAndBuild 必须仅执行一轮完整 lint, 然后测试、构建'
+        Assert (Test-Path -LiteralPath (Join-Path $script:Root 'artifacts/build/release/win-x64/without-dotnet/manifest.json')) 'Release verifyAndBuild 默认交付 without-dotnet'
         $licenseCalls = @(Get-Content -LiteralPath (Join-Path $script:Root 'license-stub-calls.jsonl') | ForEach-Object { $_ | ConvertFrom-Json })
-        Assert ($licenseCalls.Count -eq 1 -and $licenseCalls[0].scope -ceq 'Core') 'all 必须将当前范围传入许可生成器且仅调用一次'
+        Assert ($licenseCalls.Count -eq 1 -and $licenseCalls[0].scope -ceq 'Core') 'verifyAndBuild 必须将当前范围传入许可生成器且仅调用一次'
         $publishedRoot = Join-Path $script:Root 'artifacts/build/release/win-x64/without-dotnet'
         $publishedManifest = Get-Content -LiteralPath (Join-Path $publishedRoot 'manifest.json') -Raw | ConvertFrom-Json
         foreach ($license in @('LICENSE', 'THIRD-PARTY-NOTICES.md', 'THIRD-PARTY-NOTICES.txt', 'licenses/manifest.json')) {
             $entry = @($publishedManifest.files | Where-Object { $_.file -ceq $license })
             Assert ($entry.Count -eq 1 -and $entry[0].sha256 -ceq (Get-FileHash -LiteralPath (Join-Path $publishedRoot $license)).Hash) '本轮许可生成结果必须进入真实发布清单及交付目录'
         }
-        Assert (!(Test-Path -LiteralPath (Join-Path $script:Root 'artifacts/build/release/win-x64/with-dotnet'))) 'Release all 不得隐式生成另一模式'
-        Assert ([object]::ReferenceEquals($script:FrontendValidation, $outer)) 'all 成功须恢复外层检查上下文'
+        Assert (!(Test-Path -LiteralPath (Join-Path $script:Root 'artifacts/build/release/win-x64/with-dotnet'))) 'Release verifyAndBuild 不得隐式生成另一模式'
+        Assert ([object]::ReferenceEquals($script:FrontendValidation, $outer)) 'verifyAndBuild 成功须恢复外层检查上下文'
         Reset-FrontendScenario
-        Invoke-PbiAll @{ Scope = 'Core'; Configuration = 'Release' }
-        Assert (($script:FrontendEvents -join ',') -eq 'lint,vitest,vite') '连续 all 每轮均重新检查, 不跨轮复用'
+        Invoke-PbiVerifyAndBuild @{ Scope = 'Core'; Configuration = 'Release' }
+        Assert (($script:FrontendEvents -join ',') -eq 'lint,vitest,vite') '连续 verifyAndBuild 每轮均重新检查, 不跨轮复用'
         $script:FrontendValidation = $null
 
         Reset-FrontendScenario
@@ -194,7 +194,7 @@ try {
                 }
             }
             try {
-                Invoke-PbiAll @{ Scope = 'Core'; Configuration = 'Release' }
+                Invoke-PbiVerifyAndBuild @{ Scope = 'Core'; Configuration = 'Release' }
                 $expected = switch ($scenario) {
                     { $_ -in @('duringTest', 'prebuild', 'postbuild') } { 'lint,vitest,lint,vite' }
                     'untrustedInputs' { 'lint,lint,vitest,lint,vite' }
@@ -216,7 +216,7 @@ try {
                 if ($kind -eq 'failure') { $script:FailureStep = $step } else { $script:CancellationStep = $step }
                 $manifestPath = Join-Path $script:Root 'artifacts/build/release/win-x64/without-dotnet/manifest.json'
                 $beforeManifest = Get-Content -LiteralPath $manifestPath -Raw
-                try { Invoke-PbiAll @{ Scope = 'Core'; Configuration = 'Release' }; throw '前端失败或取消应停止交付' }
+                try { Invoke-PbiVerifyAndBuild @{ Scope = 'Core'; Configuration = 'Release' }; throw '前端失败或取消应停止交付' }
                 catch {
                     if ($kind -eq 'failure') { Assert ($_.Exception.Data['ExitCode'] -eq 47) '失败须保留原生退出码' }
                     else { Assert ($_.Exception -is [OperationCanceledException]) '取消不得转换为普通成功' }

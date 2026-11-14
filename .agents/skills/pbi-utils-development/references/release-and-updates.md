@@ -25,7 +25,7 @@
 - 卸载只处理本安装拥有的内容, 保留应用用户数据和共享运行时. 两个快捷方式选项独立保存本轮选择, 卸载核对两处归属; 安装目录选择与应用用户数据根是不同概念.
 - NSIS 在许可页后、目录选择和完整载荷解压前检查前置运行时. without-dotnet 检查匹配的 x64 .NET Desktop Runtime, 两种模式均检查 Evergreen WebView2. 缺失时可显式安装、复检或打开固定微软页面; 实际签名、hash、版本和退出状态须核验. 微软安装程序启动后等待退出和复检, 不强行中断.
 - 静默安装先要求 `/ACCEPTMICROSOFTTERMS=1`, 只检查已有运行时, 缺失返回前置条件错误, 不隐式下载. 系统目录登记无权限时非交互明确失败. 不将静默安装当作绕过许可或系统授权的入口.
-- 开发外部工具 `pbi-utils-dev.pbitool.json` 与安装入口 `pbi-utils.pbitool.json` 独立. 前者由成功的 `all -Scope All` 更新; release/package 不修改它. 安装器事务维护后者, 按需仅登记 helper 提权. 外部工具传入 `--server`/`--database`, GUI 必须核实本机会话、回环引擎及数据库后连接, 不因参数存在自动修改模型.
+- 开发外部工具 `pbi-utils-dev.pbitool.json` 与安装入口 `pbi-utils.pbitool.json` 独立. `verifyAndBuild -Scope All` 成功交付后更新开发登记. 安装器事务维护安装登记, 仅登记 helper 按需提权. 外部工具传入 `--server`/`--database`, GUI 必须核实本机会话、回环引擎及数据库后连接, 不因参数存在自动修改模型.
 
 ## 软件更新
 

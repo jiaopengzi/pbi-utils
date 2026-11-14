@@ -29,24 +29,25 @@ try {
     Set-Content -LiteralPath (Join-Path $sandbox 'src/PbiUtils.Core/obj/project.assets.json') -Value '{}'
     Import-Module (Join-Path $sandbox 'scripts/CommandRegistry.psm1') -Force
     $registry = Get-PbiRegistry
-    $releaseDefaults = @{ Choice = 'all'; Configuration = 'Release' }
+    $expectedActions = @(
+        'help', 'setupAll', 'setupC#', 'setupVue', 'devDesktop', 'devWeb',
+        'formatAll', 'formatC#', 'formatVue', 'checkAll', 'checkC#', 'checkVue',
+        'testAll', 'testC#', 'testVue', 'buildAll', 'buildC#', 'buildVue',
+        'verifyAndBuild', 'package', 'release', 'clean'
+    )
+    Assert (($registry.Name -join ',') -ceq ($expectedActions -join ',')) '注册表须按开发到打包的顺序展示动作'
+    $releaseDefaults = @{ Choice = 'verifyAndBuild'; Configuration = 'Release' }
     $null = Resolve-PbiAction $releaseDefaults
     Assert ($releaseDefaults.ContainsKey('DotNetMode') -and $releaseDefaults.DotNetMode -ceq 'without-dotnet') 'Release 构建必须默认只选择 without-dotnet 模式'
     $coreProjects = @(Get-PbiProjects 'Core')
     Assert ($coreProjects -contains 'src/PbiUtils.Host' -and $coreProjects -contains 'src/PbiUtils.Windows') 'Core 必须包含无 UI 业务后台及 Windows 依赖'
     Assert ($coreProjects -notcontains 'src/PbiUtils.Desktop') 'Core 不得包含桌面 UI'
     Assert (@(Get-PbiFormatTargets 'Core') -contains 'src/PbiUtils.Host/PbiUtils.Host.csproj') 'Core 格式检查必须覆盖业务后台'
-    Assert (@($registry).Count -eq 22) '注册数量'
-    Assert (@($registry.Id | Select-Object -Unique).Count -eq 22) '编号唯一'
-    Assert (($registry.Id -join ',') -eq ((0..21) -join ',')) '编号按菜单顺序连续递增'
-    Assert (@($registry.Name | Select-Object -Unique).Count -eq 22) '名称唯一'
+    $expectedIds = 0..($expectedActions.Count - 1)
+    Assert (($registry.Id -join ',') -eq ($expectedIds -join ',')) '注册编号须随动作顺序从 0 连续递增'
     foreach ($entry in $registry) {
         if ($entry.Name.EndsWith('C#')) { Assert (($entry.Requires -join ',') -eq 'dotnet') 'C# 不依赖 Node/pnpm' }
         if ($entry.Name.EndsWith('Vue')) { Assert (($entry.Requires -join ',') -eq 'node,pnpm') 'Vue 不依赖 dotnet' }
-        # 全部动作均须由编号与名称解析到同一条注册项.
-        $numeric = Resolve-PbiAction @{ Choice = [string]$entry.Id }
-        $named = Resolve-PbiAction @{ Choice = $entry.Name.ToUpperInvariant() }
-        Assert ($numeric.Id -eq $named.Id) '全部动作编号与名称一致'
         if ('Scope' -in $entry.Parameters) {
             $defaults = @{ Choice = $entry.Name }
             $null = Resolve-PbiAction $defaults
@@ -64,7 +65,7 @@ try {
             }
         }
     }
-    foreach ($action in @('all', 'buildAll', 'buildC#')) {
+    foreach ($action in @('verifyAndBuild', 'buildAll', 'buildC#')) {
         foreach ($configuration in @('Debug', 'Release')) {
             $defaults = @{ Choice = $action; Configuration = $configuration }
             $null = Resolve-PbiAction $defaults
@@ -72,7 +73,7 @@ try {
             Assert ($defaults.DotNetMode -ceq $expected) '构建模式默认值必须按配置确定'
         }
     }
-    foreach ($action in @('all', 'buildAll', 'buildC#', 'package', 'release')) {
+    foreach ($action in @('verifyAndBuild', 'buildAll', 'buildC#', 'package', 'release')) {
         foreach ($mode in @('WITH-DOTNET', 'With-DotNet', 'WITHOUT-DOTNET', 'Without-DotNet')) {
             $options = ConvertTo-PbiOptions @('-Choice', $action, '-DotNetMode', $mode)
             $null = Resolve-PbiAction $options
@@ -90,8 +91,20 @@ try {
     $originalPath = $env:PATH
     try {
         $env:PATH = ''
-        & $pwsh -NoProfile -File (Join-Path $sandbox 'run.ps1') -List
+        $entryScript = Join-Path $sandbox 'run.ps1'
+        $helpLines = @(& $pwsh -NoProfile -File $entryScript -List)
         Assert ($LASTEXITCODE -eq 0) '缺工具帮助'
+        $menuEntries = @($helpLines | ForEach-Object {
+            if ($_ -match '^\s*(\d+)\s+(\S+)\s') { @{ Id = $Matches[1]; Name = $Matches[2] } }
+        })
+        Assert (($menuEntries.Name -join ',') -ceq ($expectedActions -join ',')) '帮助中的动作须匹配注册顺序'
+        Assert (($menuEntries.Id -join ',') -eq ($expectedIds -join ',')) '帮助中的编号须从 0 连续递增'
+        foreach ($entry in $menuEntries) {
+            $numeric = Resolve-PbiAction @{ Choice = $entry.Id }
+            $named = Resolve-PbiAction @{ Choice = $entry.Name.ToUpperInvariant() }
+            Assert ($numeric.Name -ceq $entry.Name -and $numeric.Id -eq $named.Id) '显示的编号和名称须解析到同一个动作'
+        }
+        Assert ((Invoke-PbiEntry -Arguments @('-Choice', 'all')) -eq 2) '旧动作 all 返回参数错误'
         & $pwsh -NoProfile -File (Join-Path $sandbox 'run.ps1') -Choice clean -WhatIf
         Assert ($LASTEXITCODE -eq 0) '缺工具 WhatIf'
     } finally { $env:PATH = $originalPath }
@@ -179,7 +192,7 @@ try {
         $script:SdkCalls.Clear()
         Assert-SdkFailure 3 @('缺少 global.json 绑定', '98.7.601', '98.7.602', '是否更新 global.json')
         Assert (($script:SdkCalls -join ',') -eq '--list-sdks') '缺少绑定 SDK 时不执行必然失败的 --version'
-        foreach ($action in @('all', 'buildC#', 'setupC#')) {
+        foreach ($action in @('verifyAndBuild', 'buildC#', 'setupC#')) {
             Assert ((Invoke-PbiEntry -Arguments @('-Choice', $action, '-NonInteractive')) -eq 3) '入口在 SDK 不匹配时首错停止'
         }
         $script:SdkList = @()
@@ -286,28 +299,28 @@ try {
             if ($Name.EndsWith('C#') -and $Options.Scope -ne 'Core') { throw 'C# Scope 丢失' }
             if ($Name -eq 'checkC#' -and $Options.ContainsKey('Configuration')) { throw 'check 接收了 Configuration' }
             if ($Name -in @('buildC#', 'testC#') -and $Options.Configuration -ne 'Release') { throw 'Configuration 丢失' }
-            if ($Name -eq 'buildC#' -and $Options.DotNetMode -cne 'with-dotnet') { throw 'all 丢失显式部署模式' }
+            if ($Name -eq 'buildC#' -and $Options.DotNetMode -cne 'with-dotnet') { throw 'verifyAndBuild 丢失显式部署模式' }
             if ($Name -ne 'buildC#' -and $Options.ContainsKey('DotNetMode')) { throw '非构建动作收到部署模式' }
             if ($Options.ContainsKey('AfterCompile')) { throw '内部回调混入 CLI 选项' }
-            if ($Name -eq 'buildC#' -and !$AfterCompile) { throw 'all 缺少编译后回调' }
+            if ($Name -eq 'buildC#' -and !$AfterCompile) { throw 'verifyAndBuild 缺少编译后回调' }
             if ($Name -ne 'buildC#' -and $AfterCompile) { throw '回调传给非构建动作' }
             if ($Name -eq $script:FailureAction) { Stop-Pbi $script:FailureCode '模拟阶段失败' }
             if ($AfterCompile) { & $AfterCompile; $script:BuildReturned = $true }
         }
         $options = @{ Scope = 'Core'; Configuration = 'Release'; DotNetMode = 'with-dotnet' }
         $expected = @('checkC#', 'testC#', 'buildC#', 'checkVue', 'testVue', 'buildVue')
-        Invoke-PbiAll $options
-        Assert (($script:Calls -join ',') -eq ($expected -join ',')) 'all 必须先 C# 后前端, 每侧均按检查、测试、构建顺序'
+        Invoke-PbiVerifyAndBuild $options
+        Assert (($script:Calls -join ',') -eq ($expected -join ',')) 'verifyAndBuild 必须先 C# 后前端, 每侧均按检查、测试、构建顺序'
         Assert $script:BuildReturned '前端完成后构建动作才返回'
-        Assert ($options.Count -eq 3) 'all 不改变调用者选项'
+        Assert ($options.Count -eq 3) 'verifyAndBuild 不改变调用者选项'
         for ($index = 0; $index -lt $expected.Count; $index++) {
             $script:Calls.Clear()
             $script:BuildReturned = $false
             $script:FailureAction = $expected[$index]
             $script:FailureCode = 41 + $index
-            try { Invoke-PbiAll $options; throw 'all 阶段失败未停止' }
+            try { Invoke-PbiVerifyAndBuild $options; throw 'verifyAndBuild 阶段失败未停止' }
             catch { if ($_.Exception.Data['ExitCode'] -ne $script:FailureCode) { throw } }
-            Assert (($script:Calls -join ',') -eq ($expected[0..$index] -join ',')) 'all 两侧检查、测试、构建的每个阶段均须首错停止'
+            Assert (($script:Calls -join ',') -eq ($expected[0..$index] -join ',')) 'verifyAndBuild 两侧检查、测试、构建的每个阶段均须首错停止'
             Assert (!$script:BuildReturned) '失败阶段不得完成构建交付'
         }
     }
@@ -374,7 +387,7 @@ try {
         function Assert-PbiTools([string[]]$Tools) { }
         <# .SYNOPSIS 记录原生调用, 缺失依赖资产时应没有调用. #>
         function Invoke-PbiNative([string]$File, [string[]]$Arguments) { $script:NativeCalls.Add($File) }
-        foreach ($action in @('all', 'buildC#', 'testC#', 'checkC#', 'formatC#')) {
+        foreach ($action in @('verifyAndBuild', 'buildC#', 'testC#', 'checkC#', 'formatC#')) {
             try { Invoke-PbiAction $action @{ Scope = 'Core' }; throw '缺失依赖资产应失败' }
             catch {
                 if ($_.Exception.Data['ExitCode'] -ne 3 -or $_.Exception.Message -notlike "*setupC#*Scope Core*") { throw }
@@ -524,10 +537,10 @@ $script:Calls.Add('deliver')
         $script:ReleaseFailure = ''
         $script:ExpectedMode = ''
         <# .SYNOPSIS 验证 release 固定执行 All/Release 且保留显式模式, 按场景模拟门禁失败. #>
-        function Invoke-PbiAll([hashtable]$Options) {
+        function Invoke-PbiVerifyAndBuild([hashtable]$Options) {
             Assert ($Options.Count -eq 3 -and $Options.Scope -ceq 'All' -and $Options.Configuration -ceq 'Release' -and $Options.DotNetMode -ceq $script:ExpectedMode) 'release 必须固定完整 Release 门禁并传递选中模式'
-            $script:ReleaseCalls.Add('all')
-            if ($script:ReleaseFailure -eq 'all') { Stop-Pbi 47 '模拟 release 门禁失败' }
+            $script:ReleaseCalls.Add('verifyAndBuild')
+            if ($script:ReleaseFailure -eq 'verifyAndBuild') { Stop-Pbi 47 '模拟 release 门禁失败' }
         }
         <# .SYNOPSIS 只记录安装包动作, 不启动 NSIS, 确保 package 仅收到部署模式. #>
         function Invoke-PbiAction([string]$Name, [hashtable]$Options) {
@@ -537,18 +550,18 @@ $script:Calls.Add('deliver')
         }
         foreach ($mode in @('with-dotnet', 'without-dotnet')) {
             $script:ExpectedMode = $mode
-            foreach ($failure in @('', 'all', 'package')) {
+            foreach ($failure in @('', 'verifyAndBuild', 'package')) {
                 $script:ReleaseCalls.Clear()
                 $script:ReleaseFailure = $failure
                 $rejected = $false
                 try { Invoke-PbiRelease @{ DotNetMode = $mode } }
                 catch {
                     $rejected = $true
-                    $expectedCode = if ($failure -eq 'all') { 47 } else { 49 }
+                    $expectedCode = if ($failure -eq 'verifyAndBuild') { 47 } else { 49 }
                     Assert ($failure -ne '' -and $_.Exception.Data['ExitCode'] -eq $expectedCode) 'release 必须保留首个失败退出码'
                 }
                 Assert ($rejected -eq ($failure -ne '')) 'release 成功与失败必须符合真实阶段'
-                $expectedCalls = if ($failure -eq 'all') { 'all' } else { 'all,package' }
+                $expectedCalls = if ($failure -eq 'verifyAndBuild') { 'verifyAndBuild' } else { 'verifyAndBuild,package' }
                 Assert (($script:ReleaseCalls -join ',') -eq $expectedCalls) 'release 门禁失败不得开始安装包, 正常仅打包一次'
             }
         }

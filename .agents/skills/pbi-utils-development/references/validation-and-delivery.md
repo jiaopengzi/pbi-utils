@@ -1,23 +1,65 @@
 # 验证、发布与交付
 
+## 开发命令速查
+
+在 Windows 上用 PowerShell 7 打开仓库根目录。运行 `.\run.ps1` 打开交互菜单，可输入动作名或编号，输入 `q` 退出。菜单按开发流程排列，编号从 0 顺序生成。直接执行使用 `.\run.ps1 -Choice <动作名>`，自动化建议用动作名并加 `-NonInteractive`。用 `.\run.ps1 -Help` 或 `.\run.ps1 -List` 查看完整动作与可用参数。
+
+### 日常开发与验证
+
+| 目的 | 命令 |
+| --- | --- |
+| 首次使用或依赖有变时还原 C# 和 Vue 依赖 | `.\run.ps1 -Choice setupAll` |
+| 启动真实桌面开发环境 | `.\run.ps1 -Choice devDesktop` |
+| 在浏览器中用模拟数据预览界面 | `.\run.ps1 -Choice devWeb` |
+| 按需格式化 C# 和 Vue 源码 | `.\run.ps1 -Choice formatAll` |
+| 只读检查 C# 和 Vue | `.\run.ps1 -Choice checkAll` |
+| 运行 C# 和 Vue 测试 | `.\run.ps1 -Choice testAll` |
+| 构建 Release 应用产物 | `.\run.ps1 -Choice buildAll -Configuration Release` |
+| 完整检查、测试并构建 Debug 应用产物 | `.\run.ps1 -Choice verifyAndBuild` |
+
+`verifyAndBuild -Scope All` 交付后会注册 **pbi-utils (开发)**。重启 Power BI Desktop 后，可从“外部工具”连接当前报表。注册可能需要管理员权限。使用 `-NonInteractive` 时，若缺少系统目录写权限，登记阶段会报错，构建产物仍可使用。
+
+原有脚本中的 `-Choice all` 请改用 `-Choice verifyAndBuild`。
+
+- `-Scope` 默认为 `All`。选 `Core` 时，C# 范围包含共享业务、CLI、Host、Windows 适配和相应测试。`All` 还覆盖桌面项目及其测试。单独的 Vue 动作没有 `-Scope` 参数。
+- `-Configuration` 默认为 `Debug`，产物在 `artifacts/build/debug/win-x64`。选 `Release` 后，产物在 `artifacts/build/release/win-x64/<模式>`。
+- `-DotNetMode` 每次选一种模式。Debug 构建默认 `with-dotnet`，Release 构建和两个打包动作默认 `without-dotnet`。
+- `.\run.ps1 -Choice clean -WhatIf` 可预览要清理的生成目录。
+
+### 生成轻量安装包
+
+已有可用的 `Release/All`、`without-dotnet` 构建产物时，直接用本机 NSIS 的 `makensis` 打包。
+
+```powershell
+.\run.ps1 -Choice package -DotNetMode without-dotnet
+```
+
+打包从 `artifacts/build/release/win-x64/without-dotnet` 读取产物，并核对当前版本、发布标签和 SDK。若缺少可用产物，先按需运行 `setupAll` 还原依赖，再用下面的命令完成 Release 检查、测试、构建和打包。
+
+```powershell
+.\run.ps1 -Choice release -DotNetMode without-dotnet
+```
+
+两条命令都将安装器 `*-setup.exe`、打包信息和 SHA256 写入 `artifacts/release/win-x64/without-dotnet`。轻量包省去 .NET 运行时，目标电脑需安装匹配的 x64 .NET Desktop Runtime。需要随包带上 .NET 时，选择 `with-dotnet` 并使用同模式产物。两种模式都需要 Evergreen WebView2 Runtime。
+
 ## 选择门禁
 
 以本次影响范围决定检查. 文档变更核对规则、引用和 skill 格式; 产品源码、契约及发布行为变更执行对应回归与完整发布门禁. 不为提升报告结论重放未授权真实模型写入、登录或付费 API.
 
-开发入口为 PowerShell 7 `run.ps1`, 动作、参数、编号和工具要求由 `scripts/CommandRegistry.psm1` 及实际脚本维护. 自动化用动作名, `-List/-Help` 获取当前契约, 不把编号复制为新的固定来源.
+开发入口为 PowerShell 7 `run.ps1`。动作、参数、菜单顺序和工具要求由 `scripts/CommandRegistry.psm1` 及实际脚本维护。自动化用动作名，`-List` 或 `-Help` 可查询当前用法。
 
 ```powershell
-pwsh -NoProfile -File ./run.ps1 -Choice all -Scope All -Configuration Release -NonInteractive
+pwsh -NoProfile -File ./run.ps1 -Choice verifyAndBuild -Scope All -Configuration Release -NonInteractive
 ```
 
-完整门禁顺序: checkC# → testC# → C# 编译 → checkVue → testVue → buildVue → 发布目录交付, 成功的 all -Scope All 随后注册开发外部工具. NSIS 安装包由 package/release 生成, 不把 all 的发布目录交付称为安装包已完成. 首错停止并说明实际失败阶段/原因; Scope/Configuration 沿现有脚本传递, check 不接 Configuration.
+`verifyAndBuild` 依次执行 `checkC#`、`testC#`、C# 编译、`checkVue`、`testVue`、`buildVue`，随后交付发布目录。`-Scope All` 在交付成功后注册开发外部工具。需要生成 NSIS 安装包时，使用 `package` 或 `release`。门禁遇到首个错误即停止，并报告失败阶段和原因。`Scope` 和 `Configuration` 按各动作支持范围传递，`check` 动作只接收适用的 `Scope`。
 
-首次准备、依赖/锁文件或工具链变化、还原资产缺失时显式运行 setupC#/setupVue/setupAll; 资产完整且依赖未变不重复 setup. Scope=Core 包含共享业务、CLI、Host、Windows 适配及相应测试, All 另含桌面与桌面测试; Vue 动作不接 Scope. devDesktop/devWeb 为开发入口, 独立产品诊断使用 CLI doctor. 根 README 只保留用户运行说明.
+首次准备、依赖或工具链变化、还原资产缺失时显式运行 `setupC#`、`setupVue` 或 `setupAll`。资产完整且依赖未变时可直接运行后续动作。独立产品诊断使用 CLI `doctor`。
 
 - C# 工具链使用 `global.json` 的精确绑定; 缺失/无效/不匹配时报告配置、期望、可见和实际 SDK, 不自动改绑定、滚动或安装. SDK 查询的真实原生错误保留.
-- clean 后必须先 `pwsh -NoProfile -File ./run.ps1 -Choice 'setupC#' -Scope All -NonInteractive`. NETSDK1004 是缺少还原前提, 不添加隐式还原或重复盲跑 all.
+- clean 后必须先 `pwsh -NoProfile -File ./run.ps1 -Choice 'setupC#' -Scope All -NonInteractive`. NETSDK1004 是缺少还原前提, 还原后再运行 `verifyAndBuild`.
 - check 只读, C# 使用建议级诊断并核报告; 无修复器也不能忽略失败. format 是显式源码写入; 不自动修复无关文件或禁用规则.
-- buildC#/buildAll/all 接受 DotNetMode=with-dotnet|without-dotnet, Release 默认 without-dotnet, Debug 默认 with-dotnet, 一次仅构建选中模式; buildC# 不调用 Vue, 桌面资源未准备应明确失败. all/buildAll 在 C# 编译后只执行一次前端流程. all 不隐式 setup/format/clean, 不安装、hook、上传或自动更新. all -Scope All 在成功交付后注册 Power BI 开发外部工具, Core 不注册; buildC#/buildAll/release/package 不修改开发登记. 注册失败保留已完成产物并返回非零; 非交互缺系统目录写权限明确失败, 交互仅固定登记步骤按需提权.
+- `buildC#`、`buildAll` 和 `verifyAndBuild` 接受 `-DotNetMode with-dotnet|without-dotnet`，一次仅构建所选模式。Release 默认 `without-dotnet`，Debug 默认 `with-dotnet`。`buildC#` 只构建 C#，桌面资源未准备时应明确失败。`verifyAndBuild` 和 `buildAll` 在 C# 编译后只执行一次前端流程。依赖还原、格式化、清理、安装、上传和软件更新分别通过对应入口显式执行。开发登记由 `verifyAndBuild -Scope All` 在成功交付后执行。登记失败时保留已完成产物并返回非零退出码。非交互模式下需要预先具备系统目录写权限，交互模式仅在固定登记步骤按需提权。
 - 参数错误 2、前置不足 3、执行异常 4、取消 130, 产品/其他原生非零码如实传递. stdout/stderr 保留, 不用 Invoke-Expression 或模块 exit 结束调用方; try/finally 还原工作目录与临时环境.
 - 成功以权威工具退出码和本轮结构化结果共同判定. C# 编译器警告按错误处理; testC# 使用本轮唯一 TRX, 零用例、全部跳过、缺失/损坏报告和平台错误均失败, 部分跳过单列 UNRUN. checkC# 的格式/分析器结果与 test/build 的编译结果分别说明.
 - 前端测试默认显示控制台, 禁止 `.only`, 无用例或未处理异常失败. 未预期 console.warn/error、Vue 告警和错误必须失败; 故意负向诊断由测试在具体动作中按完整参数和次数声明, 未发生也失败. 不用全局静默或宽泛白名单掩盖问题.

@@ -2,7 +2,7 @@
 # Author      : jiaopengzi
 # Blog        : https://jiaopengzi.com
 # Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-# Description : 隔离验证 all 开发外部工具注册顺序、参数与首错边界, 不操作系统登记.
+# Description : 隔离验证 verifyAndBuild 开发外部工具注册顺序、参数与首错边界, 不操作系统登记.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -18,7 +18,7 @@ $module = Get-Module CommandRegistry
     <# .SYNOPSIS 断言真实编排结果, 条件不满足时抛错. #>
     function Assert-Workflow([bool]$Condition, [string]$Message) { if (!$Condition) { throw $Message } }
 
-    <# .SYNOPSIS 仅替换工具动作边界, 保留真实 all/release 编排; 参数为动作、选项和编译后回调, 指定阶段失败返回 47. #>
+    <# .SYNOPSIS 仅替换工具动作边界, 保留真实 verifyAndBuild/release 编排; 参数为动作、选项和编译后回调, 指定阶段失败返回 47. #>
     function Invoke-PbiAction([string]$Name, [hashtable]$Options, [scriptblock]$AfterCompile) {
         $script:WorkflowEvents.Add($Name)
         if ($Name -ceq $script:WorkflowFailure) { Stop-Pbi 47 'isolated upstream failure' }
@@ -46,14 +46,14 @@ $module = Get-Module CommandRegistry
         foreach ($mode in @('with-dotnet', 'without-dotnet')) {
             Reset-Workflow
             $options = @{ Scope = 'All'; Configuration = $configuration; DotNetMode = $mode; NonInteractive = $true }
-            Invoke-PbiAll $options
-            Assert-Workflow (($script:WorkflowEvents -join ',') -ceq 'checkC#,testC#,buildC#,checkVue,testVue,buildVue,register') '完整 all 在最后注册且只注册一次'
+            Invoke-PbiVerifyAndBuild $options
+            Assert-Workflow (($script:WorkflowEvents -join ',') -ceq 'checkC#,testC#,buildC#,checkVue,testVue,buildVue,register') '完整 verifyAndBuild 在最后注册且只注册一次'
             Assert-Workflow ($script:RegistrationOptions.Configuration -ceq $configuration -and $script:RegistrationOptions.DotNetMode -ceq $mode -and $script:RegistrationOptions.NonInteractive) '注册继承配置、模式和非交互选择'
             Assert-Workflow ($options.Count -eq 4) '编排不能污染调用者选项'
         }
     }
     Reset-Workflow
-    Invoke-PbiAll @{ Scope = 'Core'; Configuration = 'Release'; DotNetMode = 'without-dotnet' }
+    Invoke-PbiVerifyAndBuild @{ Scope = 'Core'; Configuration = 'Release'; DotNetMode = 'without-dotnet' }
     Assert-Workflow ($null -eq $script:RegistrationOptions) 'Core 没有桌面入口, 不注册'
     Reset-Workflow
     Invoke-PbiRelease @{ DotNetMode = 'without-dotnet' }
@@ -64,7 +64,7 @@ $module = Get-Module CommandRegistry
         Reset-Workflow
         $script:WorkflowFailure = $stage
         $caught = $null
-        try { Invoke-PbiAll @{ Scope = 'All'; Configuration = 'Release'; DotNetMode = 'without-dotnet' } }
+        try { Invoke-PbiVerifyAndBuild @{ Scope = 'All'; Configuration = 'Release'; DotNetMode = 'without-dotnet' } }
         catch { $caught = $_ }
         Assert-Workflow ($null -ne $caught -and $caught.Exception.Data['ExitCode'] -eq 47) '上游错误保留原始退出码'
         Assert-Workflow ($null -eq $script:RegistrationOptions -and !$script:Delivered) '上游失败不注册'
@@ -72,7 +72,7 @@ $module = Get-Module CommandRegistry
     Reset-Workflow
     $script:WorkflowFailure = 'register'
     $caught = $null
-    try { Invoke-PbiAll @{ Scope = 'All'; Configuration = 'Release'; DotNetMode = 'without-dotnet' } }
+    try { Invoke-PbiVerifyAndBuild @{ Scope = 'All'; Configuration = 'Release'; DotNetMode = 'without-dotnet' } }
     catch { $caught = $_ }
     Assert-Workflow ($null -ne $caught -and $caught.Exception.Data['ExitCode'] -eq 3 -and $caught.Exception.Data['Action'] -ceq 'registerExternalTool') '注册失败须保留退出码并指出失败阶段'
     Assert-Workflow $script:Delivered '注册失败不能谎称发布产物未完成'

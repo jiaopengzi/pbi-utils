@@ -144,4 +144,4 @@ MCP 的 `server_info` 和 `desktop_app_info` 返回与安装向导一致的完�
 
 项目自有代码采用 [MIT License](LICENSE)。第三方库、字体、图标与资源保留各自许可，见 [第三方来源说明](THIRD-PARTY-NOTICES.md)。安装包附带完整第三方声明及许可原文，可在安装目录的 `app` 子目录离线查看。
 
-开发约定见 [AGENTS.md](AGENTS.md)，构建、验证和模块说明见 [项目开发指南](.agents/skills/pbi-utils-development/SKILL.md)。
+从源码开发或生成安装包时，可先查阅 [开发命令速查](.agents/skills/pbi-utils-development/references/validation-and-delivery.md#开发命令速查)。开发约定和模块说明分别见 [AGENTS.md](AGENTS.md) 与 [项目开发指南](.agents/skills/pbi-utils-development/SKILL.md)。

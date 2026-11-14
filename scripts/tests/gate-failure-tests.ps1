@@ -173,7 +173,7 @@ function Get-ChildItem {
 <# .SYNOPSIS 在私有源副本通过正式 run.ps1 入口运行, 子进程不继承测试脚本的 ErrorActionPreference.
    .PARAMETER Mode 仅用于受控边界的固定场景标识.
    .PARAMETER DotNetMode 选中的发布模式, 另一模式只作为受保护旧包.
-   .PARAMETER Action 正式动作 buildC# 或 all.
+   .PARAMETER Action 正式动作 buildC# 或 verifyAndBuild.
    .OUTPUTS 真实退出码、stdout/stderr、旧产物快照和测试发布路径.
 #>
 function Invoke-GateFailure([string]$Mode, [string]$DotNetMode, [string]$Action = 'buildC#') {
@@ -222,13 +222,13 @@ try {
     [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
     foreach ($dotNetMode in @('with-dotnet', 'without-dotnet')) {
         foreach ($mode in @('inventory', 'cleanup-staging', 'cleanup-backup', 'primary-publish', 'primary-frontend', 'license-failure')) {
-            $case = Invoke-GateFailure $mode $dotNetMode $(if ($mode -eq 'primary-frontend') { 'all' } else { 'buildC#' })
+            $case = Invoke-GateFailure $mode $dotNetMode $(if ($mode -eq 'primary-frontend') { 'verifyAndBuild' } else { 'buildC#' })
             $expectedCode = switch ($mode) { 'primary-publish' { 47 }; 'primary-frontend' { 49 }; 'license-failure' { 53 }; default { 4 } }
             $expectedAction = if ($mode -eq 'primary-frontend') { 'checkVue' } else { 'buildC#' }
             [Console]::Out.WriteLine("$dotNetMode / $mode : exit=$($case.Code)")
             Assert-Gate ($case.Code -eq $expectedCode) "$dotNetMode / $mode 必须返回最先错误的退出码 $expectedCode, 实际 $($case.Code)"
             Assert-Gate ($case.Error -match [Regex]::Escape("执行失败 [$expectedAction] (退出码 $expectedCode):")) "$mode 必须保留最先失败阶段 $expectedAction"
-            Assert-Gate ($case.Out -notmatch '完成 buildC#|完成 构建与打包|all 全部通过|发布产物 \(') "$mode 失败不得打印完成或总成功"
+            Assert-Gate ($case.Out -notmatch '完成 buildC#|完成 构建与打包|verifyAndBuild 全部通过|发布产物 \(') "$mode 失败不得打印完成或总成功"
             Assert-Gate ((Get-GateSnapshot $case.OtherPublished) -ceq $case.OtherBefore) "$mode 无论选中模式是否已交付, 均不得改动未选模式"
             if ($mode -in @('cleanup-staging', 'cleanup-backup', 'license-failure')) {
                 Assert-Gate ($case.LicenseCalls.Count -eq 1 -and $case.LicenseCalls[0].scope -ceq 'Core') "$mode 必须恰好一次按当前范围调用许可生成器"

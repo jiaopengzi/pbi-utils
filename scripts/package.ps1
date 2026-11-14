@@ -25,7 +25,7 @@ $null = Assert-PbiLicenseBundle -PublishRoot $source
 $sdkVersion = [string](Get-Content -LiteralPath (Join-Path $repository 'global.json') -Raw | ConvertFrom-Json).sdk.version
 $mode = if ($options.DotNetMode -eq 'with-dotnet') { 'self-contained' } else { 'framework-dependent' }
 if ($manifest.configuration -cne 'Release' -or $manifest.scope -cne 'All' -or $manifest.deploymentMode -cne $mode -or $manifest.version -cne $version -or $manifest['releaseTag'] -cne $releaseTag -or $manifest['sdkVersion'] -cne $sdkVersion) {
-    Stop-Pbi 3 '安装包需要与当前产品版本、发布标签和 SDK 版本一致的 Release/All 所选模式产物; 请先运行 release 或对应 all 命令'
+    Stop-Pbi 3 '安装包需要与当前产品版本、发布标签和 SDK 版本一致的 Release/All 所选模式产物; 请运行 release 并指定相同的 -DotNetMode'
 }
 $fileVersion = "$version.0"
 $destination = Join-Path $repository "artifacts/release/win-x64/$($options.DotNetMode)"
