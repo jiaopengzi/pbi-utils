@@ -162,9 +162,40 @@ try {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LicenseBundleStub.psm1') -Destination (Join-Path $sandbox 'scripts/ThirdPartyLicenses.psm1')
     $null = New-Item -ItemType Directory -Path (Join-Path $sandbox 'web/dist') -Force
     Set-Content -LiteralPath (Join-Path $sandbox 'web/dist/index.html') -Value 'synthetic web'
-    Set-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Value "## [v1.2.3-rc4] - 2026-11-14`n- 发布夹具."
+    $versionPath = Join-Path $sandbox 'version'
+    [IO.File]::WriteAllText($versionPath, "v1.2.3-rc4`n")
     Set-Content -LiteralPath (Join-Path $sandbox 'global.json') -Value '{"sdk":{"version":"10.0.403"}}'
     Set-Location -LiteralPath $sandbox
+
+    # 使用真实 MSBuild 求值, 隔离工程不需要 SDK 工程引用、包还原或 CHANGELOG.
+    foreach ($name in @('Directory.Build.props', 'Directory.Build.targets')) {
+        Copy-Item -LiteralPath (Join-Path $sourceRoot $name) -Destination $sandbox
+    }
+    $versionProject = Join-Path $sandbox 'CheckVersion.proj'
+    Set-Content -LiteralPath $versionProject -Value '<Project><Import Project="Directory.Build.props" /><Import Project="Directory.Build.targets" /></Project>'
+    $evaluated = & dotnet msbuild $versionProject -nologo -target:RequireWindowsHost -getProperty:Version,PbiReleaseTag,InformationalVersion
+    Assert ($LASTEXITCODE -eq 0) "MSBuild 应只从 version 读取当前版本: $evaluated"
+    $properties = ($evaluated -join "`n" | ConvertFrom-Json).Properties
+    Assert ($properties.Version -ceq '1.2.3' -and $properties.PbiReleaseTag -ceq 'v1.2.3-rc4' -and $properties.InformationalVersion -ceq 'v1.2.3-rc4') 'MSBuild 必须从同一个完整标签取得数字版本和显示版本'
+    foreach ($argument in @('-p:Version=2.2.3', '-p:PbiReleaseTag=v1.2.3-rc5', '-p:PbiReleaseTag=V1.2.3-RC4', '-p:InformationalVersion=v1.2.3-rc5')) {
+        $evaluated = & dotnet msbuild $versionProject -nologo -target:RequireWindowsHost $argument 2>&1
+        Assert ($LASTEXITCODE -ne 0 -and ($evaluated -join "`n") -cmatch '与 version 不一致') "MSBuild 必须拒绝与 version 不一致的发布参数: $argument"
+    }
+    [IO.File]::WriteAllText($versionPath, "v65534.65534.65534-rc2147483647`r`n")
+    $evaluated = & dotnet msbuild $versionProject -nologo -target:RequireWindowsHost -getProperty:PbiReleaseTag
+    Assert ($LASTEXITCODE -eq 0 -and ($evaluated -join "`n") -ceq 'v65534.65534.65534-rc2147483647') 'MSBuild 必须接受版本范围上限和 CRLF 行尾'
+    [IO.File]::WriteAllText($versionPath, 'v1.2.3')
+    $evaluated = & dotnet msbuild $versionProject -nologo -target:RequireWindowsHost -getProperty:PbiReleaseTag
+    Assert ($LASTEXITCODE -eq 0 -and ($evaluated -join "`n") -ceq 'v1.2.3') 'MSBuild 必须接受没有行尾的正式标签'
+    foreach ($invalidVersion in @('v65535.2.3', 'v1.65535.3', 'v1.2.65535', 'v1.2.3-rc2147483648', "v1.2.3`n`n", ' v1.2.3', 'v01.2.3', 'v1.2.3-rc0', 'v1.2.3%0A')) {
+        [IO.File]::WriteAllText($versionPath, $invalidVersion)
+        $evaluated = & dotnet msbuild $versionProject -nologo -target:RequireWindowsHost 2>&1
+        Assert ($LASTEXITCODE -ne 0 -and ($evaluated -join "`n") -cmatch 'version') "MSBuild 必须明确拒绝无效版本: $invalidVersion"
+    }
+    Remove-Item -LiteralPath $versionPath
+    $evaluated = & dotnet msbuild $versionProject -nologo -target:RequireWindowsHost 2>&1
+    Assert ($LASTEXITCODE -ne 0 -and ($evaluated -join "`n") -cmatch '缺少根目录 version 文件') 'MSBuild 必须报告缺失的版本文件'
+    [IO.File]::WriteAllText($versionPath, "v1.2.3-rc4`n")
     $script:FailPublish = $false
     $script:ConflictingDependency = $false
     $script:ConflictingFrameworkDependency = $false
@@ -186,6 +217,7 @@ try {
     foreach ($command in $script:NativeCommands) {
         Assert ($command.Arguments[[Array]::IndexOf($command.Arguments, '--self-contained') + 1] -eq 'true') 'Debug 必须随包携带运行时'
         Assert ($command.Arguments[[Array]::IndexOf($command.Arguments, '-c') + 1] -ceq 'Debug') 'Debug 编译配置必须正确传递'
+        Assert ($command.Arguments -contains '-p:Version=1.2.3' -and $command.Arguments -ccontains '-p:PbiReleaseTag=v1.2.3-rc4') '各发布入口必须使用 version 的同一份版本快照'
     }
     Assert (!(Test-Path -LiteralPath (Join-Path $sandbox 'artifacts/build/release'))) 'Debug 构建不得生成 Release 目录'
     foreach ($entry in @('pbi-utils', 'PbiUtils.Host', 'PbiUtils.Desktop')) {
@@ -218,7 +250,7 @@ try {
     Import-Module (Join-Path $sandbox 'scripts/PublishArtifacts.psm1') -Force
     $manifest = Assert-PbiPublishedArtifacts $published
     Assert ($manifest.scope -eq 'Core' -and $manifest.configuration -eq 'Debug') '清单声明本次范围与配置'
-    Assert ($manifest.version -ceq '1.2.3' -and $manifest.releaseTag -ceq 'v1.2.3-rc4') '清单从最新 CHANGELOG 标题取得数字版本和完整标签'
+    Assert ($manifest.version -ceq '1.2.3' -and $manifest.releaseTag -ceq 'v1.2.3-rc4') '清单从 version 取得数字版本和完整标签'
     # 清单不能通过同步哈希集合绕过布局版本、Core 范围或自包含必需文件约束.
     foreach ($invalidLayout in @(@{ schemaVersion = 2; layout = 'shared' }, @{ schemaVersion = 3; layout = 'split' })) {
         $altered = $manifestBefore | ConvertFrom-Json
@@ -466,6 +498,12 @@ public static class PbiPublishTestDirectoryLock
     Assert (!(Test-Path -LiteralPath (Join-Path $published 'web/assets/first.js'))) '连续发布必须删除已移除的前端资源'
     Assert (Test-Path -LiteralPath (Join-Path $published 'web/assets/next.js')) '连续发布应包含新的前端资源'
     $selectedBefore = Get-TestPublishSnapshot $published
+    try {
+        Build 'All' 'Release' { [IO.File]::WriteAllText($versionPath, "v1.2.3-rc5`n") }
+        throw '构建期间版本变化应拒绝交付'
+    } catch { Assert ($_.Exception.Message -like '*version*标签已改变*') '构建结束必须复验 version 快照' }
+    finally { [IO.File]::WriteAllText($versionPath, "v1.2.3-rc4`n") }
+    Assert ((Get-TestPublishSnapshot $published) -ceq $selectedBefore) '版本变化不得覆盖已交付的包'
     try {
         Build 'All' 'Release' { Set-Content -LiteralPath 'web/dist/index.html' -Value 'unfinished frontend'; throw '模拟前端失败' }
         throw '前端回调失败时不得交付'

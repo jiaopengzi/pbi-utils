@@ -13,7 +13,7 @@
 | Power BI 外部工具 | `scripts/installer/ExternalToolRegistration.psm1`, `scripts/installer/ExternalToolDescriptor.psm1` |
 | 更新查询与排序 | `src/PbiUtils.Application/Updates/`, `src/PbiUtils.Infrastructure/Updates/` |
 | 更新 UI、CLI、MCP | `web/src/app/SoftwareUpdatePanel.vue`, `src/PbiUtils.Infrastructure/Commands/ProductUpdateCommands.cs`, `src/PbiUtils.Infrastructure/Mcp/McpBusinessRuntime.Core.cs` |
-| 版本、标签、说明及归档 | `CHANGELOG.md`, `scripts/ReleaseAutomation.psm1`, `.gitalias/savetag.sh` |
+| 版本、标签、说明及归档 | `version`, `CHANGELOG.md`, `scripts/ReleaseAutomation.psm1`, `.gitalias/savetag.sh` |
 | 远端构建与发布 | `.github/workflows/build.yaml`, `.github/actions/push-github/action.yml`, `.github/actions/push-gitee/action.yml` |
 
 ## 安装与更新职责
@@ -37,13 +37,13 @@
 
 ## 标签、归档与工作流
 
-- `CHANGELOG.md` 的首个二级标题统一提供数字版本和精确发布标签. main 的新正式标签使用 `vX.Y.Z`, v2 的新预发布标签使用 `vX.Y.Z-rcN`, `N` 为正整数. 新的标签构建和归档须匹配最新标题及来源分支; 历史附件复验读取原标签内对应的章节.
-- CHANGELOG 最新章节在前, 使用 `## [<精确标签>] - YYYY-MM-DD`, 对应章节唯一、日期有效且非空. 不将历史说明或其他标签的内容用于当前发布.
-- `.gitalias/savetag.sh` 读取已提交 CHANGELOG 的最新章节, 核验干净分支/HEAD 和版本. `bash ./.gitalias/savetag.sh --dry-run` 只预览; 无参数会创建注释标签并原子推送精确分支与标签, 属于发布动作. `git savetag` 依赖用户显式配置的本地别名, 不假设已安装或擅自写 Git 配置. 推送失败保留已建标签并核实远端, 不覆盖/重用标签.
+- 根目录 `version` 跟踪当前源码的完整构建标签, 文件只含一行. 普通构建和打包从该文件派生产品数字版本. `main` 的新正式标签使用 `vX.Y.Z`, `v2` 的新预发布标签使用 `vX.Y.Z-rcN`, `N` 为正整数.
+- 准备发布时, 在 `CHANGELOG.md` 顶部填写 `## [<精确标签>] - YYYY-MM-DD` 及实际变更说明, 确保对应章节唯一、日期有效且正文非空. 在 `main` 或 `v2` 运行 `git savetag --prepare`, 脚本校验工作区的最新章节和分支, 只生成 `version`, 不访问远端、不暂存也不提交. 审阅并提交这两个文件后再发版.
+- `git savetag --dry-run` 校验干净分支和 HEAD, 从该提交读取 `version` 与 `CHANGELOG.md`, 核对两者及拟发布标签一致并预览发布. 无参数运行会创建注释标签并原子推送精确分支与标签. `git savetag` 使用显式配置的本地别名, 也可直接以 Git Bash 运行 `bash ./.gitalias/savetag.sh` 并传入相同参数. 推送失败保留已建标签, 核实远端状态后再处理. 已有标签不可覆盖或重用.
 - 当前 CI 分发 `pbi-utils-<发布标签>-win-x64-without-dotnet.zip`, ZIP 根仅包含对应的 `pbi-utils-<发布标签>-win-x64-without-dotnet-setup.exe`. 例如 `v0.1.0-rc1` 的 ZIP 为 `pbi-utils-v0.1.0-rc1-win-x64-without-dotnet.zip`. 历史 `desktop-v` 标签的附件复验使用原有数字版本文件名. 本地 JSON、SHA256 侧文件、锁与中间产物不入包. 归档前后核验真实 EXE 字节, 发布说明的 SHA256 对应该 EXE.
-- `build.yaml` 在新格式发布标签推送时构建发布; main/v2 PR 与不指定已有标签的手动运行只做相应构建验证. v2 修改 `.github/**` 的提交可通过精确 `[release-retry: <预发布标签>]` 标记触发附件复验.
+- `build.yaml` 在新格式发布标签推送时构建发布, 核验触发标签与其目标提交中的 `version` 和 CHANGELOG 最新章节一致, 并检查提交属于对应来源分支. `main`/`v2` PR 与不指定已有标签的手动运行只做相应构建验证. `v2` 修改 `.github/**` 的提交可通过精确 `[release-retry: <预发布标签>]` 标记触发附件复验.
 - `build` 负责门禁、NSIS 包、CLI/MCP smoke 和唯一发布产物; `push-github`、`push-gitee` 分别只依赖 build, 可并行执行, 复用同一 ZIP、发布说明和完整性清单. 产物上传、远端公开附件回读与本地构建成功分开记录.
-- 指定已有 `release_tag` 的重试受 v2/预发布限制: 从原标签读取规范并下载校验已有 ZIP, 不重新构建, 跳过 GitHub 发布, 只执行 Gitee 复验/发布. 不创建或移动标签, 不把另一次构建替换成原附件.
+- 指定已有 `release_tag` 的重试受 `v2` 和预发布限制. 从原标签读取精确发行章节并下载校验已有 ZIP, 已有历史标签无需补 `version`. 此流程复用已有安装包, 跳过 GitHub 发布, 只执行 Gitee 复验/发布. 不创建或移动标签.
 - Gitee 按标签串行保护. 只读查询/公开下载可对暂时性网络故障有限重试; 创建、修改和上传不自动重试, 超时后先核对远端事实. 已有相同附件校验后复用, 冲突明确失败. 不用令牌探测或无限网络重试替代实际发布证据.
 - `.github/workflows/sync_gitee.yaml` 仅从 main 同步代码分支, 不负责标签或 Release. 非 main 手动运行跳过, 不使用同步密钥. 工作流网页手动入口可见性取决于默认分支登记, 本地 YAML 存在不代表网页已经可用.
 

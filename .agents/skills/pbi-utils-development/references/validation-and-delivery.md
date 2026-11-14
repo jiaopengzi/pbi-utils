@@ -34,7 +34,7 @@
 .\run.ps1 -Choice package -DotNetMode without-dotnet
 ```
 
-打包从 `artifacts/build/release/win-x64/without-dotnet` 读取产物，并核对当前版本、发布标签和 SDK。若缺少可用产物，先按需运行 `setupAll` 还原依赖，再用下面的命令完成 Release 检查、测试、构建和打包。
+打包从 `artifacts/build/release/win-x64/without-dotnet` 读取产物，对照根目录 `version` 核验数字版本和完整标签，并检查 SDK。若缺少可用产物，先按需运行 `setupAll` 还原依赖，再用下面的命令完成 Release 检查、测试、构建和打包。
 
 ```powershell
 .\run.ps1 -Choice release -DotNetMode without-dotnet

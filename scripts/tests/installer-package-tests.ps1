@@ -24,7 +24,7 @@ $state = @{
     CompileFailure = $false
     CleanupFailure = $false
     LicenseChangeOnCompile = ''
-    ChangelogChangeOnCompile = ''
+    VersionChangeOnCompile = ''
     ErrorOutput = ''
     Scenario = $Scenario
 }
@@ -159,8 +159,7 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
         Set-Content -LiteralPath (Join-Path $sandbox "scripts/installer/$maintenanceFile") -Value '# synthetic maintenance; never executed'
     }
     Set-Content -LiteralPath (Join-Path $sandbox 'scripts/installer/installer.nsi') -Value '; synthetic NSIS input; never compiled'
-    Set-Content -LiteralPath (Join-Path $sandbox 'Directory.Build.props') -Value '<Project><PropertyGroup><Version>1.2.3</Version></PropertyGroup></Project>'
-    Set-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Value @('# Changelog', '', '## [v1.2.3-rc4] - 2026-11-14', '', '- Synthetic release notes.')
+    [IO.File]::WriteAllText((Join-Path $sandbox 'version'), "v1.2.3-rc4`n")
     Set-Content -LiteralPath (Join-Path $sandbox 'global.json') -Value '{"sdk":{"version":"10.0.403"}}'
     $source = Join-Path $sandbox 'artifacts/build/release/win-x64/without-dotnet'
     $destination = Join-Path $sandbox 'artifacts/release/win-x64/without-dotnet'
@@ -208,10 +207,8 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
             if ($script:PackageTest.LicenseChangeOnCompile) {
                 Add-Content -LiteralPath $script:PackageTest.LicenseChangeOnCompile -Value 'concurrent source license edit' -Encoding utf8
             }
-            if ($script:PackageTest.ChangelogChangeOnCompile) {
-                $path = $script:PackageTest.ChangelogChangeOnCompile
-                $history = Get-Content -LiteralPath $path -Raw
-                Set-Content -LiteralPath $path -Encoding utf8 -Value "## [v1.2.3-rc5] - 2026-11-14`n`n- Synthetic concurrent release.`n`n$history"
+            if ($script:PackageTest.VersionChangeOnCompile) {
+                [IO.File]::WriteAllText($script:PackageTest.VersionChangeOnCompile, "v1.2.3-rc5`n")
             }
         }
         <# .SYNOPSIS 在第一次复制前替换完整有效版本, 模拟源目录在初始校验后被另一次发布交付. #>
@@ -253,12 +250,12 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
         Assert ($arguments -contains '/V3' -and $arguments -contains '/WX') 'NSIS 必须启用既定日志等级并把警告视为失败'
         Assert ($arguments -contains '/INPUTCHARSET' -and $arguments -contains 'UTF8') 'NSIS 必须显式按 UTF-8 读取双语安装向导源码'
         Assert ($arguments -contains '/DPBI_NSIS_VERSION=3.13') '编译器版本必须绑定载荷中审核过的 NSIS 许可版本'
-        Assert ($arguments -contains '/DPBI_RELEASE_TAG=v1.2.3-rc4' -and $arguments -contains '/DPBI_FILE_VERSION=1.2.3.0') '安装器展示读取 CHANGELOG 标签, Windows 数字文件版本保持独立'
+        Assert ($arguments -contains '/DPBI_RELEASE_TAG=v1.2.3-rc4' -and $arguments -contains '/DPBI_FILE_VERSION=1.2.3.0') '安装器从 version 取得完整标签和 Windows 数字文件版本'
         Assert (@($arguments | Where-Object { $_ -clike '/DPBI_PAYLOAD=*' }).Count -eq 1) '含空格路径必须作为完整的单个 NSIS 定义参数传递'
         Assert (@($state.Messages | Where-Object { $_.Message -match '^完成 package \(' -and $_.Level -eq 'Success' }).Count -eq 1) 'dot-source 打包脚本不得把完成动作名覆盖为交付文件名'
         $record = Get-Content -LiteralPath (Join-Path $destination "$baseName.json") -Raw | ConvertFrom-Json
         Assert ($record.version -ceq '1.2.3' -and $record.dotNetMode -ceq 'without-dotnet' -and $record.signatureStatus -ceq 'NotSigned') '安装记录必须保存当前版本、模式和真实签名分类'
-        Assert ($record.releaseTag -ceq 'v1.2.3-rc4') '安装记录必须绑定向 NSIS 传递的 CHANGELOG 标签'
+        Assert ($record.releaseTag -ceq 'v1.2.3-rc4') '安装记录必须绑定向 NSIS 传递的完整标签'
         Assert ($record.installer -ceq "$baseName.exe") '安装包记录中的文件名必须含完整发布标签'
         Assert ($record.sha256 -ceq (Get-FileHash -LiteralPath (Join-Path $destination "$baseName.exe") -Algorithm SHA256).Hash) '安装记录必须对应实际交付字节'
         Assert ((Get-Content -LiteralPath (Join-Path $destination "$baseName.sha256")).Trim() -ceq "$($record.sha256)  $baseName.exe") '校验文件必须对应带完整标签的安装包'
@@ -424,18 +421,18 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
         Assert-TestPackageReleased $destination
     } finally { $state.CompileFailure = $false }
 
-    $changelogPath = Join-Path $sandbox 'CHANGELOG.md'
-    $changelogBytes = [IO.File]::ReadAllBytes($changelogPath)
-    $state.ChangelogChangeOnCompile = $changelogPath
+    $versionPath = Join-Path $sandbox 'version'
+    $versionBytes = [IO.File]::ReadAllBytes($versionPath)
+    $state.VersionChangeOnCompile = $versionPath
     try {
         Assert ((Invoke-TestPackage) -eq 4) '打包期间当前发布标签变化必须拒绝交付旧标签安装包'
-        Assert ($state.Commands.Count -eq 1) '并发发版测试必须在进入真实编译边界后改动 CHANGELOG'
-        Assert (@($state.Messages | Where-Object Message -Like '*CHANGELOG*标签已改变*').Count -eq 1) '并发发布版本变更必须明确报告 CHANGELOG 标签变化'
+        Assert ($state.Commands.Count -eq 1) '并发发版测试必须在进入真实编译边界后改动 version'
+        Assert (@($state.Messages | Where-Object Message -Like '*version*标签已改变*').Count -eq 1) '并发发布版本变更必须明确报告 version 标签变化'
         Assert ((Get-TestPackageSnapshot $destination) -ceq $before) '并发发布版本变更不得覆盖已有安装包及旁车'
         Assert-TestPackageReleased $destination
     } finally {
-        $state.ChangelogChangeOnCompile = ''
-        [IO.File]::WriteAllBytes($changelogPath, $changelogBytes)
+        $state.VersionChangeOnCompile = ''
+        [IO.File]::WriteAllBytes($versionPath, $versionBytes)
     }
 
     $lease = [IO.File]::Open((Join-Path $destination '.package.lock'), 'Open', 'ReadWrite', 'None')

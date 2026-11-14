@@ -8,19 +8,28 @@
 .SYNOPSIS 创建或验证同一次构建的发布包, 发布端不重新生成说明.
 .PARAMETER Mode Download 下载并验证已有发行版; Create 生成说明和清单; Verify 校验完整共享包.
 .PARAMETER Directory 已包含精确 ZIP 的目录.
+.PARAMETER Reuse 验证从已有发行版下载的历史附件时, 使用原标签说明.
 .OUTPUTS 验证结果; 输入、归属、内容或摘要不符时抛错.
 #>
 param([Parameter(Mandatory)][ValidateSet('Create', 'Verify', 'Download')][string]$Mode,
-    [Parameter(Mandatory)][string]$Directory)
+    [Parameter(Mandatory)][string]$Directory,
+    [switch]$Reuse)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module "$PSScriptRoot/../../scripts/ReleaseAutomation.psm1" -Force
-$context = (Get-PbiTaggedReleaseSpec -RepositoryRoot $PWD -Tag $env:RELEASE_TAG).Context
-if ($env:ARCHIVE_NAME -cne $context.ArchiveName) { throw 'ZIP 文件名与发布上下文不符' }
-$tagType = git cat-file -t "refs/tags/$env:RELEASE_TAG"
+if ($Reuse -and $Mode -cne 'Verify') { throw '复用标记仅用于已有发行版的共享包复验' }
+$tagRef = "refs/tags/$env:RELEASE_TAG"
+$tagType = git cat-file -t $tagRef
 if ($LASTEXITCODE -ne 0 -or $tagType -cne 'tag') { throw '必须使用已存在的注释标签' }
-$commit = git rev-parse "refs/tags/$env:RELEASE_TAG^{commit}"
+$commit = git rev-parse "$tagRef^{commit}"
 if ($LASTEXITCODE -ne 0 -or $commit -cnotmatch '^[0-9a-f]{40}$') { throw '标签提交无效' }
+$spec = if ($Mode -ceq 'Download' -or $Reuse) {
+    Get-PbiTaggedReleaseSpec -RepositoryRoot $PWD -Tag $env:RELEASE_TAG
+} else {
+    Get-PbiCommitReleaseSpec -RepositoryRoot $PWD -Commit $commit -ExpectedTag $env:RELEASE_TAG
+}
+$context = $spec.Context
+if ($env:ARCHIVE_NAME -cne $context.ArchiveName) { throw 'ZIP 文件名与发布上下文不符' }
 git merge-base --is-ancestor $commit "refs/remotes/origin/$($context.SourceBranch)"
 if ($LASTEXITCODE -ne 0) { throw '标签不属于指定来源分支' }
 $installerName = $context.InstallerName
@@ -49,7 +58,7 @@ try {
 } finally { $zip.Dispose() }
 $notesPath = Join-Path $Directory 'release-notes.md'
 $manifestPath = Join-Path $Directory 'release-manifest.json'
-$expectedNotes = (Get-PbiTaggedReleaseSpec -RepositoryRoot $PWD -Tag $env:RELEASE_TAG -InstallerSha256 $installerHash).Notes
+$expectedNotes = Add-PbiInstallerHash $spec.Notes $installerName $installerHash
 if ($Mode -ceq 'Download' -and $release.body.TrimEnd() -cne $expectedNotes.TrimEnd()) { throw '已有发布说明与 EXE 摘要不符' }
 if ($Mode -cne 'Verify') { [IO.File]::WriteAllText($notesPath, $expectedNotes) }
 if ([IO.File]::ReadAllText($notesPath) -cne $expectedNotes) { throw '共享发布说明与标签或 EXE 摘要不符' }

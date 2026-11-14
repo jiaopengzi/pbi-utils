@@ -168,6 +168,7 @@
     "nonblank",
     "norestart",
     "nosetests",
+    "NOSYSTEM",
     "NOTCHECKED",
     "npbi",
     "nref",

@@ -188,7 +188,7 @@ function Invoke-GateFailure([string]$Mode, [string]$DotNetMode, [string]$Action 
     $modeSource = "`$script:GateFailureMode = '$Mode'`n"
     [IO.File]::WriteAllText((Join-Path $root 'scripts/CommandRegistry.psm1'), $registrySource.Replace('Export-ModuleMember -Function *-Pbi*', $modeSource + $registryBoundary + "`nExport-ModuleMember -Function *-Pbi*"))
     [IO.File]::WriteAllText((Join-Path $root 'scripts/PublishArtifacts.psm1'), $publisherSource.Replace('Export-ModuleMember -Function *-Pbi*', $modeSource + $publisherBoundary + "`nExport-ModuleMember -Function *-Pbi*"))
-    [IO.File]::WriteAllText((Join-Path $root 'CHANGELOG.md'), "## [v1.2.3] - 2026-11-14`n- 发布夹具.")
+    [IO.File]::WriteAllText((Join-Path $root 'version'), "v1.2.3`n")
     [IO.File]::WriteAllText((Join-Path $root 'global.json'), '{"sdk":{"version":"10.0.403"}}')
     $published = Join-Path $root "artifacts/build/release/win-x64/$DotNetMode"
     $otherMode = if ($DotNetMode -eq 'with-dotnet') { 'without-dotnet' } else { 'with-dotnet' }

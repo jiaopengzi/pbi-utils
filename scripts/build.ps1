@@ -69,7 +69,7 @@ try {
     @{ schemaVersion = 3; layout = 'shared'; deploymentMode = $mode; version = $release.Version; releaseTag = $release.Tag; sdkVersion = $sdkVersion; builtAtUtc = $stamp; runtime = 'win-x64'; scope = $options.Scope; configuration = $options.Configuration; files = $files } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $staging 'manifest.json') -Encoding utf8
     $null = Assert-PbiPublishedArtifacts $staging
     $publishedBytes = [long](Get-PbiPublishFiles $staging | Measure-Object Length -Sum).Sum
-    if ((Get-PbiCurrentRelease -RepositoryRoot (Get-Location).Path).Tag -cne $release.Tag) { throw '构建期间 CHANGELOG 最新发布标签已改变, 请重新构建' }
+    if ((Get-PbiCurrentRelease -RepositoryRoot (Get-Location).Path).Tag -cne $release.Tag) { throw '构建期间 version 中的标签已改变, 请重新构建' }
     Set-PbiPublishedArtifacts $staging $destination
 }
 catch {

@@ -3,7 +3,7 @@
 本文件记录 pbi-utils 的重要变更, 最新版本置于最前.
 采用 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的分类方式.
 
-首个二级标题是当前构建和打包的发布身份来源. .NET 与安装器从该标题取得数字版本, 安装向导显示完整标签.
+发版准备时, `git savetag --prepare` 从首个二级标题生成根目录 `version`. 构建和打包从 `version` 取得完整标签并推导数字版本, 安装向导显示完整标签. 发版前须提交 `CHANGELOG.md` 和 `version`, 使 Git 标签、提交中的 `version` 与最新章节标题标签一致.
 `main` 使用稳定标签 `vX.Y.Z`, 章节写为 `## [vX.Y.Z] - YYYY-MM-DD`.
 `v2` 流程测试使用 `vX.Y.Z-rcN`, 章节写为 `## [vX.Y.Z-rcN] - YYYY-MM-DD`, 其中 N 为正整数.
 版本各段及预发布轮次不使用前导零. 版本各段最多 65534, 预发布轮次最多 2147483647. 每个章节须填写实际变更说明.

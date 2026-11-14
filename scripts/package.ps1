@@ -133,7 +133,7 @@ try {
     $arguments = @('/V3', '/WX', '/INPUTCHARSET', 'UTF8', "/DPBI_NSIS_VERSION=$($nsisLicenses[0].version)", "/DPBI_PAYLOAD=$payload", "/DPBI_LICENSE_TEXT=$installerLicense", "/DPBI_OUTFILE=$installer", "/DPBI_RELEASE_TAG=$releaseTag", "/DPBI_FILE_VERSION=$fileVersion", "/DPBI_ICON=$(Join-Path $repository 'web/public/branding/logo.ico')", (Join-Path $PSScriptRoot 'installer/installer.nsi'))
     Invoke-PbiNative makensis $arguments
     & $assertLicenseInputs
-    if ((Get-PbiCurrentRelease -RepositoryRoot $repository).Tag -cne $releaseTag) { throw '打包期间 CHANGELOG 最新发布标签已改变, 请重新打包' }
+    if ((Get-PbiCurrentRelease -RepositoryRoot $repository).Tag -cne $releaseTag) { throw '打包期间 version 中的标签已改变, 请重新打包' }
     if (!(Test-Path -LiteralPath $installer -PathType Leaf) -or (Get-Item -LiteralPath $installer).Length -le 0) { throw 'makensis 未生成有效安装包' }
     $installerBytes = (Get-Item -LiteralPath $installer).Length
     # 官方标记为 100M, 未明确进制, 使用十进制 100,000,000 字节保守判断.

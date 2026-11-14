@@ -2,7 +2,7 @@
 # Author      : jiaopengzi
 # Blog        : https://jiaopengzi.com
 # Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-# Description : 使用隔离本地 Git 仓库验证发布别名的标签、预览、原子推送与拒绝边界.
+# Description : 使用隔离本地 Git 仓库验证版本准备、标签预览、原子推送与拒绝边界.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -32,7 +32,7 @@ function Invoke-RequiredGit([string]$Repository, [string[]]$Arguments) {
     return $result.Output
 }
 
-<# .SYNOPSIS 创建独立工作仓库及 bare origin, 参数为场景名、分支和精确 CHANGELOG 标签; 返回本地路径. #>
+<# .SYNOPSIS 创建独立工作仓库及 bare origin, 参数为场景名、分支和版本文件及 CHANGELOG 采用的标签; 返回两端仓库路径及发布身份. #>
 function New-ReleaseFixture([string]$Name, [string]$Branch = 'v2', [string]$Tag = 'v0.1.0-rc1') {
     $directory = Join-Path $sandbox $Name
     $repository = Join-Path $directory 'repository'
@@ -47,6 +47,7 @@ function New-ReleaseFixture([string]$Name, [string]$Branch = 'v2', [string]$Tag 
     Copy-Item -LiteralPath $source -Destination (Join-Path $repository '.gitalias/savetag.sh')
     Copy-Item -LiteralPath (Join-Path $root 'scripts/ReleaseAutomation.psm1') -Destination (Join-Path $repository 'scripts/ReleaseAutomation.psm1')
     [IO.File]::WriteAllText((Join-Path $repository 'CHANGELOG.md'), "# Changelog`n`n## [$Tag] - 2026-11-03`n`n### Added`n`n- 隔离发布测试.`n")
+    [IO.File]::WriteAllText((Join-Path $repository 'version'), "$Tag`n")
     [IO.File]::WriteAllText((Join-Path $repository 'payload.txt'), "fixture`n")
     $null = Invoke-RequiredGit $repository @('add', '--', '.')
     $null = Invoke-RequiredGit $repository @('commit', '--quiet', '--message', 'Fixture baseline')
@@ -91,12 +92,69 @@ try {
     $env:GIT_CONFIG_NOSYSTEM = '1'
     $env:GIT_TERMINAL_PROMPT = '0'
 
+    $fixture = New-ReleaseFixture 'prepare'
+    $repository = $fixture.Repository
+    $head = Invoke-RequiredGit $repository @('rev-parse', 'HEAD')
+    $null = Invoke-RequiredGit $repository @('remote', 'remove', 'origin')
+    $versionPath = Join-Path $repository 'version'
+    $changelogPath = Join-Path $repository 'CHANGELOG.md'
+    $nextTag = 'v0.1.0-rc2'
+    $changelog = "## [$nextTag] - 2026-11-14`n- 下一版正文.`n`n" + [IO.File]::ReadAllText($changelogPath)
+    [IO.File]::WriteAllText($changelogPath, $changelog)
+    [IO.File]::WriteAllText((Join-Path $repository 'payload.txt'), 'staged payload')
+    $null = Invoke-RequiredGit $repository @('add', '--', 'payload.txt')
+    $indexBefore = Invoke-RequiredGit $repository @('ls-files', '--stage')
+    $subdirectory = Join-Path $repository 'subdirectory'
+    $null = New-Item -ItemType Directory -Path $subdirectory
+    $prepare = Invoke-TestGit $subdirectory @('savetag', '--prepare')
+    Assert-ReleaseTest ($prepare.Code -eq 0 -and $prepare.Output.Contains($nextTag)) "子目录调用准备可读取未提交的 CHANGELOG, 无需 origin: $($prepare.Output)"
+    Assert-ReleaseTest ([Convert]::ToHexString([IO.File]::ReadAllBytes($versionPath)) -ceq [Convert]::ToHexString($utf8.GetBytes("$nextTag`n"))) 'version 仅包含完整标签及 LF, 无 BOM'
+    Assert-ReleaseTest ((Invoke-RequiredGit $repository @('ls-files', '--stage')) -ceq $indexBefore -and (Invoke-RequiredGit $repository @('rev-parse', 'HEAD')) -ceq $head) '准备保留暂存区及当前提交'
+    Assert-ReleaseTest ([IO.File]::ReadAllText($changelogPath) -ceq $changelog -and [IO.File]::ReadAllText((Join-Path $repository 'payload.txt')) -ceq 'staged payload') '准备保留发布说明和其他文件'
+    Assert-ReleaseTest ((Invoke-RequiredGit $repository @('tag', '--list')).Length -eq 0 -and (Invoke-RequiredGit $fixture.Remote @('for-each-ref', '--format=%(refname)')).Length -eq 0) '准备不创建标签或推送'
+    $repeat = Invoke-TestGit $repository @('savetag', '--prepare')
+    Assert-ReleaseTest ($repeat.Code -eq 0 -and [IO.File]::ReadAllText($versionPath) -ceq "$nextTag`n") '重复准备保持相同版本'
+    foreach ($invalid in @(
+        @{ Heading = '## [v0.1.0-rc3] - 2026-02-30'; Reason = '日期无效' },
+        @{ Heading = '## [v0.1.0] - 2026-11-14'; Reason = 'v2 分支仅允许 vX.Y.Z-rcN' }
+    )) {
+        [IO.File]::WriteAllText($changelogPath, "$($invalid.Heading)`n- 夹具正文.`n")
+        $prepare = Invoke-TestGit $repository @('savetag', '--prepare')
+        Assert-ReleaseTest ($prepare.Code -ne 0 -and $prepare.Output.Contains($invalid.Reason) -and [IO.File]::ReadAllText($versionPath) -ceq "$nextTag`n") "准备拒绝 $($invalid.Reason) 并保留已有 version"
+    }
+    [IO.File]::WriteAllText($changelogPath, $changelog)
+    $null = Invoke-RequiredGit $repository @('remote', 'add', 'origin', $fixture.Remote)
+    Save-Fixture $fixture
+    $release = Invoke-TestGit $repository @('savetag')
+    Assert-ReleaseTest ($release.Code -eq 0 -and (Invoke-RequiredGit $fixture.Remote @('show', "refs/tags/${nextTag}:version")) -ceq $nextTag) "准备后的版本提交可作为新标签发布: $($release.Output)"
+
+    $fixture = New-ReleaseFixture 'version-mismatch'
+    $versionPath = Join-Path $fixture.Repository 'version'
+    [IO.File]::WriteAllText($versionPath, "v0.1.0-rc2`n")
+    Save-Fixture $fixture
+    Assert-ReleaseRejected $fixture 'version'
+    $preview = Invoke-TestGit $fixture.Repository @('savetag', '--dry-run')
+    Assert-ReleaseTest ($preview.Code -ne 0 -and $preview.Output.Contains('version') -and [IO.File]::ReadAllText($versionPath) -ceq "v0.1.0-rc2`n") '预览拒绝已提交的标签不一致并保留 version'
+    # 即使 Git 状态隐藏工作区版本修改, 发布仍核对实际标签目标提交中的内容.
+    $null = Invoke-RequiredGit $fixture.Repository @('update-index', '--assume-unchanged', 'version')
+    [IO.File]::WriteAllText($versionPath, "$($fixture.Tag)`n")
+    Assert-ReleaseTest ((Invoke-RequiredGit $fixture.Repository @('status', '--porcelain=v1')).Length -eq 0) '夹具隐藏工作区版本修改后状态为空'
+    Assert-ReleaseRejected $fixture 'version'
+    $null = Invoke-RequiredGit $fixture.Repository @('update-index', '--no-assume-unchanged', 'version')
+    $null = Invoke-RequiredGit $fixture.Repository @('add', '--', 'version')
+    Assert-ReleaseRejected $fixture '工作区必须干净'
+
+    $fixture = New-ReleaseFixture 'version-missing'
+    $null = Invoke-RequiredGit $fixture.Repository @('rm', '--', 'version')
+    Save-Fixture $fixture
+    Assert-ReleaseRejected $fixture 'version'
+
     $fixture = New-ReleaseFixture 'v2-success'
     $head = Invoke-RequiredGit $fixture.Repository @('rev-parse', 'HEAD')
     $subdirectory = Join-Path $fixture.Repository 'subdirectory'
     $null = New-Item -ItemType Directory -Path $subdirectory
     $preview = Invoke-TestGit $subdirectory @('savetag', '--dry-run')
-    Assert-ReleaseTest ($preview.Code -eq 0 -and $preview.Output.Contains('DRY RUN') -and $preview.Output.Contains($fixture.Tag)) "子目录调用预览从 CHANGELOG 读取版本: $($preview.Output)"
+    Assert-ReleaseTest ($preview.Code -eq 0 -and $preview.Output.Contains('DRY RUN') -and $preview.Output.Contains($fixture.Tag)) "子目录调用预览核验已提交的 version 与 CHANGELOG: $($preview.Output)"
     Assert-ReleaseTest ((Invoke-RequiredGit $fixture.Repository @('tag', '--list')).Length -eq 0 -and (Invoke-RequiredGit $fixture.Remote @('for-each-ref', '--format=%(refname)')).Length -eq 0) '预览不创建标签或推送'
     $release = Invoke-TestGit $fixture.Repository @('savetag')
     Assert-ReleaseTest ($release.Code -eq 0) "v2 发布成功: $($release.Output)"

@@ -3,12 +3,12 @@
 # Author      : jiaopengzi
 # Blog        : https://jiaopengzi.com
 # Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-# Description : 从已提交的 CHANGELOG 核验发布标签, 对当前 HEAD 创建注释标签并原子推送精确分支和标签.
+# Description : 从 CHANGELOG 准备 version, 核验已提交的发布资料后对当前 HEAD 打标签并原子推送.
 
-# 用法: git savetag [--dry-run]. 无参数时发布当前干净仓库中已提交的版本.
+# 用法: git savetag [--prepare|--dry-run]. 准备时只生成 version, 无参数时发布当前干净仓库中已提交的版本.
 # 配置: git config --local alias.savetag '!bash ./.gitalias/savetag.sh'.
 # 使用 Git Bash 执行 Git 操作, 通过 PowerShell 7 复用仓库发布规范.
-# 不自动提交、修改版本或合并分支; 任何失败返回非零, 推送失败保留本地标签供人工核验.
+# 不自动暂存、提交或合并分支; 任何失败返回非零, 推送失败保留本地标签供人工核验.
 
 set -euo pipefail
 tag_created=false
@@ -51,11 +51,32 @@ assert_baseline() {
     [[ -z "$status" ]] || fail '工作区必须干净, 请先自行审阅并提交全部发布变更.'
 }
 
-dry_run=false
-if (($# == 1)) && [[ "$1" == --dry-run ]]; then
-    dry_run=true
-elif (($# != 0)); then
-    fail '用法: git savetag [--dry-run]. 不接受版本号或其他参数.'
+# 复用发布规范, 首参为分支, 可选次参为待发布提交.
+# 准备输出完整标签, 提交核验另输出数字版本和预发布标记; 失败给出诊断并返回非零.
+invoke_release_spec() {
+    PBI_SAVETAG_BRANCH="$1" PBI_SAVETAG_COMMIT="${2:-}" pwsh -NoProfile -NonInteractive -Command '
+        $ErrorActionPreference = "Stop"
+        [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+        try {
+            if ($PSVersionTable.PSVersion.Major -lt 7) { throw "读取发布版本需要 PowerShell 7." }
+            Import-Module (Join-Path $PWD "scripts/ReleaseAutomation.psm1") -Force
+            if ($env:PBI_SAVETAG_COMMIT) {
+                $context = (Get-PbiCommitReleaseSpec -RepositoryRoot $PWD -Commit $env:PBI_SAVETAG_COMMIT).Context
+                [Console]::Write(("{0} {1} {2}" -f $context.ReleaseTag, $context.Version, $context.Prerelease))
+            } else {
+                $release = Initialize-PbiReleaseVersion -RepositoryRoot $PWD -Branch $env:PBI_SAVETAG_BRANCH
+                [Console]::Write($release.Tag)
+            }
+        } catch {
+            [Console]::Error.WriteLine($_.Exception.Message)
+            exit 1
+        }
+    '
+}
+
+action=${1:-}
+if (($# > 1)) || { (($# == 1)) && [[ "$action" != --prepare && "$action" != --dry-run ]]; }; then
+    fail '用法: git savetag [--prepare|--dry-run]. 不接受版本号或其他参数.'
 fi
 
 script_directory=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
@@ -66,23 +87,16 @@ git_root=$(read_git '脚本必须位于本项目 Git 仓库的 .gitalias 目录'
 [[ "$(cd -- "$git_root" && pwd -P)" == "$repository" ]] || fail '脚本所在目录不是 Git 仓库根目录.'
 branch=$(read_git '当前必须位于 main 或 v2 分支' symbolic-ref --quiet --short HEAD)
 [[ "$branch" == main || "$branch" == v2 ]] || fail '发布仅支持 main 或 v2 分支.'
+if [[ "$action" == --prepare ]]; then
+    tag=$(invoke_release_spec "$branch") || exit 1
+    printf '已准备 version %s. 请审阅并提交 CHANGELOG.md 和 version 后执行 git savetag.\n' "$tag"
+    exit 0
+fi
+
 head=$(read_git '无法读取当前 HEAD' rev-parse --verify HEAD)
 assert_baseline "$branch" "$head"
 
-# 静态 PowerShell 命令只读取当前仓库的发布规范, 不将文件内容拼接为脚本.
-release_spec=$(pwsh -NoProfile -NonInteractive -Command '
-    $ErrorActionPreference = "Stop"
-    [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
-    try {
-        if ($PSVersionTable.PSVersion.Major -lt 7) { throw "读取发布版本需要 PowerShell 7." }
-        Import-Module (Join-Path $PWD "scripts/ReleaseAutomation.psm1") -Force
-        $release = Get-PbiCurrentRelease -RepositoryRoot $PWD
-        [Console]::Write(("{0} {1} {2}" -f $release.Tag, $release.Version, $release.Prerelease))
-    } catch {
-        [Console]::Error.WriteLine($_.Exception.Message)
-        exit 1
-    }
-') || exit 1
+release_spec=$(invoke_release_spec "$branch" "$head") || exit 1
 read -r tag product_version prerelease <<< "$release_spec"
 if [[ "$branch" == v2 && "$prerelease" != True ]]; then
     fail 'v2 分支仅允许 vX.Y.Z-rcN 预发布标签.'
@@ -108,7 +122,7 @@ else
     ((code == 2)) || fail "无法核验远端标签 (Git 退出码 $code), 发布已停止."
 fi
 assert_baseline "$branch" "$head"
-if [[ "$dry_run" == true ]]; then
+if [[ "$action" == --dry-run ]]; then
     printf 'DRY RUN: 分支 %s, 产品版本 %s, 标签 %s.\n' "$branch" "$product_version" "$tag"
     printf '将对当前 HEAD %s 创建 annotated tag, 并原子推送该分支和精确标签到 origin. 未修改本地或远端 refs.\n' "$head"
     exit 0

@@ -29,7 +29,7 @@
 
 - CLI、Desktop、MCP 复用共享用例, 不复制业务逻辑. Core/Application 不引用桌面类型; GUI 与 CLI 不互相引用. 以架构测试约束实际项目和程序集依赖.
 - 宿主拥有依赖注入与平台资源生命周期. Vue 只管理状态/显示并调用类型化 bridge, 不直接获得文件系统、shell 或模型连接能力.
-- 目标框架见 `Directory.Build.props`; 产品版本及发布标签见 `CHANGELOG.md`; SDK 见 `global.json`; NuGet 见 `Directory.Packages.props`; Node/pnpm/前端包见 `web/package.json` 及锁文件. 不在说明中复制当前版本, 不顺带升级依赖.
+- 目标框架见 `Directory.Build.props`, 构建及打包的产品版本从根目录 `version` 的完整标签派生. 发版准备通过 `git savetag --prepare` 从 `CHANGELOG.md` 最新章节生成 `version`, 由用户审阅提交后发版. SDK 见 `global.json`, NuGet 见 `Directory.Packages.props`, Node/pnpm/前端包见 `web/package.json` 及锁文件. 不在说明中复制当前版本, 不顺带升级依赖.
 
 ### 依赖与许可证同步维护
 

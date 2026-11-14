@@ -71,10 +71,9 @@ jobs:
           } else { Get-PbiReleaseContext -RepositoryRoot $PWD -Ref $env:GITHUB_REF }
           if ($reuse -and !$context.Prerelease) { throw 'v2 不能重试正式发行版' }
           "reuse=$($reuse.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
-          if ($context.ReleaseTag) {
+          if ($context.ReleaseTag -and !$reuse) {
             git merge-base --is-ancestor HEAD "refs/remotes/origin/$($context.SourceBranch)"
             if ($LASTEXITCODE -ne 0) { throw '发布提交不属于指定来源分支' }
-            $null = Get-PbiTaggedReleaseSpec -RepositoryRoot $PWD -Tag $context.ReleaseTag
           }
           "release_tag=$($context.ReleaseTag)" >> $env:GITHUB_OUTPUT
           "prerelease=$($context.Prerelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
@@ -228,6 +227,7 @@ jobs:
       RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
       ARCHIVE_NAME: ${{ needs.build.outputs.archive_name }}
       PRERELEASE: ${{ needs.build.outputs.prerelease }}
+      REUSE_RELEASE: ${{ needs.build.outputs.reuse }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -238,7 +238,7 @@ jobs:
         run: gh run download "$GITHUB_RUN_ID" --name "pbi-utils-windows-$GITHUB_RUN_ID" --dir release-zip --repo "$GITHUB_REPOSITORY"
       - name: Verify shared release bundle
         shell: pwsh
-        run: ./.github/scripts/release-bundle.ps1 -Mode Verify -Directory ./release-zip
+        run: ./.github/scripts/release-bundle.ps1 -Mode Verify -Directory ./release-zip -Reuse:($env:REUSE_RELEASE -ceq 'true')
       - uses: ./.github/actions/push-gitee
         # 实测 7 MB 附件上传耗时近 9 分钟; 为慢速链路保留有界余量.
         timeout-minutes: 20

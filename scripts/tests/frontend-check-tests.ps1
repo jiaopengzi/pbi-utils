@@ -25,7 +25,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LicenseBundleStub.psm1') -Destination (Join-Path $sandbox 'scripts/ThirdPartyLicenses.psm1')
     $null = New-Item -ItemType Directory -Path (Join-Path $sandbox 'web')
     Set-Content -LiteralPath (Join-Path $sandbox 'web/package.json') -Value '{"scripts":{"test":"pnpm lint && vitest run","build":"pnpm lint && vite build"}}'
-    Set-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Value "## [v1.2.3] - 2026-11-14`n- 发布夹具."
+    [IO.File]::WriteAllText((Join-Path $sandbox 'version'), "v1.2.3`n")
     Set-Content -LiteralPath (Join-Path $sandbox 'global.json') -Value '{"sdk":{"version":"10.0.403"}}'
     Import-Module (Join-Path $sandbox 'scripts/CommandRegistry.psm1') -Force
     $module = Get-Module CommandRegistry
