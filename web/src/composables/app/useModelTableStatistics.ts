@@ -15,9 +15,9 @@ import { useI18n } from "@/composables/i18n/useI18n"
 import { useFeedback, useOperationMessage } from "@/composables/ui/useFeedback"
 
 /**
- * 统计与导出共用操作锁, 未提供显示-; 架构 cardinality 明确标估计, 不伪造精确数据计数.
- * onUpdated 发布同目标权威快照, operationBlocked 核验相邻导出/目录操作; 返回统计和显式读取入口.
- * 过期元数据仅自动核验一次, 错误保持真实提示, 不重放精确计数或模型写入.
+ * 按当前目标和基线自动读取统计, 与导出共用操作锁, 未提供的值显示为-.
+ * onUpdated 发布同目标权威快照, operationBlocked 核验相邻操作; 返回统计和刷新入口.
+ * 过期基线仅自动核验一次, 失败时显示宿主反馈.
  */
 export function useModelTableStatistics(props: ModelTableExportProps, onUpdated: (project: ProjectSnapshot) => void, operationBlocked: () => boolean) {
     const { t, hostText, locale } = useI18n(),
@@ -26,8 +26,9 @@ export function useModelTableStatistics(props: ModelTableExportProps, onUpdated:
     const cached = cache.statistics?.identity === modelReadIdentity(props.project) ? cache.statistics.result : undefined
     const result = shallowRef<ModelTableStatisticsResult | undefined>(cached),
         busy = ref(false),
-        counting = ref(false),
-        cancelling = ref(false)
+        cancelRequested = ref(false),
+        expired = ref(false),
+        cancelling = computed(() => cancelRequested.value || expired.value)
     let disposed = false,
         generation = 0,
         attempted = cached ? identity() : "",
@@ -40,9 +41,9 @@ export function useModelTableStatistics(props: ModelTableExportProps, onUpdated:
     }
     const blocked = () => !!props.locked || operationBlocked() || hasPendingModelUpdate(props.project)
     const byTable = computed(() => new Map(result.value?.tables.map((table) => [table.table, table])))
-    /** 仅向当前仍在场的请求展示失败, 目标变化、取消和卸载不污染新页面. */
+    /** 仅展示当前目标的失败, 用户主动取消不显示错误, 到期取消仍报告超时. */
     function notify(error: unknown, epoch: number): void {
-        if (!disposed && epoch === generation && !cancelling.value)
+        if (!disposed && epoch === generation && !cancelRequested.value)
             showFeedback({ message: error instanceof Error ? hostText(error.message) : t("model.statisticsFailed"), type: "warning" })
     }
     /** 统计过期后只读核验一次; 成功发布权威快照, 待父级与相邻配置读取排空后再读取新基线. */
@@ -65,16 +66,16 @@ export function useModelTableStatistics(props: ModelTableExportProps, onUpdated:
             notify(error, epoch)
         }
     }
-    /** 仅取消本通道, 统计请求排空前不释放busy. */
+    /** 由用户请求取消本通道, 保持锁定直至原统计请求终结. */
     async function cancel(): Promise<void> {
         if (active && !cancelling.value) {
             const request = active
-            cancelling.value = true
+            cancelRequested.value = true
             try {
                 const response = await request.bridge.request("request.cancel", { requestId: request.id }).promise
-                if (active === request && !response.accepted) cancelling.value = false
+                if (active === request && !response.accepted) cancelRequested.value = false
             } catch {
-                if (active === request) cancelling.value = false
+                if (active === request) cancelRequested.value = false
                 /* 原请求仍负责唯一终态和解锁. */
             }
         }
@@ -82,7 +83,7 @@ export function useModelTableStatistics(props: ModelTableExportProps, onUpdated:
     useOperationMessage(() =>
         busy.value
             ? {
-                  message: t(cancelling.value ? "model.statisticsCancelling" : counting.value ? "model.countingRows" : "model.statisticsLoading"),
+                  message: t(cancelling.value ? "model.statisticsCancelling" : "model.statisticsLoading"),
                   cancel,
                   cancelDisabled: cancelling.value,
                   cancelLabel: t("model.cancel"),
@@ -90,7 +91,7 @@ export function useModelTableStatistics(props: ModelTableExportProps, onUpdated:
             : undefined,
     )
     /** 在当前身份下读取一次统计; 刷新只替换成功结果, 失败不将未知数伪装为0. */
-    async function read(names?: string[]): Promise<void> {
+    async function read(): Promise<void> {
         if (disposed || busy.value || blocked()) return
         const epoch = ++generation,
             target = identity(),
@@ -100,31 +101,23 @@ export function useModelTableStatistics(props: ModelTableExportProps, onUpdated:
         cache.statistics = undefined
         recoveryTarget = ""
         busy.value = true
-        counting.value = !!names
-        cancelling.value = false
+        cancelRequested.value = false
+        expired.value = false
         try {
-            const identityParams = { projectId: props.project.projectId, baselineId: props.project.baselineId }
+            const identityParams = { projectId: project.projectId, baselineId: project.baselineId }
             const phase = (value: string) => {
-                if (value === "canceling" && epoch === generation) cancelling.value = true
+                if (value === "canceling" && epoch === generation) expired.value = true
             }
-            const request = names
-                ? bridge.request("model.tableRowCounts", { ...identityParams, tables: names }, undefined, phase)
-                : bridge.request("model.tableStatistics", identityParams, undefined, phase)
+            const request = bridge.request("model.tableStatistics", identityParams, undefined, phase)
             active = { id: request.id, bridge }
             const response = await request.promise
-            if (disposed || epoch !== generation || cancelling.value || target !== identity()) return
+            // 自动到期只请求取消; 若宿主已先完成, 仍接纳原请求的权威成功结果.
+            if (disposed || epoch !== generation || cancelRequested.value || target !== identity()) return
             if (response.projectId !== props.project.projectId || response.baselineId !== props.project.baselineId) return
-            if (names) {
-                const combined = new Map(result.value?.tables.map((table) => [table.table, table]))
-                for (const table of response.tables) {
-                    if (names.includes(table.table)) combined.set(table.table, { ...table, sizeBytes: combined.get(table.table)?.sizeBytes ?? null })
-                }
-                result.value = { ...response, tables: [...combined.values()] }
-            } else result.value = response
-            cache.statistics = { identity: modelReadIdentity(props.project), result: result.value }
+            result.value = response
+            cache.statistics = { identity: modelReadIdentity(project), result: response }
         } catch (error) {
             if (
-                !names &&
                 error instanceof BridgeError &&
                 error.code === "STALE_BASELINE" &&
                 !disposed &&
@@ -135,6 +128,7 @@ export function useModelTableStatistics(props: ModelTableExportProps, onUpdated:
                 !hasPendingModelUpdate(props.project)
             )
                 await recover(project, epoch, target)
+            else if (expired.value && error instanceof BridgeError && error.code === "CANCELLED") notify(new BridgeError("TIMEOUT", "请求超时"), epoch)
             else notify(error, epoch)
         } finally {
             active = undefined
@@ -144,28 +138,22 @@ export function useModelTableStatistics(props: ModelTableExportProps, onUpdated:
                 recoveryAttempted = false
             }
             busy.value = false
-            counting.value = false
-            cancelling.value = false
+            cancelRequested.value = false
+            expired.value = false
         }
     }
-    /** 显式重读元数据, 成功后替换旧统计, 不保留未经重新查询的旧精确计数. */
+    /** 重读当前模型统计, 成功后替换已有统计, 失败时保留现有结果. */
     function refresh(): Promise<void> {
         if (disposed || busy.value || blocked()) return Promise.resolve()
         recoveryAttempted = false
         return read()
     }
-    /** 只统计当前所选真实表, 不在挂载时对全部模型隐式执行COUNTROWS. */
-    function countExact(names: string[]): Promise<void> {
-        if (!names.length || names.some((name) => !props.project.model.tables.some((table) => table.name === name))) return Promise.resolve()
-        return read([...new Set(names)])
-    }
-    const hasEstimates = computed(() => result.value?.tables.some((table) => table.isEstimate) ?? false)
     /** 查询计数受当前账号可见范围约束; 明确不可计数与尚未读取分开标注. */
-    function countKind(table: string): "query" | "estimate" | "storage" | "unknown" | "unavailable" {
+    function countKind(table: string): "query" | "storage" | "unknown" | "unavailable" {
         const value = byTable.value.get(table)
         if (value?.rowCountUnavailableReason === "no_queryable_columns") return "unavailable"
         if (value?.rowCount === undefined || value.rowCount === null) return "unknown"
-        return value.isQueryCount ? "query" : value.isEstimate ? "estimate" : "storage"
+        return value.isQueryCount ? "query" : "storage"
     }
     watch(
         () => identity(),
@@ -202,13 +190,11 @@ export function useModelTableStatistics(props: ModelTableExportProps, onUpdated:
         // immediate 的首次回调仍同步执行, 首次挂载也需等父级配置 busy 与目录初始化传播完成.
         void nextTick(readWhenReady)
     })
-    /** 只格式化真实非负值; 无可查询列显示不适用, schema估计以≈区分, 未读取始终为-. */
+    /** 返回指定表的本地化行数, 无可查询列显示不适用, 未读取显示为-. */
     function rowCount(table: string): string {
         const value = byTable.value.get(table)
         if (value?.rowCountUnavailableReason === "no_queryable_columns") return t("model.rowCountNotApplicable")
-        return value?.rowCount === undefined || value.rowCount === null
-            ? "-"
-            : (value.isEstimate ? "≈ " : "") + new Intl.NumberFormat(locale.value).format(value.rowCount)
+        return value?.rowCount === undefined || value.rowCount === null ? "-" : new Intl.NumberFormat(locale.value).format(value.rowCount)
     }
     /** 大小采用二进制单位换算, 不用导出文件字节数代替模型驻留结构占用. */
     function size(table: string): string {
@@ -229,5 +215,5 @@ export function useModelTableStatistics(props: ModelTableExportProps, onUpdated:
         document.removeEventListener("visibilitychange", resume)
         void cancel()
     })
-    return { busy, counting, hasEstimates, countKind, refresh, countExact, rowCount, size }
+    return { busy, countKind, refresh, rowCount, size }
 }

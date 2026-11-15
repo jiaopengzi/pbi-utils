@@ -34,8 +34,6 @@ public sealed partial class BridgeSession
                 return await ExportTableAsync(parameters, id, flight);
             case "model.tableStatistics":
                 return await ReadTableStatisticsAsync(parameters, flight);
-            case "model.tableRowCounts":
-                return await ReadTableRowCountsAsync(parameters, flight);
             case "model.exportLocation":
                 return await ReadExportLocationAsync(parameters, flight);
             case "model.openExportDirectory":

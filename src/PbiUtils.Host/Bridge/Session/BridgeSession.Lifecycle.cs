@@ -174,7 +174,7 @@ public sealed partial class BridgeSession
     {
         lock (sync)
         {
-            foreach (var item in flights.Where(item => item.Value.Method is "app.resetUserData" or "project.connectRemote" or "scaffold.openDesktop" or "model.exportTables" or "model.tableStatistics" or "model.tableRowCounts" or "model.openExportDirectory").ToArray()) Cancel(item.Key, "CANCELLED");
+            foreach (var item in flights.Where(item => item.Value.Method is "app.resetUserData" or "project.connectRemote" or "scaffold.openDesktop" or "model.exportTables" or "model.tableStatistics" or "model.openExportDirectory").ToArray()) Cancel(item.Key, "CANCELLED");
             remoteForm?.Invalidate(); scaffold?.Invalidate(); configuration?.Invalidate();
         }
     }

@@ -39,7 +39,7 @@ public sealed class ModelTableStatisticsParserTests
             [Name, "Base(1)", "c2", 0L, 0L, 40m], [Name, "H$Base(1)$c1", "map", 0L, 0L, 10m],
             [Name, "H$Base(1)$c1", "map", 1L, 0L, 999m], [Name, "U$Hierarchy", "u", 0L, 0L, 12m], [Name, "R$Relation", "r", 0L, 0L, 14m]);
         var result = ModelTableStatisticsParser.FromStorage(Names, tables, columns, segments, default);
-        Assert.Equal(12L, result[0].RowCount); Assert.Equal(276L, result[0].SizeBytes); Assert.False(result[0].IsEstimate);
+        Assert.Equal(12L, result[0].RowCount); Assert.Equal(276L, result[0].SizeBytes); Assert.False(result[0].IsQueryCount);
         Assert.Equal("Missing", result[1].Table); Assert.Null(result[1].RowCount); Assert.Null(result[1].SizeBytes);
     }
 
@@ -108,26 +108,12 @@ public sealed class ModelTableStatisticsParserTests
         Assert.Null(ModelTableStatisticsParser.FromStorage([Name], tables, null, null, default)[0].RowCount);
     }
 
-    /// <summary>架构成员数只作估计, 特殊名称按DAX唯一名解码; 未提供、负值及重复维度保持未知.</summary>
-    [Fact]
-    public void LimitedSchemaCardinalityIsEstimatedAndSizeIsUnknown()
-    {
-        using var dimensions = Data(["DIMENSION_UNIQUE_NAME", "DIMENSION_TYPE", "DIMENSION_CARDINALITY"],
-            ["[销售]]|表]", 3, 4294967296L], ["[Missing]", 3, DBNull.Value], ["[Measures]", 2, 20L]);
-        var result = ModelTableStatisticsParser.FromDimensions(Names, dimensions, default);
-        Assert.Equal(4294967296L, result[0].RowCount); Assert.True(result[0].IsEstimate); Assert.Null(result[0].SizeBytes);
-        Assert.Null(result[1].RowCount); Assert.Null(result[1].SizeBytes);
-        dimensions.Rows.Add("[销售]]|表]", 3, 4L);
-        Assert.Null(ModelTableStatisticsParser.FromDimensions(Names, dimensions, default)[0].RowCount);
-    }
-
     /// <summary>取消不能被未知统计掩盖, 即使行集未提供也立即返回取消.</summary>
     [Fact]
     public void CancelledParsingNeverPublishesUnknownSuccess()
     {
         using var token = new CancellationTokenSource(); token.Cancel();
         Assert.ThrowsAny<OperationCanceledException>(() => ModelTableStatisticsParser.FromStorage(Names, null, null, null, token.Token));
-        Assert.ThrowsAny<OperationCanceledException>(() => ModelTableStatisticsParser.FromDimensions(Names, null, token.Token));
     }
 
     /// <summary>按固定基础存储表列构造给定测试行, 返回调用方释放的内存表.</summary>

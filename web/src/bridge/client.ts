@@ -291,15 +291,7 @@ export class BridgeClient {
                 return
             }
             const expire = () => {
-                if (
-                    [
-                        "model.exportTables",
-                        "model.tableStatistics",
-                        "model.tableRowCounts",
-                        "model.openExportDirectory",
-                        "powerbi.serviceModelSummary",
-                    ].includes(method)
-                ) {
+                if (["model.exportTables", "model.tableStatistics", "model.openExportDirectory", "powerbi.serviceModelSummary"].includes(method)) {
                     const entry = this.pending.get(id)
                     if (!entry || entry.expiring || entry.committing) return
                     entry.expiring = true
@@ -325,7 +317,7 @@ export class BridgeClient {
                                 "model.edit",
                                 "model.save",
                                 "model.exportTables",
-                                "model.tableRowCounts",
+                                "model.tableStatistics",
                                 "model.openExportDirectory",
                                 "configuration.apply",
                                 "configuration.complete",

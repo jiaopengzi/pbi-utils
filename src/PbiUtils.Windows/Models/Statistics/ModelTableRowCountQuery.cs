@@ -2,7 +2,7 @@
 // Author      : jiaopengzi
 // Blog        : https://jiaopengzi.com
 // Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-// Description : 仅从已核验所选表名构造有界固定COUNTROWS模板, 不接受自由DAX或安全身份覆盖.
+// Description : 为 Power BI Service 自动统计构造有界固定 COUNTROWS 查询.
 
 using PbiUtils.Application.Code.Dax;
 using PbiUtils.Application;
@@ -13,6 +13,8 @@ namespace PbiUtils.Windows.Models.Statistics;
 /// <summary>仅供后端可信模型表集合使用的固定计数查询生成器.</summary>
 public static class ModelTableRowCountQuery
 {
+    internal const int MaximumTables = 50;
+
     /// <summary>构造最多50表的 long 布局计数查询, 空表通过COALESCE保留真实0, 不使用ALL或绕过RLS.</summary>
     /// <param name="tables">已由当前权威模型核验的实际表名, 仍在此复核批次边界和名称格式.</param>
     /// <param name="cancellationToken">入口、逐表验证/生成和共享排版期间检查取消, 不返回部分查询.</param>
@@ -22,7 +24,7 @@ public static class ModelTableRowCountQuery
     public static string Create(IReadOnlyList<string> tables, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (tables is null || tables.Count is < 1 or > 50)
+        if (tables is null || tables.Count is < 1 or > MaximumTables)
             throw new AppException("VALIDATION_ERROR", "精确行数统计参数无效");
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var name in tables)

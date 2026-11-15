@@ -2,7 +2,7 @@
 // Author      : jiaopengzi
 // Blog        : https://jiaopengzi.com
 // Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-// Description : 由准确 GUI 持有外置维护租约, 跨后台排空退出阻止自动重启抢占用户数据重置.
+// Description : 由准确 GUI 持有运行协调子树的维护租约, 跨后台排空退出阻止自动重启抢占用户数据重置.
 
 using PbiUtils.Infrastructure.Storage;
 using System.Text.Json;

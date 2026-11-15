@@ -43,7 +43,7 @@ it.each([1, 2])("第 %i 次宿主确认取消后不重置, 再次打开从第一
         await flushPromises()
         await wrapper.get(".data-reset-button").trigger("click")
         await flushPromises()
-        expect(document.body.textContent).toContain("重置全部本地数据")
+        expect(document.body.textContent).toContain("重置本地数据")
         expect(document.body.textContent).toContain("备份")
         expect(wrapper.get(".data-reset-button").attributes("disabled")).toBeDefined()
         if (cancelAt === 2) {
@@ -57,7 +57,7 @@ it.each([1, 2])("第 %i 次宿主确认取消后不重置, 再次打开从第一
         expect(await bridge.request("ui.settings", {}).promise).toEqual(before)
         await wrapper.get(".data-reset-button").trigger("click")
         await flushPromises()
-        expect(document.body.textContent).toContain("重置全部本地数据")
+        expect(document.body.textContent).toContain("重置本地数据")
         expect(document.body.textContent).not.toContain("最终确认重置")
         document.querySelector<HTMLButtonElement>(".el-dialog__footer button")!.click()
         await flushPromises()

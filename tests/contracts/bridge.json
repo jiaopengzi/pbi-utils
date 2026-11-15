@@ -294,21 +294,6 @@
     }
   },
   {
-    "id": "model-tableRowCounts-contract",
-    "method": "model.tableRowCounts",
-    "params": {
-      "projectId": "contract",
-      "baselineId": "before",
-      "tables": [
-        "Sales"
-      ]
-    },
-    "error": {
-      "code": "UNSUPPORTED",
-      "message": "当前宿主未提供精确行数统计"
-    }
-  },
-  {
     "id": "model-exportLocation-contract",
     "method": "model.exportLocation",
     "params": {},

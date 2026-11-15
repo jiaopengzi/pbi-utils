@@ -10,7 +10,7 @@ import { flushPromises, mount } from "@vue/test-utils"
 import type { ProjectSnapshot } from "@/bridge/client"
 import ModelPanel from "@/app/ModelPanel.vue"
 import { ScaffoldMock } from "@/features/scaffold/scaffoldMock"
-import { controlledBridge, selectTable, setupTables, tableItem, tablesProject } from "./ModelTablesPanel.support"
+import { controlledBridge, setupTables, tableItem, tablesProject } from "./ModelTablesPanel.support"
 
 /** 使用宿主已绑定的 Desktop 身份, 不连接真实引擎或写入用户模型. */
 function desktopProject(): ProjectSnapshot {
@@ -55,7 +55,7 @@ it("首次统计基线过期时自动回读并发布新快照, 父级接纳后�
         await flushPromises()
         expect(h.statisticsRequests).toHaveLength(2)
         expect(h.statisticsRequests[1]!.params.baselineId).toBe("fresh-baseline")
-        h.replyStatistics(h.statisticsRequests[1]!, [{ table: "新表", rowCount: 42, sizeBytes: 2048, isEstimate: false, isQueryCount: false }])
+        h.replyStatistics(h.statisticsRequests[1]!, [{ table: "新表", rowCount: 42, sizeBytes: 2048, isQueryCount: false }])
         await flushPromises()
         expect(tableItem(h.wrapper, "新表").text()).toContain("42")
         expect(h.wrapper.emitted("busy")?.at(-1)).toEqual([false])
@@ -170,28 +170,12 @@ it("从 Desktop 返回表格页会自动重读统计, 在途焦点重复事件�
         window.dispatchEvent(new Event("focus"))
         await flushPromises()
         expect(h.statisticsRequests).toHaveLength(2)
-        h.replyStatistics(h.statisticsRequests[1]!, [{ table: "销售", rowCount: 99, sizeBytes: null, isEstimate: false, isQueryCount: false }])
+        h.replyStatistics(h.statisticsRequests[1]!, [{ table: "销售", rowCount: 99, sizeBytes: null, isQueryCount: false }])
         await flushPromises()
         expect(tableItem(h.wrapper, "销售").text()).toContain("99")
         h.unmount()
         window.dispatchEvent(new Event("focus"))
         expect(h.statisticsRequests).toHaveLength(2)
-    } finally {
-        h.cleanup()
-    }
-})
-
-it("显式精确计数过期不自动重放COUNTROWS或发布新的选择基线", async () => {
-    const h = await setupTables({ project: desktopProject() })
-    try {
-        await selectTable(h.wrapper, "销售")
-        await h.wrapper.get(".exact-row-count").trigger("click")
-        h.send({ id: h.rowCountRequests[0]!.id, error: { code: "STALE_BASELINE", message: "计数目标已变化" } })
-        await flushPromises()
-        expect(h.rowCountRequests).toHaveLength(1)
-        expect(h.sent).toHaveLength(0)
-        expect(h.wrapper.emitted("updated")).toBeUndefined()
-        expect(document.querySelector(".el-message--warning")?.textContent).toContain("计数目标已变化")
     } finally {
         h.cleanup()
     }

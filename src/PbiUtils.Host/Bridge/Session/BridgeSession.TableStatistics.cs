@@ -15,11 +15,11 @@ namespace PbiUtils.Host.Bridge.Session;
 
 public sealed partial class BridgeSession
 {
-    /// <summary>读取当前模型的表统计, 与切换和写入串行, 数据统计不进入模型定义指纹.</summary>
-    /// <param name="parameters">仅包含当前projectId和baselineId的严格对象.</param>
+    /// <summary>读取当前模型全部表的统计, 包括 Power BI Service 当前账号可见的精确行数. 统计结果不进入模型定义指纹.</summary>
+    /// <param name="parameters">仅包含当前 projectId 和 baselineId 的对象.</param>
     /// <param name="flight">宿主拥有的取消和生命周期.</param>
-    /// <returns>实际读取的统计, 未提供的行数或大小保持null.</returns>
-    /// <exception cref="AppException">参数、目标、基线、能力或并发状态无效.</exception>
+    /// <returns>实际读取的统计, 未提供的行数或大小保持 null.</returns>
+    /// <exception cref="AppException">参数、目标、基线、能力或并发状态无效, 或统计查询失败.</exception>
     private async Task<ModelTableStatisticsResult> ReadTableStatisticsAsync(JsonElement parameters, Flight flight)
     {
         if (parameters.EnumerateObject().Count() != 2 || !Read("projectId", out var requestedProject)

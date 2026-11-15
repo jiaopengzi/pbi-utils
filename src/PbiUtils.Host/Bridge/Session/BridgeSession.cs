@@ -71,7 +71,6 @@ public sealed partial class BridgeSession(OriginPolicy origin, DoctorService doc
     IModelTableStatisticsReader? tableStatistics = null,
     LocalModelExportLocationStore? exportLocations = null,
     Func<string, CancellationToken, Task>? openExportDirectory = null,
-    IModelTableRowCountReader? tableRowCounts = null,
     Func<LearningViewRequest, CancellationToken, Task>? updateLearningView = null,
     Func<CancellationToken, Task>? closeLearningView = null, Func<CancellationToken, Task>? openLearningSite = null,
     ExecutionJournal? mcpJournal = null,
@@ -197,7 +196,7 @@ public sealed partial class BridgeSession(OriginPolicy origin, DoctorService doc
             externalCancellation = externalToken.Register(() => Cancel(id!, "CANCELLED"));
             externalToken.ThrowIfCancellationRequested();
             // 远端填写不创建在途请求; 只有用户提交才开始独立的30秒连接预算.
-            flight.Timer = ArmTimeout(id, flight, timeout ?? (mcpOperation is { ReadOnly: false } ? TimeSpan.FromMinutes(3) : TimeSpan.FromSeconds(method == "app.resetUserData" ? 390 : method == "udf.catalogRefresh" ? 600 : method is "project.open" or "project.openRecent" or "scaffold.openDesktop" or "powerbi.serviceSignIn" or "model.edit" or "model.save" or "model.exportTables" or "model.tableRowCounts" or "model.openExportDirectory" or "sample.chooseDirectory" or "sample.generate" or "sample.clear" ? 180 : 30)),
+            flight.Timer = ArmTimeout(id, flight, timeout ?? (mcpOperation is { ReadOnly: false } ? TimeSpan.FromMinutes(3) : TimeSpan.FromSeconds(method == "app.resetUserData" ? 390 : method == "udf.catalogRefresh" ? 600 : method is "project.open" or "project.openRecent" or "scaffold.openDesktop" or "powerbi.serviceSignIn" or "model.edit" or "model.save" or "model.exportTables" or "model.tableStatistics" or "model.openExportDirectory" or "sample.chooseDirectory" or "sample.generate" or "sample.clear" ? 180 : 30)),
                 method == "project.connectRemote" ? "RemoteConnect" : method == "project.open" ? "FileSelection" : "Request");
             result = mcpOperation is null ? await DispatchGuiAsync(method, parameters, id, flight)
                 : await DispatchMcpAsync(mcpOperation, parameters, id, flight);

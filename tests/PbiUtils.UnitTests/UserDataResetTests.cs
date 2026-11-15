@@ -6,6 +6,7 @@
 
 using PbiUtils.Infrastructure.Storage;
 using PbiUtils.Infrastructure.Logging;
+using PbiUtils.Infrastructure.Hosting;
 using System.Diagnostics;
 using PbiUtils.Application.Scaffolding;
 using PbiUtils.Core;
@@ -15,7 +16,7 @@ using Xunit;
 
 namespace PbiUtils.UnitTests;
 
-/// <summary>业务文件仅在随机临时目录; 外置租约只绑定该临时根, 不访问实际用户数据、凭据、模型或其他进程.</summary>
+/// <summary>业务文件与协调租约都在随机临时目录, 不访问实际用户数据、凭据、模型或其他进程.</summary>
 public sealed class UserDataResetTests : IDisposable
 {
     private readonly string temporary = Path.Combine(Path.GetTempPath(), "pbi-reset-" + Guid.NewGuid().ToString("N"));
@@ -31,17 +32,18 @@ public sealed class UserDataResetTests : IDisposable
         var project = Path.Combine(temporary, "external.pbip");
         await File.WriteAllTextAsync(project, "user-project-preserved");
         await new UserDataReset(Root).ResetAsync(default);
-        Assert.Empty(Directory.EnumerateFileSystemEntries(Root));
+        AssertOnlyRuntimeRemains();
         Assert.Equal("user-project-preserved", await File.ReadAllTextAsync(project));
     }
 
-    /// <summary>卸载明确选择后删除数据根本身, 保护同层协调目录和外部工程, 并允许重试已完成的清理.</summary>
+    /// <summary>卸载明确选择后连同协调文件删除数据根, 保留外部工程并允许空目录重试.</summary>
     [Fact]
     public async Task UninstallRemovesOnlyDataRootAndAllowsRetryWhenMissing()
     {
         Write("Templates/custom/template.txt", "isolated-test-content");
-        var coordination = Path.Combine(temporary, ".pbi-utils-runtime");
-        Directory.CreateDirectory(coordination);
+        using (UserDataSessionLease.Acquire(Root, exclusive: false)) { }
+        Assert.True(Directory.Exists(Path.Combine(Root, "runtime")));
+        Write("runtime/host-isolated/mcp-admission.json", "persistent-runtime-state");
         var project = Path.Combine(temporary, "external.pbip");
         await File.WriteAllTextAsync(project, "user-project-preserved");
 
@@ -49,7 +51,6 @@ public sealed class UserDataResetTests : IDisposable
         await new UserDataReset(Root).RemoveForUninstallAsync(default);
 
         Assert.False(Directory.Exists(Root));
-        Assert.True(Directory.Exists(coordination));
         Assert.Equal("user-project-preserved", await File.ReadAllTextAsync(project));
     }
 
@@ -67,6 +68,24 @@ public sealed class UserDataResetTests : IDisposable
         Assert.False(UserDataSessionLease.IsMaintenanceReserved(Root));
     }
 
+    /// <summary>GUI 维护仍持有运行协调文件时, 即使业务会话已释放也不能从卸载入口删除任何数据.</summary>
+    [Fact]
+    public async Task UninstallRejectsActiveHostMaintenanceBeforeRemovingAnyFile()
+    {
+        var preserved = Write("custom.txt", "original");
+        var host = new BusinessHostSettings(Root, Path.Combine(temporary, "installation"));
+        using (BusinessHostOwnership.TryAcquireMaintenance(host))
+        {
+            Assert.True(BusinessHostOwnership.IsMaintenanceHeld(host));
+            var error = await Assert.ThrowsAsync<AppException>(() => new UserDataReset(Root).RemoveForUninstallAsync(default));
+            Assert.Equal("USER_DATA_BUSY", error.Code);
+            Assert.Equal("original", await File.ReadAllTextAsync(preserved));
+        }
+
+        await new UserDataReset(Root).RemoveForUninstallAsync(default);
+        Assert.False(Directory.Exists(Root));
+    }
+
     /// <summary>任何文件仍被占用时先完成整体验证再拒绝, 排序在其前面的其他内容也不得先删除.</summary>
     [Fact]
     public async Task LockedFileRejectsBeforeAnyDeletionAndCanResetAfterRelease()
@@ -80,7 +99,7 @@ public sealed class UserDataResetTests : IDisposable
             Assert.Equal("unchanged", await File.ReadAllTextAsync(Path.Combine(Root, "a-preserved.txt")));
         }
         await new UserDataReset(Root).ResetAsync(default);
-        Assert.Empty(Directory.EnumerateFileSystemEntries(Root));
+        AssertOnlyRuntimeRemains();
     }
 
     /// <summary>正常宿主共享同一根, 独占重置在任一活跃日志会话存在时零删除拒绝.</summary>
@@ -96,15 +115,16 @@ public sealed class UserDataResetTests : IDisposable
             Assert.Equal("original", await File.ReadAllTextAsync(Path.Combine(Root, "preserved.txt")));
         }
         await new UserDataReset(Root).ResetAsync(default);
-        Assert.Empty(Directory.EnumerateFileSystemEntries(Root));
+        AssertOnlyRuntimeRemains();
     }
 
-    /// <summary>实际会话与维护租约共用 Profile 外置根, 全量重置不会删除或替换仍用于协调的文件.</summary>
+    /// <summary>实际租约与后台准入位于数据根的 runtime, 重置保留它们并阻止新会话.</summary>
     [Fact]
-    public async Task ProfileCoordinationLeasesSurviveUserDataReset()
+    public async Task RuntimeCoordinationSurvivesUserDataReset()
     {
         Write("reset-target.txt", "isolated-test-content");
-        var runtimeRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".pbi-utils-runtime");
+        var runtimeRoot = Path.Combine(Root, "runtime");
+        var mcpAdmission = Write("runtime/host-isolated/mcp-admission.json", "persistent-runtime-state");
         string sessionPath;
         using (var session = UserDataSessionLease.Acquire(Root, exclusive: false))
         {
@@ -116,9 +136,10 @@ public sealed class UserDataResetTests : IDisposable
 
         await new UserDataReset(Root).ResetAsync(default);
 
-        Assert.Empty(Directory.EnumerateFileSystemEntries(Root));
+        AssertOnlyRuntimeRemains();
         Assert.True(File.Exists(sessionPath));
         Assert.True(File.Exists(maintenance.Name));
+        Assert.Equal("persistent-runtime-state", await File.ReadAllTextAsync(mcpAdmission));
         Assert.True(UserDataSessionLease.IsMaintenanceReserved(Root));
         Assert.Equal("BUSINESS_HOST_MAINTENANCE", Assert.Throws<AppException>(() => UserDataSessionLease.Acquire(Root, exclusive: false)).Code);
     }
@@ -138,22 +159,22 @@ public sealed class UserDataResetTests : IDisposable
             }
             existing.Dispose();
             await new UserDataReset(Root).ResetAsync(default);
-            Assert.Empty(Directory.EnumerateFileSystemEntries(Root));
+            AssertOnlyRuntimeRemains();
             Assert.Equal("BUSINESS_HOST_MAINTENANCE", Assert.Throws<AppException>(() => new LoggingRuntime(Root, "cli")).Code);
-            Assert.Empty(Directory.EnumerateFileSystemEntries(Root));
+            AssertOnlyRuntimeRemains();
         }
         Assert.False(UserDataSessionLease.IsMaintenanceReserved(Root));
         using var resumed = new LoggingRuntime(Root, "cli");
         Assert.Equal("Information", resumed.Read().Level);
     }
 
-    /// <summary>重置独占租约取得后, 新宿主必须在创建用户根之前失败, 不能在清理期间启动写入.</summary>
+    /// <summary>重置独占租约取得后, 新宿主不能创建日志或其他数据目录.</summary>
     [Fact]
-    public void ExclusiveResetBlocksNewHostBeforeUserDirectoryCreation()
+    public void ExclusiveResetBlocksNewHostBeforeBusinessDataCreation()
     {
         using var exclusive = UserDataSessionLease.Acquire(Root, exclusive: true);
         Assert.Equal("USER_DATA_BUSY", Assert.Throws<AppException>(() => new LoggingRuntime(Root, "test")).Code);
-        Assert.False(Directory.Exists(Root));
+        AssertOnlyRuntimeRemains();
     }
 
     /// <summary>直接新建或 CLI 留下的 committing 计划也属于未知发布, prepared 草稿可按用户重置意图清除.</summary>
@@ -178,7 +199,7 @@ public sealed class UserDataResetTests : IDisposable
         else
         {
             await new UserDataReset(Root).ResetAsync(default);
-            Assert.Empty(Directory.EnumerateFileSystemEntries(Root));
+            AssertOnlyRuntimeRemains();
         }
         Assert.False(Directory.Exists(plan.OutputPath));
     }
@@ -269,6 +290,10 @@ public sealed class UserDataResetTests : IDisposable
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new UserDataReset(Root).ResetAsync(cancellation.Token));
         Assert.Equal("original", await File.ReadAllTextAsync(path));
     }
+
+    /// <summary>断言重置后数据根只保留运行协调子目录.</summary>
+    private void AssertOnlyRuntimeRemains() =>
+        Assert.Equal(Path.Combine(Root, "runtime"), Assert.Single(Directory.EnumerateFileSystemEntries(Root)));
 
     /// <summary>只为隔离根创建测试材料, 参数为相对分区和不含秘密的固定文本.</summary>
     private string Write(string relative, string text)

@@ -19,7 +19,7 @@ public static class BridgeMethods
         "learning.update", "learning.close", "learning.open",
         "powerbi.instances", "powerbi.serviceStatus", "powerbi.serviceSignIn", "powerbi.serviceDeleteLogin", "powerbi.serviceSignOut", "powerbi.serviceModels", "powerbi.serviceModelSummary", "powerbi.serviceRecentModels", "powerbi.serviceDeleteRecentModel",
         "remote.form", "remote.mutate", "project.disconnect", "project.connectLocal", "project.connectExternalTool", "project.connectRemote", "project.connectService",
-        "dax.format", "model.udfLint", "model.exportTables", "model.tableStatistics", "model.tableRowCounts", "model.exportLocation", "model.openExportDirectory", "model.edit", "model.save", "model.discard", "project.recent", "project.openRecent", "project.deleteRecent", "project.openPath", "project.open", "project.inspect",
+        "dax.format", "model.udfLint", "model.exportTables", "model.tableStatistics", "model.exportLocation", "model.openExportDirectory", "model.edit", "model.save", "model.discard", "project.recent", "project.openRecent", "project.deleteRecent", "project.openPath", "project.open", "project.inspect",
         "sample.status", "sample.chooseDirectory", "sample.generate", "sample.clear", "sample.openDirectory",
         "scaffold.templates", "scaffold.templateDetails", "scaffold.chooseOutput", "scaffold.openTemplates", "scaffold.openDirectory", "scaffold.openDesktop", "scaffold.updateDraft", "scaffold.preview", "scaffold.create", "scaffold.discard",
         "configuration.context", "configuration.apply", "configuration.complete", "configuration.discard",

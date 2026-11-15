@@ -34,54 +34,75 @@ public sealed partial class ModelTableStatisticsTests
         Assert.False(result.IsSimulation);
     }
 
-    /// <summary>存储行集不可用时保留服务报告的维度估计, 且不改变可见模型指纹.</summary>
+    /// <summary>共享容量自动查询所有表的当前账号实际行数, 且不改变可见模型指纹.</summary>
     [Fact]
-    public async Task LimitedServiceUsesOneMetadataBatchAndKeepsVisibleBaselineUnchanged()
+    public async Task LimitedServiceAutomaticallyCountsAllTablesAndKeepsVisibleBaselineUnchanged()
     {
-        var schema = new Schema(); var session = new Session { Cardinality = 2191L };
+        var schema = new Schema { Tables = ["Sales", "Empty"] };
+        var session = new Session { Count = name => name == "Empty" ? 0 : 60L };
         var (reader, snapshot) = await Connect(schema, new(), session);
         try
         {
             var result = await reader.ReadStatisticsAsync(snapshot, default);
-            var table = Assert.Single(result.Tables);
-            Assert.Equal(2191L, table.RowCount); Assert.True(table.IsEstimate); Assert.Null(table.SizeBytes);
+            Assert.Equal(["Sales", "Empty"], result.Tables.Select(table => table.Table));
+            Assert.Equal([60L, 0L], result.Tables.Select(table => table.RowCount));
+            Assert.All(result.Tables, table => { Assert.True(table.IsQueryCount); Assert.Null(table.SizeBytes); });
             Assert.Equal(snapshot.ProjectId, result.ProjectId); Assert.Equal(snapshot.BaselineId, result.BaselineId);
-            Assert.Equal(["DISCOVER_STORAGE_TABLES", "MDSCHEMA_DIMENSIONS"], session.Reads); Assert.True(session.Disposed);
+            Assert.Equal(["DISCOVER_STORAGE_TABLES"], session.Reads);
+            Assert.Equal(["Sales", "Empty"], Assert.Single(session.CountBatches));
+            Assert.True(session.Disposed);
             Assert.True(snapshot.Connection!.IsLimited); Assert.Equal(3, schema.OpenCount);
             Assert.Equal(schema.OpenCount, schema.DisposeCount);
         }
         finally { reader.Disconnect(); }
     }
-    /// <summary>共享容量只接受能核验为 Import 的完整存储统计, 非 Import 仍提供维度估计.</summary>
+    /// <summary>Service 实际行数始终来自查询, 字节数要求已核验为 Import 且存储结构完整.</summary>
     [Theory]
-    [InlineData(2, 91L, false, 77L)]
-    [InlineData(1, 2191L, true, null)]
-    public async Task SharedServiceReadsStorageWhenImportModeIsConfirmed(int partitionMode, long rows, bool estimated, long? bytes)
+    [InlineData(2, 77L)]
+    [InlineData(1, null)]
+    public async Task SharedServiceReadsStorageWhenImportModeIsConfirmed(int partitionMode, long? bytes)
     {
-        var session = new Session { Storage = true, PartitionMode = partitionMode, Cardinality = 2191L };
+        var session = new Session { Storage = true, PartitionMode = partitionMode };
         var (reader, snapshot) = await Connect(new(), new(), session);
         try
         {
             var table = Assert.Single((await reader.ReadStatisticsAsync(snapshot, default)).Tables);
-            Assert.Equal(rows, table.RowCount);
-            Assert.Equal(estimated, table.IsEstimate);
+            Assert.Equal(60L, table.RowCount);
+            Assert.True(table.IsQueryCount);
             Assert.Equal(bytes, table.SizeBytes);
-            Assert.Empty(session.CountBatches);
+            Assert.Equal(["Sales"], Assert.Single(session.CountBatches));
         }
         finally { reader.Disconnect(); }
     }
 
-    /// <summary>服务不提供统计元数据时保留未知, 仍完成后端当前身份的前后回读.</summary>
+    /// <summary>服务不提供存储元数据时仍查询实际计数, 字节数保持未知并完成身份前后回读.</summary>
     [Fact]
-    public async Task UnavailableMetadataReturnsNullInsteadOfZero()
+    public async Task UnavailableStorageMetadataDoesNotPreventExactCounts()
     {
         var schema = new Schema(); var session = new Session { Unavailable = true };
         var (reader, snapshot) = await Connect(schema, new(), session);
         try
         {
             var result = await reader.ReadStatisticsAsync(snapshot, default);
-            Assert.Null(result.Tables[0].RowCount); Assert.Null(result.Tables[0].SizeBytes);
+            Assert.Equal(60L, result.Tables[0].RowCount); Assert.Null(result.Tables[0].SizeBytes);
             Assert.Equal(3, schema.OpenCount); Assert.True(session.Disposed);
+        }
+        finally { reader.Disconnect(); }
+    }
+
+    /// <summary>大模型的存储明细超限时, Service 仍可返回完整实际计数.</summary>
+    [Fact]
+    public async Task StorageMetadataLimitDoesNotPreventServiceCounts()
+    {
+        var session = new Session { Storage = true, StorageLimit = true };
+        var (reader, snapshot) = await Connect(new(), new(), session);
+        try
+        {
+            var table = Assert.Single((await reader.ReadStatisticsAsync(snapshot, default)).Tables);
+            Assert.Equal(60L, table.RowCount);
+            Assert.True(table.IsQueryCount);
+            Assert.Null(table.SizeBytes);
+            Assert.Equal(["Sales"], Assert.Single(session.CountBatches));
         }
         finally { reader.Disconnect(); }
     }
@@ -221,9 +242,9 @@ public sealed partial class ModelTableStatisticsTests
     /// <summary>统计会话只接受固定行集, 可控制同步边界与资源释放失败.</summary>
     private sealed class Session : IPowerBiTableStatisticsSession
     {
-        public long Cardinality { get; init; } = 5;
         public bool Unavailable { get; init; }
         public bool Storage { get; init; }
+        public bool StorageLimit { get; init; }
         public int PartitionMode { get; init; } = 2;
         public bool OpenFailure { get; init; }
         public bool ReadFailure { get; init; }
@@ -243,11 +264,12 @@ public sealed partial class ModelTableStatisticsTests
         {
             token.ThrowIfCancellationRequested(); Reads.Add(schema);
             if (ReadFailure) throw new InvalidOperationException("secret-test-token C:/private");
+            if (StorageLimit && schema == "DISCOVER_STORAGE_TABLE_COLUMN_SEGMENTS")
+                throw new AppException("MODEL_STATISTICS_LIMIT", "表统计超过读取上限", 3);
             AfterRead?.Invoke(); token.ThrowIfCancellationRequested();
             if (Unavailable) return null;
             return schema switch
             {
-                "MDSCHEMA_DIMENSIONS" => Data(["DIMENSION_UNIQUE_NAME", "DIMENSION_TYPE", "DIMENSION_CARDINALITY"], ["[Sales]", 3, Cardinality]),
                 "DISCOVER_STORAGE_TABLES" when Storage => Data(["DIMENSION_NAME", "TABLE_ID", "ROWS_COUNT"], ["Sales", "Sales (1)", 91L]),
                 "DISCOVER_STORAGE_TABLES" => null,
                 "DISCOVER_STORAGE_TABLE_COLUMNS" => Data(["DIMENSION_NAME", "TABLE_ID", "COLUMN_ID", "COLUMN_TYPE", "DICTIONARY_SIZE"], ["Sales", "Sales (1)", "Value", "BASIC_DATA", 55L]),
@@ -258,7 +280,7 @@ public sealed partial class ModelTableStatisticsTests
                 _ => throw new InvalidOperationException("Unexpected statistics schema")
             };
         }
-        /// <summary>只返回明确所选表的查询计数, 支持批次失败和协议错误; 不把认证失败伪装为0.</summary>
+        /// <summary>返回本批 Service 表的实际计数, 可模拟查询失败与无效结果.</summary>
         public DataTable ReadRowCounts(IReadOnlyList<string> tables, CancellationToken token)
         {
             token.ThrowIfCancellationRequested(); CountBatches.Add([.. tables]);

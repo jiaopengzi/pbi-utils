@@ -130,7 +130,6 @@ export interface ModelTableStatisticsResult {
         table: string
         rowCount: number | null
         sizeBytes: number | null
-        isEstimate: boolean
         isQueryCount: boolean
         rowCountUnavailableReason?: "no_queryable_columns" | null
     }[]

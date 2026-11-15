@@ -100,7 +100,6 @@ public sealed partial class BridgeSession
                 return DispatchConnectionsAsync(method, parameters, id, flight);
             case "dax.format":
             case "model.udfLint":
-            case "model.tableRowCounts":
             case "model.exportLocation":
             case "model.openExportDirectory":
             case "model.tableStatistics":

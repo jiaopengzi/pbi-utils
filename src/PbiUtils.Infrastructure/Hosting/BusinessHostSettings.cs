@@ -31,7 +31,7 @@ internal sealed class BusinessHostSettings
         UserRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(userRoot));
         Installation = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installation));
         var identity = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(UserRoot.ToUpperInvariant() + "\n" + Installation.ToUpperInvariant())));
-        CoordinationDirectory = coordinationDirectory ?? Path.Combine(RuntimeEnvironment.RuntimeCoordinationDirectory(), "host-" + identity);
+        CoordinationDirectory = coordinationDirectory ?? Path.Combine(RuntimeEnvironment.RuntimeCoordinationDirectory(UserRoot), "host-" + identity);
         PipeName = "pbi-utils-business-" + identity;
         HostExecutable = Path.Combine(Installation, "PbiUtils.Host.exe");
         GuiExecutable = Path.Combine(Installation, "PbiUtils.Desktop.exe");

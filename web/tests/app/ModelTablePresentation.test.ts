@@ -3,7 +3,7 @@
  * Author      : jiaopengzi
  * Blog        : https://jiaopengzi.com
  * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
- * Description : 验证表元信息的精简名称和顺序, 移除冗余说明后仍保留精确与估计口径.
+ * Description : 验证表元信息的名称和顺序, 保留当前账号可见与不适用的统计说明.
  */
 import { expect, it } from "vitest"
 import { mount } from "@vue/test-utils"
@@ -32,27 +32,24 @@ it.each([
     }
 })
 
-it.each([
-    { kind: "query", label: "当前账号可见" },
-    { kind: "estimate", label: "架构估计" },
-] as const)("去掉存储来源文案后仍保留$kind 类型的行数口径", ({ kind, label }) => {
+it("保留实际查询的行数口径", () => {
     const wrapper = mount(ModelTableDetails, {
-        props: { table: tablesProject().model.tables[0]!, limited: false, rowCount: "25", storageSize: "-", countKind: kind },
+        props: { table: tablesProject().model.tables[0]!, limited: false, rowCount: "25", storageSize: "-", countKind: "query" },
     })
     try {
-        expect(wrapper.text()).toContain(label)
+        expect(wrapper.text()).toContain("当前账号可见")
         expect(wrapper.findAll("dt").map((cell) => cell.text())).toEqual(["列数", "行数", "大小", "分区类型"])
     } finally {
         wrapper.unmount()
     }
 })
 
-it("表面板移除整段默认行数和存储占用提示, 保留统计操作", async () => {
+it("表面板保留刷新统计, 移除单独的精确统计入口", async () => {
     const { wrapper, cleanup } = await setupTables()
     try {
         expect(wrapper.text()).not.toContain("行数默认来自模型统计")
         expect(wrapper.text()).toContain("刷新统计")
-        expect(wrapper.text()).toContain("精确统计所选表")
+        expect(wrapper.text()).not.toContain("精确统计所选表")
     } finally {
         cleanup()
     }
@@ -67,7 +64,6 @@ it.each([
         table: "销售",
         rowCount: null,
         sizeBytes: 272,
-        isEstimate: false,
         isQueryCount: false,
         rowCountUnavailableReason: "no_queryable_columns" as const,
     }

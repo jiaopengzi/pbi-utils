@@ -13,11 +13,11 @@ using TOM = Microsoft.AnalysisServices.Tabular;
 
 namespace PbiUtils.Windows.Models.Statistics;
 
-/// <summary>只解析已读取的固定元数据, 不连接模型或修改模型定义.</summary>
+/// <summary>解析已读取的存储元数据及实际行数, 不连接模型或修改模型定义.</summary>
 public static class ModelTableStatisticsParser
 {
-    /// <summary>实际查询计数必须完整覆盖本批选择, 非法/重复/缺失或模型外结果明确失败, 不发布部分成功.</summary>
-    /// <param name="tables">本批已核验实际表名, 保留用户选择顺序.</param>
+    /// <summary>实际查询计数必须完整覆盖本批表, 非法/重复/缺失或模型外结果明确失败, 不发布部分成功.</summary>
+    /// <param name="tables">本批已核验实际表名, 保留模型表顺序.</param>
     /// <param name="counts">固定别名[__Table]/[__Rows]的完整计数行集.</param>
     /// <param name="token">元数据遍历与返回前检查的取消令牌.</param>
     /// <returns>仅本批表的当前账号查询计数, 不提供大小且不作估计.</returns>
@@ -34,42 +34,11 @@ public static class ModelTableStatisticsParser
             var name = Text(row, "[__Table]"); var count = Integer(row, "[__Rows]");
             if (!selected.Contains(name) || count is null || !results.TryAdd(name, count.Value)) throw InvalidCounts();
         }
-        return tables.Select(table => new ModelTableStatistics(table, results[table], null, false, true)).ToArray();
+        return tables.Select(table => new ModelTableStatistics(table, results[table], null, IsQueryCount: true)).ToArray();
     }
 
     /// <summary>精确计数协议异常采用固定安全提示, 不携带模型值或SDK异常正文.</summary>
     private static AppException InvalidCounts() => new("MODEL_ROW_COUNT_INVALID", "精确行数结果不完整或格式无效", 3);
-
-    /// <summary>架构关键属性成员数作为估计行数, 未返回的统计与存储大小保持未知.</summary>
-    /// <param name="tables">当前权威模型实际表名, 不匹配的内部或其他对象不会进入结果.</param>
-    /// <param name="dimensions">固定MDSCHEMA_DIMENSIONS行集, 可能未提供.</param>
-    /// <param name="token">每张表及元数据遍历时检查取消.</param>
-    /// <returns>与原表顺序一致的估计统计, 不从架构推导大小.</returns>
-    public static IReadOnlyList<ModelTableStatistics> FromDimensions(IReadOnlyList<string> tables, DataTable? dimensions, CancellationToken token)
-    {
-        token.ThrowIfCancellationRequested();
-        var available = Has(dimensions, "DIMENSION_UNIQUE_NAME", "DIMENSION_TYPE", "DIMENSION_CARDINALITY");
-        var rows = new Dictionary<string, List<DataRow>>(StringComparer.Ordinal);
-        if (available)
-        {
-            foreach (DataRow row in dimensions!.Rows)
-            {
-                token.ThrowIfCancellationRequested();
-                if (Text(row, "DIMENSION_TYPE") == "2") continue;
-                var name = DaxName(Text(row, "DIMENSION_UNIQUE_NAME"));
-                if (!rows.TryGetValue(name, out var values)) rows[name] = values = [];
-                values.Add(row);
-            }
-        }
-        return tables.Select(table =>
-        {
-            token.ThrowIfCancellationRequested();
-            // 同一个表可由多个透视重复列出, 只有各条记录都确认了同一成员数时才使用该估计.
-            var counts = rows.GetValueOrDefault(table)?.Select(row => Integer(row, "DIMENSION_CARDINALITY")).Distinct().Take(2).ToArray();
-            var count = counts is { Length: 1 } ? counts[0] : null;
-            return new ModelTableStatistics(table, count, null, count is not null);
-        }).ToArray();
-    }
 
     /// <summary>按表 ID 核验每个可读表的全部分区均为 Import; 无法确认的表不能采用驻留统计.</summary>
     /// <param name="tables">已连接模型的表 ID 和名称行集.</param>
@@ -208,6 +177,4 @@ public static class ModelTableStatisticsParser
         if (value > long.MaxValue - total) return false;
         total += value; return true;
     }
-    /// <summary>架构唯一名只解外层方括号和标准转义, 不改变实际名称.</summary>
-    private static string DaxName(string name) => name.StartsWith('[') && name.EndsWith(']') ? name[1..^1].Replace("]]", "]", StringComparison.Ordinal) : name;
 }

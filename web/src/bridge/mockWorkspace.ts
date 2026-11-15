@@ -111,7 +111,7 @@ export class MockWorkspace {
             reply({ id: null, displayPath: null, available: false, warning: null, isSimulation: true })
             return true
         }
-        if (method === "model.openExportDirectory" || method === "model.tableRowCounts") {
+        if (method === "model.openExportDirectory") {
             fail("MODEL_EXPORT_SIMULATION_UNAVAILABLE")
             return true
         }
@@ -123,7 +123,6 @@ export class MockWorkspace {
                     table: table.name,
                     rowCount: null,
                     sizeBytes: null,
-                    isEstimate: false,
                     isQueryCount: false,
                 })),
                 isSimulation: true,

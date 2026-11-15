@@ -14,7 +14,7 @@ import { controlledBridge, exportResult, selectTable, tableItem, tablesProject }
 it("同模型表格页重挂复用已读取统计和精确行数, 不再次进入读取 busy", async () => {
     const project = tablesProject()
     const h = controlledBridge(project, {
-        statistics: [{ table: "销售", rowCount: 42, sizeBytes: 1024, isEstimate: false, isQueryCount: true }],
+        statistics: [{ table: "销售", rowCount: 42, sizeBytes: 1024, isQueryCount: true }],
     })
     let wrapper = mount(ModelTablesPanel, { props: { project, bridge: h.bridge } })
     try {
@@ -93,11 +93,11 @@ it("失效前迟到的统计不进入缓存, 新一代成功结果可在重挂�
         await flushPromises()
         invalidateModelReads(h.bridge)
         await flushPromises()
-        h.replyStatistics(h.statisticsRequests[0]!, [{ table: "销售", rowCount: 999, sizeBytes: null, isEstimate: false, isQueryCount: false }])
+        h.replyStatistics(h.statisticsRequests[0]!, [{ table: "销售", rowCount: 999, sizeBytes: null, isQueryCount: false }])
         await flushPromises()
         expect(h.statisticsRequests).toHaveLength(2)
         expect(tableItem(wrapper, "销售").text()).not.toContain("999")
-        h.replyStatistics(h.statisticsRequests[1]!, [{ table: "销售", rowCount: 42, sizeBytes: null, isEstimate: false, isQueryCount: false }])
+        h.replyStatistics(h.statisticsRequests[1]!, [{ table: "销售", rowCount: 42, sizeBytes: null, isQueryCount: false }])
         await flushPromises()
         wrapper.unmount()
         wrapper = mount(ModelTablesPanel, { props: { project, bridge: h.bridge } })

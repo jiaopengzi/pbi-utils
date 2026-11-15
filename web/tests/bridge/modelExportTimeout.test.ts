@@ -3,16 +3,13 @@
  * Author      : jiaopengzi
  * Blog        : https://jiaopengzi.com
  * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
- * Description : 验证表导出/统计/精确计数/目录打开的有界预算、取消排空与提交后不可取消边界.
+ * Description : 验证表导出、统计、打开目录的有界预算、取消排空与提交后不可取消边界.
  */
 import { expect, it, vi } from "vitest"
 import { BridgeClient } from "@/bridge/client"
 
 /** 可控宿主传输只投递阶段与原请求终态, 不模拟数据文件成功. */
-function harness(
-    timeout = 30000,
-    method: "model.exportTables" | "model.tableStatistics" | "model.tableRowCounts" | "model.openExportDirectory" = "model.exportTables",
-) {
+function harness(timeout = 30000, method: "model.exportTables" | "model.tableStatistics" | "model.openExportDirectory" = "model.exportTables") {
     let receive: (event: MessageEvent) => void = vi.fn()
     const sent: { id: string; method: string; params: unknown }[] = []
     const bridge = new BridgeClient(
@@ -30,22 +27,20 @@ function harness(
     const request =
         method === "model.tableStatistics"
             ? bridge.request("model.tableStatistics", { projectId: "isolated", baselineId: "baseline" }, undefined, onPhase)
-            : method === "model.tableRowCounts"
-              ? bridge.request("model.tableRowCounts", { projectId: "isolated", baselineId: "baseline", tables: ["销售"] }, undefined, onPhase)
-              : method === "model.openExportDirectory"
-                ? bridge.request("model.openExportDirectory", { id: "bound-directory-record" }, undefined, onPhase)
-                : bridge.request(
-                      "model.exportTables",
-                      { projectId: "isolated", baselineId: "baseline", tables: ["销售"], rowLimit: null, format: "xlsx", includeLog: true, locale: "zh-cn" },
-                      undefined,
-                      onPhase,
-                  )
+            : method === "model.openExportDirectory"
+              ? bridge.request("model.openExportDirectory", { id: "bound-directory-record" }, undefined, onPhase)
+              : bridge.request(
+                    "model.exportTables",
+                    { projectId: "isolated", baselineId: "baseline", tables: ["销售"], rowLimit: null, format: "xlsx", includeLog: true, locale: "zh-cn" },
+                    undefined,
+                    onPhase,
+                )
     const phase = (value: string) => send({ requestPhase: { requestId: request.id, phase: value } })
     return { bridge, sent, send, phase, onPhase, request }
 }
 
 it.each(
-    (["model.tableStatistics", "model.tableRowCounts", "model.openExportDirectory"] as const).flatMap((method) =>
+    (["model.tableStatistics", "model.openExportDirectory"] as const).flatMap((method) =>
         [
             { timeout: 100, accepted: true },
             { timeout: 30000, accepted: true },
@@ -70,7 +65,7 @@ it.each(
         },
     )
     try {
-        const budget = timeout === 30000 && method !== "model.tableStatistics" ? 180000 : timeout
+        const budget = timeout === 30000 ? 180000 : timeout
         await vi.advanceTimersByTimeAsync(budget - 1)
         expect(sent).toHaveLength(1)
         await vi.advanceTimersByTimeAsync(2)
@@ -95,9 +90,8 @@ it.each(
                               {
                                   table: "销售",
                                   rowCount: 12,
-                                  sizeBytes: method === "model.tableRowCounts" ? null : 1024,
-                                  isEstimate: false,
-                                  isQueryCount: method === "model.tableRowCounts",
+                                  sizeBytes: 1024,
+                                  isQueryCount: true,
                               },
                           ],
                           isSimulation: false,

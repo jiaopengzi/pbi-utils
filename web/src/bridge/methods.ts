@@ -71,7 +71,6 @@ export interface Methods extends ScaffoldMethods {
     "model.udfLint": { params: { projectId: string; baselineId: string }; result: UdfLintResult }
     "model.exportTables": { params: ModelTableExportRequest; result: ModelTableExportResult }
     "model.tableStatistics": { params: { projectId: string; baselineId: string }; result: ModelTableStatisticsResult }
-    "model.tableRowCounts": { params: { projectId: string; baselineId: string; tables: string[] }; result: ModelTableStatisticsResult }
     "model.exportLocation": { params: Record<string, never>; result: ModelExportLocation }
     "model.openExportDirectory": { params: { id: string }; result: { opened: boolean; isSimulation: boolean } }
     "model.save": { params: Record<string, never>; result: ProjectSnapshot }

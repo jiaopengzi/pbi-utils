@@ -3,7 +3,7 @@
  * Author      : jiaopengzi
  * Blog        : https://jiaopengzi.com
  * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
- * Description : 组装表格选择、显式精确计数、抽样导出和分区详情, 保持共享操作锁与迟到结果保护.
+ * Description : 组装表格选择、自动统计、抽样导出和分区详情, 保持共享操作锁与迟到结果保护.
 -->
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue"
@@ -83,20 +83,13 @@ onBeforeUnmount(() => {
 function perform(action: () => void | Promise<void>): void {
     if (!locked.value) void action()
 }
-/** 只将当前所选表交给精确计数, 不在展开或进入页面时隐式扫描全部业务数据. */
-function countSelected(): void {
-    perform(() => statistics.countExact(selectedTables.value.map((table) => table.name)))
-}
 /** 内部行号不参与可见字段数量, 保留名称相似的普通数据列. */
 const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][number]) => table.columns.filter((column) => column.kind !== "RowNumber").length
 </script>
 <template>
     <UiPanel class="model-tables-panel">
         <div class="tables-heading">
-            <div>
-                <h2>{{ t("model.tableCount", { count: project.model.tables.length }) }}</h2>
-                <p v-if="statistics.hasEstimates.value" class="statistics-estimate-help">{{ t("model.statisticsEstimateHelp") }}</p>
-            </div>
+            <h2>{{ t("model.tableCount", { count: project.model.tables.length }) }}</h2>
             <div class="tables-actions">
                 <el-button v-if="deletion.writable.value" class="table-edit-button" :disabled="locked" @click="perform(() => emit('edit'))">{{
                     t("model.editCurrent")
@@ -104,15 +97,6 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
                 <el-button :disabled="locked" :class="{ 'operation-lock': locked }" @click="perform(statistics.refresh)">{{
                     t("model.statisticsRefresh")
                 }}</el-button>
-                <el-button
-                    class="exact-row-count"
-                    :disabled="locked || !selectedTables.length"
-                    :loading="statistics.counting.value"
-                    :title="t('model.exactRowsHelp')"
-                    :class="{ 'operation-lock': locked && selectedTables.length > 0 }"
-                    @click="countSelected"
-                    >{{ t("model.exactSelectedRows") }}</el-button
-                >
             </div>
         </div>
         <ModelTableExportToolbar
@@ -243,11 +227,6 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
     margin-bottom: 16px;
     h2 {
         margin: 0 0 8px;
-    }
-    p {
-        margin: 4px 0 0;
-        color: var(--el-text-color-secondary);
-        font-size: 12px;
     }
 }
 .tables-actions {

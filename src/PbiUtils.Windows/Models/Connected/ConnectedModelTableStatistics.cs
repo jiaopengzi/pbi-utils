@@ -21,7 +21,7 @@ namespace PbiUtils.Windows.Models.Connected;
 
 public sealed partial class ConnectedModelReader
 {
-    /// <summary>只读取固定存储或架构行集; 未提供字段保持未知, 数据量变化不会改变模型定义指纹.</summary>
+    /// <summary>读取固定存储统计, 并为 Power BI Service 自动查询当前账号可见的实际行数.</summary>
     /// <param name="snapshot">共享操作门闩内取得的当前权威快照.</param>
     /// <param name="token">每个同步 SDK 边界及遍历时检查, 不承诺立即中断 SDK 内部调用.</param>
     /// <returns>绑定原身份和基线的独立统计; 离线工程不执行文件或网络读取.</returns>
@@ -33,35 +33,29 @@ public sealed partial class ConnectedModelReader
             token.ThrowIfCancellationRequested();
             if (!snapshot.ProjectPath.StartsWith("model://", StringComparison.Ordinal))
                 return new(snapshot.ProjectId, snapshot.BaselineId, snapshot.Model.Tables.Select(table => new ModelTableStatistics(table.Name, null, null)).ToArray());
-            return await ReadBoundStatisticsAsync(snapshot, (session, limited, cancellation) => ReadMetadataStatistics(snapshot, session, limited, cancellation), false, token);
+            return await ReadBoundStatisticsAsync(snapshot, token);
         });
 
-    /// <summary>只读取固定元数据; 非Import驻留部分不冒充整表统计, 明确计数另由用户所选表入口触发.</summary>
-    private static ModelTableStatistics[] ReadMetadataStatistics(ProjectSnapshot snapshot, IPowerBiTableStatisticsSession session, bool limited, CancellationToken token)
+    /// <summary>只读取固定存储元数据, 非 Import 驻留部分不冒充整表统计.</summary>
+    /// <param name="names">已核验的当前模型表名.</param>
+    /// <param name="session">当前已打开的统计会话.</param>
+    /// <param name="limited">是否需要通过固定架构行集核验分区模式.</param>
+    /// <param name="token">同步 SDK 边界与解析过程的取消令牌.</param>
+    /// <returns>已确认为 Import 的表统计, 或元数据缺失时的未知值.</returns>
+    private static IReadOnlyList<ModelTableStatistics> ReadStorageStatistics(string[] names, IPowerBiTableStatisticsSession session, bool limited, CancellationToken token)
     {
-        var names = snapshot.Model.Tables.Select(table => table.Name).ToArray();
         using var storage = session.Read("DISCOVER_STORAGE_TABLES", token);
         token.ThrowIfCancellationRequested();
         if (limited)
         {
-            var imported = new HashSet<string>(StringComparer.Ordinal);
-            if (storage?.Rows.Count > 0)
-            {
-                using var tables = session.Read("TMSCHEMA_TABLES", token);
-                if (tables?.Rows.Count > 0)
-                {
-                    using var partitions = session.Read("TMSCHEMA_PARTITIONS", token);
-                    using var model = partitions?.Rows.Count > 0 ? session.Read("TMSCHEMA_MODEL", token) : null;
-                    imported = ModelTableStatisticsParser.ImportTables(tables, partitions, model, token);
-                }
-            }
-            var storageStatistics = imported.Count == 0 ? [] : ReadStorage(names.Where(imported.Contains).ToArray());
-            var exact = storageStatistics.ToDictionary(table => table.Table, StringComparer.Ordinal);
-            var missing = names.Where(name => !exact.TryGetValue(name, out var value) || value.RowCount is null).ToArray();
-            using var dimensions = missing.Length > 0 ? session.Read("MDSCHEMA_DIMENSIONS", token) : null;
-            var estimates = ModelTableStatisticsParser.FromDimensions(missing, dimensions, token).ToDictionary(table => table.Table, StringComparer.Ordinal);
-            return [.. names.Select(name => estimates.TryGetValue(name, out var estimate)
-                ? estimate with { SizeBytes = exact.GetValueOrDefault(name)?.SizeBytes } : exact[name])];
+            if (storage is not { Rows.Count: > 0 }) return [];
+            using var tables = session.Read("TMSCHEMA_TABLES", token);
+            if (tables is not { Rows.Count: > 0 }) return [];
+            using var partitions = session.Read("TMSCHEMA_PARTITIONS", token);
+            using var model = partitions?.Rows.Count > 0 ? session.Read("TMSCHEMA_MODEL", token) : null;
+            var imported = ModelTableStatisticsParser.ImportTables(tables, partitions, model, token);
+            var importedNames = names.Where(imported.Contains).ToArray();
+            return importedNames.Length == 0 ? [] : ReadStorage(importedNames);
         }
         var unavailable = session.UnavailableTables.ToHashSet(StringComparer.Ordinal);
         return [.. ReadStorage(names)
@@ -76,14 +70,11 @@ public sealed partial class ConnectedModelReader
         }
     }
 
-    /// <summary>元数据与显式计数共用唯一目标、前后基线、凭据范围和SDK生命周期, 不建立第二套身份验证通道.</summary>
+    /// <summary>在同一会话读取存储元数据及 Service 行数, 并在统计前后核验目标与基线.</summary>
     /// <param name="snapshot">同一宿主操作门闩内的权威快照.</param>
-    /// <param name="consume">仅消费已绑定短会话, 不保存SDK资源或指定连接.</param>
-    /// <param name="queryCount">是否为用户明确发起的精确计数, 仅控制安全错误分类.</param>
     /// <param name="token">原请求总预算和取消, 不按批次重置.</param>
     /// <returns>前后核验一致且全部处理完成的结果; 任何失败不发布部分结果.</returns>
-    private async Task<ModelTableStatisticsResult> ReadBoundStatisticsAsync(ProjectSnapshot snapshot,
-        Func<IPowerBiTableStatisticsSession, bool, CancellationToken, IReadOnlyList<ModelTableStatistics>> consume, bool queryCount, CancellationToken token)
+    private async Task<ModelTableStatisticsResult> ReadBoundStatisticsAsync(ProjectSnapshot snapshot, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         if (!targets.TryGetValue(snapshot.ProjectPath, out var target)) throw new AppException("MODEL_DISCONNECTED", "模型连接已断开", 3);
@@ -108,7 +99,7 @@ public sealed partial class ConnectedModelReader
                 try
                 {
                     session.Open(); token.ThrowIfCancellationRequested();
-                    return consume(session, limited, token);
+                    return ReadTableStatistics(snapshot, session, limited, service is not null, token);
                 }
                 catch (Exception error) { failure = error; throw; }
                 finally
@@ -122,10 +113,8 @@ public sealed partial class ConnectedModelReader
             catch (Exception error)
             {
                 token.ThrowIfCancellationRequested();
-                SsasConnection.LogFailure(log, queryCount ? "TableRowCounts" : "TableStatistics", error);
-                throw queryCount
-                    ? new AppException("MODEL_ROW_COUNT_FAILED", "无法读取精确行数, 请检查连接、权限及模型处理状态", 4)
-                    : new AppException("MODEL_STATISTICS_FAILED", "无法读取表统计, 请检查连接和权限", 4);
+                SsasConnection.LogFailure(log, "TableStatistics", error);
+                throw new AppException("MODEL_STATISTICS_FAILED", "无法读取表统计, 请检查连接、权限及模型处理状态", 4);
             }
         }), token);
         token.ThrowIfCancellationRequested();
@@ -133,6 +122,56 @@ public sealed partial class ConnectedModelReader
         if (target.Endpoint is not null) await VerifyLocalAsync(snapshot.ProjectPath, token);
         token.ThrowIfCancellationRequested();
         return new(snapshot.ProjectId, snapshot.BaselineId, tables);
+    }
+
+    /// <summary>从同一会话读取当前模型表统计, Service 存储明细超限时仍查询实际行数.</summary>
+    /// <param name="snapshot">已核验的当前模型快照.</param>
+    /// <param name="session">绑定当前账号的统计会话.</param>
+    /// <param name="limited">是否需要通过架构行集核验 Import 模式.</param>
+    /// <param name="service">是否连接 Power BI Service.</param>
+    /// <param name="token">统计与计数共用的取消令牌.</param>
+    /// <returns>当前模型的完整统计结果, 无法读取存储大小时保留未知.</returns>
+    /// <exception cref="AppException">会话、统计或实际行数查询失败.</exception>
+    private static IReadOnlyList<ModelTableStatistics> ReadTableStatistics(ProjectSnapshot snapshot,
+        IPowerBiTableStatisticsSession session, bool limited, bool service, CancellationToken token)
+    {
+        var names = snapshot.Model.Tables.Select(table => table.Name).ToArray();
+        IReadOnlyList<ModelTableStatistics> storage;
+        try { storage = ReadStorageStatistics(names, session, limited, token); }
+        catch (AppException error) when (service && error.Code == "MODEL_STATISTICS_LIMIT") { storage = []; }
+        return service ? ReadServiceStatistics(snapshot, storage, session, token) : storage;
+    }
+
+    /// <summary>分批实际统计 Service 中所有可查询表, 保留已核实的存储大小, 任一批失败不交付部分计数.</summary>
+    /// <param name="snapshot">已核验的完整模型或受限架构快照.</param>
+    /// <param name="storage">当前会话读取到的存储统计.</param>
+    /// <param name="session">绑定当前账号的统计会话.</param>
+    /// <param name="token">同一请求的取消令牌.</param>
+    /// <returns>按模型顺序返回实际计数或已确认的不适用原因.</returns>
+    /// <exception cref="AppException">精确计数结果缺失、歧义或无效.</exception>
+    internal static IReadOnlyList<ModelTableStatistics> ReadServiceStatistics(ProjectSnapshot snapshot,
+        IReadOnlyList<ModelTableStatistics> storage, IPowerBiTableStatisticsSession session, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var sizes = storage.ToDictionary(table => table.Table, table => table.SizeBytes, StringComparer.Ordinal);
+        var counts = new Dictionary<string, ModelTableStatistics>(StringComparer.Ordinal);
+        // 受限架构可能省略真实列; 只有完整定义才能确认表没有可查询的数据列.
+        var queryable = snapshot.Model.Tables.Where(table => snapshot.Connection?.IsLimited == true
+            || table.Columns.Any(column => column.Kind != "RowNumber")).Select(table => table.Name);
+        foreach (var batch in queryable.Chunk(ModelTableRowCountQuery.MaximumTables))
+        {
+            token.ThrowIfCancellationRequested();
+            using var rows = session.ReadRowCounts(batch, token);
+            foreach (var count in ModelTableStatisticsParser.FromRowCounts(batch, rows, token)) counts.Add(count.Table, count);
+        }
+        token.ThrowIfCancellationRequested();
+        return snapshot.Model.Tables.Select(table =>
+        {
+            var size = sizes.GetValueOrDefault(table.Name);
+            return counts.TryGetValue(table.Name, out var count)
+                ? count with { SizeBytes = size }
+                : new ModelTableStatistics(table.Name, null, size, RowCountUnavailableReason: "no_queryable_columns");
+        }).ToArray();
     }
 
     /// <summary>只比较模型身份和定义或可见架构基线, 不把本次统计结果加入比较或写入授权.</summary>
@@ -146,7 +185,7 @@ public sealed partial class ConnectedModelReader
     private ModelTableStatisticsSession CreateStatisticsSession(ProjectSnapshot snapshot, Target target, PowerBiServiceTarget? service, bool ssas, CancellationToken token)
     {
         if (service?.Server.StartsWith("pbiazure://", StringComparison.Ordinal) == true)
-            return new ModelTableStatisticsSession(PowerBiSchemaReader.ConnectionString(service, includeCredential: true), null, logger: log, discoverDimensions: true);
+            return new ModelTableStatisticsSession(PowerBiSchemaReader.ConnectionString(service, includeCredential: true), null, logger: log);
         using var server = new TOM.Server();
         var settings = ExportConnection(target, service, ssas);
         if (service is not null) server.AccessToken = new(service.AccessToken, service.ExpiresOn, null);
@@ -158,7 +197,7 @@ public sealed partial class ConnectedModelReader
         AssertExportBaseline(snapshot, target, service, databases[0]);
         settings["Initial Catalog"] = databases[0].Name;
         var model = databases[0].Model;
-        // DirectQuery、Dual、DirectLake等可能只返回驻留部分; 不为显示整表统计执行COUNTROWS或强制装载.
+        // DirectQuery、Dual、DirectLake 等可能只返回驻留部分, 不将其作为整表存储统计.
         var unavailable = model.Tables.Where(table => table.Partitions.Count == 0 || table.Partitions.Any(partition =>
             (partition.Mode == TOM.ModeType.Default ? model.DefaultMode : partition.Mode) != TOM.ModeType.Import)).Select(table => table.Name).ToArray();
         return new ModelTableStatisticsSession(settings.ConnectionString, service, unavailable, log);

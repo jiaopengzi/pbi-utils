@@ -2,14 +2,12 @@
 // Author      : jiaopengzi
 // Blog        : https://jiaopengzi.com
 // Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-// Description : 验证显式所选表计数的固定批次、当前账号语义、目标身份、失败与取消排空.
+// Description : 验证Service 自动表计数的固定批次、当前账号语义、目标身份、失败与取消排空.
 
 using PbiUtils.Windows.Models.Statistics;
 using PbiUtils.Windows.Models.Connected;
-using PbiUtils.Application.Models;
 using PbiUtils.Application;
 using PbiUtils.Core;
-using PbiUtils.Windows;
 using Xunit;
 
 namespace PbiUtils.Desktop.Tests;
@@ -27,7 +25,7 @@ public sealed partial class ModelTableStatisticsTests
         {
             Assert.True(snapshot.Connection!.IsLimited);
             Assert.Empty(Assert.Single(snapshot.Model.Tables).Columns);
-            var result = await CountReader(reader).ReadRowCountsAsync(snapshot, ["Sales"], default);
+            var result = await reader.ReadStatisticsAsync(snapshot, default);
             var count = Assert.Single(result.Tables);
             Assert.Equal(60L, count.RowCount);
             Assert.True(count.IsQueryCount);
@@ -39,11 +37,11 @@ public sealed partial class ModelTableStatisticsTests
         finally { reader.Disconnect(); }
     }
 
-    /// <summary>纯度量表没有可查询列时明确不适用, 其它表仍读取精确值并保持原选择顺序.</summary>
+    /// <summary>纯度量表没有可查询列时明确不适用, 其它表仍读取精确值并保持模型顺序.</summary>
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task ColumnlessTablesDoNotBreakSelectedCounts(bool rowNumberOnly)
+    public async Task ColumnlessTablesDoNotBreakServiceStatistics(bool rowNumberOnly)
     {
         var schema = new Schema { Tables = ["Sales", "Measures", "Empty"], ColumnlessTables = ["Measures"] };
         using var session = new Session { Count = name => name == "Measures" ? throw new InvalidOperationException("No queryable columns") : name == "Empty" ? 0L : 60L };
@@ -54,15 +52,16 @@ public sealed partial class ModelTableStatisticsTests
         {
             // 此消费边界使用完整结构; Service 注册仅提供测试快照, 不将有限架构伪装为完整引擎验收.
             var complete = snapshot with { Connection = snapshot.Connection! with { IsLimited = false } };
-            var result = ConnectedModelReader.ReadSelectedRowCounts(complete, ["Empty", "Measures", "Sales"], session, default);
-            Assert.Equal(["Empty", "Measures", "Sales"], result.Select(table => table.Table));
-            Assert.Equal([0L, null, 60L], result.Select(table => table.RowCount));
+            var result = ConnectedModelReader.ReadServiceStatistics(complete, [], session, default);
+            Assert.Equal(["Sales", "Measures", "Empty"], result.Select(table => table.Table));
+            Assert.Equal([60L, null, 0L], result.Select(table => table.RowCount));
             Assert.False(result[1].IsQueryCount);
             var json = System.Text.Json.JsonSerializer.SerializeToElement(result[1], System.Text.Json.JsonSerializerOptions.Web);
             Assert.Equal("no_queryable_columns", json.GetProperty("rowCountUnavailableReason").GetString());
-            Assert.Equal(["Empty", "Sales"], Assert.Single(session.CountBatches));
+            Assert.Equal(["Sales", "Empty"], Assert.Single(session.CountBatches));
             session.CountBatches.Clear();
-            var only = Assert.Single(ConnectedModelReader.ReadSelectedRowCounts(complete, ["Measures"], session, default));
+            var measuresOnly = complete with { Model = complete.Model with { Tables = [complete.Model.Tables.Single(table => table.Name == "Measures")] } };
+            var only = Assert.Single(ConnectedModelReader.ReadServiceStatistics(measuresOnly, [], session, default));
             Assert.Null(only.RowCount);
             Assert.Equal("no_queryable_columns", only.RowCountUnavailableReason);
             Assert.Empty(session.CountBatches);
@@ -70,11 +69,11 @@ public sealed partial class ModelTableStatisticsTests
         finally { reader.Disconnect(); }
     }
 
-    /// <summary>字段未提供的有限架构仍执行计数, 并完成前后身份核验.</summary>
+    /// <summary>字段未提供的受限架构仍执行计数, 并完成前后身份核验.</summary>
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task LimitedColumnlessSelectionStillVerifiesIdentity(bool changed)
+    public async Task LimitedColumnlessTableStillVerifiesIdentity(bool changed)
     {
         var schema = new Schema { Tables = ["Measures"], ColumnlessTables = ["Measures"] };
         var session = new Session { AfterOpen = () => { if (changed) schema.Revision++; } };
@@ -83,12 +82,12 @@ public sealed partial class ModelTableStatisticsTests
         {
             if (changed)
             {
-                var error = await Assert.ThrowsAsync<AppException>(() => CountReader(reader).ReadRowCountsAsync(snapshot, ["Measures"], default));
+                var error = await Assert.ThrowsAsync<AppException>(() => reader.ReadStatisticsAsync(snapshot, default));
                 Assert.Equal("STALE_BASELINE", error.Code);
             }
             else
             {
-                var result = await CountReader(reader).ReadRowCountsAsync(snapshot, ["Measures"], default);
+                var result = await reader.ReadStatisticsAsync(snapshot, default);
                 Assert.True(Assert.Single(result.Tables).IsQueryCount);
                 Assert.Equal(3, schema.OpenCount);
             }
@@ -97,22 +96,21 @@ public sealed partial class ModelTableStatisticsTests
         finally { reader.Disconnect(); }
     }
 
-    /// <summary>只统计明确所选表, 含特殊名称、真实0和超过UInt32计数, 来源标记不冒充物理存储.</summary>
+    /// <summary>自动统计所有表, 包含特殊名称、真实 0 和超过 UInt32 的计数.</summary>
     [Fact]
-    public async Task SelectedRowCountsUseCurrentAccountAndNeverReturnUnselectedTables()
+    public async Task AutomaticCountsUseCurrentAccountForEveryTable()
     {
-        var schema = new Schema { Tables = ["Sales", "空表", "导出'O\"Brien]", "Unselected"] };
+        var schema = new Schema { Tables = ["Sales", "空表", "导出'O\"Brien]", "Fourth"] };
         var session = new Session { Count = table => table == "空表" ? 0L : table == "Sales" ? 60L : 4294967296L };
         var (reader, snapshot) = await Connect(schema, new(), session);
         try
         {
-            var counts = Assert.IsType<IModelTableRowCountReader>(reader, exactMatch: false);
-            var result = await counts.ReadRowCountsAsync(snapshot, ["导出'O\"Brien]", "Sales", "空表"], default);
-            Assert.Equal(["导出'O\"Brien]", "Sales", "空表"], result.Tables.Select(table => table.Table));
-            Assert.Equal([4294967296L, 60L, 0L], result.Tables.Select(table => table.RowCount));
-            Assert.All(result.Tables, table => { Assert.Null(table.SizeBytes); Assert.False(table.IsEstimate); Assert.True(table.IsQueryCount); });
+            var result = await reader.ReadStatisticsAsync(snapshot, default);
+            Assert.Equal(["Sales", "空表", "导出'O\"Brien]", "Fourth"], result.Tables.Select(table => table.Table));
+            Assert.Equal([60L, 0L, 4294967296L, 4294967296L], result.Tables.Select(table => table.RowCount));
+            Assert.All(result.Tables, table => { Assert.Null(table.SizeBytes); Assert.True(table.IsQueryCount); });
             Assert.False(result.IsSimulation); Assert.Equal(snapshot.ProjectId, result.ProjectId); Assert.Equal(snapshot.BaselineId, result.BaselineId);
-            Assert.Single(session.CountBatches); Assert.Empty(session.Reads); Assert.True(session.Disposed);
+            Assert.Equal(schema.Tables, Assert.Single(session.CountBatches)); Assert.True(session.Disposed);
             Assert.Equal(3, schema.OpenCount); Assert.Equal(schema.OpenCount, schema.DisposeCount);
         }
         finally { reader.Disconnect(); }
@@ -129,30 +127,9 @@ public sealed partial class ModelTableStatisticsTests
         var session = new Session(); var (reader, snapshot) = await Connect(new() { Tables = names }, new(), session);
         try
         {
-            var result = await CountReader(reader).ReadRowCountsAsync(snapshot, names, default);
+            var result = await reader.ReadStatisticsAsync(snapshot, default);
             Assert.Equal(count, result.Tables.Count); Assert.Equal(names, result.Tables.Select(table => table.Table));
             Assert.Equal(batches, session.CountBatches.Count); Assert.All(session.CountBatches, batch => Assert.InRange(batch.Length, 1, 50));
-        }
-        finally { reader.Disconnect(); }
-    }
-
-    /// <summary>无效、重复、过多或模型外表在任何统计会话建立前拒绝.</summary>
-    [Theory]
-    [InlineData("empty")]
-    [InlineData("null")]
-    [InlineData("duplicate")]
-    [InlineData("unknown")]
-    [InlineData("case")]
-    [InlineData("nul")]
-    [InlineData("tooMany")]
-    public async Task InvalidCountSelectionDoesNotOpenSession(string kind)
-    {
-        var session = new Session(); var (reader, snapshot) = await Connect(new(), new(), session);
-        string[] names = kind switch { "empty" => [], "null" => null!, "duplicate" => ["Sales", "Sales"], "unknown" => ["Missing"], "case" => ["sales"], "nul" => ["Sales\0"], _ => [.. Enumerable.Range(0, 2001).Select(index => "T" + index)] };
-        try
-        {
-            var error = await Assert.ThrowsAsync<AppException>(() => CountReader(reader).ReadRowCountsAsync(snapshot, names, default));
-            Assert.Equal("VALIDATION_ERROR", error.Code); Assert.False(session.Opened); Assert.Empty(session.CountBatches);
         }
         finally { reader.Disconnect(); }
     }
@@ -166,8 +143,8 @@ public sealed partial class ModelTableStatisticsTests
         var (reader, snapshot) = await Connect(new() { Tables = names }, new(), session);
         try
         {
-            var error = await Assert.ThrowsAsync<AppException>(() => CountReader(reader).ReadRowCountsAsync(snapshot, names, default));
-            Assert.Equal("MODEL_ROW_COUNT_FAILED", error.Code); Assert.DoesNotContain("secret-test-token", error.Message);
+            var error = await Assert.ThrowsAsync<AppException>(() => reader.ReadStatisticsAsync(snapshot, default));
+            Assert.Equal("MODEL_STATISTICS_FAILED", error.Code); Assert.DoesNotContain("secret-test-token", error.Message);
             Assert.Equal(2, session.CountBatches.Count); Assert.True(session.Disposed);
         }
         finally { reader.Disconnect(); }
@@ -190,21 +167,10 @@ public sealed partial class ModelTableStatisticsTests
         var session = new Session { InvalidCount = kind }; var (reader, snapshot) = await Connect(new(), new(), session);
         try
         {
-            var error = await Assert.ThrowsAsync<AppException>(() => CountReader(reader).ReadRowCountsAsync(snapshot, ["Sales"], default));
+            var error = await Assert.ThrowsAsync<AppException>(() => reader.ReadStatisticsAsync(snapshot, default));
             Assert.Equal("MODEL_ROW_COUNT_INVALID", error.Code); Assert.True(session.Disposed);
         }
         finally { reader.Disconnect(); }
-    }
-
-    /// <summary>离线文件没有数据引擎, 明确拒绝实际计数且不尝试读文件或推断0.</summary>
-    [Fact]
-    public async Task OfflineExactCountIsUnsupportedWithoutFileAccess()
-    {
-        var reader = new ConnectedModelReader(new NoFiles());
-        var snapshot = new ProjectSnapshot("offline.pbip", "project", "baseline", "TMDL", "", "", null,
-            new("model", 1606, "en-US", [new("Sales", null, false, [], [])], [], [], 0, 0), [], [], []);
-        var error = await Assert.ThrowsAsync<AppException>(() => CountReader(reader).ReadRowCountsAsync(snapshot, ["Sales"], default));
-        Assert.Equal("MODEL_ROW_COUNT_UNSUPPORTED", error.Code);
     }
 
     /// <summary>查询可乱序返回, 但计数按所选表身份恢复顺序, 不按返回行位置误配.</summary>
@@ -229,7 +195,7 @@ public sealed partial class ModelTableStatisticsTests
         var (reader, snapshot) = await Connect(schema, cloud, session);
         try
         {
-            var error = await Assert.ThrowsAsync<AppException>(() => CountReader(reader).ReadRowCountsAsync(snapshot, ["Sales"], default));
+            var error = await Assert.ThrowsAsync<AppException>(() => reader.ReadStatisticsAsync(snapshot, default));
             Assert.Equal(expectedCode, error.Code); Assert.True(session.Disposed);
         }
         finally { reader.Disconnect(); }
@@ -244,12 +210,9 @@ public sealed partial class ModelTableStatisticsTests
         var (reader, snapshot) = await Connect(new(), new(), session);
         try
         {
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => CountReader(reader).ReadRowCountsAsync(snapshot, ["Sales"], cancellation.Token));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => reader.ReadStatisticsAsync(snapshot, cancellation.Token));
             Assert.True(session.Disposed); Assert.Single(session.CountBatches);
         }
         finally { reader.Disconnect(); }
     }
-
-    /// <summary>在行为入口断言共享精确计数契约, 未实现时给出可编译的真实行为失败.</summary>
-    private static IModelTableRowCountReader CountReader(object reader) => Assert.IsType<IModelTableRowCountReader>(reader, exactMatch: false);
 }

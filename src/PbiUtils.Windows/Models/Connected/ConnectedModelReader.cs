@@ -39,7 +39,7 @@ namespace PbiUtils.Windows.Models.Connected;
 /// <param name="tableStatisticsSession">固定统计元数据会话工厂; 仅平台测试注入, 默认绑定当前可信目标.</param>
 public sealed partial class ConnectedModelReader(IProjectReader files, IPowerBiServiceClient? cloud = null, PowerBiSchemaReader? schemaReader = null, ILogger<ConnectedModelReader>? logger = null, IModelEditWorkspace? fileEdits = null,
     Func<DesktopProcessTarget, Task<IAsyncDisposable>>? beginDesktopSync = null, Func<IPowerBiTableDataSession>? serviceTableData = null, Func<IPowerBiTableStatisticsSession>? tableStatisticsSession = null) : IConnectedModelReader, IModelEditWorkspace, IModelSaveCompletion,
-    PbiUtils.Application.Models.Configuration.IModelCompatibilityUpgradeWorkspace, IModelTableDataReader, IModelTableStatisticsReader, IModelTableRowCountReader
+    PbiUtils.Application.Models.Configuration.IModelCompatibilityUpgradeWorkspace, IModelTableDataReader, IModelTableStatisticsReader
 {
     private readonly ILogger log = logger ?? NullLogger<ConnectedModelReader>.Instance;
 

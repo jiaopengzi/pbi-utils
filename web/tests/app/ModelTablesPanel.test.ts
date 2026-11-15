@@ -420,11 +420,11 @@ it("字段界面过滤内部RowNumber, 仍保留同名用户数据列并正确�
     }
 })
 
-it("统计请求绑定精确身份, 已读取零值/未知值与估计值分别呈现", async () => {
+it("统计请求绑定精确身份, 如实显示零值和未知值并更新刷新后的行数", async () => {
     const { wrapper, statisticsRequests, setStatistics, cleanup } = await setupTables({
         statistics: [
-            { table: "销售", rowCount: 0, sizeBytes: 0, isEstimate: false, isQueryCount: false },
-            { table: "另一张表", rowCount: null, sizeBytes: null, isEstimate: false, isQueryCount: false },
+            { table: "销售", rowCount: 0, sizeBytes: 0, isQueryCount: false },
+            { table: "另一张表", rowCount: null, sizeBytes: null, isQueryCount: false },
         ],
     })
     try {
@@ -439,15 +439,16 @@ it("统计请求绑定精确身份, 已读取零值/未知值与估计值分别�
         expect(other.text()).toContain("-")
         expect(other.text()).not.toMatch(/0\s*(B|Bytes)/)
         setStatistics([
-            { table: "销售", rowCount: 4096, sizeBytes: 2048, isEstimate: true, isQueryCount: false },
-            { table: "另一张表", rowCount: null, sizeBytes: null, isEstimate: false, isQueryCount: false },
+            { table: "销售", rowCount: 4096, sizeBytes: 2048, isQueryCount: false },
+            { table: "另一张表", rowCount: null, sizeBytes: null, isQueryCount: false },
         ])
         await wrapper
             .findAll("button")
             .find((item) => /刷新统计|Refresh statistics/.test(item.text()))!
             .trigger("click")
         await flushPromises()
-        expect(sales.text()).toMatch(/≈\s*4[,. ]?096/)
+        expect(sales.text()).toMatch(/4[,. ]?096/)
+        expect(sales.text()).not.toContain("≈")
         expect(sales.text()).toMatch(/2\s*KB/i)
     } finally {
         cleanup()
@@ -456,7 +457,7 @@ it("统计请求绑定精确身份, 已读取零值/未知值与估计值分别�
 
 it("统计刷新失败通过警告反馈, 不丢失已读取的行数与大小", async () => {
     const { wrapper, statisticsRequests, setAutoStatistics, send, cleanup } = await setupTables({
-        statistics: [{ table: "销售", rowCount: 1234, sizeBytes: 2048, isEstimate: false, isQueryCount: false }],
+        statistics: [{ table: "销售", rowCount: 1234, sizeBytes: 2048, isQueryCount: false }],
     })
     try {
         setAutoStatistics(false)
@@ -495,7 +496,7 @@ it("统计取消确认等待原统计终态, 期间保持导出禁用并拒绝�
             result: {
                 projectId: "wrong-project",
                 baselineId: "wrong-baseline",
-                tables: [{ table: "销售", rowCount: 777, sizeBytes: 777, isEstimate: false, isQueryCount: false }],
+                tables: [{ table: "销售", rowCount: 777, sizeBytes: 777, isQueryCount: false }],
                 isSimulation: false,
             },
         })
@@ -517,13 +518,13 @@ it("切换模型后迟到统计不覆盖新目标, 新目标统计使用本轮�
         await flushPromises()
         expect(statisticsRequests).toHaveLength(1)
         expect(wrapper.get(".table-export-button").attributes("disabled")).toBeDefined()
-        replyStatistics(first, [{ table: "销售", rowCount: 999, sizeBytes: 999, isEstimate: true, isQueryCount: false }])
+        replyStatistics(first, [{ table: "销售", rowCount: 999, sizeBytes: 999, isQueryCount: false }])
         await flushPromises()
         expect(tableItem(wrapper, "销售").text()).not.toContain("999")
         expect(statisticsRequests).toHaveLength(2)
         const second = statisticsRequests.at(-1)!
         expect(second.params).toEqual({ projectId: "new-target", baselineId: "new-baseline" })
-        replyStatistics(second, [{ table: "销售", rowCount: 22, sizeBytes: 1024, isEstimate: false, isQueryCount: false }])
+        replyStatistics(second, [{ table: "销售", rowCount: 22, sizeBytes: 1024, isQueryCount: false }])
         await flushPromises()
         const sales = tableItem(wrapper, "销售")
         await sales.get(".el-collapse-item__header").trigger("click")

@@ -33,7 +33,7 @@
 ## 持久化与凭据
 
 - 用户数据统一位于操作系统用户主目录下 `.pbi-utils`, 不硬编码用户名, 不写安装目录. 设置、模型草稿、最近记录、日志、事务恢复材料与 WebView2 按职责隔离; 不创建长期模型历史备份, 不添加浏览器 localStorage 作为第二真源.
-- Host 启动/维护协调及用户数据会话租约在同一 UserProfile 下的 `.pbi-utils-runtime`, 位于业务数据树之外. Host 协调按规范化数据根与安装路径隔离, 数据租约按数据根隔离; 不以可能被打包客户端重定向的 AppData 建立另一组锁. 权威入口为 `src/PbiUtils.Infrastructure/Diagnostics/RuntimeEnvironment.cs`, `src/PbiUtils.Infrastructure/Hosting/BusinessHostSettings.cs` 和 `src/PbiUtils.Infrastructure/Storage/UserDataSessionLease.cs`.
+- Host 启动/维护协调、MCP 暂停状态及用户数据会话租约位于 UserProfile 下的 `.pbi-utils/runtime`. Host 协调按规范化数据根与安装路径隔离, 数据租约按数据根隔离; 不以可能被打包客户端重定向的 AppData 建立另一组锁. 应用内重置持维护租约和独占数据会话, 保留 runtime; 卸载选择清理用户数据时用同用户跨 Windows 会话的内核互斥锁阻止在删除期间打开新的协调文件, 并以原句柄核验和删除整个目录. 权威入口为 `src/PbiUtils.Infrastructure/Diagnostics/RuntimeEnvironment.cs`, `src/PbiUtils.Infrastructure/Hosting/BusinessHostSettings.cs` 和 `src/PbiUtils.Infrastructure/Storage/UserDataReset.cs`.
 - 持久存储复用原有修订检查、跨实例锁、原子替换、取消和损坏保护. 按各格式的严格 schema 处理重复字段、未知版本与未知字段; 只在格式明确允许时保留未知字段, 不把单一存储例外推广到全部 JSON. 不能为修复读取而覆盖损坏原文件或恢复覆盖用户并发修改.
 - 本地最近文件和 Service 最近模型各自隔离. 只用宿主绑定记录 ID 删除历史, 不删除工程/远端模型或断开当前工作区. 确认期间锁来源/导航; 取消、目标改变或卸载不得删除. SSAS/XMLA 不新增连接页最近模型模块.
 - 远端连接密码由 C# CurrentUser DPAPI 保护, 按目标/账号隔离, 损坏不得降级为明文或静默改变认证身份; 不保存云令牌. 产品不再管理 LLM API 密钥.

@@ -91,7 +91,7 @@ internal sealed partial class BusinessContext
                 configuration: new ModelConfigurationBridge(new ProjectReader(), workspace, scaffold.Configuration,
                     HostPlatformActions.VerifyCreatedConfigurationAsync, ConfirmUpgradeAsync, reader),
                 tableExports: new ModelTableExportService(reader, reader, new ModelTableFileWriter()), chooseTableExportFile: gui is null ? null : gui.SelectExportAsync,
-                tableStatistics: reader, exportLocations: new LocalModelExportLocationStore(userData), openExportDirectory: OpenDirectoryAsync, tableRowCounts: reader,
+                tableStatistics: reader, exportLocations: new LocalModelExportLocationStore(userData), openExportDirectory: OpenDirectoryAsync,
                 updateLearningView: gui is null ? null : gui.UpdateLearningAsync, closeLearningView: gui is null ? null : gui.CloseLearningAsync, openLearningSite: gui is null ? HostPlatformActions.OpenLearningSiteAsync : gui.OpenLearningAsync,
                 mcpJournal: new ExecutionJournal(userData), checkUserDataReset: ValidateResetAsync, scheduleUserDataReset: ScheduleReset,
                 mcpConnections: mcpConnections, productUpdates: ProductUpdateFactory.Create(userData),

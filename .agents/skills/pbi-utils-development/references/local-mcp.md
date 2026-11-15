@@ -31,7 +31,7 @@
 
 ## 设置说明与依赖
 
-- 软件更新通过只读 `updates_check` 复用共享查询, 与 GUI/CLI 接受相同的正式及预发布标签, 不提供浏览器或安装器执行能力; 详见 [release-and-updates.md](release-and-updates.md). Host 协调与用户数据租约目录为 UserProfile 下 `.pbi-utils-runtime`, 隔离规则见 [connections-and-storage.md](connections-and-storage.md).
+- 软件更新通过只读 `updates_check` 复用共享查询, 与 GUI/CLI 接受相同的正式及预发布标签, 不提供浏览器或安装器执行能力; 详见 [release-and-updates.md](release-and-updates.md). Host 协调与用户数据租约目录为 UserProfile 下 `.pbi-utils/runtime`, 隔离规则见 [connections-and-storage.md](connections-and-storage.md).
 
 - `mcp.configuration` 由宿主生成真实安装绝对路径和显式写入参数, 返回 executablePath/readWrite/isSimulation; 前端只展示/复制. 模拟环境明确标注, 路径不可从网页输入反向授予宿主执行能力. 请求方法与空参数契约保持, 已移除选项不保留 readOnly 输出; CLI 不带 --allow-write 的默认只读仍由服务端强制执行.
 - 设置将接入和允许修改说明合并为介绍段, 不单列权限标题; 保留单一接入提示词, 内含宿主真实安装路径及 --allow-write JSON, 无权限 tab 或第二个 JSON 复制入口. 提示词先检查当前 AI 客户端已有配置: 正确则复用, 缺失才添加, 不匹配仅修正该服务必要项, 保留其他服务. 所有分支最后统一执行当前客户端实际发现, 再调用 server_info 核验 version/transport/allowWrite、desktop_sessions 读取 sessions[0].id、desktop_app_info 带本客户端 sessionId 核验后台; 只读诊断不连接或修改用户模型. 分别记录配置、发现、调用和权限, 未执行为 UNRUN, 不以 shell 另起进程替代目标客户端证据. 失败/冲突不无限重试或自动重放写入. 不要求关闭桌面或配置 LLM 密钥.

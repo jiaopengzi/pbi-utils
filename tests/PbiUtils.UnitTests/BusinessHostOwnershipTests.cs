@@ -23,14 +23,13 @@ public sealed class BusinessHostOwnershipTests : IDisposable
         settings = new(root, Path.Combine(root, "installation"), Path.Combine(root, "runtime"));
     }
 
-    /// <summary>正式协调根避开会按客户端重定向的 AppData; 测试覆盖目录不改变管道身份或安装隔离.</summary>
+    /// <summary>正式协调根来自数据根的 runtime; 测试覆盖目录不改变管道身份或安装隔离.</summary>
     [Fact]
     public void DefaultCoordinationUsesProfileAndOverridePreservesIdentity()
     {
         var current = new BusinessHostSettings(root, settings.Installation);
-        var runtimeRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".pbi-utils-runtime");
+        var runtimeRoot = Path.Combine(root, "runtime");
         Assert.Equal(runtimeRoot, Path.GetDirectoryName(current.CoordinationDirectory));
-        Assert.False(current.CoordinationDirectory.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
         Assert.Equal(Path.Combine(root, "runtime"), settings.CoordinationDirectory);
         Assert.Equal(current.PipeName, settings.PipeName);
         Assert.NotEqual(current.CoordinationDirectory, settings.CoordinationDirectory);

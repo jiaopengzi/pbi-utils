@@ -100,10 +100,8 @@ function Invoke-PbiApplicationInstallation {
         $protected = [Environment]::GetFolderPath($special)
         if ($protected -and [string]::Equals($root, $protected.TrimEnd('\'), [StringComparison]::OrdinalIgnoreCase)) { throw '安装路径不能使用用户或系统根目录' }
     }
-    foreach ($dataFolder in @('.pbi-utils', '.pbi-utils-runtime')) {
-        $dataRoot = Join-Path ([Environment]::GetFolderPath('UserProfile')) $dataFolder
-        if ($root -ieq $dataRoot -or $root.StartsWith($dataRoot + '\', [StringComparison]::OrdinalIgnoreCase)) { throw '安装路径不能位于产品用户数据或协调目录' }
-    }
+    $dataRoot = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.pbi-utils'
+    if ($root -ieq $dataRoot -or $root.StartsWith($dataRoot + '\', [StringComparison]::OrdinalIgnoreCase)) { throw '安装路径不能位于产品用户数据或协调目录' }
     $mutex = New-Object Threading.Mutex($false, (Get-PbiInstallationMutexName $root $Adapters.UserId))
     $acquired = $false; $leases = @{}; $backups = @{}; $newFiles = @{}; $deleted = @{}
     $backupRoot = $null; $keepBackup = $false; $mutationStarted = $false; $shellStarted = $false; $shellSnapshot = $null; $firstFailure = $null

@@ -10,8 +10,8 @@ export const settingsMessages = {
     "zh-cn": {
         "dataReset.title": "本地数据",
         "dataReset.searchDescription": "重置应用设置与本地文件",
-        "dataReset.description": "永久删除 .pbi-utils 内的全部数据并重启应用，无法撤销。外部 Power BI 模型、报表和工程不受影响。",
-        "dataReset.button": "重置全部本地数据",
+        "dataReset.description": "永久删除应用设置、本地文件和缓存并重启应用。应用保留运行协调文件和 MCP 暂停状态。",
+        "dataReset.button": "重置本地数据",
         "dataReset.waiting": "等待确认重置本地数据…",
         "dataReset.simulated": "模拟确认已完成，未删除任何本地数据或重新启动应用。",
         "dataReset.restarting": "已安排重置，应用将在正常关闭后清理本地数据并重新打开。",
@@ -63,8 +63,8 @@ export const settingsMessages = {
         "dataReset.title": "Local data",
         "dataReset.searchDescription": "Reset app settings and local files",
         "dataReset.description":
-            "Permanently delete all data in .pbi-utils and restart the app. This cannot be undone. External Power BI models, reports and projects are unaffected.",
-        "dataReset.button": "Reset all local data",
+            "Permanently delete app settings, local files and caches, then restart the app. Runtime coordination files and the MCP pause state are kept.",
+        "dataReset.button": "Reset local data",
         "dataReset.waiting": "Waiting for local data reset confirmation…",
         "dataReset.simulated": "Simulated confirmation completed. No local data was deleted and the app was not restarted.",
         "dataReset.restarting": "Reset is scheduled. The app will clean its local data after closing normally, then reopen.",

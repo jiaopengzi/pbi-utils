@@ -24,8 +24,8 @@ public sealed class RuntimeEnvironment(bool powerBiSupported = false) : IRuntime
     public static string UserDataDirectory() => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".pbi-utils");
 
-    /// <summary>协调目录固定在用户 Profile 下, 避免 MSIX 客户端重定向 AppData 后分裂跨进程锁域.</summary>
-    /// <returns>用户数据树之外的共享协调根; 不创建目录或读取旧协调状态.</returns>
-    internal static string RuntimeCoordinationDirectory() => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".pbi-utils-runtime");
+    /// <summary>从固定的用户数据根定位共享运行协调, 避免客户端的 AppData 重定向分裂锁域.</summary>
+    /// <param name="userRoot">当前组合根使用的用户数据目录.</param>
+    /// <returns>数据根下的 runtime 目录; 不创建目录.</returns>
+    internal static string RuntimeCoordinationDirectory(string userRoot) => Path.Combine(userRoot, "runtime");
 }

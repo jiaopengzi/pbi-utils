@@ -2,7 +2,7 @@
 // Author      : jiaopengzi
 // Blog        : https://jiaopengzi.com
 // Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-// Description : 验证表导出、独立统计、精确计数和目录能力的身份及取消发布边界, 不访问真实模型.
+// Description : 验证表导出、独立统计和目录能力的身份及取消发布边界, 不访问真实模型.
 
 using PbiUtils.Infrastructure.Models.Export;
 using PbiUtils.Infrastructure.Diagnostics;
@@ -24,18 +24,42 @@ namespace PbiUtils.UnitTests;
 /// <summary>导出桥接拒绝网页路径与查询, 未连接时不得打开文件选择器.</summary>
 public sealed partial class ModelTableExportBridgeTests
 {
-    /// <summary>表统计只接受已绑定身份, 不打开保存窗口或改变模型定义.</summary>
+    /// <summary>表统计按已绑定模型返回全部表, 不打开保存窗口或改变模型定义.</summary>
     [Fact]
     public async Task StatisticsReturnsBoundMetadataWithoutFileSelection()
     {
         using var fixture = new Fixture();
+        AddOtherTable(fixture);
         await fixture.ConnectAsync();
         await fixture.Call("model.tableStatistics", new { projectId = "project", baselineId = "baseline" }, "statistics");
         var result = fixture.Response("statistics").GetProperty("result");
         Assert.Equal("project", result.GetProperty("projectId").GetString());
-        Assert.Equal(2, result.GetProperty("tables")[0].GetProperty("rowCount").GetInt64());
+        Assert.Equal("baseline", result.GetProperty("baselineId").GetString());
+        var tables = result.GetProperty("tables").EnumerateArray().ToArray();
+        Assert.Equal(["Sales", "Other"], tables.Select(table => table.GetProperty("table").GetString()));
+        Assert.All(tables, table => Assert.Equal(2, table.GetProperty("rowCount").GetInt64()));
         Assert.Equal(0, fixture.SelectionCount);
         Assert.Equal("baseline", fixture.Snapshot.BaselineId);
+    }
+
+    /// <summary>整模型统计可超过常规读取预算, 达到三分钟仍须等待读取排空后才发布超时.</summary>
+    [Fact]
+    public async Task StatisticsUsesThreeMinuteBudgetAndDrainsOnTimeout()
+    {
+        var clock = new ExportClock();
+        using var fixture = new Fixture(clock) { BlockStatistics = true };
+        await fixture.ConnectAsync();
+        var statistics = fixture.Call("model.tableStatistics", new { projectId = "project", baselineId = "baseline" }, "statistics");
+        await fixture.StatisticsEntered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        clock.Advance(TimeSpan.FromSeconds(179));
+        Assert.False(fixture.StatisticsToken.IsCancellationRequested);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        Assert.True(fixture.StatisticsToken.IsCancellationRequested);
+        Assert.False(statistics.IsCompleted);
+        fixture.StatisticsRelease.TrySetResult();
+        await statistics.WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.Equal("TIMEOUT", fixture.Response("statistics").GetProperty("error").GetProperty("code").GetString());
+        Assert.True(fixture.StatisticsDrained);
     }
 
     /// <summary>统计与导出共用模型门闩; 在途取消排空后导出才重新可用.</summary>
@@ -325,7 +349,6 @@ public sealed partial class ModelTableExportBridgeTests
         internal bool BlockRead { get; init; }
         internal bool BlockCommit { get; init; }
         internal bool BlockStatistics { get; init; }
-        internal bool BlockCounts { get; init; }
         internal bool BlockOpen { get; init; }
         internal string Destination { get; set; } = "C:/bound/Sales.xlsx";
         internal LocalModelExportLocationStore? Locations { get; }
@@ -334,13 +357,6 @@ public sealed partial class ModelTableExportBridgeTests
         internal TaskCompletionSource OpenEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource OpenRelease { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal CancellationToken OpenToken { get; private set; }
-        internal int CountCalls { get; private set; }
-        internal string[]? CountTables { get; private set; }
-        internal ProjectSnapshot? CountSnapshot { get; private set; }
-        internal CancellationToken CountToken { get; private set; }
-        internal bool CountsDrained { get; private set; }
-        internal TaskCompletionSource CountsEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        internal TaskCompletionSource CountsRelease { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource StatisticsEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource StatisticsRelease { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal CancellationToken StatisticsToken { get; private set; }
@@ -372,7 +388,7 @@ public sealed partial class ModelTableExportBridgeTests
             var edits = new ModelEditService(this, this);
             Session = new(new(false, null), new(new RuntimeEnvironment()), message => Messages.Enqueue(JsonSerializer.Deserialize<JsonElement>(message)), "test",
                 projects: new(edits), selectProject: _ => Task.FromResult<string?>("test.pbip"), connections: new TestLocalFileConnection(this).Service(), edits: edits,
-                requestTimeProvider: clock, tableExports: new(this, this, this), tableStatistics: new StatisticsReader(this), tableRowCounts: new CountsReader(this),
+                requestTimeProvider: clock, tableExports: new(this, this, this), tableStatistics: new StatisticsReader(this),
                 exportLocations: Locations, openExportDirectory: locations ? async (directory, token) =>
                 {
                     OpenToken = token; OpenedDirectories.Add(directory); OpenEntered.TrySetResult();
@@ -448,7 +464,7 @@ public sealed partial class ModelTableExportBridgeTests
         /// <summary>释放阻塞门闩并关闭测试自己的会话.</summary>
         public void Dispose()
         {
-            ReadRelease.TrySetResult(); CommitRelease.TrySetResult(); StatisticsRelease.TrySetResult(); CountsRelease.TrySetResult(); OpenRelease.TrySetResult();
+            ReadRelease.TrySetResult(); CommitRelease.TrySetResult(); StatisticsRelease.TrySetResult(); OpenRelease.TrySetResult();
             Session.Dispose();
         }
 
@@ -481,24 +497,6 @@ public sealed partial class ModelTableExportBridgeTests
             }
         }
 
-        /// <summary>仅替代外部精确计数用例, 记录Bridge传入的宿主快照与精确表范围并模拟同步排空.</summary>
-        private sealed class CountsReader(Fixture owner) : IModelTableRowCountReader
-        {
-            /// <summary>不查询模型, 只返回所选表实际范围形状; 取消后仍等显式释放再退出.</summary>
-            public async Task<ModelTableStatisticsResult> ReadRowCountsAsync(ProjectSnapshot snapshot, IReadOnlyList<string> tables, CancellationToken token)
-            {
-                owner.CountCalls++; owner.CountTables = [.. tables]; owner.CountSnapshot = snapshot; owner.CountToken = token;
-                owner.CountsEntered.TrySetResult();
-                try
-                {
-                    if (owner.BlockCounts) await owner.CountsRelease.Task;
-                    token.ThrowIfCancellationRequested();
-                    return new(snapshot.ProjectId, snapshot.BaselineId, tables.Select(table => new ModelTableStatistics(table, table == "Sales" ? 2 : 5, null, IsQueryCount: true)).ToArray());
-                }
-                finally { owner.CountsDrained = true; }
-            }
-        }
-
         /// <summary>受控只读统计游标只用于验证宿主门闩和取消, 不查询真实模型或文件.</summary>
         private sealed class StatisticsReader(Fixture owner) : IModelTableStatisticsReader
         {
@@ -511,7 +509,8 @@ public sealed partial class ModelTableExportBridgeTests
                 {
                     if (owner.BlockStatistics) await owner.StatisticsRelease.Task;
                     token.ThrowIfCancellationRequested();
-                    return new(snapshot.ProjectId, snapshot.BaselineId, [new("Sales", 2, 1024)]);
+                    return new(snapshot.ProjectId, snapshot.BaselineId,
+                        snapshot.Model.Tables.Select(table => new ModelTableStatistics(table.Name, 2, 1024)).ToArray());
                 }
                 finally { owner.StatisticsDrained = true; }
             }

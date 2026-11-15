@@ -2,7 +2,7 @@
 // Author      : jiaopengzi
 // Blog        : https://jiaopengzi.com
 // Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-// Description : 仅查询固定统计行集和显式所选表计数的有界ADOMD会话, 不提供任意查询或业务行值访问.
+// Description : 查询固定统计行集和 Service 实际行数的有界 ADOMD 会话.
 
 using PbiUtils.Windows.Connections.Ssas;
 using PbiUtils.Application.Connections;
@@ -18,7 +18,7 @@ using PbiUtils.Core;
 
 namespace PbiUtils.Windows.Models.Statistics;
 
-/// <summary>绑定可信目标的短生命周期统计会话, 仅支持固定元数据与显式所选表计数.</summary>
+/// <summary>绑定可信目标的短生命周期统计会话, 仅支持固定存储元数据与实际行数查询.</summary>
 public interface IPowerBiTableStatisticsSession : IDisposable
 {
     /// <summary>非Import或无法确定驻留完整范围的表, 不把局部驻留统计当作整表总量.</summary>
@@ -38,8 +38,8 @@ public interface IPowerBiTableStatisticsSession : IDisposable
 }
 
 /// <summary>仅供已经核验的当前模型使用, 密钥连接串与访问令牌不回传或记录.</summary>
-internal sealed class ModelTableStatisticsSession(string connectionString, PowerBiServiceTarget? service, IReadOnlyList<string>? unavailableTables = null, ILogger? logger = null,
-    bool discoverDimensions = false) : IPowerBiTableStatisticsSession
+internal sealed class ModelTableStatisticsSession(string connectionString, PowerBiServiceTarget? service, IReadOnlyList<string>? unavailableTables = null,
+    ILogger? logger = null) : IPowerBiTableStatisticsSession
 {
     private const int MaximumRows = 250000;
     private AdomdConnection? connection;
@@ -63,7 +63,6 @@ internal sealed class ModelTableStatisticsSession(string connectionString, Power
     /// <summary>只接受固定列投影, 数据量超过边界明确失败, 不发布部分行集组成的尺寸.</summary>
     public DataTable? Read(string schema, CancellationToken token)
     {
-        if (discoverDimensions && schema == "MDSCHEMA_DIMENSIONS") return ReadDimensions(token);
         var query = schema switch
         {
             "DISCOVER_STORAGE_TABLES" => "SELECT DIMENSION_NAME,TABLE_ID,ROWS_COUNT FROM $SYSTEM.DISCOVER_STORAGE_TABLES",
@@ -77,31 +76,8 @@ internal sealed class ModelTableStatisticsSession(string connectionString, Power
         return ReadQuery(query, optional: true, MaximumRows, 16, token);
     }
 
-    /// <summary>共享容量通过原生 Discover 读取当前目录维度, 不依赖其接受 DMV 查询语法.</summary>
-    /// <param name="token">同步调用前后的取消令牌.</param>
-    /// <returns>当前目录维度行集, 权限或能力限制时返回 null.</returns>
-    private DataTable? ReadDimensions(CancellationToken token)
-    {
-        token.ThrowIfCancellationRequested();
-        try
-        {
-            var catalog = connection!.Database;
-            AdomdRestrictionCollection restrictions = catalog.Length == 0 ? [] : [new("CATALOG_NAME", catalog)];
-            using var schema = connection.GetSchemaDataSet("MDSCHEMA_DIMENSIONS", restrictions);
-            token.ThrowIfCancellationRequested();
-            if (schema.Tables.Count != 1) return null;
-            if (schema.Tables[0].Rows.Count > MaximumRows) throw Limit(optional: true);
-            return schema.Tables[0].Copy();
-        }
-        catch (AdomdErrorResponseException error) when (!AuthenticationFailure(error))
-        {
-            token.ThrowIfCancellationRequested();
-            SsasConnection.LogFailure(log, "TableStatisticsDimensions", error);
-            return null;
-        }
-    }
-
-    /// <summary>显式计数固定模板在生成/排版期间检查取消, 同一会话复用身份和30秒命令预算; 同步 SDK 只在前后检查.</summary>
+    /// <summary>生成并执行固定计数模板, 同一会话复用身份及每批 30 秒命令预算.</summary>
+    /// <inheritdoc/>
     public DataTable ReadRowCounts(IReadOnlyList<string> tables, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
@@ -109,7 +85,7 @@ internal sealed class ModelTableStatisticsSession(string connectionString, Power
             ?? throw new AppException("MODEL_ROW_COUNT_INVALID", "精确行数结果不完整或格式无效", 3);
     }
 
-    /// <summary>共用有界SDK游标生命周期; 只有可选元数据允许服务未提供, 显式计数的任何失败均传播.</summary>
+    /// <summary>共用有界 SDK 游标生命周期; 可选元数据允许服务未提供, 实际计数失败必须传播.</summary>
     /// <param name="query">当前类固定行集或可信表模板, 不对外暴露任意查询.</param>
     /// <param name="optional">是否为允许未提供的固定元数据.</param>
     /// <param name="maximumRows">完整行集的有界最大行数, 超限不能截断返回.</param>

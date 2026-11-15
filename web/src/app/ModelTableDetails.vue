@@ -15,7 +15,7 @@ const props = defineProps<{
     limited: boolean
     rowCount: string
     storageSize: string
-    countKind: "query" | "estimate" | "storage" | "unknown" | "unavailable"
+    countKind: "query" | "storage" | "unknown" | "unavailable"
 }>()
 const { t, hostText } = useI18n()
 /** 内部RowNumber按引擎kind排除, 保留名称相似的普通数据列. */
@@ -34,7 +34,6 @@ const fields = computed(() => props.table.columns.filter((column) => column.kind
                     <dt>{{ t("model.rowCount") }}</dt>
                     <dd>
                         {{ rowCount }}<small v-if="countKind === 'query'" class="count-source">{{ t("model.queryRowCount") }}</small
-                        ><small v-else-if="countKind === 'estimate'" class="count-source">{{ t("model.estimatedRowCount") }}</small
                         ><small v-else-if="countKind === 'unavailable'" class="count-source">{{ t("model.rowCountNoColumns") }}</small>
                     </dd>
                 </div>

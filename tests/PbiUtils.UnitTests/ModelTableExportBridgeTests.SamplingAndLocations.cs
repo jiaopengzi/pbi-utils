@@ -197,9 +197,9 @@ public sealed partial class ModelTableExportBridgeTests
         await fixture.Call("request.cancel", new { requestId = "opening" }, "cancel-opening");
         Assert.False(fixture.Response("cancel-opening").GetProperty("result").GetProperty("accepted").GetBoolean());
         Assert.False(opening.IsCompleted); Assert.False(fixture.OpenToken.CanBeCanceled);
-        await fixture.Call("model.tableRowCounts", CountParameters(["Sales"]), "blocked-count");
-        Assert.Equal("BUSY", fixture.Response("blocked-count").GetProperty("error").GetProperty("code").GetString());
-        Assert.Equal(0, fixture.CountCalls);
+        await fixture.Call("model.tableStatistics", new { projectId = "project", baselineId = "baseline" }, "blocked-statistics");
+        Assert.Equal("BUSY", fixture.Response("blocked-statistics").GetProperty("error").GetProperty("code").GetString());
+        Assert.False(fixture.StatisticsEntered.Task.IsCompleted);
         fixture.OpenRelease.TrySetResult();
         await opening.WaitAsync(TimeSpan.FromSeconds(3));
         Assert.True(fixture.Response("opening").GetProperty("result").GetProperty("opened").GetBoolean());

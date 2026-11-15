@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 using PbiUtils.Core;
 using PbiUtils.Infrastructure.Scaffolding;
+using RuntimeEnvironment = PbiUtils.Infrastructure.Diagnostics.RuntimeEnvironment;
 
 using PbiUtils.Infrastructure.Execution;
 
@@ -19,12 +20,14 @@ internal sealed partial class UserDataResetTree : IDisposable
     private readonly List<SafeFileHandle> ancestors = [];
     private readonly List<Entry> entries = [];
     private readonly string root;
+    private readonly string? preservedRuntime;
     private readonly SafeFileHandle? rootForDeletion;
 
-    /// <summary>固定根与祖先后逐层锁定全部内容, 任何枚举、占用或链接错误均发生在首次删除之前.</summary>
+    /// <summary>固定根与祖先后逐层锁定待删除内容; 应用内重置只固定 runtime 目录本身.</summary>
     internal UserDataResetTree(string root, CancellationToken token, bool removeRoot = false)
     {
         this.root = root;
+        preservedRuntime = removeRoot ? null : RuntimeEnvironment.RuntimeCoordinationDirectory(root);
         try
         {
             var parents = new Stack<string>();
@@ -76,7 +79,7 @@ internal sealed partial class UserDataResetTree : IDisposable
     {
         foreach (var entry in Enumerable.Reverse(entries))
             DeleteEntry(entry.Handle);
-        if (Directory.Exists(root) && Directory.EnumerateFileSystemEntries(root).Any())
+        if (Directory.Exists(root) && Directory.EnumerateFileSystemEntries(root).Any(path => !Preserves(path)))
             throw new AppException("USER_DATA_RESET_INCOMPLETE", "重置期间出现新内容, 用户数据重置未完成", 4);
     }
 
@@ -104,13 +107,20 @@ internal sealed partial class UserDataResetTree : IDisposable
         {
             token.ThrowIfCancellationRequested();
             UserDataStore.Check(path);
-            // 共享后台维护租约位于用户数据树之外; 树内所有普通内容均参与同一身份核验和删除.
+            if (Preserves(path))
+            {
+                ancestors.Add(Open(path, directory: true, delete: false));
+                continue;
+            }
             var isDirectory = (File.GetAttributes(path) & FileAttributes.Directory) != 0;
             var handle = Open(path, isDirectory, delete: true);
             entries.Add(new(path, isDirectory, handle));
             if (isDirectory) Visit(path, token);
         }
     }
+
+    /// <summary>只保留指定数据根的 runtime 子目录, 不豁免同名业务子目录.</summary>
+    private bool Preserves(string path) => string.Equals(path, preservedRuntime, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>OPEN_REPARSE_POINT 不跟随最终链接, 真实属性再次核验; 只共享读取, 祖先允许写入但不允许重命名.</summary>
     private static SafeFileHandle Open(string path, bool directory, bool delete)

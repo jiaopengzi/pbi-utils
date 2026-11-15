@@ -29,33 +29,33 @@ public sealed class UserDataReset
         UserDataStore.Check(this.root);
     }
 
-    /// <summary>在线程池只读枚举整个根并验证当前脚手架执行账本, 避免大目录阻塞宿主消息泵; 损坏或未知提交拒绝重置, 不加载凭据或其他设置.</summary>
+    /// <summary>在线程池只读核验待重置内容与执行账本; 损坏或未知提交拒绝重置, 不加载凭据.</summary>
     /// <param name="token">仅取消检查, 不进行删除.</param>
-    public async Task ValidateAsync(CancellationToken token)
-    {
-        _ = await Task.Run(() => Snapshot(token), token);
-        new ScaffoldPlanStore(root).RequireResetSafe(token);
-        new ExecutionJournal(root).RequireResetSafe();
-    }
+    public Task ValidateAsync(CancellationToken token) => Task.Run(() => Validate(includeRuntime: false, token), token);
 
-    /// <summary>宿主与日志均释放后取得独占会话锁, 在首次删除前完整检查全部文件占用和账本, 失败不冒充完成.</summary>
+    /// <summary>宿主与日志均释放后取得独占会话锁, 核验并清空应用数据, 保留运行协调目录.</summary>
     /// <param name="token">首个删除前可取消; 删除开始后由宿主排空至终态.</param>
     /// <exception cref="AppException">其他宿主、文件锁、链接或待核验账本阻止重置; 删除期间失败明确报告可能只完成部分清理.</exception>
-    public Task ResetAsync(CancellationToken token) => ClearAsync(removeRoot: false, token);
-
-    /// <summary>仅由明确选择清理的卸载入口调用, 阻止新会话并删除固定数据根; 占用、链接和未知回执会阻止删除.</summary>
-    /// <param name="token">首个删除前可取消; 首次删除后处理到终态.</param>
-    public async Task RemoveForUninstallAsync(CancellationToken token)
-    {
-        using var admission = UserDataSessionLease.ReserveMaintenance(root);
-        await ClearAsync(removeRoot: true, token);
-    }
-
-    /// <summary>持独占会话锁校验并清空数据, 卸载时以固定的原句柄同时删除数据根.</summary>
-    private async Task ClearAsync(bool removeRoot, CancellationToken token)
+    public Task ResetAsync(CancellationToken token) => Task.Run(() =>
     {
         using var session = UserDataSessionLease.Acquire(root, exclusive: true);
-        await ValidateAsync(token);
+        Clear(removeRoot: false, token);
+    }, token);
+
+    /// <summary>仅由明确选择清理的卸载入口调用, 阻止新会话并删除包括 runtime 在内的固定数据根.</summary>
+    /// <param name="token">首个删除前可取消; 首次删除后处理到终态.</param>
+    /// <exception cref="AppException">仍在使用的数据或协调文件、链接及未知回执阻止删除.</exception>
+    public Task RemoveForUninstallAsync(CancellationToken token) => Task.Run(() =>
+    {
+        // 卸载由 Windows 内核锁阻止打开新租约, 本身不打开待删除的 runtime 文件.
+        using var gate = UserDataRuntimeGate.Enter(root);
+        Clear(removeRoot: true, token);
+    }, token);
+
+    /// <summary>持重置租约或卸载互斥锁时清空内容, 卸载用固定的原句柄删除数据根.</summary>
+    private void Clear(bool removeRoot, CancellationToken token)
+    {
+        Validate(includeRuntime: removeRoot, token);
         // 所有内容与祖先身份在首次删除前固定, 原句柄贯穿账本回核和删除, 不留下释放预检锁后的路径替换空隙.
         using var tree = new UserDataResetTree(root, token, removeRoot);
         tree.ValidateReceipts(token);
@@ -64,13 +64,13 @@ public sealed class UserDataReset
         if (removeRoot) tree.DeleteRoot();
     }
 
-    /// <summary>先验证每个目录再单层枚举, 不递归跟随 reparse; 排序后的快照用于删除前复核和由深到浅删除.</summary>
-    private List<Entry> Snapshot(CancellationToken token)
+    /// <summary>先核验各目录和文件再进入子树, 不跟随链接; 卸载一并核验 runtime 子树.</summary>
+    private void Validate(bool includeRuntime, CancellationToken token)
     {
         UserDataStore.Check(root);
-        List<Entry> entries = [];
         if (File.Exists(root)) throw new AppException("UNSAFE_USER_DATA_PATH", "用户数据根不是目录, 不允许重置", 3);
-        if (!Directory.Exists(root)) return entries;
+        if (!Directory.Exists(root)) return;
+        var runtime = RuntimeEnvironment.RuntimeCoordinationDirectory(root);
         void Visit(string directory)
         {
             token.ThrowIfCancellationRequested();
@@ -79,14 +79,12 @@ public sealed class UserDataReset
             {
                 token.ThrowIfCancellationRequested();
                 UserDataStore.Check(path);
-                var isDirectory = (File.GetAttributes(path) & FileAttributes.Directory) != 0;
-                entries.Add(new(path, isDirectory));
-                if (isDirectory) Visit(path);
+                if (!includeRuntime && string.Equals(path, runtime, StringComparison.OrdinalIgnoreCase)) continue;
+                if ((File.GetAttributes(path) & FileAttributes.Directory) != 0) Visit(path);
             }
         }
         Visit(root);
-        return entries;
+        new ScaffoldPlanStore(root).RequireResetSafe(token);
+        new ExecutionJournal(root).RequireResetSafe();
     }
-
-    private sealed record Entry(string Path, bool Directory);
 }

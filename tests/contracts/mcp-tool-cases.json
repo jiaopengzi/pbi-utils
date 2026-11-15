@@ -466,26 +466,6 @@
       "nonEmpty": []
     },
     {
-      "name": "desktop_model_tableRowCounts",
-      "readOnly": true,
-      "category": "prerequisite-rejected",
-      "arguments": {
-        "parameters": {
-          "projectId": "mcp-test-missing",
-          "baselineId": "0000000000000000000000000000000000000000000000000000000000000000",
-          "tables": [
-            "Sales"
-          ]
-        }
-      },
-      "errorCode": "STALE_CONNECTION",
-      "fields": [],
-      "note": "No observed workspace revision; live model success UNRUN",
-      "resultKind": "object",
-      "equals": {},
-      "nonEmpty": []
-    },
-    {
       "name": "desktop_model_tableStatistics",
       "readOnly": true,
       "category": "prerequisite-rejected",

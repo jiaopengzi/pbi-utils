@@ -13,7 +13,7 @@ import { exportResult, selectTable, setupTables, tableItem } from "./ModelTables
 
 it("导出默认每表抽样100行, 样本完成不改写源表统计或宣称全部行", async () => {
     const { wrapper, sent, send, cleanup } = await setupTables({
-        statistics: [{ table: "销售", rowCount: 900, sizeBytes: 2048, isEstimate: true, isQueryCount: false }],
+        statistics: [{ table: "销售", rowCount: 900, sizeBytes: 2048, isQueryCount: false }],
     })
     try {
         expect(wrapper.findComponent(ElRadioGroup).props("modelValue")).toBe("sample")

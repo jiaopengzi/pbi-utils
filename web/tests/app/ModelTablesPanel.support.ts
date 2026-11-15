@@ -29,14 +29,12 @@ export function tablesProject(): ProjectSnapshot {
 export function controlledBridge(project: ProjectSnapshot, initial: TableTestOptions = {}) {
     let receive: ((event: MessageEvent) => void) | undefined
     let statistics: StatisticsRows =
-        initial.statistics ??
-        project.model.tables.map((table) => ({ table: table.name, rowCount: null, sizeBytes: null, isEstimate: false, isQueryCount: false }))
+        initial.statistics ?? project.model.tables.map((table) => ({ table: table.name, rowCount: null, sizeBytes: null, isQueryCount: false }))
     let autoStatistics = initial.autoStatistics ?? true
     let location: ModelExportLocation = initial.location ?? { id: null, displayPath: null, available: false, warning: null, isSimulation: false }
     let autoLocation = initial.autoLocation ?? true
     const sent: TestRequest[] = [],
         statisticsRequests: TestRequest[] = [],
-        rowCountRequests: TestRequest[] = [],
         locationRequests: TestRequest[] = [],
         directoryRequests: TestRequest[] = []
     /** 仅向当前客户端发送带匹配协议版本的受控结果, 不把取消确认当作原请求终态. */
@@ -59,8 +57,6 @@ export function controlledBridge(project: ProjectSnapshot, initial: TableTestOpt
                 if (request.method === "model.tableStatistics") {
                     statisticsRequests.push(request)
                     if (autoStatistics) queueMicrotask(() => replyStatistics(request))
-                } else if (request.method === "model.tableRowCounts") {
-                    rowCountRequests.push(request)
                 } else if (request.method === "model.exportLocation") {
                     locationRequests.push(request)
                     if (autoLocation) queueMicrotask(() => replyLocation(request))
@@ -78,7 +74,6 @@ export function controlledBridge(project: ProjectSnapshot, initial: TableTestOpt
         bridge,
         sent,
         statisticsRequests,
-        rowCountRequests,
         locationRequests,
         directoryRequests,
         send,

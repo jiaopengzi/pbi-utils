@@ -50,7 +50,7 @@ public sealed partial class McpBusinessRuntime
                 operation.Description + " Uses a same-installation host, automatically started in the background when needed. "
                 + (McpDesktopRead.Supports(operation.Method) ? "Defaults to a compact summary. Use optional read.section (tables/columns/measures/functions/configuration), limit 1-100 and offset for details; columns requires table. Later pages require read.projectId and read.baselineId. Expressions are opt-in with includeExpressions. Configuration section is only available for configuration_context. " : ""),
                 !operation.ReadOnly, schema, (input, token) => InvokeDesktopAsync(operation, input, token),
-                operation.Method.StartsWith("powerbi.service", StringComparison.Ordinal) || operation.Method is "udf.catalogRefresh" or "learning.open");
+                operation.Method.StartsWith("powerbi.service", StringComparison.Ordinal) || operation.Method is "model.tableStatistics" or "udf.catalogRefresh" or "learning.open");
         }
     }
 

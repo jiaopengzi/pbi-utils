@@ -8,13 +8,12 @@
 export const hostDialogMessages = {
     "zh-cn": {
         "hostDialog.externalToolArgumentsInvalid": "外部工具启动参数无效，请从 Power BI Desktop 重新启动 pbi-utils。",
-        "hostDialog.resetDataTitle": "重置全部本地数据",
+        "hostDialog.resetDataTitle": "重置本地数据",
         "hostDialog.resetDataMessage":
-            "将永久删除当前用户 .pbi-utils 下的全部内容，包括设置、API 密钥、登录缓存、会话与草稿、UDF、模板、备份、日志、浏览器数据和自行放入的文件。请先备份需要保留的内容，并结束其他应用实例。外部 Power BI 模型、报表和工程文件不在清理范围，重置也不会回滚已提交的模型修改。是否继续？",
+            "将永久删除 .pbi-utils 里的设置、凭据、缓存、草稿、UDF、模板、日志、浏览器数据和自行放入的文件。应用保留 runtime 子目录及其中的 MCP 暂停状态。请先备份需要的内容，并结束其他应用实例。外部 Power BI 模型、报表和工程文件不受影响，已提交的模型修改也不会回滚。是否继续？",
         "hostDialog.resetDataFinalTitle": "最终确认重置",
-        "hostDialog.resetDataFinalMessage":
-            "再次确认：全部本地数据将不可恢复地删除，应用会正常关闭后执行清理，并以默认状态重新打开。尚未保存的本地草稿也会丢失。只有继续确认才会安排重置；取消将保留现有数据。",
-        "hostDialog.resetDataCompleted": "全部本地数据已重置，应用已按默认状态重新打开。请重新配置需要的连接。",
+        "hostDialog.resetDataFinalMessage": "确认后，应用会正常关闭，永久删除设置和本地文件，然后重新打开。尚未保存的本地草稿也会丢失。",
+        "hostDialog.resetDataCompleted": "本地数据已重置，应用已重新打开。请重新配置需要的连接。",
         "hostDialog.resetDataFailed":
             "本地数据重置未完成。可能有其他进程占用、链接或读写错误；部分内容可能已清理，请先核对现有数据，不要将本次结果视为完整重置。",
         "hostDialog.operation.scaffold.create": "新建 PBIP 工程",
@@ -92,13 +91,13 @@ export const hostDialogMessages = {
     },
     "en-us": {
         "hostDialog.externalToolArgumentsInvalid": "The external tool launch arguments are invalid. Start pbi-utils again from Power BI Desktop.",
-        "hostDialog.resetDataTitle": "Reset all local data",
+        "hostDialog.resetDataTitle": "Reset local data",
         "hostDialog.resetDataMessage":
-            "This permanently deletes everything in this user's .pbi-utils folder: settings, API keys, sign-in caches, sessions and drafts, UDFs, templates, backups, logs, browser data and any files placed there manually. Back up anything you need and close other app instances first. External Power BI models, reports and projects are excluded. Reset does not roll back committed model changes. Continue?",
+            "This permanently deletes settings, credentials, caches, drafts, UDFs, templates, logs, browser data and files you placed in .pbi-utils. The app keeps the runtime subfolder, including the MCP pause state. Back up anything you need and close other app instances first. External Power BI models, reports and projects are unaffected. Reset does not roll back committed model changes. Continue?",
         "hostDialog.resetDataFinalTitle": "Final reset confirmation",
         "hostDialog.resetDataFinalMessage":
-            "Confirm again: all local data will be permanently deleted. The app will close normally, clean the folder and reopen with defaults. Unsaved local drafts will also be lost. Reset is only scheduled after this confirmation; cancelling preserves the data.",
-        "hostDialog.resetDataCompleted": "All local data was reset and the app reopened with defaults. Configure your connections again as needed.",
+            "After you confirm, the app will close normally, permanently delete settings and local files, then reopen. Unsaved local drafts will also be lost.",
+        "hostDialog.resetDataCompleted": "Local data was reset and the app reopened. Configure your connections again as needed.",
         "hostDialog.resetDataFailed":
             "Local data reset did not complete. Another process, a link or an I/O error may have blocked it. Some content may already be removed. Check the remaining data before treating this as a complete reset.",
         "hostDialog.operation.scaffold.create": "Create PBIP project",

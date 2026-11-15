@@ -81,8 +81,7 @@ public static class McpDesktopCatalog
         Add("project.inspect", "Read the current connected project and authoritative model snapshot.");
         Add("dax.format", "Format DAX locally with the existing formatter, preserving tokens and calculation semantics.");
         Add("model.udfLint", "Validate the supported UDF structure without changing the model.");
-        Add("model.tableStatistics", "Read available storage and row statistics without refreshing data.");
-        Add("model.tableRowCounts", "Execute explicit read-only row counts under the current connection and security rules.");
+        Add("model.tableStatistics", "Read available storage statistics and row counts for the current model. Power BI Service counts use exact queries under the current account's security context. Does not refresh data.");
         Add("model.exportLocation", "Read the latest successfully used model export directory.");
         Add("model.exportTables", "Export selected tables to CSV/XLSX using the normal user-selected destination and cancellation flow.");
         Add("model.openExportDirectory", "Open the existing verified model export directory.");

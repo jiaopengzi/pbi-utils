@@ -42,7 +42,7 @@ internal sealed class BusinessHostOwnership : IDisposable
     /// <summary>获取短时启动选主, 竞争只返回 null; 权限和磁盘错误明确失败.</summary>
     internal static FileStream? TryAcquireStartup(BusinessHostSettings settings) => TryAcquireFile(settings, "start.lock");
 
-    /// <summary>维护租约与用户数据根分离, GUI 关闭后台后仍能阻止重新启动.</summary>
+    /// <summary>维护租约位于应用内重置保留的 runtime 子树, GUI 关闭后台后仍能阻止重新启动.</summary>
     internal static FileStream? TryAcquireMaintenance(BusinessHostSettings settings) => TryAcquireFile(settings, "maintenance.lock");
 
     /// <summary>只读探测彼此共享, 仅与真实维护写句柄互斥; 不依赖陈旧元数据或将另一探测误判为维护.</summary>
@@ -85,6 +85,7 @@ internal sealed class BusinessHostOwnership : IDisposable
     {
         try
         {
+            using var gate = UserDataRuntimeGate.Enter(settings.UserRoot);
             UserDataStore.Check(settings.CoordinationDirectory);
             Directory.CreateDirectory(settings.CoordinationDirectory);
             var path = Path.Combine(settings.CoordinationDirectory, name);
