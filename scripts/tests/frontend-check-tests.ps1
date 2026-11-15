@@ -8,6 +8,7 @@
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $sourceRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+. (Join-Path $PSScriptRoot 'TestProjectGraphFixture.ps1')
 $sandbox = Join-Path ([IO.Path]::GetTempPath()) ('pbi-utils-frontend-check-' + [Guid]::NewGuid().ToString('N'))
 $savedLocation = Get-Location
 $savedOutputEncoding = [Console]::OutputEncoding
@@ -83,7 +84,7 @@ try {
                 }
                 return
             }
-            Assert ($File -eq 'dotnet' -and $Arguments -contains '--no-restore') 'C# 非 setup 动作必须显式禁止还原'
+            Assert ($File -eq 'dotnet' -and ($Arguments[0] -eq 'msbuild' -or $Arguments -contains '--no-restore')) 'C# 非 setup 动作必须禁止隐式还原'
             if ($Arguments[0] -eq 'format') {
                 $report = $Arguments[[Array]::IndexOf($Arguments, '--report') + 1]
                 Set-Content -LiteralPath $report -Value '[]'
@@ -129,15 +130,10 @@ try {
                     foreach ($name in @('coreclr.dll', 'hostfxr.dll', 'hostpolicy.dll', 'System.Private.CoreLib.dll')) { Remove-Item -LiteralPath (Join-Path $output $name) }
                 }
             } else {
-                Assert ($Arguments[0] -eq 'test') '只允许检查、测试和发布'
-                $directory = $Arguments[[Array]::IndexOf($Arguments, '--results-directory') + 1]
-                $logger = $Arguments[[Array]::IndexOf($Arguments, '--logger') + 1]
-                Assert ($logger -match '^trx;LogFileName=(.+\.trx)$') '每次 C# 测试须使用唯一 TRX 文件名'
-                $reportName = $Matches[1]
+                $graph = Get-TestProjectGraphFixture $File $Arguments
                 $time = [DateTimeOffset]::UtcNow.ToString('O', [Globalization.CultureInfo]::InvariantCulture)
-                $null = New-Item -ItemType Directory -Path $directory -Force
                 $xml = "<TestRun xmlns=`"http://microsoft.com/schemas/VisualStudio/TeamTest/2010`"><Times start=`"$time`" finish=`"$time`"/><Results><UnitTestResult outcome=`"Passed`"/></Results><ResultSummary outcome=`"Completed`"><Counters total=`"1`" executed=`"1`" passed=`"1`" failed=`"0`" error=`"0`" timeout=`"0`" aborted=`"0`" inconclusive=`"0`" passedButRunAborted=`"0`" notRunnable=`"0`" notExecuted=`"0`" disconnected=`"0`" warning=`"0`" completed=`"0`" inProgress=`"0`" pending=`"0`"/></ResultSummary></TestRun>"
-                Set-Content -LiteralPath (Join-Path $directory $reportName) -Value $xml -Encoding utf8
+                Write-TestProjectGraphFixtureReports $graph $xml
             }
         }
 

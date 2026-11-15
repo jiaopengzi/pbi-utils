@@ -164,8 +164,9 @@ function Merge-PbiPublishedArtifacts([string]$Compiled, [string]$Staging, [strin
     $authority = $descriptions[$authorityEntry]
     if ($DeploymentMode -ceq 'framework-dependent') {
         if ($collisions.Count) { throw "框架依赖共享文件内容冲突: $($collisions[0].Name)" }
+        $runtimeFiles = Get-PbiSelfContainedRuntimeFiles
         foreach ($file in $files.Keys) {
-            if ([IO.Path]::GetFileName($file) -iin (Get-PbiSelfContainedRuntimeFiles)) { throw "框架依赖发布不能包含自包含运行时文件: $file" }
+            if ([IO.Path]::GetFileName($file) -iin $runtimeFiles) { throw "框架依赖发布不能包含自包含运行时文件: $file" }
         }
         Set-PbiFrameworkDependentRuntime $descriptions $entries $assetOwners $authority
     } else {
@@ -216,7 +217,7 @@ function Merge-PbiPublishedArtifacts([string]$Compiled, [string]$Staging, [strin
     }
     foreach ($relative in $files.Keys) {
         $target = Join-Path $Staging $relative
-        $null = New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($target)) -Force
+        $null = [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($target))
         Copy-Item -LiteralPath $files[$relative].Source -Destination $target -ErrorAction Stop
         if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -cne $files[$relative].Hash) { throw "聚合复制后文件发生变化: $relative" }
     }

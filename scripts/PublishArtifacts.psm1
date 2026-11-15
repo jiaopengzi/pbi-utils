@@ -9,13 +9,20 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'PublishRuntime.psm1')
 
-<# .SYNOPSIS 不跟随发布路径或父级的重解析点. #>
+<#
+.SYNOPSIS 逐级拒绝发布路径及父级的重解析点.
+.PARAMETER Path 待读取或写入的本机路径, 可包含尚未创建的尾部.
+.OUTPUTS 无. 网络路径、重解析点或非缺失的属性读取错误直接失败.
+#>
 function Assert-PbiPublishPath([string]$Path) {
     $current = [IO.Path]::GetFullPath($Path)
     if ($current.StartsWith('\\')) { throw '发布只允许本机目录' }
     while ($current) {
-        if ([IO.File]::Exists($current) -or [IO.Directory]::Exists($current)) {
+        try {
             if (([IO.File]::GetAttributes($current) -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw '发布路径包含链接或重解析点' }
+        }
+        catch [IO.FileNotFoundException], [IO.DirectoryNotFoundException] {
+            # 尚未创建的目标仍须检查上级, 非缺失的属性读取错误直接传播.
         }
         $current = [IO.Path]::GetDirectoryName($current)
     }
@@ -25,8 +32,13 @@ function Assert-PbiPublishPath([string]$Path) {
 function Get-PbiPublishFiles([string]$Root) {
     Assert-PbiPublishPath $Root
     foreach ($entry in Get-ChildItem -LiteralPath $Root -Force -ErrorAction Stop) {
-        Assert-PbiPublishPath $entry.FullName
-        if ($entry.PSIsContainer) { Get-PbiPublishFiles $entry.FullName } else { $entry }
+        if ($entry.PSIsContainer) {
+            # 子目录进入递归时先完成同一项逐级校验, 再执行枚举.
+            Get-PbiPublishFiles $entry.FullName
+        } else {
+            Assert-PbiPublishPath $entry.FullName
+            $entry
+        }
     }
 }
 
@@ -86,8 +98,9 @@ function Assert-PbiPublishedArtifacts([string]$Root) {
     $required = @('pbi-utils.exe', 'pbi-utils.dll', 'pbi-utils.deps.json', 'pbi-utils.runtimeconfig.json', 'PbiUtils.Host.exe', 'PbiUtils.Host.dll', 'PbiUtils.Host.deps.json', 'PbiUtils.Host.runtimeconfig.json')
     if ($manifest.deploymentMode -ceq 'self-contained') { $required += @('coreclr.dll', 'hostfxr.dll', 'hostpolicy.dll', 'System.Private.CoreLib.dll') }
     else {
+        $runtimeFiles = Get-PbiSelfContainedRuntimeFiles
         foreach ($file in $actualFiles) {
-            if ($file.Name -iin (Get-PbiSelfContainedRuntimeFiles)) { throw "框架依赖发布不能包含自包含运行时文件: $($file.Name)" }
+            if ($file.Name -iin $runtimeFiles) { throw "框架依赖发布不能包含自包含运行时文件: $($file.Name)" }
         }
     }
     if ($manifest.scope -eq 'All') { $required += @('PbiUtils.Desktop.exe', 'PbiUtils.Desktop.dll', 'PbiUtils.Desktop.deps.json', 'PbiUtils.Desktop.runtimeconfig.json', 'web/index.html') }

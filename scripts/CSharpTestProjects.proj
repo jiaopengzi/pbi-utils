@@ -1,0 +1,31 @@
+<!--
+ * FilePath    : pbi-utils\scripts\CSharpTestProjects.proj
+ * Author      : jiaopengzi
+ * Blog        : https://jiaopengzi.com
+ * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+ * Description : 同一 MSBuild 图编译测试依赖, 再为各测试项目执行 VSTest 和保存独立 TRX.
+-->
+<Project DefaultTargets="Test">
+  <ItemGroup>
+    <TestProjectName Include="$([MSBuild]::Unescape($(PbiTestProjects.Replace('|', ';'))))" Condition="'$(PbiTestProjects)' != ''" />
+    <TestProject Include="@(TestProjectName->'../tests/%(Identity)/%(Identity).csproj')" />
+    <TestRun Include="@(TestProject)">
+      <!-- VSTest 从子项目目录解析相对路径, 避免把仓库路径中的分号交给 MSBuild 属性列表解析. -->
+      <AdditionalProperties>VSTestResultsDirectory=../../artifacts/test-results/%(Filename)</AdditionalProperties>
+    </TestRun>
+    <DesktopTestRun Include="@(TestRun->WithMetadataValue('Filename', 'PbiUtils.Desktop.Tests'))" />
+    <ParallelTestRun Include="@(TestRun)" Exclude="@(DesktopTestRun)" />
+  </ItemGroup>
+  <Target Name="Test">
+    <Error Condition="'@(TestProject)' == '' Or '$(PbiTestLogFile)' == ''" Text="Missing registered test projects or test report name." />
+    <!-- 先在一个图中完成所有编译, 测试宿主随后只读各自的编译输出. -->
+    <MSBuild Projects="@(TestProject)" Targets="Build" BuildInParallel="true" RemoveProperties="PbiTestProjects;PbiTestLogFile" />
+    <MSBuild Projects="@(ParallelTestRun)" Targets="VSTest" BuildInParallel="true" Condition="'@(ParallelTestRun)' != ''"
+             Properties="VSTestNoBuild=true;VSTestNoLogo=true;VSTestLogger=trx%3BLogFileName=$(PbiTestLogFile)"
+             RemoveProperties="PbiTestProjects;PbiTestLogFile" />
+    <!-- 桌面程序集包含真实 Windows DPAPI 用例, 在其他测试宿主退出后单独运行. -->
+    <MSBuild Projects="@(DesktopTestRun)" Targets="VSTest" Condition="'@(DesktopTestRun)' != ''"
+             Properties="VSTestNoBuild=true;VSTestNoLogo=true;VSTestLogger=trx%3BLogFileName=$(PbiTestLogFile)"
+             RemoveProperties="PbiTestProjects;PbiTestLogFile" />
+  </Target>
+</Project>

@@ -8,6 +8,7 @@
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $sourceRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+. (Join-Path $PSScriptRoot 'TestProjectGraphFixture.ps1')
 $sandbox = Join-Path ([IO.Path]::GetTempPath()) ('pbi-utils-test-results-' + [Guid]::NewGuid().ToString('N'))
 $savedLocation = Get-Location
 $savedEncoding = [Console]::OutputEncoding
@@ -21,7 +22,7 @@ function Assert([bool]$Condition, [string]$Message) { if (!$Condition) { throw $
 <# .SYNOPSIS 模拟唯一注册测试项目, 避免调用真实 SDK 或其他测试. #>
 function Get-PbiProjects([string]$Scope) {
     if ($script:Scenario -eq 'emptyProjects') { return @() }
-    return 'tests/Audit.Tests'
+    return 'tests/Audit.Tests', 'tests/Second.Tests'
 }
 <# .SYNOPSIS 让真实 test.ps1 执行 C# 单语言分支. #>
 function Invoke-PbiGroup { return $false }
@@ -80,15 +81,18 @@ function New-ProbeReport([string]$Scenario) {
 
 <# .SYNOPSIS 模拟工具 exit0 并写本轮指定报告, 可控注入缺失、过期和结构化失败; 非零不产回执. #>
 function Invoke-PbiNative([string]$File, [string[]]$Arguments) {
-    Assert ($File -eq 'dotnet' -and $Arguments[0] -eq 'test' -and $Arguments -contains '--no-restore') '测试不得改用其他工具或隐式还原'
+    $graph = Get-TestProjectGraphFixture $File $Arguments
+    Assert (($graph.Projects -join ',') -ceq 'Audit.Tests,Second.Tests') '完整图须包含所选范围内的全部项目'
     if ($script:Scenario -eq 'nativeFailure') { Stop-Pbi 47 'native failure wins' }
-    $directory = [IO.Path]::GetFullPath($Arguments[[Array]::IndexOf($Arguments, '--results-directory') + 1], (Get-Location).Path)
-    $logger = $Arguments[[Array]::IndexOf($Arguments, '--logger') + 1]
-    $name = if ($logger -match '^trx;LogFileName=(.+\.trx)$') { $Matches[1] } else { 'baseline.trx' }
-    $script:ReportNames.Add($name)
-    if ($script:Scenario -eq 'missing') { return }
-    $null = New-Item -ItemType Directory -Path $directory -Force
-    [IO.File]::WriteAllText((Join-Path $directory $name), (New-ProbeReport $script:Scenario), [Text.UTF8Encoding]::new($false))
+    $script:ReportNames.Add($graph.Name)
+    foreach ($project in $graph.Projects) {
+        # 先提供第一个项目的有效报告, 证明门禁不会据其宣布另一个项目也通过.
+        $scenario = if ($project -eq 'Audit.Tests') { 'pass' } else { $script:Scenario }
+        if ($scenario -eq 'missing') { continue }
+        $directory = Join-Path $graph.Root $project
+        $null = New-Item -ItemType Directory -Path $directory -Force
+        [IO.File]::WriteAllText((Join-Path $directory $graph.Name), (New-ProbeReport $scenario), [Text.UTF8Encoding]::new($false))
+    }
 }
 
 <# .SYNOPSIS 执行真实测试脚本并比较是否失败, 不以错误文字搜索代替结构化回执. #>
@@ -105,6 +109,9 @@ function Test-Scenario([string]$Scenario, [bool]$Rejected) {
     }
     if ($Scenario -eq 'mixed' -and @($script:Messages | Where-Object { $_.Level -eq 'Warning' -and $_.Message -match 'UNRUN' -and $_.Message -match '1' }).Count -ne 1) {
         $script:Failures.Add('部分跳过必须保留为 UNRUN 并明确报告数量')
+    }
+    if ($Scenario -in @('missing', 'failed') -and ($null -eq $caught -or $caught.Message -notmatch 'Second\.Tests')) {
+        $script:Failures.Add('单项目报告缺失或失败须指明该项目且拒绝整轮通过')
     }
 }
 

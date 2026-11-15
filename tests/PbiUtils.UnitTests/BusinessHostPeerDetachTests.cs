@@ -18,15 +18,20 @@ public sealed class BusinessHostPeerDetachTests
     public async Task ClosedDetachWriteWithStalledReaderFailsWithinBound()
     {
         using var stream = new ClosedWriteStream([]);
-        await using var peer = new BusinessHostPeer(stream, Guid.NewGuid().ToString("N"), Guid.NewGuid().ToString("N"), null, null);
+        var clock = new DetachClock();
+        await using var peer = new BusinessHostPeer(stream, Guid.NewGuid().ToString("N"), Guid.NewGuid().ToString("N"), null, null, clock);
         peer.Start();
         var detaching = peer.DetachAsync();
         try
         {
             await stream.WriteAttempted.Task.WaitAsync(TimeSpan.FromSeconds(2));
-            // 永不放开 read 门闩, 验证故障路径自身有界; 外层 15 秒只防止红测挂住测试进程.
+            // 永不放开 read 门闩. 先核对生产申请的完整时限, 再模拟计时器到期.
+            var timer = await clock.Scheduled.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.Equal(TimeSpan.FromSeconds(10), timer.DueTime);
+            Assert.False(detaching.IsCompleted);
+            timer.Fire();
             Assert.Equal("BUSINESS_HOST_CONNECTION_LOST", (await Assert.ThrowsAsync<AppException>(
-                () => detaching.WaitAsync(TimeSpan.FromSeconds(15)))).Code);
+                () => detaching.WaitAsync(TimeSpan.FromSeconds(2)))).Code);
             Assert.True(peer.Completion.IsCompleted);
         }
         finally
@@ -34,6 +39,37 @@ public sealed class BusinessHostPeerDetachTests
             await peer.DisposeAsync();
             try { await detaching; } catch (AppException) { }
         }
+    }
+
+    /// <summary>记录真实关闭期限, 让测试显式推进到单次定时器到期.</summary>
+    private sealed class DetachClock : TimeProvider
+    {
+        internal TaskCompletionSource<DetachTimer> Scheduled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>捕获当前测试唯一的到期回调. 重复调度或周期定时会使测试失败.</summary>
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            Assert.Equal(Timeout.InfiniteTimeSpan, period);
+            var timer = new DetachTimer(callback, state, dueTime);
+            Scheduled.SetResult(timer);
+            return timer;
+        }
+    }
+
+    /// <summary>可手动触发的单次计时器, 已释放的计时器不执行回调.</summary>
+    private sealed class DetachTimer(TimerCallback callback, object? state, TimeSpan dueTime) : ITimer
+    {
+        private int disposed;
+        internal TimeSpan DueTime { get; } = dueTime;
+
+        /// <summary>模拟实际到期, 回调最多执行一次.</summary>
+        internal void Fire() { if (Interlocked.Exchange(ref disposed, 1) == 0) callback(state); }
+        /// <summary>单次计时器不支持重新调度.</summary>
+        public bool Change(TimeSpan dueTime, TimeSpan period) => throw new NotSupportedException();
+        /// <summary>释放计时器及后续调用权.</summary>
+        public void Dispose() => Interlocked.Exchange(ref disposed, 1);
+        /// <summary>异步释放与同步释放等价.</summary>
+        public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
     }
 
     /// <summary>关闭控制帧写失败不能丢弃已发送的正常/失败终态; 没有终态的 EOF 仍明确失败.</summary>

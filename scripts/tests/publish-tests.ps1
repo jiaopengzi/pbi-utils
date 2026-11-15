@@ -427,6 +427,8 @@ public static class PbiPublishTestDirectoryLock
         try { Build 'Core'; throw '链接产物应拒绝' }
         catch { Assert ($_.Exception.Message -like '*链接*') '路径链接应明确失败' }
         Assert ((Get-Content -LiteralPath (Join-Path $outside 'keep.txt') -Raw).Trim() -eq 'protected') '保留链接外部文件'
+        try { Assert-PbiPublishPath (Join-Path $link 'absent/child.dll'); throw '缺失路径的父级链接应拒绝' }
+        catch { Assert ($_.Exception.Message -like '*包含链接或重解析点*') '缺失的路径尾部仍须校验已存在的父级链接' }
     } finally { Remove-Item -LiteralPath $link -Force }
 
     # 没有旧 dist 时, 默认 Release 也只编译 without-dotnet 的三个入口后构建一次前端.
@@ -437,6 +439,7 @@ public static class PbiPublishTestDirectoryLock
     Remove-TestFrontend
     $script:NativeCommands.Clear()
     $script:BuildEvents.Clear()
+    $script:Messages.Clear()
     Build 'All' 'Release' {
         Assert (($script:BuildEvents -join ',') -eq 'publish cli,publish host,publish desktop') 'Release 组合构建必须只编译选中模式的三个入口再开始前端'
         Assert ($script:NativeCommands.Count -eq 3) 'Release All 每次只能发布一套入口'
@@ -447,6 +450,11 @@ public static class PbiPublishTestDirectoryLock
         Set-Content -LiteralPath 'web/dist/assets/first.js' -Value 'first frontend asset'
     }
     Assert (($script:BuildEvents -join ',') -eq 'publish cli,publish host,publish desktop,frontend') '三次 C# 发布后只能构建一次前端'
+    $phaseNames = @($script:Messages | Where-Object { $_.Message -clike '构建计时 *' } | ForEach-Object {
+        Assert ($_.Level -eq 'Info' -and $_.Message -cmatch '^构建计时 \[([a-z-]+)\] \d+\.\d{3}s$') '构建计时须使用固定点号和秒单位'
+        $Matches[1]
+    })
+    Assert (($phaseNames -join ',') -ceq 'prepare,sdk-publish,frontend-gate,shared-layout,licenses,manifest,delivery,cleanup') '成功构建须按执行顺序报告各段耗时'
     foreach ($command in $script:NativeCommands) {
         Assert ($command.Arguments[[Array]::IndexOf($command.Arguments, '-c') + 1] -ceq 'Release') '配置必须传递给选中模式的所有入口'
         Assert ($command.Arguments[[Array]::IndexOf($command.Arguments, '--self-contained') + 1] -eq 'false') '默认 Release 必须只发布 without-dotnet'

@@ -8,6 +8,7 @@
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $sourceRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+. (Join-Path $PSScriptRoot 'TestProjectGraphFixture.ps1')
 $sandbox = Join-Path ([IO.Path]::GetTempPath()) ('pbi-utils 测试 ' + [Guid]::NewGuid().ToString('N'))
 $pwsh = (Get-Process -Id $PID).Path
 $savedOutputEncoding = [Console]::OutputEncoding
@@ -425,7 +426,7 @@ try {
         <# .SYNOPSIS 记录工具边界并提供空 lint 报告及本轮通过 TRX, 不运行真实构建或分析器. #>
         function Invoke-PbiNative([string]$File, [string[]]$Arguments) {
             $script:NativeCalls.Add($File)
-            if ($Arguments[0] -in @('format', 'test')) { Assert ($Arguments -contains '--no-restore') 'C# 日常检查和测试不得隐式还原' }
+            if ($Arguments[0] -eq 'format') { Assert ($Arguments -contains '--no-restore') 'C# 日常检查不得隐式还原' }
             if ($Arguments[0] -eq 'format') {
                 $severity = [Array]::IndexOf($Arguments, '--severity')
                 Assert ($severity -ge 0 -and $Arguments[$severity + 1] -eq 'info') 'C# 必须检查建议级别'
@@ -435,12 +436,9 @@ try {
                     Set-Content -LiteralPath $Arguments[$report + 1] -Value '[]'
                 }
             }
-            if ($Arguments[0] -eq 'test') {
-                $logger = $Arguments[[Array]::IndexOf($Arguments, '--logger') + 1]
-                Assert ($logger -match '^trx;LogFileName=(.+\.trx)$') '每次测试必须使用本轮唯一 TRX 文件名'
-                $name = $Matches[1]
-                $directory = [IO.Path]::GetFullPath($Arguments[[Array]::IndexOf($Arguments, '--results-directory') + 1], (Get-Location).Path)
-                $null = New-Item -ItemType Directory -Path $directory -Force
+            if ($Arguments[0] -eq 'msbuild') {
+                $graph = Get-TestProjectGraphFixture $File $Arguments
+                Assert (($graph.Projects -join ',') -ceq 'PbiUtils.UnitTests,PbiUtils.Cli.Tests') 'Core 图只传入已注册的两套测试'
                 $now = [DateTimeOffset]::UtcNow.ToString('O', [Globalization.CultureInfo]::InvariantCulture)
                 # 合成一项本轮通过, 让真实 TRX 门禁继续验证语言隔离及参数传播.
                 $xml = @"
@@ -450,7 +448,7 @@ try {
   <ResultSummary outcome="Completed"><Counters total="1" executed="1" passed="1" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" /></ResultSummary>
 </TestRun>
 "@
-                [IO.File]::WriteAllText((Join-Path $directory $name), $xml)
+                Write-TestProjectGraphFixtureReports $graph $xml
             }
         }
         # 内部调用绕过正式入口的 Set-Location, 仍将本轮 TRX 限制在隔离仓库中.

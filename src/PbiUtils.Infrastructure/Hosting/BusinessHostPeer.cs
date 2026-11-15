@@ -24,6 +24,7 @@ public sealed partial class BusinessHostPeer : IAsyncDisposable
     private readonly Lock lifecycle = new();
     private BusinessHostRequestHandler? requestHandler;
     private readonly BusinessHostEventHandler? eventHandler;
+    private readonly TimeProvider detachTimeProvider;
     private Task? reader;
     private Task eventTail = Task.CompletedTask;
     private Task? disposal;
@@ -43,14 +44,21 @@ public sealed partial class BusinessHostPeer : IAsyncDisposable
     internal Task DetachRequested => detachRequested.Task;
 
     /// <summary>接收已认证流与不可变上下文; welcome 发送后才启动 reader.</summary>
+    /// <param name="stream">当前上下文的双向传输流.</param>
+    /// <param name="generation">已认证的后台代际.</param>
+    /// <param name="contextId">当前连接的上下文身份.</param>
+    /// <param name="requestHandler">当前上下文请求分发器.</param>
+    /// <param name="eventHandler">当前上下文事件处理器.</param>
+    /// <param name="detachTimeProvider">关闭写失败后观察尾帧的时钟, 生产默认使用系统时钟.</param>
     internal BusinessHostPeer(Stream stream, string generation, string contextId,
-        BusinessHostRequestHandler? requestHandler, BusinessHostEventHandler? eventHandler)
+        BusinessHostRequestHandler? requestHandler, BusinessHostEventHandler? eventHandler, TimeProvider? detachTimeProvider = null)
     {
         this.stream = stream;
         HostGeneration = generation;
         ContextId = contextId;
         this.requestHandler = requestHandler;
         this.eventHandler = eventHandler;
+        this.detachTimeProvider = detachTimeProvider ?? TimeProvider.System;
     }
 
     /// <summary>仅在握手成功后启动一次, factory 可以在此之前提供 context 分发器.</summary>
@@ -150,7 +158,7 @@ public sealed partial class BusinessHostPeer : IAsyncDisposable
             if (closedWrite)
             {
                 // 仅控制帧写失败后的入站尾帧观察有界; 超时只结束本连接, Host owner 继续排空业务.
-                try { await detached.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false); }
+                try { await detached.Task.WaitAsync(TimeSpan.FromSeconds(10), detachTimeProvider).ConfigureAwait(false); }
                 catch (TimeoutException) { throw ConnectionLost(); }
             }
             else await detached.Task.ConfigureAwait(false);

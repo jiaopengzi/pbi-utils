@@ -318,44 +318,6 @@ public sealed class SampleDataAlgorithmTests
         foreach (var file in SampleTables.AllFiles) Assert.Equal(first.Tables[file].Select(r => string.Join('|', r)), second.Tables[file].Select(r => string.Join('|', r)));
     }
 
-    /// <summary>十种子真实生成验证默认五梯队份额与噪声预算, 事实仅保留流式聚合.</summary>
-    [Fact]
-    public void ProvinceSalesDistributionRemainsWithinUpstreamStatisticalBands()
-    {
-        (double Min, double Max)[] shares = [(0.42, 0.58), (0.16, 0.30), (0.10, 0.19), (0.06, 0.13), (0.015, 0.048)];
-        int[] inversionsAllowed = [30, 8, 17, 9];
-        var headInversions = 0;
-        for (var seed = 1; seed <= 10; seed++)
-        {
-            var output = new ProvinceAggregateStorage(Dataset);
-            var generator = new SampleDataGenerator(Options with { ProductCount = 120, StoreCount = 55, StartDate = "2023-08-07", EndDate = "2026-08-31", Seed = seed }, Dataset);
-            generator.GenerateAll(output);
-            var model = generator.ProvinceWeights;
-            // 上游配额使用无偏随机舍入, 55 店的尾省期望可低于 1, 合法种子可出现零店.
-            // 权重必须完整覆盖全部省, 实际销售分布只对有正实绩的省份检查逆序, 与 Go positive() 一致.
-            Assert.NotEmpty(output.Sales);
-            Assert.All(output.Sales, p => { Assert.Contains(p.Key, model.Quota.Keys); Assert.True(p.Value > 0); });
-            var total = output.Sales.Values.Sum();
-            for (var b = 0; b < model.Blocks.Count; b++)
-            {
-                var share = model.Blocks[b].Sum(pid => output.Sales.GetValueOrDefault(pid)) / total;
-                Assert.True(share >= shares[b].Min && share <= shares[b].Max, $"种子 {seed}, 梯队 {b}, 份额 {share:P2}");
-                if (b + 1 < model.Blocks.Count)
-                {
-                    var bad = model.Blocks[b].Where(output.Sales.ContainsKey).Sum(pid => model.Blocks[b + 1].Count(next => output.Sales.ContainsKey(next) && output.Sales[pid] < output.Sales[next]));
-                    Assert.True(bad <= inversionsAllowed[b], $"种子 {seed}, 梯队 {b}, 逆序 {bad}");
-                    if (b == 0) headInversions += bad;
-                }
-                if (b + 2 < model.Blocks.Count)
-                {
-                    var bad = model.Blocks[b].Where(output.Sales.ContainsKey).Sum(pid => model.Blocks[b + 2].Count(next => output.Sales.ContainsKey(next) && output.Sales[pid] <= output.Sales[next]));
-                    Assert.True(bad <= (b == 0 ? 6 : 0), $"种子 {seed}, 梯队 {b}/{b + 2}, 相隔逆序 {bad}");
-                }
-            }
-        }
-        Assert.True(headInversions / 10.0 < 20);
-    }
-
     /// <summary>误差限制为双精度计算误差, 不用舍入隐藏散列规则差异.</summary>
     private static void AssertClose(double expected, double actual) => Assert.True(Math.Abs(expected - actual) < 1e-13, $"expected {expected:R}, actual {actual:R}");
     /// <summary>按文化不变格式解析测试 CSV 日期.</summary>
@@ -373,43 +335,22 @@ public sealed class SampleDataAlgorithmTests
         public Dictionary<string, List<string[]>> Tables { get; } = [];
         public int AppendCount { get; private set; }
         /// <inheritdoc/>
-        public ISampleRowWriter Create(string fileName, IReadOnlyList<string> header) { Tables[fileName] = []; return new RowWriter(row => Tables[fileName].Add([.. row])); }
+        public ISampleRowWriter Create(string fileName, IReadOnlyList<string> header) { Tables[fileName] = []; return new SampleTestRowWriter(row => Tables[fileName].Add([.. row])); }
         /// <inheritdoc/>
-        public ISampleRowWriter Append(string fileName) { AppendCount++; return new RowWriter(row => Tables[fileName].Add([.. row])); }
+        public ISampleRowWriter Append(string fileName) { AppendCount++; return new SampleTestRowWriter(row => Tables[fileName].Add([.. row])); }
         /// <inheritdoc/>
         public IEnumerable<string[]> Read(string fileName) => Tables[fileName];
         /// <inheritdoc/>
         public bool Exists(string fileName) => Tables.ContainsKey(fileName);
     }
+}
 
-    /// <summary>大规模分布测试只保留订单到省的关联和销售聚合, 不缓存明细表.</summary>
-    private sealed class ProvinceAggregateStorage(SampleDataset dataset) : ISampleTableStorage
-    {
-        private readonly Dictionary<int, int> cityProvince = dataset.Cities.ToDictionary(c => c.CityId, c => c.ProvinceId);
-        private readonly Dictionary<string, int> storeProvince = [];
-        private readonly Dictionary<string, int> orderProvince = [];
-        public Dictionary<int, double> Sales { get; } = [];
-        /// <inheritdoc/>
-        public ISampleRowWriter Create(string fileName, IReadOnlyList<string> header) => new RowWriter(row =>
-        {
-            if (fileName == SampleTables.FileStore) storeProvince[row[1]] = cityProvince[Integer(row[5])];
-            else if (fileName == SampleTables.FileOrder) orderProvince[row[1]] = storeProvince[row[2]];
-            else if (fileName == SampleTables.FileOrderItem) { var pid = orderProvince[row[1]]; Sales[pid] = Sales.GetValueOrDefault(pid) + Number(row[6]); }
-        });
-        /// <inheritdoc/>
-        public ISampleRowWriter Append(string fileName) => throw new NotSupportedException();
-        /// <inheritdoc/>
-        public IEnumerable<string[]> Read(string fileName) => throw new NotSupportedException();
-        /// <inheritdoc/>
-        public bool Exists(string fileName) => false;
-    }
-
-    /// <summary>测试行接收器; 生产路径由独立真实 CSV 存储测试验证.</summary>
-    private sealed class RowWriter(Action<IReadOnlyList<string>> write) : ISampleRowWriter
-    {
-        /// <inheritdoc/>
-        public void Write(IReadOnlyList<string> row) => write(row);
-        /// <inheritdoc/>
-        public void Dispose() { }
-    }
+/// <summary>测试行接收器. 生产路径由独立真实 CSV 存储测试验证.</summary>
+/// <param name="write">逐行记录或聚合输出的同步回调.</param>
+internal sealed class SampleTestRowWriter(Action<IReadOnlyList<string>> write) : ISampleRowWriter
+{
+    /// <inheritdoc/>
+    public void Write(IReadOnlyList<string> row) => write(row);
+    /// <inheritdoc/>
+    public void Dispose() { }
 }

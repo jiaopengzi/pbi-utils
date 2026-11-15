@@ -13,6 +13,9 @@ $options = $PbiInvocation.Options
 $action = $PbiInvocation.Action
 if (Invoke-PbiGroup 'build' $action $options) { return }
 if ($action -eq 'buildVue') { Invoke-PbiFrontendCommand $action; return }
+# 记录阶段完成时刻, 交付和清理成功后再输出, 保留失败阶段及原退出码.
+$buildStopwatch = [Diagnostics.Stopwatch]::StartNew()
+$buildPhaseEnds = [ordered]@{}
 $afterCompile = if ($PbiInvocation.ContainsKey('AfterCompile')) { $PbiInvocation.AfterCompile } else { $null }
 if (!$afterCompile -and $options.Scope -eq 'All' -and !(Test-Path -LiteralPath 'web/dist/index.html' -PathType Leaf)) {
     Stop-Pbi 3 '桌面构建缺少前端产物, 请先运行 -Choice buildVue 或使用 -Choice buildAll'
@@ -38,6 +41,7 @@ try {
     $null = New-Item -ItemType Directory -Path $staging
     $null = New-Item -ItemType Directory -Path $compiled
     $stamp = [DateTime]::UtcNow.ToString('O')
+    $buildPhaseEnds.Add('prepare', $buildStopwatch.Elapsed)
     foreach ($entry in $entries) {
         $output = Join-Path $compiled $entry[1]
         $selfContained = if ($mode -eq 'self-contained') { 'true' } else { 'false' }
@@ -46,10 +50,12 @@ try {
         if ($afterCompile) { $publishArguments += '-p:IncludePbiFrontend=false' }
         Invoke-PbiNative dotnet $publishArguments
     }
+    $buildPhaseEnds.Add('sdk-publish', $buildStopwatch.Elapsed)
     Write-PbiMessage 'C# 编译完成.' 'Success'
     # 三个入口完成后才执行本轮前端, 前端失败时不进入目录交付.
     if ($afterCompile) {
         & $afterCompile
+        $buildPhaseEnds.Add('frontend-gate', $buildStopwatch.Elapsed)
     }
     # 固化入口已核验的 SDK 基线, 后续安装包可拒绝来自其他工具链的旧产物.
     $sdkVersion = [string](Get-Content -LiteralPath 'global.json' -Raw | ConvertFrom-Json).sdk.version
@@ -57,8 +63,10 @@ try {
     # 独立发布输入不改写, 在选中部署包中统一框架闭包并共享相同依赖.
     Merge-PbiPublishedArtifacts $compiled $staging $options.Scope $mode
     if ($afterCompile -and $options.Scope -eq 'All') { Set-PbiPublishedFrontend ([IO.Path]::GetFullPath((Join-Path (Get-Location) 'web/dist'))) $staging }
+    $buildPhaseEnds.Add('shared-layout', $buildStopwatch.Elapsed)
     # 基于本轮发布依赖离线收集完整许可, 缺失许可时在 manifest 与目录交付前终止.
     $null = Export-PbiLicenseBundle -RepositoryRoot (Get-Location).Path -PublishRoot $staging -Scope $options.Scope
+    $buildPhaseEnds.Add('licenses', $buildStopwatch.Elapsed)
     $independentBytes = [long](Get-PbiPublishFiles $compiled | Measure-Object Length -Sum).Sum
     if ($afterCompile -and $options.Scope -eq 'All') { $independentBytes += [long](Get-PbiPublishFiles ([IO.Path]::GetFullPath((Join-Path (Get-Location) 'web/dist'))) | Measure-Object Length -Sum).Sum }
     $stagedFiles = @(Get-PbiPublishFiles $staging | Sort-Object FullName)
@@ -71,8 +79,10 @@ try {
     @{ schemaVersion = 3; layout = 'shared'; deploymentMode = $mode; version = $release.Version; releaseTag = $release.Tag; sdkVersion = $sdkVersion; builtAtUtc = $stamp; runtime = 'win-x64'; scope = $options.Scope; configuration = $options.Configuration; files = $files } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath -Encoding utf8
     $publishedBytes = $sharedBytes + (Get-Item -LiteralPath $manifestPath).Length
     if ((Get-PbiCurrentRelease -RepositoryRoot (Get-Location).Path).Tag -cne $release.Tag) { throw '构建期间 version 中的标签已改变, 请重新构建' }
+    $buildPhaseEnds.Add('manifest', $buildStopwatch.Elapsed)
     # 交付函数完整校验 staging, 并在持锁期间校验最终目录; 此处无需重复读取文件及哈希.
     Set-PbiPublishedArtifacts $staging $destination
+    $buildPhaseEnds.Add('delivery', $buildStopwatch.Elapsed)
 }
 catch {
     $operationFailure = $_
@@ -91,6 +101,13 @@ finally {
         # 所有本轮临时目录均尝试清理, 主操作失败时不替换原始阶段和退出码.
         [Console]::Error.WriteLine($cleanupMessage)
     }
+}
+$buildPhaseEnds.Add('cleanup', $buildStopwatch.Elapsed)
+$previousPhaseEnd = [TimeSpan]::Zero
+foreach ($phase in $buildPhaseEnds.GetEnumerator()) {
+    $elapsedSeconds = ($phase.Value - $previousPhaseEnd).TotalSeconds.ToString('F3', [Globalization.CultureInfo]::InvariantCulture)
+    Write-PbiMessage "构建计时 [$($phase.Key)] ${elapsedSeconds}s"
+    $previousPhaseEnd = $phase.Value
 }
 $size = [string]::Format([Globalization.CultureInfo]::InvariantCulture, '{0:F2} MiB ({1} 字节)', ($publishedBytes / 1MB), $publishedBytes)
 Write-PbiMessage "发布产物 ($label): $destination; Scope=$($options.Scope); Configuration=$($options.Configuration); $size" 'Success'

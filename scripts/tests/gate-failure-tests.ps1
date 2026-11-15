@@ -73,7 +73,7 @@ function New-GatePublishedBaseline([string]$Root, [string]$DeploymentMode) {
         ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $Root 'manifest.json') -Encoding utf8
 }
 
-$registryBoundary = @'
+$registryBoundary = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'TestProjectGraphFixture.ps1') -Raw) + [Environment]::NewLine + @'
 <# .SYNOPSIS 隔离工具和还原探测, 真实参数解析与动作错误边界保持. #>
 function Assert-PbiTools([string[]]$Tools) { }
 function Assert-PbiRestoreAssets([string]$Scope, [bool]$IncludeTests = $true) { }
@@ -87,12 +87,8 @@ function Invoke-PbiNative([string]$File, [string[]]$Arguments) {
         [IO.File]::WriteAllText($Arguments[[Array]::IndexOf($Arguments, '--report') + 1], '[]')
         return
     }
-    if ($Arguments[0] -eq 'test') {
-        $logger = $Arguments[[Array]::IndexOf($Arguments, '--logger') + 1]
-        if ($logger -notmatch '^trx;LogFileName=(.+\.trx)$') { throw '测试必须请求本轮唯一 TRX 文件名' }
-        $name = $Matches[1]
-        $directory = [IO.Path]::GetFullPath($Arguments[[Array]::IndexOf($Arguments, '--results-directory') + 1], (Get-Location).Path)
-        $null = New-Item -ItemType Directory -Path $directory -Force
+    if ($Arguments[0] -eq 'msbuild') {
+        $graph = Get-TestProjectGraphFixture $File $Arguments
         $now = [DateTimeOffset]::UtcNow.ToString('O', [Globalization.CultureInfo]::InvariantCulture)
         # 嵌套前端失败案例使用真实 C# 测试门禁, 仅提供一项本轮实际通过的合成回执.
         $xml = @"
@@ -102,7 +98,7 @@ function Invoke-PbiNative([string]$File, [string[]]$Arguments) {
   <ResultSummary outcome="Completed"><Counters total="1" executed="1" passed="1" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" /></ResultSummary>
 </TestRun>
 "@
-        [IO.File]::WriteAllText((Join-Path $directory $name), $xml)
+        Write-TestProjectGraphFixtureReports $graph $xml
         return
     }
     if ($Arguments[0] -ne 'publish') { throw '测试未声明的 dotnet 动作' }
@@ -228,7 +224,7 @@ try {
             [Console]::Out.WriteLine("$dotNetMode / $mode : exit=$($case.Code)")
             Assert-Gate ($case.Code -eq $expectedCode) "$dotNetMode / $mode 必须返回最先错误的退出码 $expectedCode, 实际 $($case.Code)"
             Assert-Gate ($case.Error -match [Regex]::Escape("执行失败 [$expectedAction] (退出码 $expectedCode):")) "$mode 必须保留最先失败阶段 $expectedAction"
-            Assert-Gate ($case.Out -notmatch '完成 buildC#|完成 构建与打包|verifyAndBuild 全部通过|发布产物 \(') "$mode 失败不得打印完成或总成功"
+            Assert-Gate ($case.Out -notmatch '完成 buildC#|完成 构建与打包|verifyAndBuild 全部通过|发布产物 \(|构建计时') "$mode 失败不得打印完成、成功构建计时或总成功"
             Assert-Gate ((Get-GateSnapshot $case.OtherPublished) -ceq $case.OtherBefore) "$mode 无论选中模式是否已交付, 均不得改动未选模式"
             if ($mode -in @('cleanup-staging', 'cleanup-backup', 'license-failure')) {
                 Assert-Gate ($case.LicenseCalls.Count -eq 1 -and $case.LicenseCalls[0].scope -ceq 'Core') "$mode 必须恰好一次按当前范围调用许可生成器"
