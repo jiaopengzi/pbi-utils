@@ -69,9 +69,7 @@ useMessageNotices("desktop-instances", () => [!!error.value && { key: "error", m
                 ><time :datetime="snapshot.timestamp">{{ t("powerbi.updated", { time: new Date(snapshot.timestamp).toLocaleTimeString(locale) }) }}</time>
             </div>
             <UiPanel v-if="!snapshot.instances.length" class="empty-state"
-                ><el-empty :description="t('powerbi.empty')" :image-size="64"
-                    ><p>{{ t("powerbi.emptyHint") }}</p></el-empty
-                ></UiPanel
+                ><el-empty :description="t('powerbi.empty')" :image-size="64"><p>{{ t("powerbi.emptyHint") }}</p></el-empty></UiPanel
             >
             <template v-for="instance in snapshot.instances" :key="instance.instanceId || instance.processId + ':' + instance.port">
                 <ModelInstanceCard

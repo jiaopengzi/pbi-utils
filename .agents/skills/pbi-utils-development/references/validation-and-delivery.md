@@ -54,7 +54,7 @@
 pwsh -NoProfile -File ./run.ps1 -Choice verifyAndBuild -Scope All -Configuration Release -NonInteractive
 ```
 
-`verifyAndBuild` 以并行门禁执行：启动前先核验所需工具与含测试项目的 C# 还原资产（`release` 按 All 范围），缺失时立即以 3 结束，不启动任何通道、预取或编译。随后 `checkC#`、`testC#`、`checkVue`、`testVue` 作为四个子进程通道与 C# 编译同时运行，各通道输出带阶段前缀。当前进程可用逻辑处理器少于 16 个（含亲和性与作业限制，例如 CI 小型运行器）时，同一组通道按 `checkC#`、`testC#`、C# 编译、`checkVue`、`testVue` 顺序逐个执行并保持正常优先级，避免争用放大用例耗时。`checkVue` 和 `testVue` 通过且同轮前端输入未变后执行 `buildVue`，全部通道通过后才交付发布目录。`-Scope All` 在交付成功后注册开发外部工具。需要生成 NSIS 安装包时，使用 `package` 或 `release`。任一阶段失败后不再开始新阶段，在途通道排空后按 checkC#、testC#、buildC#、checkVue、testVue、buildVue、package 的顺序报告首个失败阶段、原因和退出码。真实 Ctrl+C 使入口与各通道排空后以 130 结束，脚本约定见下方 PowerShell 条目。调整编排、并行阈值、优先级、挂起保护或构建耗时前阅读 [gate-performance.md](gate-performance.md)。`Scope` 和 `Configuration` 按各动作支持范围传递，`check` 动作只接收适用的 `Scope`。
+`verifyAndBuild` 以并行门禁执行：启动前先核验所需工具与含测试项目的 C# 还原资产（`release` 按 All 范围），缺失时立即以 3 结束，不启动任何通道、预取或编译。随后 `checkC#`、`testC#`、`checkVue`、`testVue` 作为四个子进程通道与 C# 编译同时运行，各通道输出带阶段前缀。当前进程可用逻辑处理器少于 16 个（含亲和性与作业限制，例如 CI 小型运行器）时，同一组通道按 `checkC#`、`testC#`、C# 编译、`checkVue`、`testVue` 顺序逐个执行并保持正常优先级，避免争用放大用例耗时。`checkVue` 和 `testVue` 通过且同轮前端输入未变后执行 `buildVue`，全部通道通过后才交付发布目录。`-Scope All` 在交付成功后注册开发外部工具。需要生成 NSIS 安装包时，使用 `package` 或 `release`。任一阶段以非取消失败结束时，独立看护立即终止其余在途通道及主流程在途原生命令的进程树，不等待其他阶段完成，也不再开始新阶段；被终止的阶段单独列出，真实失败按 checkC#、testC#、buildC#、checkVue、testVue、buildVue、package 的顺序报告首个失败阶段、原因和退出码。主流程正在执行 PowerShell 步骤（如许可生成）时，在该步骤结束后的下一个检查点退出。真实 Ctrl+C 同时到达各通道，入口与各通道响应取消后以 130 结束，脚本约定见下方 PowerShell 条目。调整编排、并行阈值、优先级、挂起保护或构建耗时前阅读 [gate-performance.md](gate-performance.md)。`Scope` 和 `Configuration` 按各动作支持范围传递，`check` 动作只接收适用的 `Scope`。
 
 首次准备、依赖或工具链变化、还原资产缺失时显式运行 `setupC#`、`setupVue` 或 `setupAll`。资产完整且依赖未变时可直接运行后续动作。独立产品诊断使用 CLI `doctor`。
 

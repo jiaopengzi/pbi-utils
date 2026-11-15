@@ -91,9 +91,7 @@ function changeNumbering(value: string | number | boolean): void {
 <template>
     <div class="calendar-fields">
         <div class="scaffold-toolbar calendar-fields__toolbar">
-            <h3>
-                {{ t("scaffold.fieldSelection") }} <span aria-live="polite">{{ selected.length }} / {{ directory.length }}</span>
-            </h3>
+            <h3>{{ t("scaffold.fieldSelection") }} <span aria-live="polite">{{ selected.length }} / {{ directory.length }}</span></h3>
             <el-button :disabled="disabled" :class="{ 'operation-lock': operationLocked }" @click="preset(recommendedFields)">{{
                 t("scaffold.recommendedFields")
             }}</el-button>
@@ -141,8 +139,7 @@ function changeNumbering(value: string | number | boolean): void {
                     :class="{ 'operation-lock': operationLocked && !locked.some((item) => item.field === field.id) }"
                 >
                     <span class="calendar-fields__label"
-                        ><strong>{{ calendarFieldDescription(field.id, locale === "en-us") }}</strong
-                        ><span>{{ outputName(field.id) }}</span>
+                        ><strong>{{ calendarFieldDescription(field.id, locale === "en-us") }}</strong><span>{{ outputName(field.id) }}</span>
                         <span v-for="(item, index) in locked.filter((item) => item.field === field.id)" :key="index" class="calendar-fields__reason"
                             >{{ t("scaffold.fieldLocked") }}: {{ lockedReason(item.reason) }}</span
                         ></span

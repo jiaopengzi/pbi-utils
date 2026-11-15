@@ -82,9 +82,7 @@ const { t } = useI18n()
                     <UdfMarkdown :source="details.readme?.trim() ? details.readme : details.description || '-'" />
                 </section>
                 <section class="udf-detail-section udf-detail-code" :aria-label="t('scaffold.packageFunctions')">
-                    <h3>
-                        {{ t("scaffold.packageFunctions") }} <span class="muted">{{ details.functions.length }}</span>
-                    </h3>
+                    <h3>{{ t("scaffold.packageFunctions") }} <span class="muted">{{ details.functions.length }}</span></h3>
                     <details v-for="fn in details.functions" :key="fn.name" class="udf-detail-function" open>
                         <summary>{{ fn.name }}</summary>
                         <UdfMarkdown v-if="fn.description" :source="fn.description" /><CodeBlock :code="fn.expression" language="dax" />

@@ -134,9 +134,7 @@ useMessageNotices("host-dialog", () => [
             </dl>
             <section v-if="dialog.kind === 'tool'" class="host-dialog__changes">
                 <article v-for="(change, index) in changes" :key="index" class="host-dialog__change">
-                    <h3>
-                        {{ change.objectName }} <span>· {{ change.property }}</span>
-                    </h3>
+                    <h3>{{ change.objectName }} <span>· {{ change.property }}</span></h3>
                     <h4>{{ t("hostDialog.before") }}</h4>
                     <CodeBlock v-if="change.before !== null" :code="change.before" :language="change.property === 'expression' ? 'dax' : 'text'" />
                     <p v-else>{{ t("hostDialog.null") }}</p>

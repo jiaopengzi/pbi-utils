@@ -5,7 +5,7 @@
  * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
  * Description : AI 回复与 UDF 文档共用的 Markdown 解析和白名单净化, 禁止原始 HTML 和媒体资源.
  */
-import { Marked, TextRenderer } from "marked"
+import { Marked } from "marked"
 import DOMPurify from "dompurify"
 
 /** 转义原文与属性, 原始 HTML 只能显示为文字, 不能成为活动节点. */
@@ -31,14 +31,14 @@ function safeLink(value: string): boolean {
  */
 function createMarkdown(headingPrefix: string): Marked {
     const headings = new Set<string>()
-    const textRenderer = new TextRenderer()
     return new Marked({
         gfm: true,
         breaks: false,
         async: false,
         renderer: {
             heading({ tokens, depth }) {
-                const text = this.parser.parseInline(tokens, textRenderer)
+                // 使用解析器自有的纯文本渲染器; 它已绑定当前解析器, 可递归取出加粗/斜体/链接等嵌套文字.
+                const text = this.parser.parseInline(tokens, this.parser.textRenderer)
                 const base =
                     text
                         .toLowerCase()

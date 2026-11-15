@@ -62,9 +62,12 @@ try {
     # 固化入口已核验的 SDK 基线, 后续安装包可拒绝来自其他工具链的旧产物.
     $sdkVersion = [string](Get-Content -LiteralPath 'global.json' -Raw | ConvertFrom-Json).sdk.version
     Write-PbiMessage '开始打包: 合并共享布局并收集许可, 前端完成后校验选中模式的完整文件清单再交付.'
+    # 门禁内各阶段之间检查已有失败; 并行阶段失败后不再开始新的打包阶段, 不在门禁中时不做任何事.
+    Assert-PbiActiveGate
     # 独立发布输入不改写, 在选中部署包中统一框架闭包并共享相同依赖.
     Merge-PbiPublishedArtifacts $compiled $staging $options.Scope $mode
     $buildPhaseEnds.Add('shared-layout', $buildStopwatch.Elapsed)
+    Assert-PbiActiveGate
     # 基于本轮发布依赖离线收集完整许可, 缺失许可时在 manifest 与目录交付前终止.
     # 许可只读取 staging 的 deps、仓库许可来源和前端依赖元数据, 不读取前端产物, 因此先于前端等待执行.
     $null = Export-PbiLicenseBundle -RepositoryRoot (Get-Location).Path -PublishRoot $staging -Scope $options.Scope
@@ -75,6 +78,7 @@ try {
         if ($options.Scope -eq 'All') { Set-PbiPublishedFrontend ([IO.Path]::GetFullPath((Join-Path (Get-Location) 'web/dist'))) $staging }
         $buildPhaseEnds.Add('frontend-gate', $buildStopwatch.Elapsed)
     }
+    Assert-PbiActiveGate
     $independentBytes = [long](Get-PbiPublishFiles $compiled | Measure-Object Length -Sum).Sum
     if ($afterCompile -and $options.Scope -eq 'All') { $independentBytes += [long](Get-PbiPublishFiles ([IO.Path]::GetFullPath((Join-Path (Get-Location) 'web/dist'))) | Measure-Object Length -Sum).Sum }
     $stagedFiles = @(Get-PbiPublishFiles $staging | Sort-Object FullName)

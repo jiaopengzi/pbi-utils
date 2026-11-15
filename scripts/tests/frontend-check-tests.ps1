@@ -217,8 +217,8 @@ try {
                     if ($kind -eq 'failure') { Assert ($_.Exception.Data['ExitCode'] -eq 47) '失败须保留原生退出码' }
                     else { Assert ($_.Exception -is [OperationCanceledException]) '取消不得转换为普通成功' }
                 }
-                # lint 与 Vitest 同时启动: lint 失败时测试通道照常排空, 取消则同时结束全部通道; 失败后均不构建.
-                $expected = switch ($step) { 'lint' { if ($kind -eq 'failure') { 'lint,vitest' } else { 'lint' } }; 'vitest' { 'lint,vitest' }; 'vite' { 'lint,vitest,vite' } }
+                # lint 与 Vitest 通道依次启动: 同步 lint 失败或取消一经记录, 测试通道不再启动; 失败后均不构建.
+                $expected = switch ($step) { 'lint' { 'lint' }; 'vitest' { 'lint,vitest' }; 'vite' { 'lint,vitest,vite' } }
                 Assert (($script:FrontendEvents -join ',') -eq $expected) '失败或取消后不得开始前端构建或后续阶段'
                 Assert ($null -eq $script:FrontendValidation) '失败或取消须清除本轮复用状态'
                 Assert ((Get-Content -LiteralPath $manifestPath -Raw) -ceq $beforeManifest) '失败或取消必须保留选中模式的上一轮产物'

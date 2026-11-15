@@ -22,10 +22,13 @@ afterEach(() => {
     vi.unstubAllGlobals()
 })
 
-/** 挂载完整应用并由受控宿主连接到单表模型; 产品导航、设置和编辑组件保持真实. */
-async function setup(visitTables = true) {
+/** 挂载完整应用并由受控宿主连接到单表模型; 产品导航、设置和编辑组件保持真实.
+ * @param visitTables 是否先进入表格页并选择表.
+ * @param attach 是否挂载到 document.body; jsdom 对游离元素不计算样式, 断言 isVisible 的用例必须挂载.
+ */
+async function setup(visitTables = true, attach = false) {
     vi.stubGlobal("chrome", { webview: new MockTransport() })
-    const wrapper = mount(App)
+    const wrapper = mount(App, attach ? { attachTo: document.body } : {})
     await flushPromises()
     await wrapper.get('nav button[aria-label="连接"]').trigger("click")
     await flushPromises()
@@ -248,7 +251,7 @@ it("换绑和断开清空会话, 同名目标与迟到旧会话不能污染新�
 })
 
 it("属性编辑器首次Tables访问才创建, 子tab和设置导航只隐藏当前编辑器", async () => {
-    const { wrapper, request } = await setup(false)
+    const { wrapper, request } = await setup(false, true)
     try {
         expect(wrapper.findComponent(ModelEditPanel).exists()).toBe(false)
         await wrapper.get("#tab-tables").trigger("click")

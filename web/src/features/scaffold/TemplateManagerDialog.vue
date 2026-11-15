@@ -39,8 +39,6 @@ const { t } = useI18n()
             </li>
         </ul>
         <el-empty v-if="!customTemplates.length" :description="t('configuration.templateCounts', templateCounts)" :image-size="48" />
-        <template #footer
-            ><el-button :disabled="formLocked" @click="templateManager = false">{{ t("configuration.close") }}</el-button></template
-        >
+        <template #footer><el-button :disabled="formLocked" @click="templateManager = false">{{ t("configuration.close") }}</el-button></template>
     </UiDialog>
 </template>

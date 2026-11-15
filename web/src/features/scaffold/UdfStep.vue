@@ -193,9 +193,7 @@ onMounted(async () => {
         </section>
         <section ref="selectedSection" tabindex="-1" class="udf-selected" aria-live="polite">
             <div class="udf-list-heading">
-                <h3>
-                    {{ t("scaffold.selected") }} <span class="muted">{{ selectionCount }}</span>
-                </h3>
+                <h3>{{ t("scaffold.selected") }} <span class="muted">{{ selectionCount }}</span></h3>
                 <el-button :disabled="locked" :class="{ 'operation-lock': operationLocked || busy }" @click="jumpTo(browseSection)">{{
                     t("scaffold.browseFunctions")
                 }}</el-button>
@@ -230,9 +228,7 @@ onMounted(async () => {
             <p v-if="!cache.valid.value" class="udf-stale" role="status">{{ t("scaffold.staleSelection") }}</p>
             <el-button v-if="!cache.valid.value" :disabled="locked" @click="cache.prepare">{{ t("scaffold.revalidate") }}</el-button>
             <div class="scaffold-toolbar udf-selected-actions">
-                <slot name="actions" :can-submit="cache.valid.value"
-                    ><p v-if="!modelConfiguration" class="muted">{{ t("scaffold.createUdfHint") }}</p></slot
-                >
+                <slot name="actions" :can-submit="cache.valid.value"><p v-if="!modelConfiguration" class="muted">{{ t("scaffold.createUdfHint") }}</p></slot>
             </div>
             <p class="muted">{{ t(modelConfiguration ? "scaffold.existingUdfCompatibility" : "scaffold.compatibilityHint") }}</p>
         </section>

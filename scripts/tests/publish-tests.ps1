@@ -21,6 +21,8 @@ function Assert([bool]$Condition, [string]$Message) { if (!$Condition) { throw $
 function Write-PbiMessage([string]$Message, [string]$Level = 'Info') { $script:Messages.Add(@{ Message = $Message; Level = $Level }) }
 <# .SYNOPSIS 保留独立 C# 构建缺失前端等前置检查的真实提示. #>
 function Stop-Pbi([int]$Code, [string]$Message) { throw $Message }
+<# .SYNOPSIS 隔离发布测试不处于并行门禁中, 构建阶段之间的门禁检查点不做任何事. #>
+function Assert-PbiActiveGate { }
 <#
 .SYNOPSIS 按部署模式生成 dotnet publish 的最小入口、框架及共享依赖元数据.
 .PARAMETER Output 测试拥有的独立 publish 目录.

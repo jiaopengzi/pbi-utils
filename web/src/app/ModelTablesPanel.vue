@@ -148,9 +148,7 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
                 @update:model-value="!locked && selectAll(Boolean($event), visibleEligible)"
             />
             <div class="table-title">
-                <span>{{ t("model.tableName") }}</span
-                ><span>{{ t("model.rowCount") }}</span
-                ><span>{{ t("model.storageSize") }}</span
+                <span>{{ t("model.tableName") }}</span><span>{{ t("model.rowCount") }}</span><span>{{ t("model.storageSize") }}</span
                 ><span>{{ t("model.fieldCount") }}</span>
             </div>
         </div>
@@ -171,8 +169,7 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
                             ><span :title="statistics.countKind(table.name) === 'query' ? t('model.queryRowCount') : undefined">{{
                                 statistics.rowCount(table.name)
                             }}</span
-                            ><span>{{ statistics.size(table.name) }}</span
-                            ><span>{{ fieldCount(table) }}</span>
+                            ><span>{{ statistics.size(table.name) }}</span><span>{{ fieldCount(table) }}</span>
                         </div></template
                     >
                     <ModelTableDetails

@@ -74,6 +74,8 @@ function New-GatePublishedBaseline([string]$Root, [string]$DeploymentMode) {
 }
 
 $registryBoundary = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'TestProjectGraphFixture.ps1') -Raw) + [Environment]::NewLine + @'
+# 保留生产原生命令边界, 快速失败案例通过它启动真实长时子进程; 下方替身随后覆盖同名函数.
+$script:GateOriginalNative = ${function:Invoke-PbiNative}
 <# .SYNOPSIS 隔离工具和还原探测, 真实参数解析与动作错误边界保持. #>
 function Assert-PbiTools([string[]]$Tools) { }
 function Assert-PbiRestoreAssets([string]$Scope, [bool]$IncludeTests = $true) { }
@@ -81,15 +83,42 @@ function Assert-PbiRestoreAssets([string]$Scope, [bool]$IncludeTests = $true) { 
 function Test-PbiParallelGate { return $true }
 <# .SYNOPSIS 固定测试输入指纹, 避免在私有仓库调用 Node. #>
 function Get-PbiFrontendInputFingerprint { return ('a' * 64) }
+<#
+.SYNOPSIS 经生产原生命令边界启动 600 秒的真实 pwsh 子进程, 先登记 PID 与启动时刻再阻塞.
+.PARAMETER Role 所属阶段, 写入登记文件名便于诊断.
+.NOTES 只有快速失败终止整棵在途进程树时才会提前结束; 案例超时短于 600 秒, 未终止即失败.
+#>
+function Invoke-GateSleeper([string]$Role) {
+    $command = "[IO.File]::WriteAllText((Join-Path `$env:PBI_GATE_SLEEPERS ('$Role-' + [Guid]::NewGuid().ToString('N') + '.txt')), [string]`$PID + '|' + (Get-Process -Id `$PID).StartTime.ToUniversalTime().Ticks); Start-Sleep -Seconds 600"
+    & $script:GateOriginalNative (Join-Path $PSHOME 'pwsh.exe') @('-NoProfile', '-NonInteractive', '-EncodedCommand', [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command)))
+}
+<# .SYNOPSIS 等待指定数量的长时子进程登记, 使受控失败发生在全部在途阶段运行之后; 最多等待 45 秒. #>
+function Wait-GateSleepers([int]$Count) {
+    $deadline = [DateTime]::UtcNow.AddSeconds(45)
+    while (@([IO.Directory]::GetFiles($env:PBI_GATE_SLEEPERS, '*.txt')).Count -lt $Count -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 100 }
+}
 <# .SYNOPSIS 只模拟编译文件或原生阶段错误, 真实发布清单、覆盖和清理不替换. #>
 function Invoke-PbiNative([string]$File, [string[]]$Arguments) {
-    if ($File -eq 'pnpm') { Stop-Pbi 49 '受控前端主错误' }
+    $failFast = $script:GateFailureMode -in @('lane-fail-fast', 'main-fail-fast')
+    if ($File -eq 'pnpm') {
+        $vitest = $Arguments -contains 'exec'
+        if ($script:GateFailureMode -eq 'main-fail-fast') { Invoke-GateSleeper $(if ($vitest) { 'testVue' } else { 'checkVue' }); return }
+        if ($vitest) {
+            if ($script:GateFailureMode -eq 'lane-fail-fast') { Invoke-GateSleeper 'testVue' }
+            # 其他案例的测试通道直接通过, 只有 lint 失败, 首个失败阶段确定为 checkVue.
+            return
+        }
+        if ($script:GateFailureMode -eq 'lane-fail-fast') { Wait-GateSleepers 4 }
+        Stop-Pbi 49 '受控前端主错误'
+    }
     if ($File -ne 'dotnet') { throw '测试未声明的工具' }
     if ($Arguments[0] -eq 'format') {
+        if ($failFast) { Invoke-GateSleeper 'checkC#'; return }
         [IO.File]::WriteAllText($Arguments[[Array]::IndexOf($Arguments, '--report') + 1], '[]')
         return
     }
     if ($Arguments[0] -eq 'msbuild') {
+        if ($failFast) { Invoke-GateSleeper 'testC#'; return }
         $graph = Get-TestProjectGraphFixture $File $Arguments
         $now = [DateTimeOffset]::UtcNow.ToString('O', [Globalization.CultureInfo]::InvariantCulture)
         # 嵌套前端失败案例使用真实 C# 测试门禁, 仅提供一项本轮实际通过的合成回执.
@@ -104,6 +133,8 @@ function Invoke-PbiNative([string]$File, [string[]]$Arguments) {
         return
     }
     if ($Arguments[0] -ne 'publish') { throw '测试未声明的 dotnet 动作' }
+    if ($script:GateFailureMode -eq 'lane-fail-fast') { Invoke-GateSleeper 'buildC#'; return }
+    if ($script:GateFailureMode -eq 'main-fail-fast') { Wait-GateSleepers 4; Stop-Pbi 47 '受控发布主错误' }
     if ($script:GateFailureMode -eq 'primary-publish') { Stop-Pbi 47 '受控发布主错误' }
     $output = $Arguments[[Array]::IndexOf($Arguments, '-o') + 1]
     $null = New-Item -ItemType Directory -Path $output -Force
@@ -168,21 +199,44 @@ function Get-ChildItem {
 }
 '@
 
+<# .SYNOPSIS 返回登记目录中仍以同一 PID 与启动时刻存活的长时子进程; 登记未写完或进程已退出时跳过.
+   .PARAMETER Directory 本案例私有的子进程登记目录.
+   .OUTPUTS 存活的进程对象, 调用方负责释放.
+#>
+function Get-GateLiveSleepers([string]$Directory) {
+    foreach ($file in [IO.Directory]::GetFiles($Directory, '*.txt')) {
+        $parts = ([IO.File]::ReadAllText($file)).Split('|')
+        if ($parts.Count -ne 2) { continue }
+        try {
+            $process = [Diagnostics.Process]::GetProcessById([int]$parts[0])
+            if ($process.StartTime.ToUniversalTime().Ticks -eq [long]$parts[1] -and !$process.HasExited) { $process } else { $process.Dispose() }
+        }
+        catch { continue }
+    }
+}
+
 <# .SYNOPSIS 在私有源副本通过正式 run.ps1 入口运行, 子进程不继承测试脚本的 ErrorActionPreference.
    .PARAMETER Mode 仅用于受控边界的固定场景标识.
    .PARAMETER DotNetMode 选中的发布模式, 另一模式只作为受保护旧包.
    .PARAMETER Action 正式动作 buildC# 或 verifyAndBuild.
-   .OUTPUTS 真实退出码、stdout/stderr、旧产物快照和测试发布路径.
+   .PARAMETER TimeoutMilliseconds 入口最长运行时间; 超时终止整棵进程树并失败.
+   .OUTPUTS 真实退出码、stdout/stderr、旧产物快照、测试发布路径、耗时与长时子进程登记.
+   .NOTES 存活的子进程会持有输出管道, 读取限时; 结束时终止仍存活的已登记子进程, 不遗留测试进程.
 #>
-function Invoke-GateFailure([string]$Mode, [string]$DotNetMode, [string]$Action = 'buildC#') {
+function Invoke-GateFailure([string]$Mode, [string]$DotNetMode, [string]$Action = 'buildC#', [int]$TimeoutMilliseconds = 30000) {
     $root = Join-Path $sandbox ($Mode + '-' + $DotNetMode)
     $null = New-Item -ItemType Directory -Path (Join-Path $root 'scripts') -Force
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'run.ps1') -Destination $root
-    foreach ($scriptName in @('build.ps1', 'check.ps1', 'test.ps1', 'lane.ps1', 'TestResults.psm1', 'SharedPublish.psm1', 'PublishRuntime.psm1', 'ReleaseAutomation.psm1')) {
+    foreach ($scriptName in @('build.ps1', 'check.ps1', 'test.ps1', 'lane.ps1', 'GateWatchdog.psm1', 'TestResults.psm1', 'SharedPublish.psm1', 'PublishRuntime.psm1', 'ReleaseAutomation.psm1')) {
         if (Test-Path -LiteralPath (Join-Path $sourceRoot "scripts/$scriptName")) { Copy-Item -LiteralPath (Join-Path $sourceRoot "scripts/$scriptName") -Destination (Join-Path $root 'scripts') }
     }
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LicenseBundleStub.psm1') -Destination (Join-Path $root 'scripts/ThirdPartyLicenses.psm1')
     if ($Mode -eq 'license-failure') { [IO.File]::WriteAllText((Join-Path $root 'license-stub-failure'), 'fail after partial license output') }
+    # 固定包脚本使测试通道走只运行 Vitest 的路径, 失败阶段只由受控边界决定.
+    $null = New-Item -ItemType Directory -Path (Join-Path $root 'web') -Force
+    [IO.File]::WriteAllText((Join-Path $root 'web/package.json'), '{"scripts":{"test":"pnpm lint && vitest run","build":"pnpm lint && vite build"}}')
+    $sleepers = Join-Path $root 'sleepers'
+    $null = New-Item -ItemType Directory -Path $sleepers -Force
     $modeSource = "`$script:GateFailureMode = '$Mode'`n"
     [IO.File]::WriteAllText((Join-Path $root 'scripts/CommandRegistry.psm1'), $registrySource.Replace('Export-ModuleMember -Function *-Pbi*', $modeSource + $registryBoundary + "`nExport-ModuleMember -Function *-Pbi*"))
     [IO.File]::WriteAllText((Join-Path $root 'scripts/PublishArtifacts.psm1'), $publisherSource.Replace('Export-ModuleMember -Function *-Pbi*', $modeSource + $publisherBoundary + "`nExport-ModuleMember -Function *-Pbi*"))
@@ -203,16 +257,35 @@ function Invoke-GateFailure([string]$Mode, [string]$DotNetMode, [string]$Action 
     $start.StandardOutputEncoding = [Text.Encoding]::UTF8
     $start.StandardErrorEncoding = [Text.Encoding]::UTF8
     $start.WorkingDirectory = $root
+    $start.Environment['PBI_GATE_SLEEPERS'] = $sleepers
     foreach ($argument in @('-NoProfile', '-File', (Join-Path $root 'run.ps1'), '-Choice', $Action, '-Scope', 'Core', '-Configuration', 'Release', '-DotNetMode', $DotNetMode, '-NonInteractive')) { $start.ArgumentList.Add($argument) }
+    $watch = [Diagnostics.Stopwatch]::StartNew()
     $process = [Diagnostics.Process]::Start($start)
     try {
         $stdout = $process.StandardOutput.ReadToEndAsync()
         $stderr = $process.StandardError.ReadToEndAsync()
-        if (!$process.WaitForExit(30000)) { $process.Kill($true); $process.WaitForExit(); throw '门禁边界子进程超时' }
+        if (!$process.WaitForExit($TimeoutMilliseconds)) { $process.Kill($true); $process.WaitForExit(); throw '门禁边界子进程超时' }
+        $elapsed = $watch.Elapsed
+        # 终止请求异步完成, 给已终止的子进程最多 3 秒结束; 仍存活即为遗留.
+        $settle = [Diagnostics.Stopwatch]::StartNew()
+        do {
+            $live = @(Get-GateLiveSleepers $sleepers)
+            $liveCount = $live.Count
+            foreach ($survivor in $live) { $survivor.Dispose() }
+            if ($liveCount) { Start-Sleep -Milliseconds 100 }
+        } while ($liveCount -and $settle.ElapsedMilliseconds -lt 3000)
+        if (!$stdout.Wait(15000) -or !$stderr.Wait(15000)) { throw '入口退出后仍有子进程持有输出管道' }
         $licenseCallsPath = Join-Path $root 'license-stub-calls.jsonl'
         $licenseCalls = @(if ([IO.File]::Exists($licenseCallsPath)) { Get-Content -LiteralPath $licenseCallsPath | ForEach-Object { $_ | ConvertFrom-Json } })
-        return @{ Mode = $Mode; Code = $process.ExitCode; Out = $stdout.GetAwaiter().GetResult(); Error = $stderr.GetAwaiter().GetResult(); Published = $published; Before = $before; OtherPublished = $otherPublished; OtherBefore = $otherBefore; LicenseCalls = $licenseCalls }
-    } finally { $process.Dispose() }
+        return @{ Mode = $Mode; Code = $process.ExitCode; Out = $stdout.GetAwaiter().GetResult(); Error = $stderr.GetAwaiter().GetResult(); Published = $published; Before = $before; OtherPublished = $otherPublished; OtherBefore = $otherBefore; LicenseCalls = $licenseCalls; Elapsed = $elapsed; SleeperCount = @([IO.Directory]::GetFiles($sleepers, '*.txt')).Count; LiveSleepers = $liveCount }
+    }
+    finally {
+        foreach ($survivor in @(Get-GateLiveSleepers $sleepers)) {
+            try { $survivor.Kill($true) } catch { [Console]::Error.WriteLine('测试子进程清理失败: ' + $_.Exception.Message) }
+            $survivor.Dispose()
+        }
+        $process.Dispose()
+    }
 }
 
 try {
@@ -266,8 +339,32 @@ try {
             }
         }
     }
+    # 快速失败: 受控失败发生在其余阶段的真实长时子进程都已运行之后, 门禁必须立即终止它们并报告首个失败.
+    foreach ($fast in @(
+            @{ Mode = 'lane-fail-fast'; Code = 49; Action = 'checkVue'; Terminated = @('checkC#', 'testC#', 'testVue', 'buildC#') },
+            @{ Mode = 'main-fail-fast'; Code = 47; Action = 'buildC#'; Terminated = @('checkC#', 'testC#', 'checkVue', 'testVue') }
+        )) {
+        $case = Invoke-GateFailure $fast.Mode 'without-dotnet' 'verifyAndBuild' 120000
+        [Console]::Out.WriteLine("without-dotnet / $($fast.Mode) : exit=$($case.Code) elapsed=$($case.Elapsed.TotalSeconds.ToString('F1', [Globalization.CultureInfo]::InvariantCulture))s")
+        Assert-Gate ($case.Code -eq $fast.Code) "$($fast.Mode) 必须返回首个失败的退出码 $($fast.Code), 实际 $($case.Code)"
+        Assert-Gate ($case.Error -match [Regex]::Escape("执行失败 [$($fast.Action)] (退出码 $($fast.Code)):")) "$($fast.Mode) 必须报告首个失败阶段 $($fast.Action)"
+        Assert-Gate ($case.SleeperCount -eq 4) "$($fast.Mode) 受控失败前必须有 4 个真实长时子进程在运行, 实际 $($case.SleeperCount)"
+        Assert-Gate ($case.LiveSleepers -eq 0) "$($fast.Mode) 退出后不得遗留在途子进程, 实际 $($case.LiveSleepers)"
+        $listed = [Regex]::Match($case.Error, '首个失败后已立即终止在途阶段: ([^\r\n]+)')
+        $actualTerminated = if ($listed.Success) { (@($listed.Groups[1].Value.Trim() -split '、') | Sort-Object) -join ',' } else { '' }
+        Assert-Gate ($actualTerminated -ceq ((@($fast.Terminated) | Sort-Object) -join ',')) "$($fast.Mode) 必须准确列出被终止的阶段, 实际 $actualTerminated"
+        foreach ($name in @($fast.Terminated | Where-Object { $_ -ne 'buildC#' })) {
+            Assert-Gate ($case.Out -match ([Regex]::Escape("并行计时 [$name] ") + '\S+ 已终止')) "$($fast.Mode) 计时必须标记 $name 已终止"
+        }
+        Assert-Gate ($case.Out -notmatch '完成 buildC#|完成 构建与打包|verifyAndBuild 全部通过|发布产物 \(|构建计时') "$($fast.Mode) 失败不得打印完成、成功构建计时或总成功"
+        Assert-Gate ((Get-GateSnapshot $case.Published) -ceq $case.Before) "$($fast.Mode) 交付前失败必须保留原产物"
+        if ($fast.Mode -eq 'lane-fail-fast') {
+            Assert-Gate ($case.Error.Contains('并行阶段 [checkVue] 失败 (退出码 49), 立即终止其余在途阶段.')) '看护必须在通道失败时立即提示终止其余阶段'
+        }
+    }
     if ($failures.Count) { throw "$($failures.Count) 项门禁失败传播断言未通过" }
     Write-Output 'PASS 发布枚举与清理错误传播、首个退出码及阶段保持契约'
+    Write-Output 'PASS 门禁首个失败立即终止在途阶段与进程树契约'
 }
 finally {
     [Console]::OutputEncoding = $savedOutputEncoding

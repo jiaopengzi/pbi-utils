@@ -40,8 +40,5 @@ const parts = computed(() => {
 })
 </script>
 <template>
-    <template v-for="(part, index) in parts" :key="index"
-        ><mark v-if="part.match">{{ part.text }}</mark
-        ><template v-else>{{ part.text }}</template></template
-    >
+    <template v-for="(part, index) in parts" :key="index"><mark v-if="part.match">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template>
 </template>

@@ -5,7 +5,7 @@
  * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
  * Description : 本地目录状态, 显式刷新与变化后的选择重新核验.
  */
-import { computed, ref } from "vue"
+import { computed, shallowRef } from "vue"
 import type { UdfPackage, UdfSelection } from "@/features/scaffold/contracts"
 import type { UdfState } from "./useUdfState"
 import type { UdfRequests } from "./useUdfRequests"
@@ -31,8 +31,9 @@ export interface UdfRevalidationEntry {
  */
 export function useUdfCache(state: UdfState, requests: UdfRequests, search: () => Promise<boolean>) {
     const { t } = useI18n()
+    // 核验预览只整体替换; 浅层引用保留 prepare 时取得的原选择身份, 父级传入原始或响应式数组时 confirm 都能精确匹配.
     const reviewing = state.revalidation,
-        entries = ref<UdfRevalidationEntry[]>([])
+        entries = shallowRef<UdfRevalidationEntry[]>([])
     const stale = computed(() =>
         state.model.value.filter(
             (item) => item.source !== "local" && (!item.catalogBaseline || item.catalogBaseline !== state.statuses.value[item.source]?.baseline),

@@ -21,7 +21,7 @@ try {
     [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
     $null = New-Item -ItemType Directory -Path (Join-Path $sandbox 'scripts')
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'run.ps1') -Destination $sandbox
-    foreach ($file in @('CommandRegistry.psm1', 'TestResults.psm1', 'InstallerMetadata.psm1', 'clean.ps1', 'setup.ps1', 'build.ps1', 'test.ps1', 'format.ps1', 'check.ps1')) { Copy-Item -LiteralPath (Join-Path $sourceRoot "scripts/$file") -Destination (Join-Path $sandbox 'scripts') }
+    foreach ($file in @('CommandRegistry.psm1', 'GateWatchdog.psm1', 'TestResults.psm1', 'InstallerMetadata.psm1', 'clean.ps1', 'setup.ps1', 'build.ps1', 'test.ps1', 'format.ps1', 'check.ps1')) { Copy-Item -LiteralPath (Join-Path $sourceRoot "scripts/$file") -Destination (Join-Path $sandbox 'scripts') }
     foreach ($file in @('AGENTS.md', 'pbi-utils.slnx', 'Directory.Build.props')) { Set-Content -LiteralPath (Join-Path $sandbox $file) -Value 'sentinel' }
     $null = New-Item -ItemType Directory -Path (Join-Path $sandbox 'artifacts')
     Set-Content -LiteralPath (Join-Path $sandbox 'artifacts/generated.txt') -Value 'generated'
@@ -330,32 +330,262 @@ try {
             $script:FailureCodes = @{ $expected[$index] = 41 + $index }
             try { Invoke-PbiVerifyAndBuild $options; throw 'verifyAndBuild 阶段失败未停止' }
             catch { if ($_.Exception.Data['ExitCode'] -ne 41 + $index -or $_.Exception.Data['Action'] -cne $expected[$index]) { throw } }
-            # 通道同时启动并排空; 失败后主流程不进入前端构建或交付.
-            $started = if ($index -lt 5) { $expected[0..4] } else { $expected }
-            Assert (($script:Calls -join ',') -eq ($started -join ',')) 'verifyAndBuild 任一阶段失败后不得开始前端构建或后续阶段'
+            # 同步替身的通道启动即结束: 失败一经记录, 后续通道、C# 编译与前端构建均不再开始, 也不交付.
+            Assert (($script:Calls -join ',') -eq ($expected[0..$index] -join ',')) 'verifyAndBuild 任一阶段失败后不得开始任何后续阶段'
             Assert (!$script:BuildReturned) '失败阶段不得完成构建交付'
         }
-        # 多个阶段同时失败时按 checkC#、testC#、buildC#、checkVue、testVue、buildVue 的规范顺序报告首个失败.
+        # 首个失败一经记录即停止: 同样配置为失败的后续阶段不会启动, 报告最先记录的失败.
         foreach ($case in @(
-            @{ Failures = @{ 'testVue' = 61; 'checkC#' = 62 }; Code = 62; Action = 'checkC#' },
-            @{ Failures = @{ 'checkVue' = 63; 'buildC#' = 64 }; Code = 64; Action = 'buildC#' },
-            @{ Failures = @{ 'testVue' = 65; 'testC#' = 66; 'checkVue' = 67 }; Code = 66; Action = 'testC#' }
+            @{ Failures = @{ 'testVue' = 61; 'checkC#' = 62 }; Code = 62; Action = 'checkC#'; Calls = 'checkC#' },
+            @{ Failures = @{ 'checkVue' = 63; 'buildC#' = 64 }; Code = 63; Action = 'checkVue'; Calls = 'checkC#,testC#,checkVue' },
+            @{ Failures = @{ 'testVue' = 65; 'testC#' = 66; 'checkVue' = 67 }; Code = 66; Action = 'testC#'; Calls = 'checkC#,testC#' }
         )) {
             $script:Calls.Clear()
             $script:BuildReturned = $false
             $script:FailureCodes = $case.Failures
             try { Invoke-PbiVerifyAndBuild $options; throw '多阶段失败未停止' }
-            catch { Assert ($_.Exception.Data['ExitCode'] -eq $case.Code -and $_.Exception.Data['Action'] -ceq $case.Action) '同时失败必须按规范阶段顺序报告首个失败及其退出码' }
+            catch { Assert ($_.Exception.Data['ExitCode'] -eq $case.Code -and $_.Exception.Data['Action'] -ceq $case.Action) '必须报告最先记录的失败及其退出码' }
+            Assert (($script:Calls -join ',') -ceq $case.Calls) '首个失败之后不得启动其他阶段'
             Assert (!$script:BuildReturned) '多阶段失败不得交付'
         }
-        $script:FailureCodes = @{ 'checkC#' = 68 }
-        $script:CancelledAction = 'testC#'
+        $script:FailureCodes = @{ 'testC#' = 68 }
+        $script:CancelledAction = 'checkC#'
         $script:Calls.Clear()
         try { Invoke-PbiVerifyAndBuild $options; throw '取消未停止' }
-        catch { Assert ($_.Exception -is [OperationCanceledException]) '任一通道取消时本轮按取消结束, 不以其他失败替代' }
-        Assert (($script:Calls -join ',') -eq 'checkC#,testC#,buildC#') '取消后不得启动新的通道或前端构建'
+        catch { Assert ($_.Exception -is [OperationCanceledException]) '通道取消时本轮按取消结束, 不以后续阶段的失败替代' }
+        Assert (($script:Calls -join ',') -eq 'checkC#') '取消后不得启动新的通道、C# 编译或前端构建'
         $script:CancelledAction = ''
         $script:FailureCodes = @{}
+        # 并发阶段在快速失败终止前各自失败时仍按规范顺序报告; 被终止的通道与主流程在途命令不是失败候选, 取消优先.
+        <# .SYNOPSIS 构造已结束的通道记录. #>
+        function New-TestGateLane([string]$Name, [int]$Code, [bool]$Terminated = $false) {
+            [pscustomobject]@{ Name = $Name; Process = $null; Result = ''; Completed = $true; Terminated = $Terminated; ExitCode = $Code; Action = $Name; Message = "模拟 $Name"; Elapsed = [TimeSpan]::Zero }
+        }
+        <# .SYNOPSIS 构造主流程错误记录, 可附加检查点或已终止标记. #>
+        function New-TestGateFailure([string]$Action, [int]$Code, [string]$Marker = '') {
+            $exception = [InvalidOperationException]::new("模拟 $Action")
+            $exception.Data['ExitCode'] = $Code
+            $exception.Data['Action'] = $Action
+            if ($Marker) { $exception.Data[$Marker] = $true }
+            return [Management.Automation.ErrorRecord]::new($exception, 'GateTest', [Management.Automation.ErrorCategory]::NotSpecified, $null)
+        }
+        foreach ($case in @(
+            @{ Lanes = @(@('checkVue', 63, $false), @('testC#', -1, $true)); Main = @('buildC#', 64, ''); Code = 64; Action = 'buildC#' },
+            @{ Lanes = @(@('checkC#', -1, $true), @('testC#', -1, $true), @('checkVue', 63, $false), @('testVue', -1, $true)); Main = @('buildC#', 4, 'PbiGateTerminated'); Code = 63; Action = 'checkVue' },
+            @{ Lanes = @(@('checkC#', -1, $true), @('testVue', 65, $false)); Main = @('testVue', 65, 'PbiGateCheckpoint'); Code = 65; Action = 'testVue' },
+            @{ Lanes = @(@('checkC#', 68, $false), @('testC#', 130, $false)); Main = $null; Code = 130; Action = 'testC#' }
+        )) {
+            $gate = [pscustomobject]@{ Lanes = [Collections.Generic.List[object]]::new() }
+            foreach ($lane in $case.Lanes) { $gate.Lanes.Add((New-TestGateLane $lane[0] $lane[1] $lane[2])) }
+            $main = if ($null -ne $case.Main) { New-TestGateFailure $case.Main[0] $case.Main[1] $case.Main[2] } else { $null }
+            $resolved = Resolve-PbiGateFailure $gate $main
+            $exception = if ($resolved -is [Management.Automation.ErrorRecord]) { $resolved.Exception } else { $resolved }
+            Assert ((Get-PbiExitCode $exception) -eq $case.Code -and [string]$exception.Data['Action'] -ceq $case.Action) '汇总必须排除被终止阶段并按规范顺序选择首个真实失败, 取消优先'
+        }
+        # 检查点与清理方式同样取消优先: 已结束通道中有取消时按取消抛出, 门禁随后排空而不是终止通道.
+        $mixedGate = [pscustomobject]@{ Lanes = [Collections.Generic.List[object]]::new(); State = [hashtable]::Synchronized(@{ Trigger = $null }); Watchdog = $null }
+        $mixedGate.Lanes.Add((New-TestGateLane 'checkC#' 71))
+        $mixedGate.Lanes.Add((New-TestGateLane 'testC#' 130))
+        try { Assert-PbiGateRunning $mixedGate; throw '检查点未停止' }
+        catch { Assert ($_.Exception -is [OperationCanceledException] -and $_.Exception.Data.Contains('PbiGateCheckpoint')) '检查点在已有取消时必须按取消抛出' }
+        Assert ((Get-PbiGateStopReason $mixedGate) -ceq 'cancelled') '清理方式在已有取消时必须选择排空'
+        # 主流程在门禁中且已有失败时, 原生命令在启动前被拒绝.
+        $failedGate = New-PbiVerificationGate $options
+        $sentinel = Join-Path ([IO.Path]::GetTempPath()) ('pbi-gate-native-' + [Guid]::NewGuid().ToString('N'))
+        try {
+            $failedGate.Lanes.Add((New-TestGateLane 'checkVue' 69))
+            $script:ActiveGate = $failedGate
+            try { Invoke-PbiNative 'pwsh' @('-NoProfile', '-Command', "New-Item -ItemType File -Path '$sentinel' | Out-Null"); throw '门禁失败后仍启动了原生命令' }
+            catch { Assert ($_.Exception.Data.Contains('PbiGateCheckpoint') -and $_.Exception.Data['ExitCode'] -eq 69) '门禁已失败时原生命令必须以检查点异常拒绝启动' }
+            Assert (!(Test-Path -LiteralPath $sentinel)) '门禁已失败时不得启动原生命令'
+        }
+        finally {
+            $script:ActiveGate = $null
+            Stop-PbiVerificationGate $failedGate $true
+            if (Test-Path -LiteralPath $sentinel) { Remove-Item -LiteralPath $sentinel }
+        }
+        $pwshPath = (Get-Process -Id $PID).Path
+        <# .SYNOPSIS 构造经孙进程长时等待的原生命令参数; 孙进程启动后把自身 PID 写入登记文件. #>
+        function New-TestSleeperArguments([string]$Record) {
+            $inner = "[IO.File]::WriteAllText('$Record', [string]`$PID); Start-Sleep -Seconds 60"
+            $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($inner))
+            return @('-NoProfile', '-NonInteractive', '-Command', "& '$pwshPath' -NoProfile -NonInteractive -EncodedCommand $encoded")
+        }
+        <# .SYNOPSIS 登记的孙进程在 3 秒内退出时返回 $true. #>
+        function Test-TestSleeperGone([string]$Record) {
+            $sleeper = [int][IO.File]::ReadAllText($Record)
+            $deadline = [DateTime]::UtcNow.AddSeconds(3)
+            do {
+                $process = Get-Process -Id $sleeper -ErrorAction SilentlyContinue
+                if ($null -eq $process -or $process.HasExited) { return $true }
+                Start-Sleep -Milliseconds 100
+            } while ([DateTime]::UtcNow -lt $deadline)
+            return $false
+        }
+        # 门禁中的可执行文件持有句柄运行: 两路输出按来源逐行转发, 非零退出码原样保留.
+        $nativeGate = New-PbiVerificationGate $options
+        $savedOut = [Console]::Out
+        $savedError = [Console]::Error
+        $capturedOut = [IO.StringWriter]::new()
+        $capturedError = [IO.StringWriter]::new()
+        $nativeFailure = $null
+        try {
+            $script:ActiveGate = $nativeGate
+            [Console]::SetOut($capturedOut)
+            [Console]::SetError($capturedError)
+            try { Invoke-PbiNative $pwshPath @('-NoProfile', '-NonInteractive', '-Command', "[Console]::Out.WriteLine('OUT-1'); [Console]::Error.WriteLine('ERR-1'); exit 7"); throw '非零退出码未失败' }
+            catch { $nativeFailure = $_ }
+        }
+        finally {
+            [Console]::SetOut($savedOut)
+            [Console]::SetError($savedError)
+            $script:ActiveGate = $null
+            Stop-PbiVerificationGate $nativeGate $false
+        }
+        Assert ($nativeFailure.Exception.Data['ExitCode'] -eq 7 -and !$nativeFailure.Exception.Data.Contains('PbiGateTerminated')) '门禁中的原生命令必须保留真实退出码'
+        Assert ($capturedOut.ToString().Contains('OUT-1') -and !$capturedOut.ToString().Contains('ERR-1') -and $capturedError.ToString().Contains('ERR-1')) '门禁中的原生命令必须按来源转发 stdout 与 stderr'
+        # 其他阶段在原生命令运行期间失败: 主流程只终止本命令自有的整棵进程树并按被终止报告, 不等待其完成.
+        Import-Module (Join-Path $script:Root 'scripts/GateWatchdog.psm1') -Force
+        <#
+        .SYNOPSIS 在门禁中运行原生命令; 子进程写出登记后再等待指定毫秒, 由后台线程对门禁状态执行触发动作.
+        .OUTPUTS 含 Failure (错误记录或 null) 与 Seconds (调用耗时) 的结果.
+        #>
+        function Invoke-TestGateNative([pscustomobject]$Gate, [string]$File, [string[]]$Arguments, [string]$Record, [string]$Trigger, [int]$DelayMilliseconds = 0) {
+            $job = Start-ThreadJob -ArgumentList $Gate.State, $Record, $Trigger, $DelayMilliseconds -ScriptBlock {
+                param($State, $Record, $Action, $Delay)
+                $deadline = [DateTime]::UtcNow.AddSeconds(30)
+                while (![IO.File]::Exists($Record) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 50 }
+                Start-Sleep -Milliseconds $Delay
+                if ($Action) { & ([scriptblock]::Create($Action)) $State }
+            }
+            $failure = $null
+            $watch = [Diagnostics.Stopwatch]::StartNew()
+            try {
+                $script:ActiveGate = $Gate
+                try { Invoke-PbiNative $File $Arguments } catch { $failure = $_ }
+            }
+            finally {
+                $script:ActiveGate = $null
+                $null = Wait-Job $job -Timeout 30
+                Remove-Job $job -Force
+            }
+            return [pscustomobject]@{ Failure = $failure; Seconds = $watch.Elapsed.TotalSeconds }
+        }
+        $failTrigger = 'param($State) $State.Trigger = ''testVue'''
+        <# .SYNOPSIS 编码一段 PowerShell 脚本供 -EncodedCommand 使用. #>
+        function ConvertTo-TestEncoded([string]$Script) { [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($Script)) }
+        $scenarioFiles = [Collections.Generic.List[string]]::new()
+        try {
+            $abortRecord = Join-Path ([IO.Path]::GetTempPath()) ('pbi-gate-sleeper-' + [Guid]::NewGuid().ToString('N'))
+            $scenarioFiles.Add($abortRecord)
+            $abortGate = New-PbiVerificationGate $options
+            try { $abort = Invoke-TestGateNative $abortGate $pwshPath (New-TestSleeperArguments $abortRecord) $abortRecord $failTrigger }
+            finally { Stop-PbiVerificationGate $abortGate $true }
+            Assert ($null -ne $abort.Failure -and $abort.Failure.Exception.Data.Contains('PbiGateTerminated') -and $abort.Seconds -lt 30) '门禁失败后在途原生命令必须立即终止并标记为已终止'
+            Assert (Test-TestSleeperGone $abortRecord) '终止原生命令必须结束其整棵进程树'
+
+            # 指向可执行文件的别名按最终目标持有根进程句柄运行, 其他阶段失败时同样立即结束.
+            $aliasRecord = Join-Path ([IO.Path]::GetTempPath()) ('pbi-gate-alias-' + [Guid]::NewGuid().ToString('N'))
+            $scenarioFiles.Add($aliasRecord)
+            $aliasName = 'pbi-gate-alias-' + [Guid]::NewGuid().ToString('N')
+            Set-Alias -Name $aliasName -Value $pwshPath
+            $aliasGate = New-PbiVerificationGate $options
+            try { $aliasRun = Invoke-TestGateNative $aliasGate $aliasName (New-TestSleeperArguments $aliasRecord) $aliasRecord $failTrigger }
+            finally { Stop-PbiVerificationGate $aliasGate $true }
+            Assert ($null -ne $aliasRun.Failure -and $aliasRun.Failure.Exception.Data.Contains('PbiGateTerminated') -and $aliasRun.Seconds -lt 30) '别名指向的原生命令必须在门禁失败后立即结束'
+            Assert (Test-TestSleeperGone $aliasRecord) '别名指向的原生命令进程树必须结束'
+
+            # 关闭输出后仍运行的命令: 读到输出结束后继续检查门禁, 其他阶段失败时仍能结束.
+            $closedRecord = Join-Path ([IO.Path]::GetTempPath()) ('pbi-gate-closed-' + [Guid]::NewGuid().ToString('N'))
+            $scenarioFiles.Add($closedRecord)
+            $closing = "Add-Type -Namespace PbiGateTest -Name Std -MemberDefinition '[DllImport(""kernel32.dll"")] public static extern System.IntPtr GetStdHandle(int n); [DllImport(""kernel32.dll"")] public static extern bool CloseHandle(System.IntPtr h);'; `$null = [PbiGateTest.Std]::CloseHandle([PbiGateTest.Std]::GetStdHandle(-11)); `$null = [PbiGateTest.Std]::CloseHandle([PbiGateTest.Std]::GetStdHandle(-12)); [IO.File]::WriteAllText('$closedRecord', [string]`$PID); Start-Sleep -Seconds 60"
+            $closedGate = New-PbiVerificationGate $options
+            try { $closed = Invoke-TestGateNative $closedGate $pwshPath @('-NoProfile', '-NonInteractive', '-EncodedCommand', (ConvertTo-TestEncoded $closing)) $closedRecord $failTrigger }
+            finally { Stop-PbiVerificationGate $closedGate $true }
+            Assert ($null -ne $closed.Failure -and $closed.Failure.Exception.Data.Contains('PbiGateTerminated') -and $closed.Seconds -lt 30) '关闭输出后仍运行的命令必须在门禁失败后被结束'
+            Assert (Test-TestSleeperGone $closedRecord) '关闭输出的命令进程必须被结束'
+
+            # 批处理入口同样持有根进程句柄 (cmd.exe), 其他阶段失败时结束整棵进程树.
+            $shimRecord = Join-Path ([IO.Path]::GetTempPath()) ('pbi-gate-shim-' + [Guid]::NewGuid().ToString('N'))
+            $shim = $shimRecord + '.cmd'
+            $scenarioFiles.Add($shimRecord)
+            $scenarioFiles.Add($shim)
+            $shimSleeper = ConvertTo-TestEncoded "[IO.File]::WriteAllText('$shimRecord', [string]`$PID); Start-Sleep -Seconds 60"
+            [IO.File]::WriteAllText($shim, "@echo off`r`n`"$pwshPath`" -NoProfile -NonInteractive -EncodedCommand $shimSleeper`r`nexit /b %errorlevel%`r`n", [Text.Encoding]::ASCII)
+            $shimGate = New-PbiVerificationGate $options
+            try { $shimRun = Invoke-TestGateNative $shimGate $shim @('--dir', 'web', 'build') $shimRecord $failTrigger }
+            finally { Stop-PbiVerificationGate $shimGate $true }
+            Assert ($null -ne $shimRun.Failure -and $shimRun.Failure.Exception.Data.Contains('PbiGateTerminated') -and $shimRun.Seconds -lt 30) '批处理入口必须在门禁失败后立即结束'
+            Assert (Test-TestSleeperGone $shimRecord) '批处理入口启动的子进程必须随进程树结束'
+
+            # 通道以 130 结束时按取消结束本命令并抛出取消, 门禁随后排空而不是终止通道.
+            $cancelRecord = Join-Path ([IO.Path]::GetTempPath()) ('pbi-gate-cancel-' + [Guid]::NewGuid().ToString('N'))
+            $cancelGate = New-PbiVerificationGate $options
+            $cancelResult = Join-Path $cancelGate.Directory 'cancel.json'
+            $scenarioFiles.Add($cancelRecord)
+            $laneScript = @"
+while (![IO.File]::Exists('$cancelRecord')) { Start-Sleep -Milliseconds 50 }
+[IO.File]::WriteAllText('$cancelResult', '{"code":130,"action":"testVue","message":"cancelled"}')
+exit 130
+"@
+            $laneStart = [Diagnostics.ProcessStartInfo]::new($pwshPath)
+            foreach ($argument in @('-NoProfile', '-NonInteractive', '-EncodedCommand', (ConvertTo-TestEncoded $laneScript))) { $laneStart.ArgumentList.Add($argument) }
+            $laneStart.UseShellExecute = $false
+            $laneStart.CreateNoWindow = $true
+            $laneProcess = [Diagnostics.Process]::Start($laneStart)
+            $cancelGate.Lanes.Add([pscustomobject]@{ Name = 'testVue'; Process = $laneProcess; Result = $cancelResult; Completed = $false; Terminated = $false; ExitCode = $null; Action = 'testVue'; Message = ''; Elapsed = [TimeSpan]::Zero })
+            try { $cancel = Invoke-TestGateNative $cancelGate $pwshPath (New-TestSleeperArguments $cancelRecord) $cancelRecord '' }
+            finally {
+                if (!$laneProcess.WaitForExit(30000)) { $laneProcess.Kill($true) }
+                Stop-PbiVerificationGate $cancelGate $false
+            }
+            Assert ($null -ne $cancel.Failure -and $cancel.Failure.Exception -is [OperationCanceledException] -and (Get-PbiExitCode $cancel.Failure.Exception) -eq 130) '通道取消时在途原生命令必须按取消结束, 门禁随后排空'
+            Assert (Test-TestSleeperGone $cancelRecord) '通道取消时原生命令进程树必须结束'
+
+            # 根进程已自行以 -1 退出、后代仍持有输出时才出现的门禁失败: 只清理后代, 保留真实退出码而不判定为被终止.
+            $naturalRecord = Join-Path ([IO.Path]::GetTempPath()) ('pbi-gate-natural-' + [Guid]::NewGuid().ToString('N'))
+            $scenarioFiles.Add($naturalRecord)
+            $naturalSleeper = ConvertTo-TestEncoded "[IO.File]::WriteAllText('$naturalRecord', [string]`$PID); Start-Sleep -Seconds 60"
+            $naturalRoot = "Start-Process -FilePath '$pwshPath' -ArgumentList '-NoProfile', '-NonInteractive', '-EncodedCommand', '$naturalSleeper' -NoNewWindow; exit -1"
+            $naturalGate = New-PbiVerificationGate $options
+            try { $natural = Invoke-TestGateNative $naturalGate $pwshPath @('-NoProfile', '-NonInteractive', '-EncodedCommand', (ConvertTo-TestEncoded $naturalRoot)) $naturalRecord $failTrigger 2000 }
+            finally { Stop-PbiVerificationGate $naturalGate $true }
+            Assert ($null -ne $natural.Failure -and !$natural.Failure.Exception.Data.Contains('PbiGateTerminated') -and (Get-PbiExitCode $natural.Failure.Exception) -eq -1 -and $natural.Seconds -lt 30) '终止前已自行结束的命令必须保留真实退出码'
+            Assert (Test-TestSleeperGone $naturalRecord) '已退出根进程下仍持有输出的后代必须被结束'
+        }
+        finally { foreach ($path in $scenarioFiles) { if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path } } }
+        # 管道被停止 (Ctrl+C) 时与 PowerShell 原生命令一致, 门禁中的原生命令进程树随之结束.
+        $stopRecord = Join-Path ([IO.Path]::GetTempPath()) ('pbi-gate-sleeper-' + [Guid]::NewGuid().ToString('N'))
+        $stopShared = [hashtable]::Synchronized(@{})
+        $stopRunspace = [runspacefactory]::CreateRunspace()
+        $stopRunspace.Open()
+        $stopShell = [powershell]::Create()
+        $stopShell.Runspace = $stopRunspace
+        try {
+            $null = $stopShell.AddScript({
+                    param($ModulePath, $Pwsh, $Arguments, $Shared)
+                    Import-Module $ModulePath -Force
+                    & (Get-Module CommandRegistry) {
+                        param($Pwsh, $Arguments, $Shared)
+                        $script:ActiveGate = New-PbiVerificationGate @{ Scope = 'Core'; Configuration = 'Release' }
+                        $Shared.Directory = $script:ActiveGate.Directory
+                        Invoke-PbiNative $Pwsh $Arguments
+                    } $Pwsh $Arguments $Shared
+                }).AddArgument((Get-Module CommandRegistry).Path).AddArgument($pwshPath).AddArgument((New-TestSleeperArguments $stopRecord)).AddArgument($stopShared)
+            $stopHandle = $stopShell.BeginInvoke()
+            $deadline = [DateTime]::UtcNow.AddSeconds(30)
+            while (![IO.File]::Exists($stopRecord) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 50 }
+            Assert ([IO.File]::Exists($stopRecord)) '停止测试的原生命令必须已启动'
+            $stopShell.Stop()
+            Assert ($stopHandle.IsCompleted) '停止管道必须结束原生命令调用'
+            Assert (Test-TestSleeperGone $stopRecord) '管道停止时门禁中的原生命令进程树必须结束'
+        }
+        finally {
+            $stopShell.Dispose()
+            $stopRunspace.Dispose()
+            if ($stopShared.ContainsKey('Directory') -and [IO.Directory]::Exists($stopShared.Directory)) { [IO.Directory]::Delete($stopShared.Directory, $true) }
+            if (Test-Path -LiteralPath $stopRecord) { Remove-Item -LiteralPath $stopRecord }
+        }
         # 逻辑处理器不足时通道逐个执行: C# 检查与测试先于编译, Vue 检查与测试在编译后依次运行, 失败后不再启动后续阶段.
         <# .SYNOPSIS 模拟逻辑处理器不足的本机. #>
         function Test-PbiParallelGate { return $false }

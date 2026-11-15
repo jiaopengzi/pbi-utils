@@ -79,8 +79,7 @@ onUnmounted(() => window.removeEventListener("keydown", keydown))
 </script>
 <template>
     <el-button class="nav-search" :disabled="disabled" :title="t('app.searchTitle')" :aria-label="t('app.search')" @click="open"
-        ><UiIcon name="search" /><span class="nav-label">{{ t("app.search") }}</span
-        ><kbd>/</kbd></el-button
+        ><UiIcon name="search" /><span class="nav-label">{{ t("app.search") }}</span><kbd>/</kbd></el-button
     >
     <UiDialog v-model="visible" :title="t('app.search')" @opened="input?.focus()">
         <el-input

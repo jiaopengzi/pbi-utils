@@ -21,13 +21,14 @@ public sealed class ScriptGateTests
         Assert.Contains("PASS external tool workflow ordering, scope and failure boundaries", Out);
     }
 
-    /// <summary>执行独立真实入口子进程, 枚举或清理失败必须阻止成功且保留主错误的退出码和阶段.</summary>
+    /// <summary>执行独立真实入口子进程, 枚举或清理失败必须阻止成功且保留主错误的退出码和阶段; 首个失败须立即终止其余在途阶段.</summary>
     [Fact]
     public async Task GateFailuresPreserveFirstErrorAndNeverReportSuccess()
     {
-        // 12 个真实入口子进程, 其中 verifyAndBuild 场景各再启动 4 个并行通道.
+        // 14 个真实入口子进程, 其中 verifyAndBuild 场景各再启动 4 个并行通道; 快速失败场景另有 4 个真实长时子进程.
         var (Code, Out, Error) = await CliTests.RunWithTimeout("pwsh", CliTests.ScriptCollectionTimeout, "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/gate-failure-tests.ps1"));
         Assert.True(Code == 0, Out + Error);
         Assert.Contains("PASS 发布枚举与清理错误传播、首个退出码及阶段保持契约", Out);
+        Assert.Contains("PASS 门禁首个失败立即终止在途阶段与进程树契约", Out);
     }
 }

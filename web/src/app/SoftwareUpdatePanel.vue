@@ -80,9 +80,7 @@ onUnmounted(() => cancelCheck(true))
             <el-tag v-if="simulation" type="info">{{ t("updates.simulation") }}</el-tag>
         </div>
         <div class="update-result" :data-status="status" :data-simulation="simulation" role="status" aria-live="polite">
-            <span class="update-current-version"
-                >{{ t("updates.currentVersion") }} <strong>{{ currentVersion }}</strong></span
-            >
+            <span class="update-current-version">{{ t("updates.currentVersion") }} <strong>{{ currentVersion }}</strong></span>
             <span class="update-release-version"
                 >{{ t("updates.latestVersion") }} <strong>{{ productReleaseName(checkResult?.releases[0]?.tag) }}</strong></span
             >

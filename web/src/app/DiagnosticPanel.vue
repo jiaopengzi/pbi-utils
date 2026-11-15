@@ -142,8 +142,7 @@ useMessageNotices("diagnostic-panel", () => [
             <template v-else-if="result && !error">
                 <el-descriptions class="environment-descriptions" direction="vertical" :column="columns" border
                     ><el-descriptions-item v-for="row in rows" :key="row.label" :label="row.label"
-                        ><strong>{{ row.value }}</strong
-                        ><small class="description-note">{{ row.note }}</small></el-descriptions-item
+                        ><strong>{{ row.value }}</strong><small class="description-note">{{ row.note }}</small></el-descriptions-item
                     ></el-descriptions
                 >
             </template>

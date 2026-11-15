@@ -114,8 +114,7 @@ useMessageNotices("sample-panel", () => [
                     </div>
                 </el-form-item>
                 <div v-if="state?.lastFactDate" class="sample-cutoff">
-                    <el-tag type="info">{{ text.cutoff }} {{ state.lastFactDate }}</el-tag
-                    ><span v-if="nextDate">{{ text.nextDate }} {{ nextDate }}</span
+                    <el-tag type="info">{{ text.cutoff }} {{ state.lastFactDate }}</el-tag><span v-if="nextDate">{{ text.nextDate }} {{ nextDate }}</span
                     ><el-button v-if="nextDate" text :disabled="busy" @click="useNextDate"><UiIcon name="arrow-right" />{{ text.useNext }}</el-button>
                 </div>
 

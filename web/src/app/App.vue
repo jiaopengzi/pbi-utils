@@ -127,8 +127,7 @@ useMessageNotices("application-workspace", () => [
             <main id="workspace-main" tabindex="-1">
                 <header class="workspace-header">
                     <el-breadcrumb separator="/"
-                        ><el-breadcrumb-item>{{ t("app.workspace") }}</el-breadcrumb-item
-                        ><el-breadcrumb-item>{{ title }}</el-breadcrumb-item></el-breadcrumb
+                        ><el-breadcrumb-item>{{ t("app.workspace") }}</el-breadcrumb-item><el-breadcrumb-item>{{ title }}</el-breadcrumb-item></el-breadcrumb
                     >
                     <div class="header-actions">
                         <span class="project-name" :title="project?.projectPath">{{ projectName }}</span>
