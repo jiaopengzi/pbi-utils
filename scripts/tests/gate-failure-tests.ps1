@@ -77,6 +77,8 @@ $registryBoundary = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'TestProj
 <# .SYNOPSIS 隔离工具和还原探测, 真实参数解析与动作错误边界保持. #>
 function Assert-PbiTools([string[]]$Tools) { }
 function Assert-PbiRestoreAssets([string]$Scope, [bool]$IncludeTests = $true) { }
+<# .SYNOPSIS 固定为并行门禁, 失败断言不随测试机逻辑处理器数量变化. #>
+function Test-PbiParallelGate { return $true }
 <# .SYNOPSIS 固定测试输入指纹, 避免在私有仓库调用 Node. #>
 function Get-PbiFrontendInputFingerprint { return ('a' * 64) }
 <# .SYNOPSIS 只模拟编译文件或原生阶段错误, 真实发布清单、覆盖和清理不替换. #>
@@ -176,7 +178,7 @@ function Invoke-GateFailure([string]$Mode, [string]$DotNetMode, [string]$Action 
     $root = Join-Path $sandbox ($Mode + '-' + $DotNetMode)
     $null = New-Item -ItemType Directory -Path (Join-Path $root 'scripts') -Force
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'run.ps1') -Destination $root
-    foreach ($scriptName in @('build.ps1', 'check.ps1', 'test.ps1', 'TestResults.psm1', 'SharedPublish.psm1', 'PublishRuntime.psm1', 'ReleaseAutomation.psm1')) {
+    foreach ($scriptName in @('build.ps1', 'check.ps1', 'test.ps1', 'lane.ps1', 'TestResults.psm1', 'SharedPublish.psm1', 'PublishRuntime.psm1', 'ReleaseAutomation.psm1')) {
         if (Test-Path -LiteralPath (Join-Path $sourceRoot "scripts/$scriptName")) { Copy-Item -LiteralPath (Join-Path $sourceRoot "scripts/$scriptName") -Destination (Join-Path $root 'scripts') }
     }
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LicenseBundleStub.psm1') -Destination (Join-Path $root 'scripts/ThirdPartyLicenses.psm1')

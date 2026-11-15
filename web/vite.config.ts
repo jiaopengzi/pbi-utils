@@ -118,6 +118,9 @@ export default defineConfig(({ command, mode }) => {
             chunkSizeWarningLimit: 500,
             // 沿用 SPA 按资源类型输出的组织方式, 本地宿主不需要 HTTP gzip 或 API 代理.
             rolldownOptions: {
+                // PLUGIN_TIMINGS 只在构建超过 3 秒且插件耗时超过链接阶段 100 倍时出现, 结果取决于机器速度与负载;
+                // 发布门禁只保留确定性诊断, 其余警告仍由构建日志器判为失败, 插件耗时另用 node --cpu-prof 分析.
+                checks: { bundlerTimings: false },
                 output: {
                     // 依赖层及纯字典各自缓存, 不改变原页面/编辑器的挂载与执行入口.
                     codeSplitting: { groups: productionChunkGroups },
@@ -138,6 +141,8 @@ export default defineConfig(({ command, mode }) => {
             maxWorkers: Math.min(4, availableParallelism()),
             // 测试文件之间检查堆用量并按阈值回收 worker; 进程实际驻留内存另计.
             vmMemoryLimit: "768MiB",
+            // 完整门禁中与 C# 测试并行时单条用例耗时会成倍增加; 统一超时只用于防止挂起, 不作为性能断言.
+            testTimeout: 15000,
             environment: "jsdom",
             include: ["tests/**/*.test.ts"],
             setupFiles: ["tests/setup.ts"],

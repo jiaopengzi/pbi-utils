@@ -32,6 +32,7 @@ try {
     $module = Get-Module CommandRegistry
     Set-Location -LiteralPath $sandbox
     & $module {
+        . (Join-Path $PSScriptRoot 'InlineGateLanes.ps1')
         foreach ($project in (Get-PbiProjects 'Core')) {
             $null = New-Item -ItemType Directory -Path (Join-Path $script:Root "$project/obj") -Force
             Set-Content -LiteralPath (Join-Path $script:Root "$project/obj/project.assets.json") -Value '{}'
@@ -152,7 +153,9 @@ try {
         $outer = @{ Fingerprint = 'outer-context' }
         $script:FrontendValidation = $outer
         Invoke-PbiVerifyAndBuild @{ Scope = 'Core'; Configuration = 'Release' }
-        Assert (($script:FrontendEvents -join ',') -eq 'lint,vitest,vite') '同一次 verifyAndBuild 必须仅执行一轮完整 lint, 然后测试、构建'
+        Assert (($script:FrontendEvents -join ',') -eq 'lint,vitest,vite') '同一次 verifyAndBuild 的检查与测试通道各执行一次, 构建复用同轮 lint'
+        Assert ($script:NativeFrontendCalls -contains '--dir web exec vitest run' -and $script:NativeFrontendCalls -notcontains '--dir web test') '并行测试通道只运行 Vitest, 不重复 lint'
+        Assert ($script:SnapshotCalls -eq 2) '输入指纹仅在 Vue 通道启动前及构建前各取一次'
         Assert (Test-Path -LiteralPath (Join-Path $script:Root 'artifacts/build/release/win-x64/without-dotnet/manifest.json')) 'Release verifyAndBuild 默认交付 without-dotnet'
         $licenseCalls = @(Get-Content -LiteralPath (Join-Path $script:Root 'license-stub-calls.jsonl') | ForEach-Object { $_ | ConvertFrom-Json })
         Assert ($licenseCalls.Count -eq 1 -and $licenseCalls[0].scope -ceq 'Core') 'verifyAndBuild 必须将当前范围传入许可生成器且仅调用一次'
@@ -175,11 +178,11 @@ try {
         Assert (($script:FrontendEvents -join ',') -eq 'lint,vitest,lint,vite') '独立测试及构建必须各自完整自检'
         Assert ($script:SnapshotCalls -eq 0) '独立命令不承担聚合复用的快照开销'
 
-        foreach ($scenario in @('duringLint', 'beforeTest', 'duringTest', 'untrustedInputs', 'customScript', 'pretest', 'posttest', 'prebuild', 'postbuild')) {
+        foreach ($scenario in @('duringLint', 'beforeBuild', 'duringTest', 'untrustedInputs', 'customScript', 'pretest', 'posttest', 'prebuild', 'postbuild')) {
             Reset-FrontendScenario
             switch ($scenario) {
                 'duringLint' { $script:MutateStep = 'lint' }
-                'beforeTest' { $script:MutateSnapshot = 3 }
+                'beforeBuild' { $script:MutateSnapshot = 2 }
                 'duringTest' { $script:MutateStep = 'vitest' }
                 'untrustedInputs' { $script:CanReuseInputs = $false }
                 'customScript' { Set-Content -LiteralPath (Join-Path $script:Root 'web/package.json') -Value '{"scripts":{"test":"pnpm lint && vitest run && node custom-hook.js","build":"pnpm lint && vite build"}}' }
@@ -191,11 +194,8 @@ try {
             }
             try {
                 Invoke-PbiVerifyAndBuild @{ Scope = 'Core'; Configuration = 'Release' }
-                $expected = switch ($scenario) {
-                    { $_ -in @('duringTest', 'prebuild', 'postbuild') } { 'lint,vitest,lint,vite' }
-                    'untrustedInputs' { 'lint,lint,vitest,lint,vite' }
-                    default { 'lint,lint,vitest,vite' }
-                }
+                # 输入变化或无法核对时构建重新执行完整 lint; 测试脚本被改写时测试通道执行完整包脚本.
+                $expected = if ($scenario -in @('customScript', 'pretest', 'posttest')) { 'lint,lint,vitest,vite' } else { 'lint,vitest,lint,vite' }
                 Assert (($script:FrontendEvents -join ',') -eq $expected) "检查结果在 $scenario 时必须失效并执行完整包脚本"
                 if ($scenario -eq 'customScript') { Assert ($script:NativeFrontendCalls -contains '--dir web test') '包脚本新增动作后不得直接绕过包脚本' }
                 if ($scenario -in @('pretest', 'posttest')) { Assert ($script:NativeFrontendCalls -contains '--dir web test') '测试生命周期脚本不得被绕过' }
@@ -217,8 +217,9 @@ try {
                     if ($kind -eq 'failure') { Assert ($_.Exception.Data['ExitCode'] -eq 47) '失败须保留原生退出码' }
                     else { Assert ($_.Exception -is [OperationCanceledException]) '取消不得转换为普通成功' }
                 }
-                $expected = switch ($step) { 'lint' { 'lint' }; 'vitest' { 'lint,vitest' }; 'vite' { 'lint,vitest,vite' } }
-                Assert (($script:FrontendEvents -join ',') -eq $expected) '失败须首错停止, 不进入后续阶段'
+                # lint 与 Vitest 同时启动: lint 失败时测试通道照常排空, 取消则同时结束全部通道; 失败后均不构建.
+                $expected = switch ($step) { 'lint' { if ($kind -eq 'failure') { 'lint,vitest' } else { 'lint' } }; 'vitest' { 'lint,vitest' }; 'vite' { 'lint,vitest,vite' } }
+                Assert (($script:FrontendEvents -join ',') -eq $expected) '失败或取消后不得开始前端构建或后续阶段'
                 Assert ($null -eq $script:FrontendValidation) '失败或取消须清除本轮复用状态'
                 Assert ((Get-Content -LiteralPath $manifestPath -Raw) -ceq $beforeManifest) '失败或取消必须保留选中模式的上一轮产物'
                 Assert (!(Test-Path -LiteralPath (Join-Path $script:Root 'artifacts/build/release/win-x64/with-dotnet'))) '失败或取消不得构建未选模式'

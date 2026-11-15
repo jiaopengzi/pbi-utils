@@ -12,4 +12,8 @@
 使用 -List 或 -Help 查看动作与参数. 构建通过 -DotNetMode 选择一种部署模式, Debug 默认 with-dotnet, Release 默认 without-dotnet. package 从已有 Release 产物生成安装包, release 完整验证后打包; 不安装工具或执行任意字符串.
 #>
 Import-Module (Join-Path $PSScriptRoot 'scripts/CommandRegistry.psm1') -Force
-exit (Invoke-PbiEntry -Arguments $args)
+# 真实 Ctrl+C 会中止赋值并跳过 catch: 预设的取消码 130 由本脚本 finally 退出, 模块只返回退出码而不调用 exit.
+$pbiExitCode = 130
+try { $pbiExitCode = Invoke-PbiEntry -Arguments $args }
+catch { $pbiExitCode = 4; [Console]::Error.WriteLine($_.ToString()) }
+finally { exit $pbiExitCode }

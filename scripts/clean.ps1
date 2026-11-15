@@ -7,7 +7,11 @@
 <# .SYNOPSIS 整体验证后仅清理固定生成目录; WhatIf 使用相同计划且零删除. #>
 if ($MyInvocation.InvocationName -ne '.' -or !(Test-Path Variable:PbiInvocation)) {
     Import-Module (Join-Path $PSScriptRoot 'CommandRegistry.psm1') -Force
-    exit (Invoke-PbiEntry -Arguments $args -Action clean)
+    # 真实 Ctrl+C 会中止赋值并跳过 catch: 预设的取消码 130 由本脚本 finally 退出, 模块只返回退出码而不调用 exit.
+    $pbiExitCode = 130
+    try { $pbiExitCode = Invoke-PbiEntry -Arguments $args -Action clean }
+    catch { $pbiExitCode = 4; [Console]::Error.WriteLine($_.ToString()) }
+    finally { exit $pbiExitCode }
 }
 $InternalOptions = $PbiInvocation.Options
 $InternalAction = $PbiInvocation.Action

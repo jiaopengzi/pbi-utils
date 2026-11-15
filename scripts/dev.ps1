@@ -9,7 +9,11 @@ if ($MyInvocation.InvocationName -ne '.' -or !(Test-Path Variable:PbiInvocation)
     Import-Module (Join-Path $PSScriptRoot 'CommandRegistry.psm1') -Force
     $raw = @($args)
     if ($raw.Count -ne 2 -or $raw[0] -ne '-Target' -or $raw[1] -notin @('Desktop', 'Web')) { exit 2 }
-    exit (Invoke-PbiEntry -Arguments @() -Action $(if ($raw[1] -eq 'Desktop') { 'devDesktop' } else { 'devWeb' }))
+    # 真实 Ctrl+C 会中止赋值并跳过 catch: 预设的取消码 130 由本脚本 finally 退出, 模块只返回退出码而不调用 exit.
+    $pbiExitCode = 130
+    try { $pbiExitCode = Invoke-PbiEntry -Arguments @() -Action $(if ($raw[1] -eq 'Desktop') { 'devDesktop' } else { 'devWeb' }) }
+    catch { $pbiExitCode = 4; [Console]::Error.WriteLine($_.ToString()) }
+    finally { exit $pbiExitCode }
 }
 $InternalOptions = $PbiInvocation.Options
 $InternalAction = $PbiInvocation.Action

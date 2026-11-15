@@ -52,6 +52,7 @@
     "calculationitem",
     "celerybeat",
     "changedproperty",
+    "CHECKVUE",
     "clrjit",
     "cnotin",
     "cnotmatch",

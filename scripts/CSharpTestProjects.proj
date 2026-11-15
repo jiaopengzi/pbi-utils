@@ -19,13 +19,14 @@
   <Target Name="Test">
     <Error Condition="'@(TestProject)' == '' Or '$(PbiTestLogFile)' == ''" Text="Missing registered test projects or test report name." />
     <!-- 先在一个图中完成所有编译, 测试宿主随后只读各自的编译输出. -->
-    <MSBuild Projects="@(TestProject)" Targets="Build" BuildInParallel="true" RemoveProperties="PbiTestProjects;PbiTestLogFile" />
+    <!-- 测试不读取前端产物; 不收集 web/dist, 避免与并行前端构建竞争同一目录. -->
+    <MSBuild Projects="@(TestProject)" Targets="Build" BuildInParallel="true" Properties="IncludePbiFrontend=false" RemoveProperties="PbiTestProjects;PbiTestLogFile" />
     <MSBuild Projects="@(ParallelTestRun)" Targets="VSTest" BuildInParallel="true" Condition="'@(ParallelTestRun)' != ''"
-             Properties="VSTestNoBuild=true;VSTestNoLogo=true;VSTestLogger=trx%3BLogFileName=$(PbiTestLogFile)"
+             Properties="IncludePbiFrontend=false;VSTestNoBuild=true;VSTestNoLogo=true;VSTestLogger=trx%3BLogFileName=$(PbiTestLogFile)"
              RemoveProperties="PbiTestProjects;PbiTestLogFile" />
     <!-- 桌面程序集包含真实 Windows DPAPI 用例, 在其他测试宿主退出后单独运行. -->
     <MSBuild Projects="@(DesktopTestRun)" Targets="VSTest" Condition="'@(DesktopTestRun)' != ''"
-             Properties="VSTestNoBuild=true;VSTestNoLogo=true;VSTestLogger=trx%3BLogFileName=$(PbiTestLogFile)"
+             Properties="IncludePbiFrontend=false;VSTestNoBuild=true;VSTestNoLogo=true;VSTestLogger=trx%3BLogFileName=$(PbiTestLogFile)"
              RemoveProperties="PbiTestProjects;PbiTestLogFile" />
   </Target>
 </Project>

@@ -8,7 +8,7 @@
 .SYNOPSIS 使用共享隔离载荷验证指定打包行为, 任一断言失败返回非零.
 .PARAMETER Scenario 分别运行快照、编译故障、许可更新和许可拒绝场景, 保持每项测试独立的超时边界.
 #>
-param([ValidateSet('Package', 'PackageFailure', 'LicenseRefresh', 'LicenseRefreshFailure')][string]$Scenario = 'Package')
+param([ValidateSet('Package', 'PackageFailure', 'DeferredPackage', 'LicenseRefresh', 'LicenseRefreshFailure')][string]$Scenario = 'Package')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -186,7 +186,7 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
             if ($payloadArgument.Count -ne 1) { throw '必须传递唯一载荷目录' }
             $appRoot = Join-Path $payloadArgument[0].Substring('/DPBI_PAYLOAD='.Length) 'app'
             # 生产入口已经执行真实载荷及许可校验; 此处仅读取实际编译文件, 不重复扫描或模拟许可生成行为.
-            if ($script:PackageTest.Scenario -like 'LicenseRefresh*') {
+            if ($script:PackageTest.Scenario -like 'LicenseRefresh*' -or $script:PackageTest.Scenario -ceq 'DeferredPackage') {
                 $licenseArguments = @($Arguments | Where-Object { $_.StartsWith('/DPBI_LICENSE_TEXT=', [StringComparison]::Ordinal) })
                 if ($licenseArguments.Count -ne 1) { throw 'NSIS 必须读取显式 UTF-8 BOM 许可阅读文件' }
                 $displayBytes = [IO.File]::ReadAllBytes($licenseArguments[0].Substring('/DPBI_LICENSE_TEXT='.Length))
@@ -271,6 +271,58 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
     $before = Get-TestPackageSnapshot $destination
 
     $publishedBefore = Get-TestPublishedSnapshot $source
+    if ($Scenario -eq 'DeferredPackage') {
+        # release 在门禁等待期间从私有 staging 生成安装包; 交付前持有打包锁且不改动已有安装包, 门禁失败时丢弃.
+        $staging = Join-Path $sandbox 'artifacts/build/release/win-x64/.pbi-utils-publish-0123456789abcdef0123456789abcdef'
+        Copy-Item -LiteralPath $source -Destination $staging -Recurse
+        $context = @{ DeferDelivery = $true; Pending = $null; Source = $staging }
+        $state.Messages.Clear()
+        $state.Commands.Clear()
+        & $registry { param($Context) Invoke-PbiInstallerStep @{ DotNetMode = 'without-dotnet' } $Context } $context
+        Assert ($state.Commands.Count -eq 1 -and $null -ne $context.Pending -and !$context.Pending.Closed) '延后交付必须完成一次编译并保留待交付状态'
+        Assert (@($state.Messages | Where-Object Message -CEQ '本轮 staging 的许可输入与仓库一致, 不重复生成安装许可.').Count -eq 1) '本轮 staging 许可与仓库一致时不得重复生成'
+        Assert ($state.Payload.License -ceq (Get-Content -LiteralPath (Join-Path $staging 'LICENSE') -Raw)) '跳过刷新时载荷必须使用 staging 中已校验的许可'
+        Assert ((Get-TestPackageSnapshot $destination) -ceq $before) '延后交付前不得改动已有安装包及旁车'
+        Assert ([IO.Directory]::Exists($context.Pending.Stage)) '待交付安装包必须保留在私有临时目录'
+        $blocked = $false
+        try { [IO.File]::Open((Join-Path $destination '.package.lock'), 'Open', 'ReadWrite', 'None').Dispose() } catch [IO.IOException] { $blocked = $true }
+        Assert $blocked '待交付期间必须持有打包锁, 阻止其他打包任务写入'
+        Assert (@($state.Messages | Where-Object { $_.Message -match '^完成 ' }).Count -eq 0) '仅生成安装包时不得打印完成'
+        $context.DeferDelivery = $false
+        & $registry { param($Context) Invoke-PbiInstallerStep @{ DotNetMode = 'without-dotnet' } $Context } $context
+        $record = Get-Content -LiteralPath (Join-Path $destination "$baseName.json") -Raw | ConvertFrom-Json
+        Assert ($record.sha256 -ceq (Get-FileHash -LiteralPath (Join-Path $destination "$baseName.exe") -Algorithm SHA256).Hash) '延后交付的安装包必须与旁车记录一致'
+        $phaseNames = @($state.Messages | Where-Object { $_.Message -clike '打包计时 *' } | ForEach-Object { if ($_.Message -cmatch '^打包计时 \[([a-z-]+)\] \d+\.\d{3}s$') { $Matches[1] } })
+        Assert (($phaseNames -join ',') -ceq 'source-validation,payload-snapshot,payload-license,runtime-metadata,nsis-inputs,nsis-compile,release-wait,delivery-verification,cleanup') '延后交付须单独记录等待阶段'
+        Assert (@($state.Messages | Where-Object { $_.Message -match '^完成 package \(' -and $_.Level -eq 'Success' }).Count -eq 1) '交付完成后才打印完成'
+        Assert ((Get-TestPublishedSnapshot $source) -ceq $publishedBefore) '延后打包不得修改发布目录'
+        Assert-TestPackageReleased $destination
+        $delivered = Get-TestPackageSnapshot $destination
+        $context = @{ DeferDelivery = $true; Pending = $null; Source = $staging }
+        & $registry { param($Context) Invoke-PbiInstallerStep @{ DotNetMode = 'without-dotnet' } $Context } $context
+        $context.Discard = $true
+        & $registry { param($Context) Invoke-PbiInstallerStep @{ DotNetMode = 'without-dotnet' } $Context } $context
+        Assert ($context.Pending.Closed) '丢弃必须结束待交付安装包'
+        Assert ((Get-TestPackageSnapshot $destination) -ceq $delivered) '丢弃不得改动已交付安装包及旁车'
+        Assert-TestPackageReleased $destination
+        # 仓库许可在生成 staging 后改变时不能沿用 staging 副本, 必须按当前来源刷新安装许可.
+        $licensePath = Join-Path $sandbox 'LICENSE'
+        $licenseBytes = [IO.File]::ReadAllBytes($licensePath)
+        try {
+            Set-Content -LiteralPath $licensePath -Value 'current license after staging' -Encoding utf8
+            $state.Messages.Clear()
+            $context = @{ DeferDelivery = $true; Pending = $null; Source = $staging }
+            & $registry { param($Context) Invoke-PbiInstallerStep @{ DotNetMode = 'without-dotnet' } $Context } $context
+            Assert (@($state.Messages | Where-Object Message -CEQ '本轮 staging 的许可输入与仓库一致, 不重复生成安装许可.').Count -eq 0) '许可输入变化时必须刷新'
+            Assert ($state.Payload.License -ceq (Get-Content -LiteralPath $licensePath -Raw)) '刷新后的载荷必须使用当前仓库许可'
+            $context.Discard = $true
+            & $registry { param($Context) Invoke-PbiInstallerStep @{ DotNetMode = 'without-dotnet' } $Context } $context
+        } finally { [IO.File]::WriteAllBytes($licensePath, $licenseBytes) }
+        Assert ((Get-TestPackageSnapshot $destination) -ceq $delivered) '丢弃刷新后的待交付安装包不得改动已交付文件'
+        Assert-TestPackageReleased $destination
+        Write-Host 'PASS installer deferred release package delivery and discard'
+        return
+    }
     if ($Scenario -eq 'LicenseRefresh') {
         $inputManifestHash = (Get-FileHash -LiteralPath (Join-Path $source 'manifest.json')).Hash
         # 保持 mtime 不变但改变内容, 连续两轮证明每次 package 都读取当前源文件而非旧构建副本或时间缓存.

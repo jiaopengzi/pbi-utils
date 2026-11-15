@@ -20,9 +20,10 @@
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <!-- 进程测试执行正式apphost并使用同目录共享后台, 不放宽产品OS身份校验以接受dotnet宿主. -->
+  <!-- 只复制无运行时标识的构建输出; win-x64 子目录属于并行发布的独立编译, 读取它会与发布写入竞争. -->
   <Target Name="CopyBusinessHostForProcessTests" AfterTargets="Build">
     <ItemGroup>
-      <BusinessHostTestFile Include="../../src/PbiUtils.Host/bin/$(Configuration)/$(TargetFramework)/**/*" Exclude="../../src/PbiUtils.Host/bin/$(Configuration)/$(TargetFramework)/**/*.pdb" />
+      <BusinessHostTestFile Include="../../src/PbiUtils.Host/bin/$(Configuration)/$(TargetFramework)/**/*" Exclude="../../src/PbiUtils.Host/bin/$(Configuration)/$(TargetFramework)/**/*.pdb;../../src/PbiUtils.Host/bin/$(Configuration)/$(TargetFramework)/win-x64/**" />
     </ItemGroup>
     <Copy SourceFiles="@(BusinessHostTestFile)" DestinationFiles="@(BusinessHostTestFile->'$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>

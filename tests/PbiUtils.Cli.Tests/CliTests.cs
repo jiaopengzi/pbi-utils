@@ -71,6 +71,9 @@ public sealed class CliTests
     /// <summary>运行已复制到测试输出的 CLI 程序.</summary>
     private static Task<(int Code, string Out, string Error)> Cli(params string[] arguments) => Run("dotnet", [typeof(PbiUtils.Cli.Program).Assembly.Location, .. arguments]);
 
+    /// <summary>多场景 PowerShell 脚本合集的总预算; 4 个逻辑处理器上单个合集实测约 2 分钟, 只用于防止挂起, 不作为性能断言.</summary>
+    public static readonly TimeSpan ScriptCollectionTimeout = TimeSpan.FromMinutes(10);
+
     /// <summary>复杂文本安全传递, stdout 恰好一个 JSON 文档.</summary>
     [Fact]
     public async Task UnicodeAndScriptTextAreData()

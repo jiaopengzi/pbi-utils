@@ -25,7 +25,8 @@ public sealed class ScriptGateTests
     [Fact]
     public async Task GateFailuresPreserveFirstErrorAndNeverReportSuccess()
     {
-        var (Code, Out, Error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/gate-failure-tests.ps1"));
+        // 12 个真实入口子进程, 其中 verifyAndBuild 场景各再启动 4 个并行通道.
+        var (Code, Out, Error) = await CliTests.RunWithTimeout("pwsh", CliTests.ScriptCollectionTimeout, "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/gate-failure-tests.ps1"));
         Assert.True(Code == 0, Out + Error);
         Assert.Contains("PASS 发布枚举与清理错误传播、首个退出码及阶段保持契约", Out);
     }

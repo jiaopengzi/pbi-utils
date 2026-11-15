@@ -16,7 +16,7 @@ public sealed class ScriptDevelopmentWorkflowTests
     [Fact]
     public async Task SafetyAndOrchestration()
     {
-        var (Code, Out, Error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/contracts.ps1"));
+        var (Code, Out, Error) = await CliTests.RunWithTimeout("pwsh", CliTests.ScriptCollectionTimeout, "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/contracts.ps1"));
         Assert.True(Code == 0, Out + Error);
         Assert.Contains("PASS 脚本安全与编排契约", Out);
     }
@@ -25,7 +25,7 @@ public sealed class ScriptDevelopmentWorkflowTests
     [Fact]
     public async Task DevelopmentOutputsKeepRealEntrypointsAndValidateDependencies()
     {
-        var (Code, Out, Error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/dev-output-tests.ps1"));
+        var (Code, Out, Error) = await CliTests.RunWithTimeout("pwsh", CliTests.ScriptCollectionTimeout, "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/dev-output-tests.ps1"));
         Assert.True(Code == 0, Out + Error);
         Assert.Contains("PASS 开发输出同目录入口、FDD闭包、冲突与占用拒绝", Out);
     }
@@ -38,7 +38,7 @@ public sealed class ScriptFrontendWorkflowTests
     [Fact]
     public async Task FrontendCheckReuseAndInvalidation()
     {
-        var (Code, Out, Error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/frontend-check-tests.ps1"));
+        var (Code, Out, Error) = await CliTests.RunWithTimeout("pwsh", CliTests.ScriptCollectionTimeout, "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/frontend-check-tests.ps1"));
         Assert.True(Code == 0, Out + Error);
         Assert.Contains("PASS 同轮前端检查复用与失效契约", Out);
     }
@@ -51,8 +51,8 @@ public sealed class ScriptPublishWorkflowTests
     [Fact]
     public async Task CleanPublishAndManifest()
     {
-        // 该脚本执行 26 轮合成构建及完整发布保护检查, 总预算独立于单条 CLI 的 30 秒限制.
-        var (Code, Out, Error) = await CliTests.RunWithTimeout("pwsh", TimeSpan.FromMinutes(1), "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/publish-tests.ps1"));
+        // 该脚本执行 26 轮合成构建及完整发布保护检查, 使用脚本合集总预算而非单条 CLI 的 30 秒限制.
+        var (Code, Out, Error) = await CliTests.RunWithTimeout("pwsh", CliTests.ScriptCollectionTimeout, "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/publish-tests.ps1"));
         Assert.True(Code == 0, Out + Error);
         Assert.Contains("PASS C# 先编译、前端后打包、干净发布与失败保护契约", Out);
     }
@@ -61,7 +61,7 @@ public sealed class ScriptPublishWorkflowTests
     [Fact]
     public async Task SharedPublishRuntimeAndConflicts()
     {
-        var (Code, Out, Error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/shared-publish-tests.ps1"));
+        var (Code, Out, Error) = await CliTests.RunWithTimeout("pwsh", CliTests.ScriptCollectionTimeout, "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/shared-publish-tests.ps1"));
         Assert.True(Code == 0, Out + Error);
         Assert.Contains("PASS 共享发布双部署模式、框架闭包、精确清单、冲突拒绝及独立编译输出保护", Out);
     }

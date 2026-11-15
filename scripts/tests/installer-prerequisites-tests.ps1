@@ -280,6 +280,14 @@ try {
         Assert ((Get-Content -LiteralPath $output -Raw | ConvertFrom-Json).dotNetMode -eq 'without-dotnet') '构建输出必须映射包名'
         & $metadataModule { function script:Invoke-RestMethod { [pscustomobject]@{ releases = @() } } }
         Assert-Throws { Export-PbiInstallerPrerequisites -RepositoryRoot $repo -PublishRoot $publish -OutputPath $output } '官方缺少 SDK 记录不得猜测版本或 URL'
+        # release 预取的同一官方元数据文件走相同解析和校验, 不再在线读取.
+        $prefetched = Join-Path $sandbox 'releases.json'
+        @{ releases = @(@{ sdks = @(@{ version = '10.0.403'; 'runtime-version' = '10.0.14' }); windowsdesktop = @{ version = '10.0.14'; files = @(@{ name = 'windowsdesktop-runtime-win-x64.exe'; rid = 'win-x64'; url = 'https://builds.dotnet.microsoft.com/prefetched-runtime.exe'; hash = ('B' * 128) }) } }) } |
+            ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $prefetched -Encoding UTF8
+        & $metadataModule { function script:Invoke-RestMethod { throw '预取元数据后不得在线读取' } }
+        $actual = Export-PbiInstallerPrerequisites -RepositoryRoot $repo -PublishRoot $publish -OutputPath $output -ReleaseMetadataPath $prefetched
+        Assert ($actual.dotnet.url -eq 'https://builds.dotnet.microsoft.com/prefetched-runtime.exe' -and $actual.dotnet.sha512 -eq ('B' * 128)) '预取元数据必须经过相同的 SDK 记录与下载地址校验'
+        Assert ((Get-PbiReleaseMetadataUri $repo) -ceq 'https://builds.dotnet.microsoft.com/dotnet/release-metadata/10.0/releases.json') '预取地址必须与在线读取使用同一 SDK 系列'
     }
     Write-Host "Installer prerequisites tests passed: $script:passed"
 } finally {

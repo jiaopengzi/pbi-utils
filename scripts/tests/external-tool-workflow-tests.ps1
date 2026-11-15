@@ -10,6 +10,7 @@ Import-Module (Join-Path $PSScriptRoot '../CommandRegistry.psm1') -Force
 $module = Get-Module CommandRegistry
 
 & $module {
+    . (Join-Path $PSScriptRoot 'InlineGateLanes.ps1')
     $script:WorkflowEvents = [Collections.Generic.List[string]]::new()
     $script:WorkflowFailure = ''
     $script:RegistrationOptions = $null
@@ -18,11 +19,32 @@ $module = Get-Module CommandRegistry
     <# .SYNOPSIS 断言真实编排结果, 条件不满足时抛错. #>
     function Assert-Workflow([bool]$Condition, [string]$Message) { if (!$Condition) { throw $Message } }
 
-    <# .SYNOPSIS 仅替换工具动作边界, 保留真实 verifyAndBuild/release 编排; 参数为动作、选项和编译后回调, 指定阶段失败返回 47. #>
-    function Invoke-PbiAction([string]$Name, [hashtable]$Options, [scriptblock]$AfterCompile) {
+    <# .SYNOPSIS 固定前端输入指纹, 编排测试不读取真实依赖树. #>
+    function Get-PbiFrontendInputFingerprint { return ('a' * 64) }
+
+    <# .SYNOPSIS 替换官方元数据预取, 编排测试不访问网络. #>
+    function Start-PbiReleaseMetadataPrefetch([string]$RepositoryRoot) { return $null }
+    <# .SYNOPSIS 与预取替身配对, 不清理任何真实目录. #>
+    function Stop-PbiReleaseMetadataPrefetch($Prefetch) { }
+
+    <# .SYNOPSIS 记录 release 安装包的预先生成与交付, 交付前必须已完成发布目录交付; 不启动 NSIS. #>
+    function Invoke-PbiInstallerStep([hashtable]$Options, [hashtable]$Context) {
+        if ($null -eq $Context.Pending) {
+            $script:WorkflowEvents.Add('package')
+            $Context.Pending = @{ Closed = $false }
+            return
+        }
+        Assert-Workflow $script:Delivered '安装包只能在发布目录交付后交付'
+        $script:WorkflowEvents.Add('deliverPackage')
+        $Context.Pending.Closed = $true
+    }
+
+    <# .SYNOPSIS 仅替换工具动作边界, 保留真实 verifyAndBuild/release 编排; 参数为动作、选项和两个内部回调, 指定阶段失败返回 47. #>
+    function Invoke-PbiAction([string]$Name, [hashtable]$Options, [scriptblock]$AfterCompile, [scriptblock]$BeforeDelivery) {
         $script:WorkflowEvents.Add($Name)
         if ($Name -ceq $script:WorkflowFailure) { Stop-Pbi 47 'isolated upstream failure' }
         if ($AfterCompile) { & $AfterCompile }
+        if ($BeforeDelivery) { & $BeforeDelivery 'isolated-staging' }
         if ($Name -ceq 'buildC#') { $script:Delivered = $true }
     }
 
@@ -47,7 +69,7 @@ $module = Get-Module CommandRegistry
             Reset-Workflow
             $options = @{ Scope = 'All'; Configuration = $configuration; DotNetMode = $mode; NonInteractive = $true }
             Invoke-PbiVerifyAndBuild $options
-            Assert-Workflow (($script:WorkflowEvents -join ',') -ceq 'checkC#,testC#,buildC#,checkVue,testVue,buildVue,register') '完整 verifyAndBuild 在最后注册且只注册一次'
+            Assert-Workflow (($script:WorkflowEvents -join ',') -ceq 'checkC#,testC#,checkVue,testVue,buildC#,buildVue,register') '完整 verifyAndBuild 在全部通道和交付之后注册且只注册一次'
             Assert-Workflow ($script:RegistrationOptions.Configuration -ceq $configuration -and $script:RegistrationOptions.DotNetMode -ceq $mode -and $script:RegistrationOptions.NonInteractive) '注册继承配置、模式和非交互选择'
             Assert-Workflow ($options.Count -eq 4) '编排不能污染调用者选项'
         }
@@ -57,7 +79,7 @@ $module = Get-Module CommandRegistry
     Assert-Workflow ($null -eq $script:RegistrationOptions) 'Core 没有桌面入口, 不注册'
     Reset-Workflow
     Invoke-PbiRelease @{ DotNetMode = 'without-dotnet' }
-    Assert-Workflow (($script:WorkflowEvents -join ',') -ceq 'checkC#,testC#,buildC#,checkVue,testVue,buildVue,package') 'release 只验证和打包, 不改开发登记'
+    Assert-Workflow (($script:WorkflowEvents -join ',') -ceq 'checkC#,testC#,checkVue,testVue,buildC#,buildVue,package,deliverPackage') 'release 只验证和打包, 不改开发登记'
 
     $stages = @('checkC#', 'testC#', 'buildC#', 'checkVue', 'testVue', 'buildVue')
     foreach ($stage in $stages) {

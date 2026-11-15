@@ -7,7 +7,11 @@
 <# .SYNOPSIS 构建 Vue、C# 或全部产物, 每轮仅生成 DotNetMode 选中的部署模式. #>
 if ($MyInvocation.InvocationName -ne '.' -or !(Test-Path Variable:PbiInvocation)) {
     Import-Module (Join-Path $PSScriptRoot 'CommandRegistry.psm1') -Force
-    exit (Invoke-PbiEntry -Arguments $args -Action buildAll)
+    # 真实 Ctrl+C 会中止赋值并跳过 catch: 预设的取消码 130 由本脚本 finally 退出, 模块只返回退出码而不调用 exit.
+    $pbiExitCode = 130
+    try { $pbiExitCode = Invoke-PbiEntry -Arguments $args -Action buildAll }
+    catch { $pbiExitCode = 4; [Console]::Error.WriteLine($_.ToString()) }
+    finally { exit $pbiExitCode }
 }
 $options = $PbiInvocation.Options
 $action = $PbiInvocation.Action
@@ -17,6 +21,8 @@ if ($action -eq 'buildVue') { Invoke-PbiFrontendCommand $action; return }
 $buildStopwatch = [Diagnostics.Stopwatch]::StartNew()
 $buildPhaseEnds = [ordered]@{}
 $afterCompile = if ($PbiInvocation.ContainsKey('AfterCompile')) { $PbiInvocation.AfterCompile } else { $null }
+# 并行门禁在交付前等待全部检查与测试; 使用独特变量名, 避免与调用方回调捕获的变量同名遮蔽.
+$pbiBeforeDelivery = if ($PbiInvocation.ContainsKey('BeforeDelivery')) { $PbiInvocation.BeforeDelivery } else { $null }
 if (!$afterCompile -and $options.Scope -eq 'All' -and !(Test-Path -LiteralPath 'web/dist/index.html' -PathType Leaf)) {
     Stop-Pbi 3 '桌面构建缺少前端产物, 请先运行 -Choice buildVue 或使用 -Choice buildAll'
 }
@@ -37,6 +43,7 @@ $null = New-Item -ItemType Directory -Path $parent -Force
 $staging = Join-Path $parent ('.pbi-utils-publish-' + [Guid]::NewGuid().ToString('N'))
 $compiled = Join-Path $parent ('.pbi-utils-publish-' + [Guid]::NewGuid().ToString('N'))
 $operationFailure = $null
+$artifactsDelivered = $false
 try {
     $null = New-Item -ItemType Directory -Path $staging
     $null = New-Item -ItemType Directory -Path $compiled
@@ -52,21 +59,22 @@ try {
     }
     $buildPhaseEnds.Add('sdk-publish', $buildStopwatch.Elapsed)
     Write-PbiMessage 'C# 编译完成.' 'Success'
+    # 固化入口已核验的 SDK 基线, 后续安装包可拒绝来自其他工具链的旧产物.
+    $sdkVersion = [string](Get-Content -LiteralPath 'global.json' -Raw | ConvertFrom-Json).sdk.version
+    Write-PbiMessage '开始打包: 合并共享布局并收集许可, 前端完成后校验选中模式的完整文件清单再交付.'
+    # 独立发布输入不改写, 在选中部署包中统一框架闭包并共享相同依赖.
+    Merge-PbiPublishedArtifacts $compiled $staging $options.Scope $mode
+    $buildPhaseEnds.Add('shared-layout', $buildStopwatch.Elapsed)
+    # 基于本轮发布依赖离线收集完整许可, 缺失许可时在 manifest 与目录交付前终止.
+    # 许可只读取 staging 的 deps、仓库许可来源和前端依赖元数据, 不读取前端产物, 因此先于前端等待执行.
+    $null = Export-PbiLicenseBundle -RepositoryRoot (Get-Location).Path -PublishRoot $staging -Scope $options.Scope
+    $buildPhaseEnds.Add('licenses', $buildStopwatch.Elapsed)
     # 三个入口完成后才执行本轮前端, 前端失败时不进入目录交付.
     if ($afterCompile) {
         & $afterCompile
+        if ($options.Scope -eq 'All') { Set-PbiPublishedFrontend ([IO.Path]::GetFullPath((Join-Path (Get-Location) 'web/dist'))) $staging }
         $buildPhaseEnds.Add('frontend-gate', $buildStopwatch.Elapsed)
     }
-    # 固化入口已核验的 SDK 基线, 后续安装包可拒绝来自其他工具链的旧产物.
-    $sdkVersion = [string](Get-Content -LiteralPath 'global.json' -Raw | ConvertFrom-Json).sdk.version
-    Write-PbiMessage '开始打包: 校验选中模式的完整文件清单后交付.'
-    # 独立发布输入不改写, 在选中部署包中统一框架闭包并共享相同依赖.
-    Merge-PbiPublishedArtifacts $compiled $staging $options.Scope $mode
-    if ($afterCompile -and $options.Scope -eq 'All') { Set-PbiPublishedFrontend ([IO.Path]::GetFullPath((Join-Path (Get-Location) 'web/dist'))) $staging }
-    $buildPhaseEnds.Add('shared-layout', $buildStopwatch.Elapsed)
-    # 基于本轮发布依赖离线收集完整许可, 缺失许可时在 manifest 与目录交付前终止.
-    $null = Export-PbiLicenseBundle -RepositoryRoot (Get-Location).Path -PublishRoot $staging -Scope $options.Scope
-    $buildPhaseEnds.Add('licenses', $buildStopwatch.Elapsed)
     $independentBytes = [long](Get-PbiPublishFiles $compiled | Measure-Object Length -Sum).Sum
     if ($afterCompile -and $options.Scope -eq 'All') { $independentBytes += [long](Get-PbiPublishFiles ([IO.Path]::GetFullPath((Join-Path (Get-Location) 'web/dist'))) | Measure-Object Length -Sum).Sum }
     $stagedFiles = @(Get-PbiPublishFiles $staging | Sort-Object FullName)
@@ -80,8 +88,14 @@ try {
     $publishedBytes = $sharedBytes + (Get-Item -LiteralPath $manifestPath).Length
     if ((Get-PbiCurrentRelease -RepositoryRoot (Get-Location).Path).Tag -cne $release.Tag) { throw '构建期间 version 中的标签已改变, 请重新构建' }
     $buildPhaseEnds.Add('manifest', $buildStopwatch.Elapsed)
+    # 回调失败时不交付; staging 由 finally 清理, 保留回调的原始阶段和退出码.
+    if ($pbiBeforeDelivery) {
+        & $pbiBeforeDelivery $staging
+        $buildPhaseEnds.Add('verification-wait', $buildStopwatch.Elapsed)
+    }
     # 交付函数完整校验 staging, 并在持锁期间校验最终目录; 此处无需重复读取文件及哈希.
     Set-PbiPublishedArtifacts $staging $destination
+    $artifactsDelivered = $true
     $buildPhaseEnds.Add('delivery', $buildStopwatch.Elapsed)
 }
 catch {
@@ -97,8 +111,9 @@ finally {
     }
     if ($cleanupFailures.Count) {
         $cleanupMessage = $cleanupFailures -join [Environment]::NewLine
-        if ($null -eq $operationFailure) { throw "发布文件已交付, 但$cleanupMessage" }
-        # 所有本轮临时目录均尝试清理, 主操作失败时不替换原始阶段和退出码.
+        # 真实 Ctrl+C 会跳过 catch; 只有交付确已完成才报告已交付并以清理错误失败.
+        if ($null -eq $operationFailure -and $artifactsDelivered) { throw "发布文件已交付, 但$cleanupMessage" }
+        # 所有本轮临时目录均尝试清理, 主操作失败或取消时不替换原始阶段和退出码.
         [Console]::Error.WriteLine($cleanupMessage)
     }
 }

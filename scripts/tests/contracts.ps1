@@ -21,7 +21,7 @@ try {
     [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
     $null = New-Item -ItemType Directory -Path (Join-Path $sandbox 'scripts')
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'run.ps1') -Destination $sandbox
-    foreach ($file in @('CommandRegistry.psm1', 'TestResults.psm1', 'clean.ps1', 'setup.ps1', 'build.ps1', 'test.ps1', 'format.ps1', 'check.ps1')) { Copy-Item -LiteralPath (Join-Path $sourceRoot "scripts/$file") -Destination (Join-Path $sandbox 'scripts') }
+    foreach ($file in @('CommandRegistry.psm1', 'TestResults.psm1', 'InstallerMetadata.psm1', 'clean.ps1', 'setup.ps1', 'build.ps1', 'test.ps1', 'format.ps1', 'check.ps1')) { Copy-Item -LiteralPath (Join-Path $sourceRoot "scripts/$file") -Destination (Join-Path $sandbox 'scripts') }
     foreach ($file in @('AGENTS.md', 'pbi-utils.slnx', 'Directory.Build.props')) { Set-Content -LiteralPath (Join-Path $sandbox $file) -Value 'sentinel' }
     $null = New-Item -ItemType Directory -Path (Join-Path $sandbox 'artifacts')
     Set-Content -LiteralPath (Join-Path $sandbox 'artifacts/generated.txt') -Value 'generated'
@@ -288,13 +288,16 @@ try {
         finally { $script:ValidatedTools = $originalTools }
     }
     & $module {
+        . (Join-Path $PSScriptRoot 'InlineGateLanes.ps1')
         $script:Calls = [Collections.Generic.List[string]]::new()
-        $script:FailureAction = ''
-        $script:FailureCode = 0
+        $script:FailureCodes = @{}
+        $script:CancelledAction = ''
         $script:BuildReturned = $false
-        # 替换原生动作边界, 编译后的回调模拟交付前的前端检查, 测试与构建.
-        <# .SYNOPSIS 记录动作与内部回调, 校验选项隔离并在指定阶段抛出原生退出码. #>
-        function Invoke-PbiAction([string]$Name, [hashtable]$Options, [scriptblock]$AfterCompile) {
+        <# .SYNOPSIS 固定前端输入指纹, 编排测试不调用 Node. #>
+        function Get-PbiFrontendInputFingerprint { return ('b' * 64) }
+        # 替换原生动作边界, 通道按启动顺序同步执行; 编译后与交付前回调模拟前端构建和等待全部通道.
+        <# .SYNOPSIS 记录动作与内部回调, 校验选项隔离并在指定阶段抛出原生退出码或取消. #>
+        function Invoke-PbiAction([string]$Name, [hashtable]$Options, [scriptblock]$AfterCompile, [scriptblock]$BeforeDelivery) {
             $script:Calls.Add($Name)
             if ($Name.EndsWith('Vue') -and $Options.Count) { throw 'Vue 收到 C# 参数' }
             if ($Name.EndsWith('C#') -and $Options.Scope -ne 'Core') { throw 'C# Scope 丢失' }
@@ -302,28 +305,76 @@ try {
             if ($Name -in @('buildC#', 'testC#') -and $Options.Configuration -ne 'Release') { throw 'Configuration 丢失' }
             if ($Name -eq 'buildC#' -and $Options.DotNetMode -cne 'with-dotnet') { throw 'verifyAndBuild 丢失显式部署模式' }
             if ($Name -ne 'buildC#' -and $Options.ContainsKey('DotNetMode')) { throw '非构建动作收到部署模式' }
-            if ($Options.ContainsKey('AfterCompile')) { throw '内部回调混入 CLI 选项' }
-            if ($Name -eq 'buildC#' -and !$AfterCompile) { throw 'verifyAndBuild 缺少编译后回调' }
-            if ($Name -ne 'buildC#' -and $AfterCompile) { throw '回调传给非构建动作' }
-            if ($Name -eq $script:FailureAction) { Stop-Pbi $script:FailureCode '模拟阶段失败' }
-            if ($AfterCompile) { & $AfterCompile; $script:BuildReturned = $true }
+            if ($Options.ContainsKey('AfterCompile') -or $Options.ContainsKey('BeforeDelivery')) { throw '内部回调混入 CLI 选项' }
+            if ($Name -eq 'buildC#' -and (!$AfterCompile -or !$BeforeDelivery)) { throw 'verifyAndBuild 缺少编译后或交付前回调' }
+            if ($Name -ne 'buildC#' -and ($AfterCompile -or $BeforeDelivery)) { throw '回调传给非构建动作' }
+            if ($Name -eq $script:CancelledAction) { throw [OperationCanceledException]::new('模拟阶段取消') }
+            if ($script:FailureCodes.ContainsKey($Name)) {
+                # 与真实动作边界一致, 失败记录首个失败动作和原退出码.
+                $failure = [InvalidOperationException]::new('模拟阶段失败')
+                $failure.Data['ExitCode'] = $script:FailureCodes[$Name]
+                $failure.Data['Action'] = $Name
+                throw $failure
+            }
+            if ($AfterCompile) { & $AfterCompile; & $BeforeDelivery 'staging'; $script:BuildReturned = $true }
         }
         $options = @{ Scope = 'Core'; Configuration = 'Release'; DotNetMode = 'with-dotnet' }
-        $expected = @('checkC#', 'testC#', 'buildC#', 'checkVue', 'testVue', 'buildVue')
+        $expected = @('checkC#', 'testC#', 'checkVue', 'testVue', 'buildC#', 'buildVue')
         Invoke-PbiVerifyAndBuild $options
-        Assert (($script:Calls -join ',') -eq ($expected -join ',')) 'verifyAndBuild 必须先 C# 后前端, 每侧均按检查、测试、构建顺序'
-        Assert $script:BuildReturned '前端完成后构建动作才返回'
+        Assert (($script:Calls -join ',') -eq ($expected -join ',')) 'verifyAndBuild 先启动四个检查测试通道, 再编译 C# 并在 Vue 通道后构建前端'
+        Assert $script:BuildReturned '全部通道和前端完成后构建动作才交付'
         Assert ($options.Count -eq 3) 'verifyAndBuild 不改变调用者选项'
         for ($index = 0; $index -lt $expected.Count; $index++) {
             $script:Calls.Clear()
             $script:BuildReturned = $false
-            $script:FailureAction = $expected[$index]
-            $script:FailureCode = 41 + $index
+            $script:FailureCodes = @{ $expected[$index] = 41 + $index }
             try { Invoke-PbiVerifyAndBuild $options; throw 'verifyAndBuild 阶段失败未停止' }
-            catch { if ($_.Exception.Data['ExitCode'] -ne $script:FailureCode) { throw } }
-            Assert (($script:Calls -join ',') -eq ($expected[0..$index] -join ',')) 'verifyAndBuild 两侧检查、测试、构建的每个阶段均须首错停止'
+            catch { if ($_.Exception.Data['ExitCode'] -ne 41 + $index -or $_.Exception.Data['Action'] -cne $expected[$index]) { throw } }
+            # 通道同时启动并排空; 失败后主流程不进入前端构建或交付.
+            $started = if ($index -lt 5) { $expected[0..4] } else { $expected }
+            Assert (($script:Calls -join ',') -eq ($started -join ',')) 'verifyAndBuild 任一阶段失败后不得开始前端构建或后续阶段'
             Assert (!$script:BuildReturned) '失败阶段不得完成构建交付'
         }
+        # 多个阶段同时失败时按 checkC#、testC#、buildC#、checkVue、testVue、buildVue 的规范顺序报告首个失败.
+        foreach ($case in @(
+            @{ Failures = @{ 'testVue' = 61; 'checkC#' = 62 }; Code = 62; Action = 'checkC#' },
+            @{ Failures = @{ 'checkVue' = 63; 'buildC#' = 64 }; Code = 64; Action = 'buildC#' },
+            @{ Failures = @{ 'testVue' = 65; 'testC#' = 66; 'checkVue' = 67 }; Code = 66; Action = 'testC#' }
+        )) {
+            $script:Calls.Clear()
+            $script:BuildReturned = $false
+            $script:FailureCodes = $case.Failures
+            try { Invoke-PbiVerifyAndBuild $options; throw '多阶段失败未停止' }
+            catch { Assert ($_.Exception.Data['ExitCode'] -eq $case.Code -and $_.Exception.Data['Action'] -ceq $case.Action) '同时失败必须按规范阶段顺序报告首个失败及其退出码' }
+            Assert (!$script:BuildReturned) '多阶段失败不得交付'
+        }
+        $script:FailureCodes = @{ 'checkC#' = 68 }
+        $script:CancelledAction = 'testC#'
+        $script:Calls.Clear()
+        try { Invoke-PbiVerifyAndBuild $options; throw '取消未停止' }
+        catch { Assert ($_.Exception -is [OperationCanceledException]) '任一通道取消时本轮按取消结束, 不以其他失败替代' }
+        Assert (($script:Calls -join ',') -eq 'checkC#,testC#,buildC#') '取消后不得启动新的通道或前端构建'
+        $script:CancelledAction = ''
+        $script:FailureCodes = @{}
+        # 逻辑处理器不足时通道逐个执行: C# 检查与测试先于编译, Vue 检查与测试在编译后依次运行, 失败后不再启动后续阶段.
+        <# .SYNOPSIS 模拟逻辑处理器不足的本机. #>
+        function Test-PbiParallelGate { return $false }
+        $sequential = @('checkC#', 'testC#', 'buildC#', 'checkVue', 'testVue', 'buildVue')
+        $script:Calls.Clear()
+        $script:BuildReturned = $false
+        Invoke-PbiVerifyAndBuild $options
+        Assert (($script:Calls -join ',') -eq ($sequential -join ',')) '逐个执行时按 checkC#、testC#、C# 编译、checkVue、testVue 顺序运行, 再构建前端'
+        Assert $script:BuildReturned '逐个执行全部通过后构建动作才交付'
+        for ($index = 0; $index -lt $sequential.Count; $index++) {
+            $script:Calls.Clear()
+            $script:BuildReturned = $false
+            $script:FailureCodes = @{ $sequential[$index] = 71 + $index }
+            try { Invoke-PbiVerifyAndBuild $options; throw '逐个执行的阶段失败未停止' }
+            catch { if ($_.Exception.Data['ExitCode'] -ne 71 + $index -or $_.Exception.Data['Action'] -cne $sequential[$index]) { throw } }
+            Assert (($script:Calls -join ',') -eq ($sequential[0..$index] -join ',')) '逐个执行时失败阶段之后不得启动任何阶段'
+            Assert (!$script:BuildReturned) '逐个执行的失败阶段不得完成构建交付'
+        }
+        $script:FailureCodes = @{}
     }
     & $module {
         $script:Calls = [Collections.Generic.List[string]]::new()
@@ -495,19 +546,35 @@ try {
         $buildPath = Join-Path $script:Root 'scripts/build.ps1'
         $originalBuild = Get-Content -LiteralPath $buildPath -Raw
         $handler = @'
-Assert (!$PbiInvocation.Options.ContainsKey('AfterCompile')) '内部回调不得混入动作选项'
+Assert (!$PbiInvocation.Options.ContainsKey('AfterCompile') -and !$PbiInvocation.Options.ContainsKey('BeforeDelivery')) '内部回调不得混入动作选项'
 Assert ($PbiInvocation.Action -eq 'buildC#') '内部 handler 仍使用注册动作'
 Assert ([object]::ReferenceEquals($PbiInvocation.AfterCompile, $script:ExpectedAfterCompile)) '必须传递原始回调实例'
+Assert ([object]::ReferenceEquals($PbiInvocation.BeforeDelivery, $script:ExpectedBeforeDelivery)) '必须传递原始交付前回调实例'
 $script:Calls.Add('compile')
 if ($PbiInvocation.AfterCompile) { & $PbiInvocation.AfterCompile }
+if ($PbiInvocation.BeforeDelivery) { & $PbiInvocation.BeforeDelivery 'staging' }
 $script:Calls.Add('deliver')
 '@
         try {
             Set-Content -LiteralPath $buildPath -Value $handler
             $script:ExpectedAfterCompile = { $script:Calls.Add('frontend') }
+            $script:ExpectedBeforeDelivery = $null
             Invoke-PbiAction 'buildC#' @{ Scope = 'Core'; Configuration = 'Release' } -AfterCompile $script:ExpectedAfterCompile
             Assert (($script:Calls -join ',') -eq 'compile,frontend,deliver') '回调须在编译与交付之间执行'
             $script:Calls.Clear()
+            $script:ExpectedBeforeDelivery = { param([string]$Staging) $script:Calls.Add("wait:$Staging") }
+            Invoke-PbiAction 'buildC#' @{ Scope = 'Core'; Configuration = 'Release' } -AfterCompile $script:ExpectedAfterCompile -BeforeDelivery $script:ExpectedBeforeDelivery
+            Assert (($script:Calls -join ',') -eq 'compile,frontend,wait:staging,deliver') '交付前回调须在前端之后、交付之前执行并收到 staging'
+            $script:Calls.Clear()
+            $script:ExpectedBeforeDelivery = { param([string]$Staging) $script:Calls.Add('wait'); Stop-Pbi 53 '模拟并行通道失败' }
+            try {
+                Invoke-PbiAction 'buildC#' @{ Scope = 'Core'; Configuration = 'Release' } -AfterCompile $script:ExpectedAfterCompile -BeforeDelivery $script:ExpectedBeforeDelivery
+                throw '交付前回调失败未停止'
+            }
+            catch { if ($_.Exception.Data['ExitCode'] -ne 53) { throw } }
+            Assert (($script:Calls -join ',') -eq 'compile,frontend,wait') '交付前回调失败不得继续交付'
+            $script:Calls.Clear()
+            $script:ExpectedBeforeDelivery = $null
             $script:ExpectedAfterCompile = { $script:Calls.Add('frontend'); Stop-Pbi 52 '模拟前端失败' }
             try {
                 Invoke-PbiAction 'buildC#' @{ Scope = 'Core'; Configuration = 'Release' } -AfterCompile $script:ExpectedAfterCompile
@@ -534,33 +601,59 @@ $script:Calls.Add('deliver')
         $script:ReleaseCalls = [Collections.Generic.List[string]]::new()
         $script:ReleaseFailure = ''
         $script:ExpectedMode = ''
-        <# .SYNOPSIS 验证 release 固定执行 All/Release 且保留显式模式, 按场景模拟门禁失败. #>
-        function Invoke-PbiVerifyAndBuild([hashtable]$Options) {
-            Assert ($Options.Count -eq 3 -and $Options.Scope -ceq 'All' -and $Options.Configuration -ceq 'Release' -and $Options.DotNetMode -ceq $script:ExpectedMode) 'release 必须固定完整 Release 门禁并传递选中模式'
-            $script:ReleaseCalls.Add('verifyAndBuild')
-            if ($script:ReleaseFailure -eq 'verifyAndBuild') { Stop-Pbi 47 '模拟 release 门禁失败' }
+        <# .SYNOPSIS 替换官方元数据预取, 记录启动并返回可识别的上下文, 不访问网络. #>
+        function Start-PbiReleaseMetadataPrefetch([string]$RepositoryRoot) { $script:ReleaseCalls.Add('prefetch'); return 'prefetch-context' }
+        <# .SYNOPSIS 记录预取清理, 必须收到同一上下文. #>
+        function Stop-PbiReleaseMetadataPrefetch($Prefetch) {
+            Assert ($Prefetch -ceq 'prefetch-context') 'release 必须清理本轮启动的元数据预取'
+            $script:ReleaseCalls.Add('prefetch-stop')
         }
-        <# .SYNOPSIS 只记录安装包动作, 不启动 NSIS, 确保 package 仅收到部署模式. #>
-        function Invoke-PbiAction([string]$Name, [hashtable]$Options) {
-            Assert ($Name -eq 'package' -and $Options.Count -eq 1 -and $Options.DotNetMode -ceq $script:ExpectedMode) 'release 门禁后只打包同一模式'
-            $script:ReleaseCalls.Add('package')
-            if ($script:ReleaseFailure -eq 'package') { Stop-Pbi 49 '模拟 NSIS 失败' }
+        <# .SYNOPSIS 验证 release 固定执行 All/Release、关闭开发登记并在交付前回调中预先生成安装包, 按场景模拟门禁失败. #>
+        function Invoke-PbiVerifyAndBuild([hashtable]$Options, [bool]$RegisterExternalTool = $true, [scriptblock]$BeforeDelivery = $null) {
+            Assert ($Options.Count -eq 3 -and $Options.Scope -ceq 'All' -and $Options.Configuration -ceq 'Release' -and $Options.DotNetMode -ceq $script:ExpectedMode) 'release 必须固定完整 Release 门禁并传递选中模式'
+            Assert (!$RegisterExternalTool -and $null -ne $BeforeDelivery) 'release 不登记开发入口, 必须在交付前预先生成安装包'
+            $script:ReleaseCalls.Add('verifyAndBuild')
+            if ($script:ReleaseFailure -eq 'beforeStaging') { Stop-Pbi 47 '模拟 release 门禁失败' }
+            & $BeforeDelivery 'release-staging'
+            if ($script:ReleaseFailure -eq 'lanes') { Stop-Pbi 48 '模拟并行测试失败' }
+            $script:ReleaseCalls.Add('deliver-build')
+        }
+        <# .SYNOPSIS 记录安装包预先生成、交付或丢弃, 不启动 NSIS; 按场景模拟生成或交付失败. #>
+        function Invoke-PbiInstallerStep([hashtable]$Options, [hashtable]$Context) {
+            Assert ($Options.Count -eq 1 -and $Options.DotNetMode -ceq $script:ExpectedMode) 'release 只打包同一模式'
+            if ($Context.ContainsKey('Discard') -and $Context.Discard) {
+                $script:ReleaseCalls.Add('package-discard')
+                $Context.Pending.Closed = $true
+                return
+            }
+            if ($null -eq $Context.Pending) {
+                Assert ($Context.DeferDelivery -and $Context.Source -ceq 'release-staging' -and $Context.MetadataPrefetch -ceq 'prefetch-context') '安装包必须从本轮 staging 预先生成并使用预取元数据'
+                $script:ReleaseCalls.Add('package-prepare')
+                if ($script:ReleaseFailure -eq 'prepare') { Stop-Pbi 49 '模拟 NSIS 失败' }
+                $Context.Pending = @{ Closed = $false }
+                return
+            }
+            Assert (!$Context.DeferDelivery) '发布目录交付后才交付安装包'
+            $script:ReleaseCalls.Add('package-deliver')
+            $Context.Pending.Closed = $true
+            if ($script:ReleaseFailure -eq 'deliver') { Stop-Pbi 50 '模拟安装包交付失败' }
         }
         foreach ($mode in @('with-dotnet', 'without-dotnet')) {
             $script:ExpectedMode = $mode
-            foreach ($failure in @('', 'verifyAndBuild', 'package')) {
+            foreach ($case in @(
+                @{ Failure = ''; Code = 0; Calls = 'prefetch,verifyAndBuild,package-prepare,deliver-build,package-deliver,prefetch-stop' },
+                @{ Failure = 'beforeStaging'; Code = 47; Calls = 'prefetch,verifyAndBuild,prefetch-stop' },
+                @{ Failure = 'lanes'; Code = 48; Calls = 'prefetch,verifyAndBuild,package-prepare,package-discard,prefetch-stop' },
+                @{ Failure = 'prepare'; Code = 49; Calls = 'prefetch,verifyAndBuild,package-prepare,prefetch-stop' },
+                @{ Failure = 'deliver'; Code = 50; Calls = 'prefetch,verifyAndBuild,package-prepare,deliver-build,package-deliver,prefetch-stop' }
+            )) {
                 $script:ReleaseCalls.Clear()
-                $script:ReleaseFailure = $failure
-                $rejected = $false
+                $script:ReleaseFailure = $case.Failure
+                $code = 0
                 try { Invoke-PbiRelease @{ DotNetMode = $mode } }
-                catch {
-                    $rejected = $true
-                    $expectedCode = if ($failure -eq 'verifyAndBuild') { 47 } else { 49 }
-                    Assert ($failure -ne '' -and $_.Exception.Data['ExitCode'] -eq $expectedCode) 'release 必须保留首个失败退出码'
-                }
-                Assert ($rejected -eq ($failure -ne '')) 'release 成功与失败必须符合真实阶段'
-                $expectedCalls = if ($failure -eq 'verifyAndBuild') { 'verifyAndBuild' } else { 'verifyAndBuild,package' }
-                Assert (($script:ReleaseCalls -join ',') -eq $expectedCalls) 'release 门禁失败不得开始安装包, 正常仅打包一次'
+                catch { $code = $_.Exception.Data['ExitCode'] }
+                Assert ($code -eq $case.Code) 'release 必须保留首个失败退出码'
+                Assert (($script:ReleaseCalls -join ',') -ceq $case.Calls) 'release 门禁通过并交付发布目录后才交付安装包, 失败时丢弃未交付安装包'
             }
         }
     }

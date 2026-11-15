@@ -43,10 +43,79 @@ function Get-PbiInstallerMinimumRuntime([string]$PublishRoot, [string]$Deploymen
 }
 
 <#
+.SYNOPSIS 按 global.json 绑定的稳定 SDK 返回官方 .NET 发布元数据地址.
+.PARAMETER RepositoryRoot 包含 global.json 的仓库根.
+.OUTPUTS 该 SDK 主次版本的 releases.json 地址; SDK 非稳定版本时抛出 INSTALLER_STABLE_SDK_REQUIRED.
+#>
+function Get-PbiReleaseMetadataUri([string]$RepositoryRoot) {
+    $sdkVersion = [string](Get-Content -LiteralPath (Join-Path $RepositoryRoot 'global.json') -Raw -Encoding UTF8 | ConvertFrom-Json).sdk.version
+    if ($sdkVersion -notmatch '^\d+\.\d+\.\d+$') { throw 'INSTALLER_STABLE_SDK_REQUIRED' }
+    $sdk = [Version]$sdkVersion
+    return ('https://builds.dotnet.microsoft.com/dotnet/release-metadata/{0}.{1}/releases.json' -f $sdk.Major, $sdk.Minor)
+}
+
+<#
+.SYNOPSIS 在后台线程下载官方发布元数据到本轮私有临时文件, release 打包时直接读取, 不阻塞门禁.
+.PARAMETER RepositoryRoot 包含 global.json 的仓库根.
+.OUTPUTS 预取上下文; 无法启动时返回 null, 打包阶段按原流程在线读取.
+.NOTES 只下载公开元数据, 不缓存到下一轮; 结果在打包时仍经完整解析与校验.
+#>
+function Start-PbiReleaseMetadataPrefetch([string]$RepositoryRoot) {
+    try { $uri = Get-PbiReleaseMetadataUri $RepositoryRoot }
+    catch {
+        # SDK 绑定无效时由打包阶段给出原有错误码, 预取不提前改变失败阶段.
+        return $null
+    }
+    $directory = Join-Path ([IO.Path]::GetTempPath()) ('pbi-utils-metadata-' + [Guid]::NewGuid().ToString('N'))
+    $null = [IO.Directory]::CreateDirectory($directory)
+    $path = Join-Path $directory 'releases.json'
+    $job = Start-ThreadJob -ArgumentList $uri, $path -ScriptBlock {
+        param([string]$Uri, [string]$Path)
+        $ProgressPreference = 'SilentlyContinue'
+        Invoke-WebRequest -Uri $Uri -OutFile $Path -TimeoutSec 60 -ErrorAction Stop
+    }
+    return [pscustomobject]@{ Uri = $uri; Directory = $directory; Path = $path; Job = $job }
+}
+
+<#
+.SYNOPSIS 等待预取完成并返回可读取的元数据文件; 预取失败时返回 null, 由调用方在线读取并报告真实网络错误.
+.PARAMETER Prefetch Start-PbiReleaseMetadataPrefetch 返回的上下文, 可为 null.
+.PARAMETER RepositoryRoot 当前仓库根, 用于确认 SDK 绑定未在预取后改变.
+.OUTPUTS 元数据文件路径或 null.
+#>
+function Receive-PbiReleaseMetadataPrefetch($Prefetch, [string]$RepositoryRoot) {
+    if ($null -eq $Prefetch) { return $null }
+    $null = Wait-Job -Job $Prefetch.Job
+    if ($Prefetch.Job.State -ne 'Completed' -or ![IO.File]::Exists($Prefetch.Path)) {
+        Write-Verbose '发布元数据预取未完成, 打包阶段改为在线读取.'
+        return $null
+    }
+    # SDK 绑定在预取后改变时不使用旧系列元数据.
+    try { if ((Get-PbiReleaseMetadataUri $RepositoryRoot) -cne $Prefetch.Uri) { return $null } }
+    catch { return $null }
+    return $Prefetch.Path
+}
+
+<#
+.SYNOPSIS 结束并清理本轮元数据预取, 删除私有临时目录.
+.PARAMETER Prefetch Start-PbiReleaseMetadataPrefetch 返回的上下文, 可为 null.
+.NOTES 清理失败写诊断并保留目录, 不替换主流程的成功或失败结果.
+#>
+function Stop-PbiReleaseMetadataPrefetch($Prefetch) {
+    if ($null -eq $Prefetch) { return }
+    try {
+        Remove-Job -Job $Prefetch.Job -Force
+        if ([IO.Directory]::Exists($Prefetch.Directory)) { [IO.Directory]::Delete($Prefetch.Directory, $true) }
+    }
+    catch { [Console]::Error.WriteLine('发布元数据预取目录清理失败, 保留于: ' + $Prefetch.Directory + '. 原因: ' + $_.Exception.Message) }
+}
+
+<#
 .SYNOPSIS 从 global.json 与官方发布元数据生成终端安装清单, 不通过 SDK 版本算术猜测运行时版本或 URL.
 .PARAMETER RepositoryRoot 包含 global.json 的仓库根.
 .PARAMETER PublishRoot 已完成发布验证的完整 Release win-x64 包, 必须包含三个入口.
 .PARAMETER OutputPath 要写入的 schema 1 JSON; 仅在全部解析和验证成功后写入.
+.PARAMETER ReleaseMetadataPath 可选的本轮预取元数据文件; 为空时在线读取官方元数据.
 .OUTPUTS 与输出文件一致的清单对象. 网络、记录缺失/歧义、版本不兼容和写入错误直接传播.
 .NOTES SDK 仅用于追溯编译基线; 终端下载并安装对应的 WindowsDesktop Runtime EXE, 不要求安装 SDK.
 #>
@@ -55,7 +124,8 @@ function Export-PbiInstallerPrerequisites {
     param(
         [Parameter(Mandatory = $true)][string]$RepositoryRoot,
         [Parameter(Mandatory = $true)][string]$PublishRoot,
-        [Parameter(Mandatory = $true)][string]$OutputPath
+        [Parameter(Mandatory = $true)][string]$OutputPath,
+        [string]$ReleaseMetadataPath = ''
     )
     $publish = Get-Content -LiteralPath (Join-Path $PublishRoot 'manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($publish.schemaVersion -ne 3 -or $publish.configuration -ne 'Release' -or $publish.scope -ne 'All' -or
@@ -64,9 +134,8 @@ function Export-PbiInstallerPrerequisites {
     $sdkVersion = [string](Get-Content -LiteralPath (Join-Path $RepositoryRoot 'global.json') -Raw -Encoding UTF8 | ConvertFrom-Json).sdk.version
     if ($sdkVersion -notmatch '^\d+\.\d+\.\d+$') { throw 'INSTALLER_STABLE_SDK_REQUIRED' }
     $minimumVersion = Get-PbiInstallerMinimumRuntime $PublishRoot $publish.deploymentMode
-    $sdk = [Version]$sdkVersion
-    $metadataUrl = 'https://builds.dotnet.microsoft.com/dotnet/release-metadata/{0}.{1}/releases.json' -f $sdk.Major, $sdk.Minor
-    $metadata = Invoke-RestMethod -Uri $metadataUrl -TimeoutSec 60
+    $metadataUrl = Get-PbiReleaseMetadataUri $RepositoryRoot
+    $metadata = if ($ReleaseMetadataPath) { Get-Content -LiteralPath $ReleaseMetadataPath -Raw -Encoding UTF8 | ConvertFrom-Json } else { Invoke-RestMethod -Uri $metadataUrl -TimeoutSec 60 }
     $sdkMatches = New-Object 'Collections.Generic.List[object]'
     foreach ($release in $metadata.releases) {
         $sdks = @()
@@ -107,4 +176,4 @@ function Export-PbiInstallerPrerequisites {
     return $result
 }
 
-Export-ModuleMember -Function Export-PbiInstallerPrerequisites
+Export-ModuleMember -Function Export-PbiInstallerPrerequisites, Get-PbiReleaseMetadataUri, Start-PbiReleaseMetadataPrefetch, Receive-PbiReleaseMetadataPrefetch, Stop-PbiReleaseMetadataPrefetch

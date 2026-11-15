@@ -17,7 +17,7 @@ public sealed class ScriptReleaseTests
     public async Task ReleaseArchiveBehavior()
     {
         var script = Path.Combine(ScriptTestRepository.Root(), "scripts", "tests", "release-automation-tests.ps1");
-        var (code, output, error) = await CliTests.Run("pwsh", "-NoProfile", "-File", script);
+        var (code, output, error) = await CliTests.RunWithTimeout("pwsh", CliTests.ScriptCollectionTimeout, "-NoProfile", "-File", script);
         Assert.True(code == 0, output + error);
         Assert.Contains("PASS release context, notes and exact ZIP archive", output);
     }
@@ -62,9 +62,9 @@ internal static class ReleaseAliasTest
     /// <param name="scenario">测试脚本支持的独立场景组名称.</param>
     internal static async Task RunAsync(string scenario)
     {
-        // Git 别名反复启动 Git、Bash 和 PowerShell, 各组保留原有超时预算.
+        // Git 别名反复启动 Git、Bash 和 PowerShell, 各组使用脚本合集总预算.
         var script = Path.Combine(ScriptTestRepository.Root(), "scripts", "tests", "release-alias-tests.ps1");
-        var (code, output, error) = await CliTests.RunWithTimeout("pwsh", TimeSpan.FromMinutes(2), "-NoProfile", "-File", script, "-Scenario", scenario);
+        var (code, output, error) = await CliTests.RunWithTimeout("pwsh", CliTests.ScriptCollectionTimeout, "-NoProfile", "-File", script, "-Scenario", scenario);
         Assert.True(code == 0, output + error);
         Assert.Contains("PASS release alias:", output);
     }

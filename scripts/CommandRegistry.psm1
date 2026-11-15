@@ -9,6 +9,14 @@ $ErrorActionPreference = 'Stop'
 $script:Root = [IO.Path]::GetFullPath((Split-Path $PSScriptRoot -Parent))
 $script:ValidatedTools = $null
 $script:FrontendValidation = $null
+# 并行通道子进程为每行输出添加阶段前缀, 普通入口保持原样.
+$script:LinePrefix = ''
+# 门禁阶段的规范顺序; 并行阶段同时失败时按此顺序报告首个失败, 与串行门禁结论一致.
+$script:GateStages = @('checkC#', 'testC#', 'buildC#', 'checkVue', 'testVue', 'buildVue', 'package', 'registerExternalTool')
+# 并行通道与调度优先级: 关键路径测试与轻量 Vue 检查保持正常优先级; CPU 消耗大且有余量的 C# 格式与分析检查让出 CPU.
+$script:GateLanes = [ordered]@{ 'checkC#' = 'BelowNormal'; 'testC#' = 'Normal'; 'checkVue' = 'Normal'; 'testVue' = 'Normal' }
+# 并行门禁所需的最少逻辑处理器; 更少时争用会成倍放大用例耗时并逼近挂起保护, 通道改为逐个执行.
+$script:ParallelGateMinProcessors = 16
 $script:Projects = @('src/PbiUtils.Core', 'src/PbiUtils.Application', 'src/PbiUtils.Infrastructure', 'src/PbiUtils.Windows', 'src/PbiUtils.Host', 'src/PbiUtils.Cli', 'tests/PbiUtils.UnitTests', 'tests/PbiUtils.Cli.Tests')
 $script:WindowsProjects = @('src/PbiUtils.Desktop', 'tests/PbiUtils.Desktop.Tests')
 # 注册顺序决定菜单展示顺序.
@@ -160,12 +168,13 @@ function Resolve-PbiAction([hashtable]$Options) {
 .PARAMETER Message 要显示的开发诊断, 不包含凭据.
 .PARAMETER Kind Info、Success、Warning 或 Error, 交互终端分别使用青、绿、黄、红色.
 .PARAMETER ErrorStream 是否写 stderr, 默认仅 Error 使用, 原生输出可按来源指定.
-.NOTES 重定向时不添加 ANSI 控制字符, 不改变工具的输出通道.
+.NOTES 重定向时不添加 ANSI 控制字符, 不改变工具的输出通道; 并行通道内每行带阶段前缀.
 #>
 function Write-PbiMessage([string]$Message, [string]$Kind = 'Info', [bool]$ErrorStream = ($Kind -eq 'Error')) {
     $writer = if ($ErrorStream) { [Console]::Error } else { [Console]::Out }
     $redirected = if ($ErrorStream) { [Console]::IsErrorRedirected } else { [Console]::IsOutputRedirected }
     $color = switch ($Kind) { 'Success' { 32 }; 'Warning' { 33 }; 'Error' { 31 }; default { 36 } }
+    if ($script:LinePrefix) { $Message = $script:LinePrefix + [Text.RegularExpressions.Regex]::Replace($Message, '(\r?\n)', '$1' + $script:LinePrefix.Replace('$', '$$')) }
     if (!$redirected -and !$env:NO_COLOR) { $writer.WriteLine("`e[${color}m$Message`e[0m") }
     else { $writer.WriteLine($Message) }
 }
@@ -228,18 +237,18 @@ function Invoke-PbiNative([string]$File, [string[]]$Arguments) {
         $line = ConvertTo-PbiNativeText $File $Arguments ([string]$_)
         if ($null -ne $commandEchoes -and $commandEchoes.Contains($line)) {
             # pnpm 将包脚本命令回显写 stderr; 只将精确已知的回显作为普通信息, 避免外层 PowerShell 误染红.
-            [Console]::Out.WriteLine($line)
+            [Console]::Out.WriteLine($script:LinePrefix + $line)
         } elseif ($line -match '^\s*(已成功生成[。.]|Build succeeded\.|0 个(警告|错误)\b|0 (Warning|Error)\(s\)|所有项目依赖均为最新|All projects are up-to-date for restore\.)') {
             Write-PbiMessage $line 'Success' $isErrorStream
         } elseif ($line -match '(?i)(\berror\s+[A-Z]+\d+\s*:|:\s*error\b|已失败生成|生成失败|Build FAILED|^\s*[1-9]\d* 个错误)') {
             Write-PbiMessage $line 'Error' $isErrorStream
         } elseif ($isErrorStream) {
             # 有些工具把正常进度或警告写 stderr, 保留原始诊断但不冒充失败.
-            if (![Console]::IsErrorRedirected -and !$env:NO_COLOR) { [Console]::Error.WriteLine("`e[33m$line`e[0m") }
-            else { [Console]::Error.WriteLine($line) }
+            if (![Console]::IsErrorRedirected -and !$env:NO_COLOR) { [Console]::Error.WriteLine("`e[33m$($script:LinePrefix)$line`e[0m") }
+            else { [Console]::Error.WriteLine($script:LinePrefix + $line) }
         } elseif ($line -match '(?i)(\bwarning\b|警告|^\(!\))' -and $line -notmatch '^\s*0\s') {
             Write-PbiMessage $line 'Warning' $isErrorStream
-        } else { [Console]::Out.WriteLine($line) }
+        } else { [Console]::Out.WriteLine($script:LinePrefix + $line) }
     }
     $nativeCode = $LASTEXITCODE
     if ($nativeCode -ne 0) { Stop-Pbi $nativeCode "命令 $File 返回 $nativeCode" }
@@ -373,9 +382,23 @@ function Get-PbiFrontendInputFingerprint {
 }
 
 <#
+.SYNOPSIS 判断前端包脚本是否仍为可拆分复用的固定定义, 且没有对应的生命周期脚本.
+.PARAMETER Command test 或 build; 其他命令不读取包配置并返回 false.
+.OUTPUTS 定义与预期完全一致时返回 true; 包配置读取或解析失败直接抛出, 不视为可复用.
+#>
+function Test-PbiFrontendScriptReusable([string]$Command) {
+    $expectedScript = switch ($Command) { 'test' { 'pnpm lint && vitest run' }; 'build' { 'pnpm lint && vite build' }; default { '' } }
+    if (!$expectedScript) { return $false }
+    $package = Get-Content -LiteralPath (Join-Path $script:Root 'web/package.json') -Raw | ConvertFrom-Json -AsHashtable
+    $hasLifecycle = $package.scripts.ContainsKey('pre' + $Command) -or $package.scripts.ContainsKey('post' + $Command)
+    return (!$hasLifecycle -and $package.scripts[$Command] -ceq $expectedScript)
+}
+
+<#
 .SYNOPSIS 独立动作完整自检, 仅同一轮验证构建内且输入一致时复用已通过的 Vue 静态检查.
 .PARAMETER Action 固定的 checkVue、testVue 或 buildVue, 不接受通用命令字符串.
 .NOTES 源码按内容、依赖按实际文件元数据核对; 包脚本变化或存在生命周期脚本时执行完整包脚本, 失败不保留本轮凭据.
+       并行门禁的测试通道只运行 Vitest, 完整 lint 由同时运行的检查通道执行, 构建前由主流程核对输入指纹.
 #>
 function Invoke-PbiFrontendCommand([string]$Action) {
     $command = switch ($Action) { 'checkVue' { 'lint' }; 'testVue' { 'test' }; 'buildVue' { 'build' }; default { Stop-Pbi 2 '未知前端检查动作' } }
@@ -383,15 +406,16 @@ function Invoke-PbiFrontendCommand([string]$Action) {
         Invoke-PbiNative pnpm @('--dir', 'web', $command)
         return
     }
+    if ($command -eq 'test' -and $script:FrontendValidation.ContainsKey('ConcurrentLint') -and $script:FrontendValidation.ConcurrentLint) {
+        if (Test-PbiFrontendScriptReusable 'test') {
+            Write-PbiMessage 'Vue 静态检查由并行检查通道执行, 本通道只运行 Vitest.'
+            Invoke-PbiNative pnpm @('--dir', 'web', 'exec', 'vitest', 'run')
+        } else { Invoke-PbiNative pnpm @('--dir', 'web', 'test') }
+        return
+    }
     $before = Get-PbiFrontendInputFingerprint
     $alreadyChecked = $before -and $script:FrontendValidation.Fingerprint -ceq $before
-    $expectedScript = switch ($command) { 'test' { 'pnpm lint && vitest run' }; 'build' { 'pnpm lint && vite build' }; default { '' } }
-    $isExpectedScript = $false
-    if ($expectedScript) {
-        $package = Get-Content -LiteralPath (Join-Path $script:Root 'web/package.json') -Raw | ConvertFrom-Json -AsHashtable
-        $hasLifecycle = $package.scripts.ContainsKey('pre' + $command) -or $package.scripts.ContainsKey('post' + $command)
-        $isExpectedScript = !$hasLifecycle -and $package.scripts[$command] -ceq $expectedScript
-    }
+    $isExpectedScript = Test-PbiFrontendScriptReusable $command
     # 调用前先清旧凭据, 原生失败或取消时不能留下可复用成功.
     $script:FrontendValidation.Fingerprint = $null
     if ($alreadyChecked -and $isExpectedScript) {
@@ -410,25 +434,345 @@ function Invoke-PbiFrontendCommand([string]$Action) {
 }
 
 <#
-.SYNOPSIS 每侧依次检查、测试、构建, 先 C# 后 Vue, 交付后注册开发外部工具, 首错停止.
+.SYNOPSIS 返回门禁阶段在规范顺序中的位置, 未登记的动作按 C# 构建阶段排序.
+.PARAMETER Action 阶段或动作名称.
+.OUTPUTS 用于在多个失败中选择首个阶段的非负整数.
+#>
+function Get-PbiGateStageOrder([string]$Action) {
+    $index = [Array]::IndexOf($script:GateStages, $Action)
+    if ($index -lt 0) { return [Array]::IndexOf($script:GateStages, 'buildC#') }
+    return $index
+}
+
+<#
+.SYNOPSIS 把动作异常映射为入口退出码: 取消 130, 已登记的退出码原样, 其他异常 4.
+.PARAMETER Exception 动作、原生边界或并行通道抛出的异常.
+.OUTPUTS 整数退出码.
+#>
+function Get-PbiExitCode([Exception]$Exception) {
+    if ($Exception -is [Management.Automation.PipelineStoppedException] -or $Exception -is [OperationCanceledException]) { return 130 }
+    if ($Exception.Data.Contains('ExitCode')) { return [int]$Exception.Data['ExitCode'] }
+    return 4
+}
+
+<#
+.SYNOPSIS 严格解析内部并行通道参数; 结果文件必须是本轮门禁私有临时目录中的新文件.
+.PARAMETER Arguments lane.ps1 收到的原始参数数组.
+.OUTPUTS 含 Lane、Result 及 C# 通道所需 Scope/Configuration 的选项; 参数无效返回 2.
+#>
+function ConvertTo-PbiLaneOptions([object[]]$Arguments) {
+    $options = @{}
+    for ($i = 0; $i -lt $Arguments.Count; $i++) {
+        $token = [string]$Arguments[$i]
+        if ($token -cnotmatch '^-(Lane|Result|Scope|Configuration)$') { Stop-Pbi 2 '内部并行通道参数无效' }
+        $key = $Matches[1]
+        if ($options.ContainsKey($key)) { Stop-Pbi 2 '参数不可重复' }
+        $i++
+        if ($i -ge $Arguments.Count -or [string]$Arguments[$i] -match '^-') { Stop-Pbi 2 '参数缺少值' }
+        $options[$key] = [string]$Arguments[$i]
+    }
+    if (!$options.ContainsKey('Lane') -or @($script:GateLanes.Keys) -cnotcontains $options.Lane) { Stop-Pbi 2 '未知或缺少并行通道' }
+    $csharp = $options.Lane.EndsWith('C#', [StringComparison]::Ordinal)
+    if ($csharp -ne $options.ContainsKey('Scope') -or ($csharp -and $options.Scope -cnotin @('Core', 'All'))) { Stop-Pbi 2 '并行通道范围参数无效' }
+    if (($options.Lane -ceq 'testC#') -ne $options.ContainsKey('Configuration') -or ($options.ContainsKey('Configuration') -and $options.Configuration -cnotin @('Debug', 'Release'))) {
+        Stop-Pbi 2 '并行通道配置参数无效'
+    }
+    $result = if ($options.ContainsKey('Result')) { $options.Result } else { '' }
+    if (!$result -or ![IO.Path]::IsPathFullyQualified($result)) { Stop-Pbi 2 '并行通道结果路径无效' }
+    $full = [IO.Path]::GetFullPath($result)
+    $directory = [IO.Path]::GetDirectoryName($full)
+    $temporary = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([IO.Path]::DirectorySeparatorChar)
+    if ([IO.Path]::GetFileName($full) -cnotmatch '^[0-9a-f]{32}\.json$' -or [IO.Path]::GetFileName($directory) -cnotmatch '^pbi-utils-gate-[0-9a-f]{32}$' -or
+        ![string]::Equals([IO.Path]::GetDirectoryName($directory), $temporary, [StringComparison]::OrdinalIgnoreCase) -or
+        ![IO.Directory]::Exists($directory) -or [IO.File]::Exists($full)) { Stop-Pbi 2 '并行通道结果路径无效' }
+    $options.Result = $full
+    return $options
+}
+
+<#
+.SYNOPSIS 把并行通道的退出码、失败阶段和原因写入私有结果文件, 供主流程报告首个失败.
+.PARAMETER Path 已通过校验的结果文件路径.
+.PARAMETER Code 通道最终退出码.
+.PARAMETER Action 失败阶段或通道名称.
+.PARAMETER Message 失败原因; 成功时为空.
+.NOTES 只使用 .NET 写入, 取消后的错误边界中也可执行; 写入失败只写诊断, 主流程按缺失结果判定失败.
+#>
+function Write-PbiLaneResult([string]$Path, [int]$Code, [string]$Action, [string]$Message) {
+    try {
+        $json = '{"code":' + $Code + ',"action":"' + [Text.Json.JsonEncodedText]::Encode($Action).ToString() + '","message":"' + [Text.Json.JsonEncodedText]::Encode($Message).ToString() + '"}'
+        [IO.File]::WriteAllText($Path, $json, [Text.UTF8Encoding]::new($false))
+    }
+    catch { [Console]::Error.WriteLine($script:LinePrefix + '并行通道结果写入失败: ' + $_.Exception.Message) }
+}
+
+<#
+.SYNOPSIS 读取子通道写入的结果记录.
+.PARAMETER Path 主流程为该通道分配的结果文件.
+.OUTPUTS 含 Code、Action、Message 的记录; 文件缺失或损坏返回 null, 由调用方按退出码判定为失败.
+#>
+function Read-PbiLaneResult([string]$Path) {
+    if (![IO.File]::Exists($Path)) { return $null }
+    try {
+        $document = [Text.Json.JsonDocument]::Parse([IO.File]::ReadAllText($Path))
+        try {
+            $element = $document.RootElement
+            return [pscustomobject]@{ Code = $element.GetProperty('code').GetInt32(); Action = $element.GetProperty('action').GetString(); Message = $element.GetProperty('message').GetString() }
+        } finally { $document.Dispose() }
+    }
+    catch [Text.Json.JsonException], [Collections.Generic.KeyNotFoundException], [InvalidOperationException], [FormatException] {
+        # 损坏结果不能证明通道成功, 返回空记录让成功退出码也按失败处理.
+        return $null
+    }
+}
+
+<#
+.SYNOPSIS 在当前进程执行一个并行通道的固定阶段, 由 lane.ps1 子进程调用.
+.PARAMETER Lane 允许列表中的通道名称.
+.PARAMETER Options 子进程入口解析出的 Scope 与 Configuration.
+.NOTES 测试通道声明 lint 由并行检查通道执行, 只运行 Vitest; 失败保留动作退出码.
+#>
+function Invoke-PbiGateLaneBody([string]$Lane, [hashtable]$Options) {
+    switch -CaseSensitive ($Lane) {
+        'checkC#' { Invoke-PbiAction 'checkC#' @{ Scope = $Options.Scope } }
+        'testC#' { Invoke-PbiAction 'testC#' @{ Scope = $Options.Scope; Configuration = $Options.Configuration } }
+        'checkVue' { Invoke-PbiAction 'checkVue' @{} }
+        'testVue' {
+            $savedFrontend = $script:FrontendValidation
+            $script:FrontendValidation = @{ Fingerprint = $null; ConcurrentLint = $true }
+            try { Invoke-PbiAction 'testVue' @{} }
+            finally { $script:FrontendValidation = $savedFrontend }
+        }
+        default { Stop-Pbi 2 '未知并行通道' }
+    }
+}
+
+<#
+.SYNOPSIS 判断本机是否并行运行门禁通道; 按当前进程可用的逻辑处理器计算, 已包含亲和性与作业限制.
+.OUTPUTS 不少于并行阈值返回 $true; 否则返回 $false, 通道按规范顺序逐个执行.
+#>
+function Test-PbiParallelGate {
+    return [Environment]::ProcessorCount -ge $script:ParallelGateMinProcessors
+}
+
+<#
+.SYNOPSIS 创建本轮并行门禁上下文和私有结果目录, 不启动任何通道.
+.PARAMETER Options verifyAndBuild 已规范化的 Scope 与 Configuration.
+.OUTPUTS 门禁上下文, Parallel 记录本轮是否并行; 临时目录创建失败直接抛出.
+#>
+function New-PbiVerificationGate([hashtable]$Options) {
+    $parallel = Test-PbiParallelGate
+    $directory = Join-Path ([IO.Path]::GetTempPath()) ('pbi-utils-gate-' + [Guid]::NewGuid().ToString('N'))
+    $null = [IO.Directory]::CreateDirectory($directory)
+    return [pscustomobject]@{ Options = $Options; Directory = $directory; Lanes = [Collections.Generic.List[object]]::new(); FrontendFingerprint = $null; Parallel = $parallel }
+}
+
+<#
+.SYNOPSIS 启动继承当前控制台的并行通道子进程; 子进程每行输出带阶段前缀, 结果写入门禁私有目录.
+.PARAMETER Gate 当前并行门禁上下文.
+.PARAMETER Name 允许列表中的通道名称.
+.OUTPUTS 已加入门禁的通道记录; 进程无法启动时抛出带阶段名的错误.
+#>
+function Start-PbiGateLane([pscustomobject]$Gate, [string]$Name) {
+    $result = Join-Path $Gate.Directory ([Guid]::NewGuid().ToString('N') + '.json')
+    $start = [Diagnostics.ProcessStartInfo]::new((Join-Path $PSHOME 'pwsh.exe'))
+    $start.UseShellExecute = $false
+    $start.WorkingDirectory = $script:Root
+    foreach ($argument in @('-NoProfile', '-NonInteractive', '-File', (Join-Path $PSScriptRoot 'lane.ps1'), '-Lane', $Name, '-Result', $result)) { $start.ArgumentList.Add($argument) }
+    if ($Name.EndsWith('C#', [StringComparison]::Ordinal)) { $start.ArgumentList.Add('-Scope'); $start.ArgumentList.Add($Gate.Options.Scope) }
+    if ($Name -ceq 'testC#') { $start.ArgumentList.Add('-Configuration'); $start.ArgumentList.Add($Gate.Options.Configuration) }
+    try { $process = [Diagnostics.Process]::Start($start) }
+    catch {
+        $_.Exception.Data['Action'] = $Name
+        throw
+    }
+    $lane = [pscustomobject]@{ Name = $Name; Process = $process; Result = $result; Completed = $false; ExitCode = $null; Action = $Name; Message = ''; Elapsed = [TimeSpan]::Zero }
+    $Gate.Lanes.Add($lane)
+    return $lane
+}
+
+<#
+.SYNOPSIS 收集已退出通道的退出码、耗时与结果记录, 不阻塞运行中的通道.
+.PARAMETER Gate 当前并行门禁上下文.
+.NOTES 退出码 0 但缺少有效结果时按执行失败 4 处理, 不把未知状态当作通过.
+#>
+function Update-PbiGateLanes([pscustomobject]$Gate) {
+    foreach ($lane in $Gate.Lanes) {
+        if ($lane.Completed -or !$lane.Process.HasExited) { continue }
+        $lane.Process.WaitForExit()
+        $lane.ExitCode = $lane.Process.ExitCode
+        $lane.Elapsed = $lane.Process.ExitTime - $lane.Process.StartTime
+        $lane.Completed = $true
+        $record = Read-PbiLaneResult $lane.Result
+        if ($null -ne $record -and $record.Code -eq $lane.ExitCode) {
+            if ($record.Action) { $lane.Action = $record.Action }
+            $lane.Message = $record.Message
+        } elseif ($lane.ExitCode -eq 0) {
+            $lane.ExitCode = 4
+            $lane.Message = "并行阶段 $($lane.Name) 已退出但没有写入有效结果"
+        } else {
+            $lane.Message = "并行阶段 $($lane.Name) 异常退出 (退出码 $($lane.ExitCode))"
+        }
+    }
+}
+
+<#
+.SYNOPSIS 为失败的通道创建带退出码与阶段的异常; 通道取消映射为取消异常.
+.PARAMETER Lane 已完成且退出码非零的通道记录.
+.PARAMETER Checkpoint 是否由主流程等待点抛出; 等待点异常不作为额外失败重复汇总.
+.OUTPUTS 可直接抛出的异常.
+#>
+function New-PbiGateLaneException([pscustomobject]$Lane, [bool]$Checkpoint) {
+    $message = if ($Lane.Message) { $Lane.Message } else { "并行阶段 $($Lane.Name) 失败 (退出码 $($Lane.ExitCode))" }
+    $exception = if ($Lane.ExitCode -eq 130) { [OperationCanceledException]::new($message) } else { [InvalidOperationException]::new($message) }
+    $exception.Data['ExitCode'] = $Lane.ExitCode
+    $exception.Data['Action'] = $Lane.Action
+    if ($Checkpoint) { $exception.Data['PbiGateCheckpoint'] = $true }
+    return $exception
+}
+
+<#
+.SYNOPSIS 等待指定通道完成; 任一已结束通道失败时立即抛出, 主流程不再开始后续阶段.
+.PARAMETER Gate 当前并行门禁上下文.
+.PARAMETER Names 需要等待的通道; 为空时等待全部已启动通道.
+.NOTES 每次最多阻塞 200 毫秒, 取消可在下一条语句生效; 同时失败时按规范阶段顺序选择.
+#>
+function Wait-PbiGateLanes([pscustomobject]$Gate, [string[]]$Names = @()) {
+    while ($true) {
+        Update-PbiGateLanes $Gate
+        $failed = $null
+        foreach ($lane in $Gate.Lanes) {
+            if ($lane.Completed -and $lane.ExitCode -ne 0 -and ($null -eq $failed -or (Get-PbiGateStageOrder $lane.Action) -lt (Get-PbiGateStageOrder $failed.Action))) { $failed = $lane }
+        }
+        if ($null -ne $failed) { throw (New-PbiGateLaneException $failed $true) }
+        $pending = $null
+        foreach ($lane in $Gate.Lanes) {
+            if (!$lane.Completed -and ($Names.Count -eq 0 -or $Names -ccontains $lane.Name)) { $pending = $lane; break }
+        }
+        if ($null -eq $pending) { return }
+        $null = $pending.Process.WaitForExit(200)
+    }
+}
+
+<#
+.SYNOPSIS 排空全部已启动通道而不结束在途子进程, 输出各通道耗时并清理私有结果目录.
+.PARAMETER Gate 当前并行门禁上下文.
+.NOTES 等待只使用 .NET 调用, 失败或取消后的 finally 中仍会排空; 目录清理失败写诊断并保留目录.
+#>
+function Stop-PbiVerificationGate([pscustomobject]$Gate) {
+    try {
+        $announced = $false
+        foreach ($lane in $Gate.Lanes) {
+            if ($null -eq $lane.Process) { continue }
+            while (!$lane.Process.WaitForExit(250)) {
+                if (!$announced) { [Console]::Error.WriteLine('等待在途并行阶段排空, 不结束正在执行的子进程.'); $announced = $true }
+            }
+        }
+        Update-PbiGateLanes $Gate
+        $label = if ($Gate.Parallel) { '并行计时' } else { '通道计时' }
+        foreach ($lane in $Gate.Lanes) {
+            $state = if ($lane.ExitCode -eq 0) { '通过' } else { "退出码 $($lane.ExitCode)" }
+            [Console]::Out.WriteLine($label + ' [' + $lane.Name + '] ' + $lane.Elapsed.TotalSeconds.ToString('F3', [Globalization.CultureInfo]::InvariantCulture) + 's ' + $state)
+        }
+    }
+    finally {
+        foreach ($lane in $Gate.Lanes) { if ($null -ne $lane.Process) { $lane.Process.Dispose() } }
+        try { if ([IO.Directory]::Exists($Gate.Directory)) { [IO.Directory]::Delete($Gate.Directory, $true) } }
+        catch { [Console]::Error.WriteLine('并行门禁结果目录清理失败, 保留于: ' + $Gate.Directory + '. 原因: ' + $_.Exception.Message) }
+    }
+}
+
+<#
+.SYNOPSIS 汇总主流程与全部通道失败, 按规范阶段顺序返回首个失败, 其余失败写入诊断.
+.PARAMETER Gate 已排空的门禁上下文.
+.PARAMETER MainFailure 主流程捕获的错误记录; 等待点错误只代表已记录的通道失败.
+.OUTPUTS 需要抛出的错误记录或异常; 全部通过返回 null. 取消优先于其他失败.
+#>
+function Resolve-PbiGateFailure([pscustomobject]$Gate, $MainFailure) {
+    $mainIsCheckpoint = $null -ne $MainFailure -and $MainFailure.Exception.Data.Contains('PbiGateCheckpoint')
+    if ($null -ne $MainFailure -and !$mainIsCheckpoint -and (Get-PbiExitCode $MainFailure.Exception) -eq 130) { return $MainFailure }
+    $candidates = [Collections.Generic.List[object]]::new()
+    foreach ($lane in $Gate.Lanes) {
+        if (!$lane.Completed -or $lane.ExitCode -eq 0) { continue }
+        # 任一通道被取消视为本轮取消, 不再以其他通道的连带失败替代.
+        if ($lane.ExitCode -eq 130) { return (New-PbiGateLaneException $lane $false) }
+        $candidates.Add([pscustomobject]@{ Order = Get-PbiGateStageOrder $lane.Action; Action = $lane.Action; Code = $lane.ExitCode; Lane = $lane; Failure = $null })
+    }
+    if ($null -ne $MainFailure -and !$mainIsCheckpoint) {
+        $action = if ($MainFailure.Exception.Data.Contains('Action')) { [string]$MainFailure.Exception.Data['Action'] } else { 'buildC#' }
+        $candidates.Add([pscustomobject]@{ Order = Get-PbiGateStageOrder $action; Action = $action; Code = Get-PbiExitCode $MainFailure.Exception; Lane = $null; Failure = $MainFailure })
+    }
+    if (!$candidates.Count) { return $MainFailure }
+    $first = $candidates[0]
+    foreach ($candidate in $candidates) { if ($candidate.Order -lt $first.Order) { $first = $candidate } }
+    foreach ($candidate in $candidates) {
+        if (![object]::ReferenceEquals($candidate, $first)) { Write-PbiMessage "其他失败阶段 [$($candidate.Action)] (退出码 $($candidate.Code))" 'Warning' $true }
+    }
+    if ($null -ne $first.Failure) { return $first.Failure }
+    return (New-PbiGateLaneException $first.Lane $false)
+}
+
+<#
+.SYNOPSIS 等待 Vue 检查与测试通道通过, 以同轮输入指纹决定复用 lint 或执行完整构建脚本.
+.PARAMETER Gate 当前并行门禁上下文, 含通道启动前取得的前端输入指纹.
+.NOTES 等待期间任一通道失败立即停止, 不构建前端; 外层 Vue 检查上下文在 finally 恢复.
+#>
+function Complete-PbiFrontendGate([pscustomobject]$Gate) {
+    Wait-PbiGateLanes $Gate @('checkVue', 'testVue')
+    $savedFrontend = $script:FrontendValidation
+    $script:FrontendValidation = @{ Fingerprint = $Gate.FrontendFingerprint }
+    try { Invoke-PbiAction 'buildVue' @{} }
+    finally { $script:FrontendValidation = $savedFrontend }
+}
+
+<#
+.SYNOPSIS 运行 C#/Vue 检查与测试通道并编译 C#; 全部通过后交付, 再按需注册开发外部工具.
 .PARAMETER Options 同一 Scope 与 Configuration, DotNetMode 只传给构建, check 不接 Configuration.
 .PARAMETER RegisterExternalTool 是否在完整桌面交付后注册开发入口; release 内部调用关闭此步骤.
-.NOTES 前端或测试失败不替换旧产物; 本轮 Vue 检查上下文在 finally 恢复. 注册失败保留已构建产物并报告独立失败阶段.
+.PARAMETER BeforeDelivery 可选内部回调, 在 staging 完成清单后、等待全部通道前执行, 参数为 staging 路径.
+.NOTES checkC#、testC#、checkVue、testVue 为独立子进程; Vue 构建等待 Vue 检查与测试通过并核对同轮输入指纹.
+       逻辑处理器充足时四个通道与 C# 编译同时执行; 不足时按 checkC#、testC#、C# 编译、checkVue、testVue 顺序逐个执行.
+       任一阶段失败后不再开始新阶段, 在途通道排空后按规范阶段顺序报告首个失败; 失败不替换旧产物, 注册失败保留已交付产物.
 #>
-function Invoke-PbiVerifyAndBuild([hashtable]$Options, [bool]$RegisterExternalTool = $true) {
-    Invoke-PbiAction 'checkC#' @{ Scope = $Options.Scope }
-    Invoke-PbiAction 'testC#' @{ Scope = $Options.Scope; Configuration = $Options.Configuration }
-    $buildOptions = @{ Scope = $Options.Scope; Configuration = $Options.Configuration }
-    if ($Options.ContainsKey('DotNetMode')) { $buildOptions.DotNetMode = $Options.DotNetMode }
-    Invoke-PbiAction 'buildC#' $buildOptions -AfterCompile {
-        $savedFrontend = $script:FrontendValidation
-        $script:FrontendValidation = @{ Fingerprint = $null }
-        try {
-            Invoke-PbiAction 'checkVue' @{}
-            Invoke-PbiAction 'testVue' @{}
-            Invoke-PbiAction 'buildVue' @{}
-        } finally { $script:FrontendValidation = $savedFrontend }
+function Invoke-PbiVerifyAndBuild([hashtable]$Options, [bool]$RegisterExternalTool = $true, [scriptblock]$BeforeDelivery = $null) {
+    $verificationGate = New-PbiVerificationGate $Options
+    $deliveryCallback = $BeforeDelivery
+    $mainFailure = $null
+    try {
+        if ($verificationGate.Parallel) { Write-PbiMessage '开始并行门禁: checkC#、testC#、checkVue、testVue 与 C# 编译同时执行.' }
+        else { Write-PbiMessage ("本机逻辑处理器 {0} 个, 少于并行门禁所需的 {1} 个: 按 checkC#、testC#、C# 编译、checkVue、testVue 顺序逐个执行." -f [Environment]::ProcessorCount, $script:ParallelGateMinProcessors) }
+        $null = Start-PbiGateLane $verificationGate 'checkC#'
+        if (!$verificationGate.Parallel) { Wait-PbiGateLanes $verificationGate @('checkC#') }
+        $null = Start-PbiGateLane $verificationGate 'testC#'
+        if (!$verificationGate.Parallel) { Wait-PbiGateLanes $verificationGate @('testC#') }
+        # 指纹早于 Vue 通道取得, 构建前一致才可证明 lint 覆盖本轮构建输入.
+        try { $verificationGate.FrontendFingerprint = Get-PbiFrontendInputFingerprint }
+        catch {
+            if (!$_.Exception.Data.Contains('Action')) { $_.Exception.Data['Action'] = 'checkVue' }
+            throw
+        }
+        if ($verificationGate.Parallel) {
+            $null = Start-PbiGateLane $verificationGate 'checkVue'
+            $null = Start-PbiGateLane $verificationGate 'testVue'
+        }
+        $buildOptions = @{ Scope = $Options.Scope; Configuration = $Options.Configuration }
+        if ($Options.ContainsKey('DotNetMode')) { $buildOptions.DotNetMode = $Options.DotNetMode }
+        Invoke-PbiAction 'buildC#' $buildOptions -AfterCompile {
+            if (!$verificationGate.Parallel) {
+                $null = Start-PbiGateLane $verificationGate 'checkVue'
+                Wait-PbiGateLanes $verificationGate @('checkVue')
+                $null = Start-PbiGateLane $verificationGate 'testVue'
+            }
+            Complete-PbiFrontendGate $verificationGate
+        } -BeforeDelivery {
+            param([string]$Staging)
+            if ($deliveryCallback) { & $deliveryCallback $Staging }
+            Wait-PbiGateLanes $verificationGate
+        }
     }
+    catch { $mainFailure = $_ }
+    finally { Stop-PbiVerificationGate $verificationGate }
+    $failure = Resolve-PbiGateFailure $verificationGate $mainFailure
+    if ($null -ne $failure) { throw $failure }
     if ($RegisterExternalTool -and $Options.Scope -eq 'All') {
         try { Invoke-PbiDevelopmentRegistration $Options }
         catch {
@@ -462,13 +806,54 @@ function Invoke-PbiDevelopmentRegistration([hashtable]$Options) {
 }
 
 <#
-.SYNOPSIS 对选中模式执行完整 Release 门禁, 成功后从本轮产物生成安装包.
+.SYNOPSIS 在 package 动作边界内执行 release 的安装包预先生成、延后交付或丢弃, 复用同一打包脚本与事务.
+.PARAMETER Options 只含 DotNetMode 的打包选项.
+.PARAMETER Context release 内部打包上下文, 含 Source、DeferDelivery、Pending、Discard 与 MetadataPrefetch.
+.NOTES release 入口已检查 makensis; 失败记录 package 阶段并保留原退出码, 只有交付完成才打印完成.
+#>
+function Invoke-PbiInstallerStep([hashtable]$Options, [hashtable]$Context) {
+    $stepOptions = @{ Choice = 'package'; DotNetMode = $Options.DotNetMode }
+    $item = Resolve-PbiAction $stepOptions
+    $discard = $Context.ContainsKey('Discard') -and $Context.Discard
+    $prepare = !$discard -and ($null -eq $Context.Pending)
+    if ($prepare) { Write-PbiMessage "开始 package (DotNetMode=$($stepOptions.DotNetMode); 门禁等待期间从本轮 staging 生成)" }
+    $PbiInvocation = @{ Options = $stepOptions; Action = $item.Name; PackageContext = $Context }
+    try { . (Join-Path $PSScriptRoot $item.Script) }
+    catch {
+        if (!$_.Exception.Data.Contains('Action')) { $_.Exception.Data['Action'] = 'package' }
+        throw
+    }
+    if (!$discard -and !$Context.DeferDelivery) { Write-PbiMessage ("完成 package ({0:N1}s)" -f $Context.Pending.Stopwatch.Elapsed.TotalSeconds) 'Success' }
+}
+
+<#
+.SYNOPSIS 对选中模式执行完整 Release 门禁; 交付前等待测试期间从本轮 staging 预先生成安装包, 全部通过并交付发布目录后再交付安装包.
 .PARAMETER Options 已规范化的 DotNetMode, 不接受局部范围或 Debug 配置.
-.NOTES 编译、测试或打包失败保留原始退出码, 不自动重试或改用其他模式.
+.NOTES 官方 .NET 元数据在门禁开始时后台预取. 编译、测试或打包失败保留原始退出码,
+       未交付的安装包被丢弃并释放打包锁, 已有安装包保持不变; 不自动重试或改用其他模式.
 #>
 function Invoke-PbiRelease([hashtable]$Options) {
-    Invoke-PbiVerifyAndBuild @{ Scope = 'All'; Configuration = 'Release'; DotNetMode = $Options.DotNetMode } -RegisterExternalTool $false
-    Invoke-PbiAction 'package' @{ DotNetMode = $Options.DotNetMode }
+    Import-Module (Join-Path $PSScriptRoot 'InstallerMetadata.psm1') -Force
+    $releasePackageOptions = @{ DotNetMode = $Options.DotNetMode }
+    $releasePackageContext = @{ DeferDelivery = $true; Pending = $null; MetadataPrefetch = (Start-PbiReleaseMetadataPrefetch $script:Root) }
+    try {
+        Invoke-PbiVerifyAndBuild @{ Scope = 'All'; Configuration = 'Release'; DotNetMode = $Options.DotNetMode } -RegisterExternalTool $false -BeforeDelivery {
+            param([string]$Staging)
+            $releasePackageContext.Source = $Staging
+            Invoke-PbiInstallerStep $releasePackageOptions $releasePackageContext
+        }
+        # 发布目录已在全部通道通过后交付, 再交付同一 staging 生成的安装包.
+        $releasePackageContext.DeferDelivery = $false
+        Invoke-PbiInstallerStep $releasePackageOptions $releasePackageContext
+    }
+    finally {
+        if ($null -ne $releasePackageContext.Pending -and !$releasePackageContext.Pending.Closed) {
+            $releasePackageContext.Discard = $true
+            try { Invoke-PbiInstallerStep $releasePackageOptions $releasePackageContext }
+            catch { [Console]::Error.WriteLine('未交付安装包的临时文件清理失败: ' + $_.Exception.Message) }
+        }
+        Stop-PbiReleaseMetadataPrefetch $releasePackageContext.MetadataPrefetch
+    }
 }
 
 <#
@@ -511,9 +896,10 @@ function Get-PbiFormatTargets([string]$Scope) {
 .PARAMETER Name 注册表中的动作名称.
 .PARAMETER Options 当前动作参数, 解析时补充范围及配置默认值.
 .PARAMETER AfterCompile 内部构建回调, C# 编译后执行, 不接受为 CLI 参数.
+.PARAMETER BeforeDelivery 内部构建回调, staging 完成清单后、交付前执行, 参数为 staging 路径, 不接受为 CLI 参数.
 .NOTES 工具或依赖资产缺失返回 3; 动作失败保留原退出码, 不隐式还原.
 #>
-function Invoke-PbiAction([string]$Name, [hashtable]$Options, [scriptblock]$AfterCompile) {
+function Invoke-PbiAction([string]$Name, [hashtable]$Options, [scriptblock]$AfterCompile, [scriptblock]$BeforeDelivery) {
     $Options.Choice = $Name
     $item = Resolve-PbiAction $Options
     Assert-PbiTools $item.Requires
@@ -523,7 +909,7 @@ function Invoke-PbiAction([string]$Name, [hashtable]$Options, [scriptblock]$Afte
     if ($item.Name -eq 'help') { Show-PbiHelp; return }
     if ($item.Name -eq 'verifyAndBuild') { Invoke-PbiVerifyAndBuild $Options; return }
     if ($item.Name -eq 'release') { Invoke-PbiRelease $Options; return }
-    $PbiInvocation = @{ Options = $Options; Action = $item.Name; AfterCompile = $AfterCompile }
+    $PbiInvocation = @{ Options = $Options; Action = $item.Name; AfterCompile = $AfterCompile; BeforeDelivery = $BeforeDelivery }
     $leaf = !$item.Name.EndsWith('All')
     $timer = [Diagnostics.Stopwatch]::StartNew()
     if ($leaf) {
@@ -546,10 +932,19 @@ function Invoke-PbiAction([string]$Name, [hashtable]$Options, [scriptblock]$Afte
     }
 }
 
-<# .SYNOPSIS 根入口统一错误边界, 临时使用 UTF-8, 返回退出码并恢复目录、编码和环境变量. #>
-function Invoke-PbiEntry([object[]]$Arguments, [string]$Action = '') {
+<#
+.SYNOPSIS 根入口统一错误边界, 临时使用 UTF-8, 返回退出码并恢复目录、编码和环境变量.
+.PARAMETER Arguments 原始参数数组.
+.PARAMETER Action 下层脚本固定动作; 根入口为空.
+.PARAMETER Lane 内部并行通道模式, 仅由 lane.ps1 使用; 只执行允许列表中的单个阶段并写回结果记录.
+.OUTPUTS 产品约定退出码; 管道被停止时没有返回值.
+.NOTES 真实 Ctrl+C 停止管道时 PowerShell 跳过 catch, 只执行 finally; 此时恢复现场, 通道模式补写取消结果并输出取消提示.
+       模块不调用 exit: 入口脚本预设 130, 并在自身 finally 中以该值或本函数返回的退出码结束.
+#>
+function Invoke-PbiEntry([object[]]$Arguments, [string]$Action = '', [switch]$Lane) {
     $timer = [Diagnostics.Stopwatch]::StartNew()
     $savedTools = $script:ValidatedTools
+    $savedPrefix = $script:LinePrefix
     $script:ValidatedTools = @{}
     $saved = Get-Location
     $savedInputEncoding = [Console]::InputEncoding
@@ -558,6 +953,10 @@ function Invoke-PbiEntry([object[]]$Arguments, [string]$Action = '') {
     $environment = @{}
     foreach ($key in @('DOTNET_CLI_TELEMETRY_OPTOUT', 'DOTNET_SKIP_FIRST_TIME_EXPERIENCE', 'DOTNET_GENERATE_ASPNET_CERTIFICATE', 'PNPM_DISABLE_SELF_UPDATE_CHECK')) { $environment[$key] = [Environment]::GetEnvironmentVariable($key, 'Process') }
     $options = @{}
+    $laneResult = ''
+    $laneName = ''
+    # 只有正常返回或进入 catch 才置位; finally 中仍为 false 表示管道被真实 Ctrl+C 停止.
+    $settled = $false
     try {
         # 原生命令输出经 PowerShell 管道解码, 必须与 .NET/Node 的 UTF-8 输出一致.
         $utf8 = [Text.UTF8Encoding]::new($false)
@@ -569,6 +968,23 @@ function Invoke-PbiEntry([object[]]$Arguments, [string]$Action = '') {
         $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'
         $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = 'false'
         $env:PNPM_DISABLE_SELF_UPDATE_CHECK = '1'
+        if ($Lane) {
+            $laneOptions = ConvertTo-PbiLaneOptions @($Arguments)
+            $laneName = $laneOptions.Lane
+            $laneResult = $laneOptions.Result
+            $script:LinePrefix = "[$laneName] "
+            $priority = $script:GateLanes[$laneName]
+            # Core 范围逐项目执行格式检查, 该通道自身最长, 不再让出 CPU; 逐个执行时各通道独占本机, 也保持正常优先级.
+            if (($laneName -ceq 'checkC#' -and $laneOptions.Scope -ceq 'Core') -or !(Test-PbiParallelGate)) { $priority = 'Normal' }
+            if ($priority -ne 'Normal') {
+                # 有余量的通道降低自身优先级, 之后启动的原生子进程继承该优先级, 让出关键路径 CPU.
+                [Diagnostics.Process]::GetCurrentProcess().PriorityClass = [Diagnostics.ProcessPriorityClass]$priority
+            }
+            Invoke-PbiGateLaneBody $laneName $laneOptions
+            Write-PbiLaneResult $laneResult 0 $laneName ''
+            $settled = $true
+            return 0
+        }
         $options = ConvertTo-PbiOptions @($Arguments)
         if ($Action) {
             if ($options.ContainsKey('Choice')) { Stop-Pbi 2 '下层脚本不接受 Choice' }
@@ -578,37 +994,52 @@ function Invoke-PbiEntry([object[]]$Arguments, [string]$Action = '') {
         if (@($selectors).Count -gt 1) { Stop-Pbi 2 'List/Help/Choice 互斥' }
         if ($options.ContainsKey('List') -or $options.ContainsKey('Help')) {
             if (@($options.Keys | Where-Object { $_ -notin @('List', 'Help', 'NonInteractive') }).Count) { Stop-Pbi 2 '元命令不接受动作参数' }
-            Show-PbiHelp; return 0
+            Show-PbiHelp; $settled = $true; return 0
         }
         if (!$options.ContainsKey('Choice')) {
             if ($options.ContainsKey('NonInteractive') -or $env:CI -or [Console]::IsInputRedirected) { Stop-Pbi 2 '非交互调用必须指定 -Choice, 或使用 -Help' }
             Show-PbiHelp
             $choice = Read-Host '选择动作 (q 退出)'
-            if ($choice -eq 'q') { return 0 }
+            if ($choice -eq 'q') { $settled = $true; return 0 }
             $options.Choice = $choice
         }
         $item = Resolve-PbiAction $options
         Invoke-PbiAction $item.Name $options
         if ($item.Name -eq 'verifyAndBuild') { Write-PbiMessage ("verifyAndBuild 全部通过 ({0:N1}s)" -f $timer.Elapsed.TotalSeconds) 'Success' }
         if ($item.Name -eq 'release') { Write-PbiMessage ("release 全部通过 ({0:N1}s)" -f $timer.Elapsed.TotalSeconds) 'Success' }
+        $settled = $true
         return 0
     }
     catch {
-        $code = if ($_.Exception -is [System.Management.Automation.PipelineStoppedException] -or $_.Exception -is [OperationCanceledException]) { 130 } elseif ($_.Exception.Data.Contains('ExitCode')) { [int]$_.Exception.Data['ExitCode'] } else { 4 }
+        $settled = $true
+        $code = Get-PbiExitCode $_.Exception
         $failedAction = if ($_.Exception.Data.Contains('Action')) { " [$($_.Exception.Data['Action'])]" } else { '' }
+        if ($laneResult) {
+            $resultAction = if ($_.Exception.Data.Contains('Action')) { [string]$_.Exception.Data['Action'] } else { $laneName }
+            Write-PbiLaneResult $laneResult $code $resultAction $_.Exception.Message
+        }
         if ($code -eq 130) { Write-PbiMessage "已取消$failedAction (退出码 130)." 'Info' $true }
         else { Write-PbiMessage ("执行失败$failedAction (退出码 $code): " + $_.Exception.Message) 'Error' }
         return $code
     }
     finally {
-        $script:ValidatedTools = $savedTools
-        [Console]::InputEncoding = $savedInputEncoding
-        [Console]::OutputEncoding = $savedOutputEncoding
-        $OutputEncoding = $savedPipeEncoding
-        Set-Location -LiteralPath $saved.Path
-        foreach ($key in $environment.Keys) {
-            if ($null -eq $environment[$key]) { Remove-Item -LiteralPath "Env:$key" -ErrorAction SilentlyContinue }
-            else { [Environment]::SetEnvironmentVariable($key, $environment[$key], 'Process') }
+        try {
+            if (!$settled) {
+                if ($laneResult) { Write-PbiLaneResult $laneResult 130 $laneName '已取消' }
+                Write-PbiMessage '已取消 (退出码 130).' 'Info' $true
+            }
+        }
+        finally {
+            $script:ValidatedTools = $savedTools
+            $script:LinePrefix = $savedPrefix
+            [Console]::InputEncoding = $savedInputEncoding
+            [Console]::OutputEncoding = $savedOutputEncoding
+            $OutputEncoding = $savedPipeEncoding
+            Set-Location -LiteralPath $saved.Path
+            foreach ($key in $environment.Keys) {
+                if ($null -eq $environment[$key]) { Remove-Item -LiteralPath "Env:$key" -ErrorAction SilentlyContinue }
+                else { [Environment]::SetEnvironmentVariable($key, $environment[$key], 'Process') }
+            }
         }
     }
 }

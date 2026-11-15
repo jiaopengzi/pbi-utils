@@ -20,9 +20,18 @@ public sealed partial class ScriptTests
     [Fact]
     public async Task EntryRejectionMatrix()
     {
-        var (Code, Out, Error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/command-entry-tests.ps1"));
+        var (Code, Out, Error) = await CliTests.RunWithTimeout("pwsh", CliTests.ScriptCollectionTimeout, "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/command-entry-tests.ps1"));
         Assert.True(Code == 0, Out + Error);
-        Assert.Contains("PASS command entry rejections: 23 invalid arguments, 12 retired actions, 10 lower entries", Out);
+        Assert.Contains("PASS command entry rejections: 24 invalid arguments, 12 retired actions, 11 lower entries, 12 lane arguments", Out);
+    }
+
+    /// <summary>管道停止与控制台 Ctrl+C 同样跳过 catch; 每个入口脚本仍须在自身 finally 中以 130 结束, 并行通道写回取消结果.</summary>
+    [Fact]
+    public async Task StoppedEntriesReportCancellation()
+    {
+        var (Code, Out, Error) = await CliTests.RunWithTimeout("pwsh", CliTests.ScriptCollectionTimeout, "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/entry-stop-tests.ps1"));
+        Assert.True(Code == 0, Out + Error);
+        Assert.Contains("PASS 10 个入口脚本在管道停止时以 130 结束, 并行通道写回取消结果", Out);
     }
 
     /// <summary>单独执行 pwsh -File 时, 保留操作系统传入的空参数和根入口退出码.</summary>

@@ -7,6 +7,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
+using PbiUtils.Cli.Tests;
 using Xunit;
 
 namespace PbiUtils.ScriptTests;
@@ -132,6 +133,7 @@ public sealed class InstallerPackageTests
     [Theory]
     [InlineData("Package", "PASS installer package snapshot identity and SDK boundaries")]
     [InlineData("PackageFailure", "PASS installer compiler failure, lock release and cleanup failure preservation")]
+    [InlineData("DeferredPackage", "PASS installer deferred release package delivery and discard")]
     public Task PackageTransactions(string scenario, string completed) =>
         InstallerScriptTestProcess.AssertCompletedAsync("pwsh", "installer-package-tests.ps1", completed, scenario);
 }
@@ -223,7 +225,7 @@ internal static class InstallerScriptTestProcess
         using var process = Process.Start(start)!;
         var output = process.StandardOutput.ReadToEndAsync();
         var error = process.StandardError.ReadToEndAsync();
-        try { await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(60)); }
+        try { await process.WaitForExitAsync().WaitAsync(CliTests.ScriptCollectionTimeout); }
         catch { process.Kill(true); throw; }
         return (process.ExitCode, await output, await error);
     }

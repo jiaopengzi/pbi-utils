@@ -58,6 +58,7 @@ $invalidArguments = @(
     @('-Help', '-Json'),
     @('-Choice', 'help', '-Unknown'),
     @('-Choice', 'buildC#', '-AfterCompile', 'callback'),
+    @('-Choice', 'buildC#', '-BeforeDelivery', 'callback'),
     @('-Choice', 'verifyAndBuild', '-DotNetMode', 'both'),
     @('-Choice', 'buildC#', '-DotNetMode'),
     @('-Choice', 'testC#', '-DotNetMode', 'without-dotnet'),
@@ -75,11 +76,38 @@ foreach ($action in $retiredActions) {
     Assert-RejectedEntry $rootEntry @('-Choice', $action) -RequireEmptyOutput
 }
 
-$lowerScripts = @('setup', 'build', 'test', 'check', 'format', 'clean', 'dev', 'package')
+$lowerScripts = @('setup', 'build', 'test', 'check', 'format', 'clean', 'dev', 'package', 'lane')
 foreach ($scriptName in $lowerScripts) {
     Assert-RejectedEntry (Join-Path $repository "scripts/$scriptName.ps1") @('-Unknown')
 }
 Assert-RejectedEntry (Join-Path $repository 'scripts/test.ps1') @('-Scope', 'Core', '-Scope', 'All')
 Assert-RejectedEntry (Join-Path $repository 'scripts/build.ps1') @('-AfterCompile', 'callback')
 
-Write-Output ("PASS command entry rejections: {0} invalid arguments, {1} retired actions, {2} lower entries" -f $invalidArguments.Count, $retiredActions.Count, ($lowerScripts.Count + 2))
+# 内部并行通道只接受允许列表阶段和本轮门禁目录内的新结果文件; 每例至少违反一项, 不会启动真实工具.
+$gateDirectory = Join-Path ([IO.Path]::GetTempPath()) ('pbi-utils-gate-' + [Guid]::NewGuid().ToString('N'))
+$null = New-Item -ItemType Directory -Path $gateDirectory
+try {
+    $result = Join-Path $gateDirectory ([Guid]::NewGuid().ToString('N') + '.json')
+    $laneArguments = @(
+        @('-Lane', 'bogus', '-Result', $result),
+        @('-Lane', 'CHECKVUE', '-Result', $result),
+        @('-Lane', 'checkVue'),
+        @('-Lane', 'checkVue', '-Result', (Join-Path ([IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString('N') + '.json'))),
+        @('-Lane', 'checkVue', '-Result', (Join-Path $gateDirectory 'result.json')),
+        @('-Lane', 'checkVue', '-Result', $result, '-Scope', 'All'),
+        @('-Lane', 'checkC#', '-Result', $result),
+        @('-Lane', 'checkC#', '-Result', $result, '-Scope', 'All', '-Configuration', 'Release'),
+        @('-Lane', 'testC#', '-Result', $result, '-Scope', 'All'),
+        @('-Lane', 'testC#', '-Result', $result, '-Scope', 'Other', '-Configuration', 'Release'),
+        @('-Lane', 'checkVue', '-Result', $result, '-Lane', 'testVue'),
+        @('-Choice', 'checkVue')
+    )
+    foreach ($argumentSet in $laneArguments) {
+        Assert-RejectedEntry (Join-Path $repository 'scripts/lane.ps1') $argumentSet -RequireEmptyOutput
+    }
+    if (Test-Path -LiteralPath $result) { throw '被拒绝的并行通道不得写入结果文件' }
+} finally {
+    Remove-Item -LiteralPath $gateDirectory -Recurse -Force
+}
+
+Write-Output ("PASS command entry rejections: {0} invalid arguments, {1} retired actions, {2} lower entries, {3} lane arguments" -f $invalidArguments.Count, $retiredActions.Count, ($lowerScripts.Count + 2), $laneArguments.Count)

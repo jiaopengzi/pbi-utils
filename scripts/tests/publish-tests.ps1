@@ -105,11 +105,13 @@ function Invoke-PbiGroup { return $false }
 .PARAMETER Configuration 编译配置; 默认 Debug.
 .PARAMETER AfterCompile 可选前端回调, 失败不得交付.
 .PARAMETER DotNetMode 指定一种部署模式, 未指定时按配置采用生产入口约定.
+.PARAMETER BeforeDelivery 可选交付前回调, 参数为 staging 路径, 失败不得交付.
 #>
-function Build([string]$Scope, [string]$Configuration = 'Debug', [scriptblock]$AfterCompile = $null, [string]$DotNetMode = '') {
+function Build([string]$Scope, [string]$Configuration = 'Debug', [scriptblock]$AfterCompile = $null, [string]$DotNetMode = '', [scriptblock]$BeforeDelivery = $null) {
     $PbiInvocation = @{ Action = 'buildC#'; Options = @{ Scope = $Scope; Configuration = $Configuration } }
     $PbiInvocation.Options.DotNetMode = if ($DotNetMode) { $DotNetMode } elseif ($Configuration -eq 'Release') { 'without-dotnet' } else { 'with-dotnet' }
     if ($AfterCompile) { $PbiInvocation.AfterCompile = $AfterCompile }
+    if ($BeforeDelivery) { $PbiInvocation.BeforeDelivery = $BeforeDelivery }
     . (Join-Path $sandbox 'scripts/build.ps1')
 }
 <# .SYNOPSIS 只清理本次测试隔离目录中的前端产物, 模拟首次或干净构建. #>
@@ -454,7 +456,7 @@ public static class PbiPublishTestDirectoryLock
         Assert ($_.Level -eq 'Info' -and $_.Message -cmatch '^构建计时 \[([a-z-]+)\] \d+\.\d{3}s$') '构建计时须使用固定点号和秒单位'
         $Matches[1]
     })
-    Assert (($phaseNames -join ',') -ceq 'prepare,sdk-publish,frontend-gate,shared-layout,licenses,manifest,delivery,cleanup') '成功构建须按执行顺序报告各段耗时'
+    Assert (($phaseNames -join ',') -ceq 'prepare,sdk-publish,shared-layout,licenses,frontend-gate,manifest,delivery,cleanup') '成功构建须按执行顺序报告各段耗时, 许可先于前端等待'
     foreach ($command in $script:NativeCommands) {
         Assert ($command.Arguments[[Array]::IndexOf($command.Arguments, '-c') + 1] -ceq 'Release') '配置必须传递给选中模式的所有入口'
         Assert ($command.Arguments[[Array]::IndexOf($command.Arguments, '--self-contained') + 1] -eq 'false') '默认 Release 必须只发布 without-dotnet'
@@ -492,8 +494,8 @@ public static class PbiPublishTestDirectoryLock
             Assert $rejected '编译或合并失败必须阻止成功返回'
             Assert ((Get-TestPublishSnapshot $published) -ceq $selectedBefore) '编译或合并失败必须保留选中模式旧包'
             Assert ((Get-TestPublishSnapshot $otherPublished) -ceq $otherBefore) '失败不得影响未选模式'
-            $expectedFrontendCalls = if ($failure -eq 'compile') { 0 } else { 1 }
-            Assert (@($script:BuildEvents | Where-Object { $_ -eq 'frontend' }).Count -eq $expectedFrontendCalls) '失败时前端次数必须符合实际完成阶段'
+            # 编译与共享依赖合并都在前端等待之前完成, 任一失败都不启动前端.
+            Assert (@($script:BuildEvents | Where-Object { $_ -eq 'frontend' }).Count -eq 0) '编译或合并失败时不得开始前端阶段'
         } finally { $script:FailFrameworkSecondPublish = $false; $script:ConflictingFrameworkDependency = $false }
     }
 
@@ -523,6 +525,33 @@ public static class PbiPublishTestDirectoryLock
     } catch { Assert ($_.Exception.Message -like '*前端构建缺少 web/dist/index.html*') '组合构建必须核验前端真实入口'
     }
     Assert ((Get-TestPublishSnapshot $published) -ceq $selectedBefore) '前端入口缺失保留上次完整产物'
+
+    # 并行门禁在清单写入后、交付前等待全部通道; 回调期间旧包保持不变, 回调失败不得交付.
+    $script:Messages.Clear()
+    $script:DeliveryStaging = ''
+    Build 'All' 'Release' {
+        Remove-TestFrontend
+        $null = New-Item -ItemType Directory -Path 'web/dist/assets' -Force
+        Set-Content -LiteralPath 'web/dist/index.html' -Value 'gated frontend'
+    } -BeforeDelivery {
+        param([string]$Staging)
+        Assert ([IO.File]::Exists((Join-Path $Staging 'manifest.json'))) '交付前回调必须收到已写入清单的 staging'
+        Assert ((Get-TestPublishSnapshot $published) -ceq $selectedBefore) '交付前回调执行期间不得替换旧包'
+        $script:DeliveryStaging = $Staging
+    }
+    Assert ($script:DeliveryStaging -and ![IO.Directory]::Exists($script:DeliveryStaging)) '交付完成后必须清理回调收到的 staging'
+    Assert ((Get-Content -LiteralPath (Join-Path $published 'web/index.html') -Raw).Trim() -eq 'gated frontend') '回调通过后交付本轮产物'
+    $phaseNames = @($script:Messages | Where-Object { $_.Message -clike '构建计时 *' } | ForEach-Object { if ($_.Message -cmatch '^构建计时 \[([a-z-]+)\] \d+\.\d{3}s$') { $Matches[1] } })
+    Assert (($phaseNames -join ',') -ceq 'prepare,sdk-publish,shared-layout,licenses,frontend-gate,manifest,verification-wait,delivery,cleanup') '交付前等待须单独计时并位于清单与交付之间'
+    $selectedBefore = Get-TestPublishSnapshot $published
+    try {
+        Build 'All' 'Release' { Set-Content -LiteralPath 'web/dist/index.html' -Value 'rejected frontend' } -BeforeDelivery { param([string]$Staging) throw '模拟并行测试失败' }
+        throw '交付前回调失败时不得交付'
+    } catch { Assert ($_.Exception.Message -eq '模拟并行测试失败') '交付前回调失败应保留原始错误' }
+    Assert ((Get-TestPublishSnapshot $published) -ceq $selectedBefore) '交付前回调失败保留上次完整产物'
+    # 恢复无前端入口的状态, 供后续独立 C# 构建前置检查使用.
+    Remove-TestFrontend
+    $null = New-Item -ItemType Directory -Path 'web/dist/assets' -Force
     Assert ((Get-TestPublishSnapshot $otherPublished) -ceq $otherBefore) '连续发布和前端失败均不得修改未选模式'
 
     $script:NativeCommands.Clear()
