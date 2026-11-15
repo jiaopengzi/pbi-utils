@@ -17,6 +17,7 @@
 
 ## 当前编排
 
+- 启动前: 主流程核验所需工具与含测试项目的 C# 还原资产 (release 按 All 范围), 前置不足立即以 3 结束, 不启动通道、预取或编译. 通道内仍会复核, 但不能代替这一步.
 - 并行模式 (当前进程可用逻辑处理器不少于 16 个): 先启动 checkC# 与 testC# 通道, 取得前端输入指纹后启动 checkVue 与 testVue, 同时执行 C# 发布. 发布、共享布局和许可完成后等待两个 Vue 通道, 指纹一致才复用本轮 lint 执行前端构建. 前端并入 staging 并写清单后执行交付前回调 (release 在此预生成安装包), 再等待全部通道, 最后交付发布目录; release 随后交付安装包.
 - 逐个模式 (少于 16 个): checkC#、testC#、C# 发布与许可、checkVue、testVue、前端构建、清单与交付依次执行. 失败、取消与交付语义和并行模式相同.
 - 优先级: 并行模式下 checkC# 为 BelowNormal, 其余通道为 Normal; Core 范围的 checkC# 逐项目格式检查本身最长, 保持 Normal; 逐个模式下各通道独占本机, 均为 Normal.
@@ -60,6 +61,7 @@ CPU 与内存用后台 ThreadJob 读取 `Win32_PerfFormattedData_PerfOS_Processo
 
 ## 注意事项
 
+- 前置条件: 工具、SDK 与还原资产等能廉价确定的前提由主流程在启动通道前统一核验. 只靠通道发现时, 已启动的其他通道会先排空才报告, 例如 clean 后 C# 通道立即失败而 Vue 通道仍运行完毕.
 - 进程优先级: Windows 子进程继承 BelowNormal (及 Idle), 不继承 AboveNormal; 降低通道优先级可覆盖其全部工具进程, 调高关键通道则无法传给它启动的工具.
 - 取消与清理: 遵循 validation-and-delivery.md 的 PowerShell Ctrl+C 约定. 新增预生成、预取或临时目录时, 清理与丢弃同样放在 finally, 并以完成标记区分交付、失败与取消.
 - 回调作用域: `AfterCompile`/`BeforeDelivery` 在被点源的 `build.ps1` 中执行, 依赖动态作用域读取调用方变量. 回调捕获的变量使用独特名称 (如 `$verificationGate`、`$deliveryCallback`、`$pbiBeforeDelivery`、`$releasePackageContext`), 避免被同名变量遮蔽. 不用 `GetNewClosure()`, 它把回调绑定到新的动态模块, 测试在模块作用域定义的替身不再生效.
@@ -75,13 +77,14 @@ CPU 与内存用后台 ThreadJob 读取 `Win32_PerfFormattedData_PerfOS_Processo
 调整通道、阶段或打包顺序时同步以下内容, 以测试为准而不是以文档中的旧顺序为准:
 
 - `$script:GateStages`、`$script:GateLanes`、`ConvertTo-PbiLaneOptions` 允许列表及 `command-entry-tests.ps1` 的通道参数矩阵.
+- 通道新增前提时, 同步 `Invoke-PbiAction` 的前置检查与 `contracts.ps1` 的缺失资产用例.
 - `InlineGateLanes.ps1`、`contracts.ps1`、`frontend-check-tests.ps1`、`external-tool-workflow-tests.ps1` 中的预期顺序, `publish-tests.ps1` 与 `installer-package-tests.ps1` 中的阶段列表.
 - 新增入口脚本加入 `entry-stop-tests.ps1`, 新增多场景脚本合集使用 `CliTests.ScriptCollectionTimeout`.
 - 根 `AGENTS.md` 的门禁说明、本文和 [validation-and-delivery.md](validation-and-delivery.md).
 
 ## 验证清单
 
-1. 运行上表的编排回归, 覆盖并行与逐个顺序、首个失败与多阶段同时失败、取消优先、交付前回调成功与失败、预生成交付与丢弃、许可跳过与刷新, 以及全部入口在停止时以 130 结束.
+1. 运行上表的编排回归, 覆盖前置不足时不启动任何子进程、并行与逐个顺序、首个失败与多阶段同时失败、取消优先、交付前回调成功与失败、预生成交付与丢弃、许可跳过与刷新, 以及全部入口在停止时以 130 结束.
 2. 完整 release 至少运行两次, 对照阶段计时、通道计时、TRX 实际用例数和最慢用例; 影响发布时再运行 `scripts/tests/published-smoke.ps1`.
 3. 模拟较小机器. .NET 的 `Environment.ProcessorCount` 取逻辑处理器、处理器亲和性和作业 CPU 限制中的最小值, 并在运行时启动时固定, 因此在启动 release 前限制当前 pwsh 的亲和性, 由全部子进程继承. 同时关闭 MSBuild 节点复用与共享编译, 避免复用不受限的旧进程或遗留受限进程. 分别验证阈值以上 (并行) 与以下 (逐个), 在独立 pwsh 中运行:
 

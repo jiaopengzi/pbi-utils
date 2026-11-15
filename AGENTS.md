@@ -209,7 +209,7 @@ WHERE WITH WORK WRITE WTD XOR YTD
 
 - 非平凡任务在 `.docs/<任务>/` 保留计划、发现、进度和报告. 恢复前核对当前需求、Git/cwd 和任务归属; 不串用其他活动任务. 交接记录已完成/待办、证据和阻塞, 不依赖缺失的个人 skill、未知 hook 或未提供的精确 token 数据.
 - 修改前确定受影响路径与验证边界; 修改后检查需求覆盖、相邻输入、失败/取消/并发/迟到结果、共享复用、双语、契约、权限和资源释放. 测试关注真实行为与不变量, 不为低影响文档修改增加重复实现测试.
-- 开发入口为 PowerShell 7 `run.ps1`, 动作/参数以注册表和 `-List/-Help` 为准. 日常迭代按需使用 `devDesktop` 或 `devWeb` 预览, 再按改动范围执行检查和定向测试. 产品源码、契约或发布行为改动在本轮开发完毕后执行完整门禁. `verifyAndBuild` 与 `release` 使用并行门禁: checkC#、testC#、checkVue、testVue 为独立子进程通道并与 C# 编译同时执行; 当前进程可用逻辑处理器少于 16 个时, 同一组通道按 checkC#、testC#、C# 编译、checkVue、testVue 顺序逐个执行, 失败、取消与交付语义不变. Vue 构建在 Vue 检查与测试通过且同轮输入指纹一致后进行, 发布目录在全部通道通过后才交付. 任一阶段失败后不再开始新阶段, 在途通道排空后按 checkC#、testC#、buildC#、checkVue、testVue、buildVue、package 的规范顺序报告首个失败. 真实 Ctrl+C 使入口和各通道排空后以 130 结束, 不显示为成功或执行失败. 独立 check/test/build 动作及 checkAll/testAll/buildAll 仍按 C# 后 Vue 各自完整执行. 纯文档/skill 修订核对事实、路径、引用和格式, 不据此宣称产品已重测. 正式总门禁:
+- 开发入口为 PowerShell 7 `run.ps1`, 动作/参数以注册表和 `-List/-Help` 为准. 日常迭代按需使用 `devDesktop` 或 `devWeb` 预览, 再按改动范围执行检查和定向测试. 产品源码、契约或发布行为改动在本轮开发完毕后执行完整门禁. `verifyAndBuild` 与 `release` 先统一核验所需工具与含测试项目的 C# 还原资产 (release 按 All 范围), 前置不足立即以 3 结束, 不启动任何通道、预取或编译; 随后使用并行门禁: checkC#、testC#、checkVue、testVue 为独立子进程通道并与 C# 编译同时执行; 当前进程可用逻辑处理器少于 16 个时, 同一组通道按 checkC#、testC#、C# 编译、checkVue、testVue 顺序逐个执行, 失败、取消与交付语义不变. Vue 构建在 Vue 检查与测试通过且同轮输入指纹一致后进行, 发布目录在全部通道通过后才交付. 任一阶段失败后不再开始新阶段, 在途通道排空后按 checkC#、testC#、buildC#、checkVue、testVue、buildVue、package 的规范顺序报告首个失败. 真实 Ctrl+C 使入口和各通道排空后以 130 结束, 不显示为成功或执行失败. 独立 check/test/build 动作及 checkAll/testAll/buildAll 仍按 C# 后 Vue 各自完整执行. 纯文档/skill 修订核对事实、路径、引用和格式, 不据此宣称产品已重测. 正式总门禁:
 
   ```powershell
   pwsh -NoProfile -File ./run.ps1 -Choice verifyAndBuild -Scope All -Configuration Release -NonInteractive

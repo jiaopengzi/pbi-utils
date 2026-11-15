@@ -898,13 +898,16 @@ function Get-PbiFormatTargets([string]$Scope) {
 .PARAMETER AfterCompile 内部构建回调, C# 编译后执行, 不接受为 CLI 参数.
 .PARAMETER BeforeDelivery 内部构建回调, staging 完成清单后、交付前执行, 参数为 staging 路径, 不接受为 CLI 参数.
 .NOTES 工具或依赖资产缺失返回 3; 动作失败保留原退出码, 不隐式还原.
+       verifyAndBuild 与 release 在启动任何并行通道、预取或编译前核验工具及含测试项目的还原资产, 前置不足时不启动子进程.
 #>
 function Invoke-PbiAction([string]$Name, [hashtable]$Options, [scriptblock]$AfterCompile, [scriptblock]$BeforeDelivery) {
     $Options.Choice = $Name
     $item = Resolve-PbiAction $Options
     Assert-PbiTools $item.Requires
-    if ($item.Name -in @('verifyAndBuild', 'buildC#', 'testC#', 'checkC#', 'formatC#')) {
-        Assert-PbiRestoreAssets $Options.Scope ($item.Name -ne 'buildC#')
+    if ($item.Name -in @('verifyAndBuild', 'release', 'buildC#', 'testC#', 'checkC#', 'formatC#')) {
+        # release 固定 Release/All, 门禁通道各自也会复核, 但须在主流程启动通道前统一失败.
+        $restoreScope = if ($item.Name -eq 'release') { 'All' } else { $Options.Scope }
+        Assert-PbiRestoreAssets $restoreScope ($item.Name -ne 'buildC#')
     }
     if ($item.Name -eq 'help') { Show-PbiHelp; return }
     if ($item.Name -eq 'verifyAndBuild') { Invoke-PbiVerifyAndBuild $Options; return }

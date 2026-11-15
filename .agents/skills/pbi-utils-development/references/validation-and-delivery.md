@@ -54,12 +54,12 @@
 pwsh -NoProfile -File ./run.ps1 -Choice verifyAndBuild -Scope All -Configuration Release -NonInteractive
 ```
 
-`verifyAndBuild` 以并行门禁执行：`checkC#`、`testC#`、`checkVue`、`testVue` 作为四个子进程通道与 C# 编译同时运行，各通道输出带阶段前缀。当前进程可用逻辑处理器少于 16 个（含亲和性与作业限制，例如 CI 小型运行器）时，同一组通道按 `checkC#`、`testC#`、C# 编译、`checkVue`、`testVue` 顺序逐个执行并保持正常优先级，避免争用放大用例耗时。`checkVue` 和 `testVue` 通过且同轮前端输入未变后执行 `buildVue`，全部通道通过后才交付发布目录。`-Scope All` 在交付成功后注册开发外部工具。需要生成 NSIS 安装包时，使用 `package` 或 `release`。任一阶段失败后不再开始新阶段，在途通道排空后按 checkC#、testC#、buildC#、checkVue、testVue、buildVue、package 的顺序报告首个失败阶段、原因和退出码。真实 Ctrl+C 使入口与各通道排空后以 130 结束，脚本约定见下方 PowerShell 条目。调整编排、并行阈值、优先级、挂起保护或构建耗时前阅读 [gate-performance.md](gate-performance.md)。`Scope` 和 `Configuration` 按各动作支持范围传递，`check` 动作只接收适用的 `Scope`。
+`verifyAndBuild` 以并行门禁执行：启动前先核验所需工具与含测试项目的 C# 还原资产（`release` 按 All 范围），缺失时立即以 3 结束，不启动任何通道、预取或编译。随后 `checkC#`、`testC#`、`checkVue`、`testVue` 作为四个子进程通道与 C# 编译同时运行，各通道输出带阶段前缀。当前进程可用逻辑处理器少于 16 个（含亲和性与作业限制，例如 CI 小型运行器）时，同一组通道按 `checkC#`、`testC#`、C# 编译、`checkVue`、`testVue` 顺序逐个执行并保持正常优先级，避免争用放大用例耗时。`checkVue` 和 `testVue` 通过且同轮前端输入未变后执行 `buildVue`，全部通道通过后才交付发布目录。`-Scope All` 在交付成功后注册开发外部工具。需要生成 NSIS 安装包时，使用 `package` 或 `release`。任一阶段失败后不再开始新阶段，在途通道排空后按 checkC#、testC#、buildC#、checkVue、testVue、buildVue、package 的顺序报告首个失败阶段、原因和退出码。真实 Ctrl+C 使入口与各通道排空后以 130 结束，脚本约定见下方 PowerShell 条目。调整编排、并行阈值、优先级、挂起保护或构建耗时前阅读 [gate-performance.md](gate-performance.md)。`Scope` 和 `Configuration` 按各动作支持范围传递，`check` 动作只接收适用的 `Scope`。
 
 首次准备、依赖或工具链变化、还原资产缺失时显式运行 `setupC#`、`setupVue` 或 `setupAll`。资产完整且依赖未变时可直接运行后续动作。独立产品诊断使用 CLI `doctor`。
 
 - C# 工具链使用 `global.json` 的精确绑定; 缺失/无效/不匹配时报告配置、期望、可见和实际 SDK, 不自动改绑定、滚动或安装. SDK 查询的真实原生错误保留.
-- clean 后必须先 `pwsh -NoProfile -File ./run.ps1 -Choice 'setupC#' -Scope All -NonInteractive`. NETSDK1004 是缺少还原前提, 还原后再运行 `verifyAndBuild`.
+- clean 后必须先 `pwsh -NoProfile -File ./run.ps1 -Choice 'setupC#' -Scope All -NonInteractive`. NETSDK1004 是缺少还原前提, 还原后再运行 `verifyAndBuild` 或 `release`.
 - check 只读, C# 使用建议级诊断并核报告; 无修复器也不能忽略失败. format 是显式源码写入; 不自动修复无关文件或禁用规则.
 - `buildC#`、`buildAll` 和 `verifyAndBuild` 接受 `-DotNetMode with-dotnet|without-dotnet`，一次仅构建所选模式。Release 默认 `without-dotnet`，Debug 默认 `with-dotnet`。`buildC#` 只构建 C#，桌面资源未准备时应明确失败。`verifyAndBuild` 和 `buildAll` 在 C# 编译后只执行一次前端流程。依赖还原、格式化、清理、安装、上传和软件更新分别通过对应入口显式执行。开发登记由 `verifyAndBuild -Scope All` 在成功交付后执行。登记失败时保留已完成产物并返回非零退出码。非交互模式下需要预先具备系统目录写权限，交互模式仅在固定登记步骤按需提权。
 - 参数错误 2、前置不足 3、执行异常 4、取消 130, 产品/其他原生非零码如实传递. stdout/stderr 保留, 不用 Invoke-Expression 或模块 exit 结束调用方, 入口脚本在自身 finally 中退出; try/finally 还原工作目录与临时环境.

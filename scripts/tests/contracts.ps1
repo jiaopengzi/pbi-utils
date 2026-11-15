@@ -445,6 +445,12 @@ try {
                 if ($_.Exception.Data['ExitCode'] -ne 3 -or $_.Exception.Message -notlike "*setupC#*Scope Core*") { throw }
             }
         }
+        <# .SYNOPSIS 记录 release 门禁是否被启动; 前置失败时不得启动通道、预取或编译. #>
+        function Invoke-PbiRelease([hashtable]$Options) { $script:NativeCalls.Add('release-gate') }
+        try { Invoke-PbiAction 'release' @{}; throw 'release 缺失依赖资产应失败' }
+        catch {
+            if ($_.Exception.Data['ExitCode'] -ne 3 -or $_.Exception.Message -notlike "*setupC#*Scope All*") { throw }
+        }
         if ($script:NativeCalls.Count) { throw '缺失依赖时不应开始检查或构建' }
         foreach ($project in (Get-PbiProjects 'Core' | Where-Object { $_ -notlike 'tests/*' })) {
             $assetDirectory = Join-Path $script:Root "$project/obj"
