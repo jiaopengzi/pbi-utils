@@ -6,7 +6,7 @@
  * Description : 共享63字段平铺选择, 固定编号及宿主目标锁定说明, 通用方案独立于锁定列.
 -->
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, ref } from "vue"
 import { useI18n } from "@/composables/i18n/useI18n"
 import type { CalendarCapability, CalendarFieldDefinition, CalendarPreferences, ScaffoldCalendarOptions } from "./contracts"
 import {
@@ -32,6 +32,20 @@ const props = defineProps<{
 const emit = defineEmits<{ change: [fields: string[], preferenceFields: string[], numbered: boolean] }>()
 const { t, locale } = useI18n()
 const directory = computed(() => (props.fields?.length ? props.fields : calendarFields))
+const search = ref("")
+// 搜索只影响显示, 复选组仍持有完整选择, 不把隐藏选项误当成取消选择.
+const matchingFields = computed(() => {
+    const query = search.value.trim().toLocaleLowerCase()
+    return directory.value.filter((field) =>
+        [
+            field.id,
+            calendarColumnName(field.id, true),
+            outputName(field.id),
+            calendarFieldDescription(field.id, false),
+            calendarFieldDescription(field.id, true),
+        ].some((value) => value.toLocaleLowerCase().includes(query)),
+    )
+})
 const groups = computed(() => [...new Set(directory.value.map((field) => field.group))])
 const locked = computed(() => [{ field: "Dates", reason: t("scaffold.dateKeyRequired") }, ...(props.capability?.lockedFields ?? [])])
 const selected = computed(() => effectiveFields(selectedCalendarFields(props.calendar), locked.value))
@@ -99,25 +113,36 @@ function changeNumbering(value: string | number | boolean): void {
                 >{{ t("scaffold.restoreFields") }}</el-button
             >
         </div>
+        <el-input
+            v-model="search"
+            class="calendar-fields__search"
+            :aria-label="t('scaffold.searchCalendarFields')"
+            :placeholder="t('scaffold.searchCalendarFieldsHint')"
+            :disabled="disabled"
+            :class="{ 'operation-lock': operationLocked }"
+            clearable
+        />
         <el-checkbox :model-value="numbered" :disabled="disabled" :class="{ 'operation-lock': operationLocked }" @update:model-value="changeNumbering">
             {{ t("scaffold.numberColumns") }}
         </el-checkbox>
         <p v-if="capability?.mode === 'existing'" class="muted">{{ t("scaffold.existingCalendarColumns") }}</p>
         <p v-if="capabilityWarning" role="status" class="muted">{{ capabilityWarning }}</p>
-        <section v-for="group in groups" :key="group" class="calendar-fields__group">
+        <p v-if="!matchingFields.length" role="status" class="muted">{{ t("scaffold.noCalendarFields") }}</p>
+        <section v-for="group in groups" :key="group" v-show="matchingFields.some((field) => field.group === group)" class="calendar-fields__group">
             <h4>{{ t(`scaffold.fieldGroup${group}`) === `scaffold.fieldGroup${group}` ? group : t(`scaffold.fieldGroup${group}`) }}</h4>
             <el-checkbox-group :model-value="selected" :disabled="disabled" @update:model-value="change">
                 <el-checkbox
                     v-for="field in directory.filter((item) => item.group === group)"
                     :key="field.id"
+                    v-show="matchingFields.includes(field)"
                     :value="field.id"
                     :disabled="disabled || locked.some((item) => item.field === field.id)"
                     class="calendar-fields__choice"
                     :class="{ 'operation-lock': operationLocked && !locked.some((item) => item.field === field.id) }"
                 >
                     <span class="calendar-fields__label"
-                        ><strong>{{ outputName(field.id) }}</strong
-                        ><span>{{ calendarFieldDescription(field.id, locale === "en-us") }}</span>
+                        ><strong>{{ calendarFieldDescription(field.id, locale === "en-us") }}</strong
+                        ><span>{{ outputName(field.id) }}</span>
                         <span v-for="(item, index) in locked.filter((item) => item.field === field.id)" :key="index" class="calendar-fields__reason"
                             >{{ t("scaffold.fieldLocked") }}: {{ lockedReason(item.reason) }}</span
                         ></span
@@ -131,6 +156,11 @@ function changeNumbering(value: string | number | boolean): void {
 .calendar-fields__toolbar {
     flex-wrap: wrap;
     gap: 8px;
+}
+.calendar-fields__search {
+    width: min(360px, 100%);
+    display: block;
+    margin-bottom: 8px;
 }
 .calendar-fields__group {
     margin-block: 16px;

@@ -38,8 +38,7 @@ export const mcpMessages = {
 
         "mcp.title": "本地 MCP",
         "mcp.searchDescription": "让第三方 AI 使用 pbi-utils",
-        "mcp.description":
-            "让支持本地 MCP 的 AI 客户端使用 pbi-utils。复制下方提示词，交给 AI 完成配置并按统一表格反馈校验结果。服务已随本应用安装，支持连接和编辑本地模型、生成文件及修改设置；复制提示词不会自动更改客户端权限。",
+        "mcp.description": "服务已随本应用安装。复制提示词到支持本地 MCP 的 AI 客户端，完成配置并核验接入结果。",
         "mcp.desktop": "桌面应用与多个 MCP 客户端可以同时运行，各自的连接和权限相互独立。共享业务后台按需启动，写入冲突会明确反馈。",
         "mcp.boundary": "Power BI Service / SSAS 模型始终只读。",
         "mcp.privacy": "第三方 AI 可能把工具输入和返回的模型信息发送给其服务提供方，请先确认其隐私设置。",
@@ -47,6 +46,9 @@ export const mcpMessages = {
         "mcp.loadFailed": "无法读取本地 MCP 配置。",
         "mcp.reload": "重新读取",
         "mcp.copyPrompt": "复制 AI 接入提示词",
+        "mcp.showPrompt": "查看完整提示词",
+        "mcp.hidePrompt": "收起提示词",
+        "mcp.permission": "MCP 默认只读。此提示词使用 --allow-write 启动参数，允许连接和修改本地模型、生成文件及修改设置；复制本身不会授权。",
         "mcp.setupPrompt": `请帮我在当前 AI 客户端配置 pbi-utils 本地 MCP。
 1. 确认客户端支持本地 stdio MCP、下方 command 程序存在。按客户端格式解析配置，比对 command 和完整有序 args：匹配即复用，缺失才新增，差异仅作必要修正，保留其他服务。实际回读完整 command/args 的行内 JSON，match 填 true/false/unknown。
 2. 当前客户端依次调用 server_info {} → desktop_sessions {} → desktop_app_info {"parameters":{},"sessionId":"本次 sessions[0].id"}。上下文须恰好一个且 id 非空，不猜 id；三项成功即可确认工具可用。
@@ -103,8 +105,7 @@ export const mcpMessages = {
 
         "mcp.title": "Local MCP",
         "mcp.searchDescription": "Use pbi-utils with a third-party AI",
-        "mcp.description":
-            "Use pbi-utils from an AI client that supports local MCP. Copy the prompt below to ask AI to configure it and report verification in a consistent table. The server is bundled with this app and supports connecting and editing local models, generating files and changing settings. Copying the prompt does not change client permissions.",
+        "mcp.description": "The server is bundled with this app. Copy the prompt into an AI client that supports local MCP to configure and verify access.",
         "mcp.desktop":
             "The desktop app and multiple MCP clients can run together; their connections and permissions are independent. The shared background service starts on demand. Write conflicts are reported explicitly.",
         "mcp.boundary": "Power BI Service / SSAS models always remain read-only.",
@@ -113,6 +114,10 @@ export const mcpMessages = {
         "mcp.loadFailed": "Could not read the local MCP configuration.",
         "mcp.reload": "Reload",
         "mcp.copyPrompt": "Copy AI setup prompt",
+        "mcp.showPrompt": "View full prompt",
+        "mcp.hidePrompt": "Hide prompt",
+        "mcp.permission":
+            "MCP is read-only by default. This prompt uses --allow-write to allow local model connections and edits, file generation and settings changes. Copying alone grants no permission.",
         "mcp.setupPrompt": `Configure pbi-utils as a local MCP server in this AI client.
 1. Confirm local stdio MCP support and that the command executable below exists. Parse the client's configuration and compare command and the complete ordered args: reuse a match, add only if missing, otherwise make only necessary corrections. Preserve other services. Show the complete command/args actually read back as inline JSON with match=true/false/unknown.
 2. Through this client, call server_info {} → desktop_sessions {} → desktop_app_info {"parameters":{},"sessionId":"sessions[0].id from this run"}. Require exactly one context with a nonempty id; never guess it. Three successful diagnostics confirm the tools are available.

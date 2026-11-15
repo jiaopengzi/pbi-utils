@@ -15,6 +15,7 @@ import PeriodsFields from "@/features/scaffold/PeriodsFields.vue"
 import { ScaffoldMock } from "@/features/scaffold/scaffoldMock"
 import type { ScaffoldCalendarOptions, ScaffoldMethods, ScaffoldPeriodOptions } from "@/features/scaffold/contracts"
 import CalendarFieldPicker from "@/features/scaffold/CalendarFieldPicker.vue"
+import { setLocale } from "@/i18n"
 import UiTabs from "@/ui/UiTabs.vue"
 import { createConfigurationDraft } from "@/features/configuration/draft"
 import { shallowRef } from "vue"
@@ -288,4 +289,28 @@ it("六组平铺51项, 组选不删除其他组, 依赖可见且跳过保留工�
     expect(calendar.overrides).toHaveLength(1)
     expect(wrapper.findAll(".el-checkbox-button").every((button) => button.classes().includes("is-disabled"))).toBe(true)
     wrapper.unmount()
+})
+
+it("时间智能焦点提供可见解释, 切语言不改选择", async () => {
+    const draft = createConfigurationDraft("zh-cn")
+    const definitions = [
+        { id: "AC", label: "AC", group: "Day", description: "AC：当前选择日期对应的值。", dependencies: [] },
+        { id: "PD", label: "PD", group: "Day", description: "PD：当前选择日期的前一日的值。", dependencies: [] },
+    ]
+    const wrapper = mount(PeriodsFields, {
+        props: { calendar: draft.calendar, periods: draft.periods, calendarEnabled: true, periodsEnabled: true, disabled: false, definitions, measures: [] },
+    })
+    try {
+        expect(wrapper.get(".scaffold-period-explanation").text()).toContain("当前选择日期")
+        await wrapper.get('input[value="PD"]').trigger("focusin")
+        expect(wrapper.get(".scaffold-period-explanation").text()).toContain("前一日")
+        const before = [...draft.periods.templates]
+        setLocale("en-us")
+        await nextTick()
+        expect(wrapper.get(".scaffold-period-explanation").text()).toContain("previous day")
+        expect(draft.periods.templates).toEqual(before)
+    } finally {
+        wrapper.unmount()
+        setLocale("zh-cn")
+    }
 })

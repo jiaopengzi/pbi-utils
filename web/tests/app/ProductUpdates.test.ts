@@ -432,6 +432,10 @@ it.each(["available", "current", "noRelease", "failed"] as const)("展示 %s 状
     expect(wrapper.get(".update-release-version strong").text()).toBe(latestLabels[status])
     expect(wrapper.get(".update-actions").find('[data-action="check"]').exists()).toBe(true)
     expect(wrapper.text()).not.toContain("当前已是最新版本")
+    if (status === "current") {
+        expect(wrapper.get(".update-status").text()).toBe("未发现数字版本更高的发布")
+        expect(wrapper.get(".update-policy").text()).toContain("预发布轮次不参与此判断")
+    } else expect(wrapper.find(".update-policy").exists()).toBe(false)
     wrapper.unmount()
     bridge.dispose()
 })

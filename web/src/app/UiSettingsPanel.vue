@@ -136,6 +136,21 @@ useMessageNotices(
     </UiPanel>
 </template>
 <style scoped lang="scss">
+:deep(.el-form-item) {
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) minmax(340px, 1fr);
+    align-items: start;
+    gap: 12px 24px;
+    margin-bottom: 0;
+    padding-block: 14px;
+}
+:deep(.el-form-item + .el-form-item) {
+    border-top: 1px solid var(--el-border-color-lighter);
+}
+:deep(.el-form-item__label) {
+    margin-bottom: 0;
+    line-height: 32px;
+}
 .hint {
     flex-basis: 100%;
     margin: 6px 0 0;
@@ -143,5 +158,11 @@ useMessageNotices(
 .el-select {
     width: 100%;
     max-width: 360px;
+}
+@media (max-width: 900px) {
+    :deep(.el-form-item) {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
 }
 </style>

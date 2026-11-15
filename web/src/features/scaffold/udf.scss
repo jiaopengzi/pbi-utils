@@ -17,13 +17,14 @@
         }
     }
     .udf-source-section {
-        padding: 16px;
-        border: 1px solid var(--el-border-color);
-        border-radius: var(--el-border-radius-base);
-        background: var(--el-fill-color-extra-light);
+        padding-block: 0 12px;
+        border-bottom: 1px solid var(--el-border-color);
+        > p {
+            margin-block: 8px 0;
+        }
     }
     .udf-management {
-        margin-top: 12px;
+        margin-top: 8px;
         summary {
             width: fit-content;
             cursor: pointer;
@@ -42,7 +43,8 @@
         margin: 0;
     }
     .udf-source-toolbar {
-        align-items: flex-end;
+        align-items: center;
+        margin-bottom: 0;
     }
     .udf-source-picker {
         grid-template-columns: auto minmax(0, 1fr);
@@ -103,6 +105,16 @@
     }
     .udf-selected {
         margin-top: 20px;
+        > .udf-list-heading h3 {
+            margin: 0;
+        }
+    }
+    .udf-browse-section,
+    .udf-selected {
+        &:focus-visible {
+            outline: 2px solid var(--el-color-primary);
+            outline-offset: 4px;
+        }
     }
 }
 .udf-source-row > span {
@@ -147,7 +159,7 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
-    padding: 20px;
+    padding: 16px;
     border: 1px solid var(--el-border-color);
     border-radius: var(--el-border-radius-base);
     background: var(--el-bg-color);
@@ -203,14 +215,14 @@
     font-size: 12px;
 }
 .udf-package-description {
-    margin-block: 16px;
-    line-height: 1.7;
+    margin-block: 12px;
+    line-height: 1.6;
 }
 .udf-package-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-bottom: 20px;
+    margin-bottom: 12px;
     .el-tag {
         height: auto;
         min-height: var(--el-tag-height);

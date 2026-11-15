@@ -113,6 +113,14 @@ useMessageNotices("measures-panel", () => [
             <div class="object-detail measure-editor" :class="{ 'measure-editor-empty': !creating && !chosen.length }">
                 <template v-if="creating && !readOnly">
                     <h3>{{ t("model.createCount", { count: drafts.length }) }}</h3>
+                    <div class="actions">
+                        <el-button :disabled="blocked || drafts.length >= 128" @click="addDraft">{{ t("model.addOne") }}</el-button
+                        ><el-button :disabled="blocked" :loading="busy && activeOperation === 'format'" @click="format">{{ t("model.formatLocal") }}</el-button
+                        ><el-button type="primary" :disabled="blocked" :loading="busy && activeOperation === 'create'" @click="saveCreates">{{
+                            t("model.createSave")
+                        }}</el-button
+                        ><el-button :disabled="busy || locked" @click="backToEdit">{{ t("model.backEdit") }}</el-button>
+                    </div>
                     <div v-for="(draft, index) in drafts" :key="draft.id" class="measure-draft">
                         <div class="panel-heading">
                             <strong>{{ t("model.itemNumber", { count: index + 1 }) }}</strong
@@ -131,14 +139,6 @@ useMessageNotices("measures-panel", () => [
                                 /></el-form-item></div
                         ></el-form>
                         <MeasureFields v-model="draft.fields" :display-folders="displayFolders" :disabled="blocked" />
-                    </div>
-                    <div class="actions">
-                        <el-button :disabled="blocked || drafts.length >= 128" @click="addDraft">{{ t("model.addOne") }}</el-button
-                        ><el-button :disabled="blocked" :loading="busy && activeOperation === 'format'" @click="format">{{ t("model.formatLocal") }}</el-button
-                        ><el-button type="primary" :disabled="blocked" :loading="busy && activeOperation === 'create'" @click="saveCreates">{{
-                            t("model.createSave")
-                        }}</el-button
-                        ><el-button :disabled="busy || locked" @click="backToEdit">{{ t("model.backEdit") }}</el-button>
                     </div>
                 </template>
                 <template v-else-if="readOnly && current">
@@ -160,14 +160,6 @@ useMessageNotices("measures-panel", () => [
                 <template v-else-if="!readOnly && chosen.length">
                     <h3>{{ current ? `${current.table} · ${current.name}` : t("model.batchEditCount", { count: chosen.length }) }}</h3>
 
-                    <MeasureFields
-                        :key="JSON.stringify([project.projectId, selected])"
-                        v-model="fields"
-                        v-model:enabled="enabled"
-                        :batch="!current"
-                        :display-folders="displayFolders"
-                        :disabled="blocked || formatted.length > 0"
-                    />
                     <div class="actions">
                         <el-button
                             :disabled="blocked || !fieldsChanged || formatted.length > 0"
@@ -182,6 +174,14 @@ useMessageNotices("measures-panel", () => [
                             t("model.deleteCount", { count: chosen.length })
                         }}</el-button>
                     </div>
+                    <MeasureFields
+                        :key="JSON.stringify([project.projectId, selected])"
+                        v-model="fields"
+                        v-model:enabled="enabled"
+                        :batch="!current"
+                        :display-folders="displayFolders"
+                        :disabled="blocked || formatted.length > 0"
+                    />
 
                     <div v-if="formatted.length" class="format-preview">
                         <h3>{{ t("model.formattedCount", { count: formatted.length }) }}</h3>
@@ -235,7 +235,7 @@ useMessageNotices("measures-panel", () => [
 }
 .measure-list {
     min-width: 0;
-    max-height: 660px;
+    max-height: max(360px, calc(100dvh - 300px));
     overflow: auto;
     padding-right: 12px;
 }
@@ -261,6 +261,17 @@ useMessageNotices("measures-panel", () => [
 }
 .measure-editor {
     min-width: 0;
+    h3 {
+        margin: 0 0 12px;
+        font-size: 15px;
+        overflow-wrap: anywhere;
+    }
+    > .actions {
+        margin: 0 0 16px;
+        :deep(.el-button + .el-button) {
+            margin-left: 0;
+        }
+    }
 }
 .measure-editor-empty {
     display: flex;

@@ -16,6 +16,8 @@ import { useMessageNotices } from "@/composables/ui/useMessageNotices"
 import CodeEditor from "@/features/code/CodeEditor.vue"
 import { useModelEdit, type ModelEditProps } from "@/composables/app/useModelEdit"
 import { hasPendingModelUpdate, isConnectedDesktopProject } from "@/bridge/modelAccess"
+import { scrollToWorkspaceSection } from "@/ui/scrollToWorkspaceSection"
+const heading = useTemplateRef<HTMLElement>("heading")
 const form = useTemplateRef<FormInstance>("form")
 const valueInput = useTemplateRef<InputInstance>("valueInput")
 /** active 默认为显示状态; 外部工作区隐藏本面板时只保留编辑器 DOM 和原生历史, 禁止业务动作和消息. */
@@ -53,6 +55,13 @@ const {
     t,
     stringSelection,
 } = useModelEdit(props, emit, form, valueInput)
+/** 由所属工作区定位已挂载编辑器, 只滚动和移动键盘焦点, 不重建表单或提交草稿. */
+function focus(): void {
+    if (!props.active || props.locked || busy.value) return
+    scrollToWorkspaceSection(heading.value ?? undefined)
+    heading.value?.focus({ preventScroll: true })
+}
+defineExpose({ focus })
 useMessageNotices(
     "model-edit-panel",
     () => [
@@ -68,7 +77,9 @@ useMessageNotices(
 </script>
 <template>
     <UiPanel class="copy-change"
-        ><h2>{{ template === "calendar" ? t("model.calendarCreate") : template === "period" ? t("model.periodGenerate") : t("model.editCurrent") }}</h2>
+        ><h2 ref="heading" tabindex="-1">
+            {{ template === "calendar" ? t("model.calendarCreate") : template === "period" ? t("model.periodGenerate") : t("model.editCurrent") }}
+        </h2>
         <p v-if="template">{{ t(isConnectedDesktopProject(project) ? "model.directSaveNotice" : "model.saveNotice") }}</p>
         <el-form
             ref="form"

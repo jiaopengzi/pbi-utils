@@ -7,6 +7,7 @@
 -->
 <!-- 导航只管理显示状态; 业务读取由共享 C# 服务完成. -->
 <script setup lang="ts">
+import { useTemplateRef } from "vue"
 import UiPanel from "@/ui/UiPanel.vue"
 import { useMessageNotices } from "@/composables/ui/useMessageNotices"
 // 显式调用的确认框需要单独引入品牌 SCSS, 模板按需导入不会补齐其样式.
@@ -24,6 +25,7 @@ import ConnectionPanel from "./ConnectionPanel.vue"
 import RecentConnectionsPanel from "./RecentConnectionsPanel.vue"
 import { useApplicationWorkspace } from "@/composables/app/useApplicationWorkspace"
 import { useProductUpdates } from "@/composables/app/useProductUpdates"
+const modelTableEditor = useTemplateRef("modelTableEditor")
 const {
     modules,
     page,
@@ -214,6 +216,7 @@ useMessageNotices("application-workspace", () => [
                         :editor-busy="modelEditorBusy"
                         @busy="modelPanelBusy = $event"
                         @editor-state="acceptModelEditorState"
+                        @edit="modelTableEditor?.focus()"
                         @updated="acceptEdit"
                     />
                     <SettingsWorkspace
@@ -242,6 +245,7 @@ useMessageNotices("application-workspace", () => [
                         ></UiPanel
                     >
                     <ModelEditPanel
+                        ref="modelTableEditor"
                         v-if="modelEditorCreated && project && bridge"
                         v-show="modelEditorActive"
                         :key="modelEditorIdentity"

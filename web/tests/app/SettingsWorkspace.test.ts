@@ -21,6 +21,36 @@ import { showMessage } from "@/ui/message"
 
 vi.mock("@/ui/message", () => ({ showMessage: vi.fn() }))
 
+it("平铺全部设置且保留面板与请求状态; 在途锁延后搜索定位并在解锁后处理最新目标", async () => {
+    const bridge = markRaw(new BridgeClient(new MockTransport()))
+    const request = vi.spyOn(bridge, "request")
+    const wrapper = mount(SettingsWorkspace, { props: { bridge }, attachTo: document.body })
+    await flushPromises()
+    const general = wrapper.getComponent(UiSettingsPanel)
+    const mcp = wrapper.getComponent(McpSettingsPanel)
+    const node = mcp.element
+    const requestCount = request.mock.calls.length
+    const scroll = vi.fn()
+    Object.defineProperty(wrapper.get('[data-settings-section="data"]').element, "scrollIntoView", { configurable: true, value: scroll })
+    expect(wrapper.find('[role="tablist"]').exists()).toBe(false)
+    expect(general.isVisible()).toBe(true)
+    expect(mcp.isVisible()).toBe(true)
+    mcp.vm.$emit("busy", true)
+    await flushPromises()
+    await wrapper.setProps({ initialTab: "updates", navigationId: 1 })
+    await wrapper.setProps({ initialTab: "data", navigationId: 2 })
+    await flushPromises()
+    expect(scroll).not.toHaveBeenCalled()
+    mcp.vm.$emit("busy", false)
+    await flushPromises()
+    expect(general.isVisible()).toBe(true)
+    expect(wrapper.getComponent(McpSettingsPanel).element).toBe(node)
+    expect(request).toHaveBeenCalledTimes(requestCount)
+    expect(scroll).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+    bridge.dispose()
+})
+
 it("两个设置窗口读取旧快照后修改不同字段, 各次只提交实际修改并保留另一个窗口的新偏好", async () => {
     const bridge = markRaw(new BridgeClient(new MockTransport()))
     const first = mount(UiSettingsPanel, { props: { bridge } })
@@ -156,10 +186,10 @@ it("失败的偏好请求恢复最新共享状态, 不使用面板旧快照覆�
     bridge.dispose()
 })
 
-it("设置移除产品介绍并保留运行环境检测, MCP 在顶部且本地数据在底部", async () => {
+it("设置按常规、更新、MCP、环境、数据平铺, 无需切换且保留运行环境检测", async () => {
     const bridge = markRaw(new BridgeClient(new MockTransport()))
     const request = vi.spyOn(bridge, "request")
-    const wrapper = mount(SettingsWorkspace, { props: { bridge } })
+    const wrapper = mount(SettingsWorkspace, { props: { bridge }, attachTo: document.body })
     await flushPromises()
     expect(wrapper.findComponent(UiSettingsPanel).exists()).toBe(true)
     expect(wrapper.findComponent(LoggingPanel).exists()).toBe(true)
@@ -173,16 +203,11 @@ it("设置移除产品介绍并保留运行环境检测, MCP 在顶部且本地�
     expect(wrapper.text()).not.toContain("模型保存")
     expect(wrapper.text()).not.toContain("AI 提供方与模型")
     const sections = wrapper.findAll(".settings-workspace > section")
-    expect(sections.map((section) => section.attributes("aria-label"))).toEqual(["本地 MCP", "常规", "软件更新", "运行环境", "本地数据"])
-    expect(request.mock.calls.map(([method]) => method)).toEqual([
-        "updates.status",
-        "app.info",
-        "mcp.connections",
-        "mcp.configuration",
-        "ui.settings",
-        "logging.settings",
-        "doctor",
-    ])
+    expect(sections.map((section) => section.attributes("aria-label"))).toEqual(["常规", "软件更新", "本地 MCP", "运行环境", "本地数据"])
+    expect(sections.every((section) => section.isVisible())).toBe(true)
+    expect(request.mock.calls.map(([method]) => method).toSorted()).toEqual(
+        ["updates.status", "app.info", "mcp.connections", "mcp.configuration", "ui.settings", "logging.settings", "doctor"].toSorted(),
+    )
     wrapper.unmount()
     bridge.dispose()
 })
@@ -207,7 +232,7 @@ it("不同设置面板同时在途时保持全局忙状态, 最后一个面板�
     bridge.dispose()
 })
 
-it("重复搜索 MCP 分区避让顶栏, 保留当前配置示例且不重新加载", async () => {
+it("重复搜索 MCP 将对应分区定位在顶栏下, 保留当前配置示例且不重新加载", async () => {
     const bridge = markRaw(new BridgeClient(new MockTransport()))
     const request = vi.spyOn(bridge, "request")
     const header = document.createElement("header")
@@ -219,7 +244,7 @@ it("重复搜索 MCP 分区避让顶栏, 保留当前配置示例且不重新加
         await flushPromises()
         const panel = wrapper.getComponent(McpSettingsPanel)
         expect(panel.findAll('[role="tab"]')).toHaveLength(0)
-        const section = wrapper.findAll(".settings-workspace > section")[0]!.element as HTMLElement
+        const section = wrapper.get('[data-settings-section="mcp"]').element as HTMLElement
         const scroll = vi.fn(() => section.style.scrollMarginBlockStart)
         Object.defineProperty(section, "scrollIntoView", { configurable: true, value: scroll })
         const requestCount = request.mock.calls.length
@@ -228,6 +253,7 @@ it("重复搜索 MCP 分区避让顶栏, 保留当前配置示例且不重新加
         await flushPromises()
         expect(scroll).toHaveBeenCalledTimes(1)
         expect(scroll.mock.results[0]?.value).toBe("150px")
+        expect(section.contains(panel.element)).toBe(true)
         await wrapper.setProps({ navigationId: 2 })
         await flushPromises()
         expect(scroll).toHaveBeenCalledTimes(2)

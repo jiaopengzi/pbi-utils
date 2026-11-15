@@ -56,8 +56,8 @@ const labels = computed(() => ({
 }))
 </script>
 <template>
-    <el-form label-position="top" :disabled="disabled" @submit.prevent>
-        <el-form-item v-for="(label, key) in labels" :key="key">
+    <el-form class="measure-fields" label-position="top" :disabled="disabled" @submit.prevent>
+        <el-form-item v-for="(label, key) in labels" :key="key" :class="{ 'measure-field-wide': key === 'expression' || key === 'description' }">
             <template #label>
                 <el-checkbox-group v-if="batch" :model-value="enabled" @update:model-value="enabled = stringSelection($event)"
                     ><el-checkbox :value="key">{{ t("model.modifyField", { label }) }}</el-checkbox></el-checkbox-group
@@ -114,6 +114,14 @@ const labels = computed(() => ({
     </el-form>
 </template>
 <style scoped lang="scss">
+.measure-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 16px;
+}
+.measure-field-wide {
+    grid-column: 1 / -1;
+}
 .measure-field-complete {
     width: 100%;
 }

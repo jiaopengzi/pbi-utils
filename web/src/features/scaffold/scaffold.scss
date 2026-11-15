@@ -110,13 +110,13 @@
     }
     // fixed 布局从首行确定列宽, 为值输入和默认尺寸编辑按钮预留同一行空间.
     th:nth-child(1) {
-        width: 16%;
+        width: 15%;
     }
     th:nth-child(2) {
-        width: 26%;
+        width: 32%;
     }
     th:nth-child(3) {
-        width: 19%;
+        width: 16%;
     }
     th:nth-child(4),
     td:nth-child(4) {

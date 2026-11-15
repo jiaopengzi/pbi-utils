@@ -61,6 +61,7 @@ function save(): void {
                         <div class="scaffold-value">
                             <el-input
                                 v-model="item.value"
+                                :title="item.value"
                                 :class="{ 'operation-lock': operationLocked }"
                                 :disabled="disabled"
                                 :aria-label="`${t('scaffold.value')} ${index + 1}`"

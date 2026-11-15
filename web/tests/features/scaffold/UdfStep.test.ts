@@ -737,3 +737,18 @@ it("已选函数按包展示有序列表, 保留精确版本且逐项可读", as
     wrapper.unmount()
     bridge.dispose()
 })
+
+it("已有模型导入说明明确独立升级确认, 新建说明只出现在新建场景", async () => {
+    const bridge = markRaw(new BridgeClient(new MockTransport()))
+    const wrapper = mount(UdfStep, { props: { bridge, modelValue: [], disabled: false, modelConfiguration: true } })
+    try {
+        await flushPromises()
+        expect(wrapper.text()).toContain("已有模型需兼容级别 1702")
+        expect(wrapper.text()).not.toContain("仅提升新项目")
+        await wrapper.setProps({ modelConfiguration: false })
+        expect(wrapper.text()).toContain("仅提升新项目")
+    } finally {
+        wrapper.unmount()
+        bridge.dispose()
+    }
+})

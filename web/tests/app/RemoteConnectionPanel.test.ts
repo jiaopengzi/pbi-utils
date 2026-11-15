@@ -63,6 +63,21 @@ it("首次读取后直接平铺, 空闲无桥接请求或导航锁; Enter 不隐
     expect(submit.defaultPrevented).toBe(true)
     expect(request).toHaveBeenCalledTimes(1)
 })
+it("切换当前身份收起凭据并清空秘密, 再选指定身份不得恢复旧密码", async () => {
+    const { wrapper, request } = await harness()
+    const password = wrapper.get('input[type="password"]')
+    await password.setValue("temporary-only-password")
+    const identity = wrapper.findAllComponents(ElSelect)[1]!
+    identity.vm.$emit("update:modelValue", "current")
+    await flushPromises()
+    expect(password.isVisible()).toBe(false)
+    expect((password.element as HTMLInputElement).value).toBe("")
+    identity.vm.$emit("update:modelValue", "windows")
+    await flushPromises()
+    expect(password.isVisible()).toBe(true)
+    expect((password.element as HTMLInputElement).value).toBe("")
+    expect(request).toHaveBeenCalledTimes(1)
+})
 it.each(["服务器", "数据库 / 模型", "Windows 账号"])("修改%s解除保存密码的完整目标绑定并清临时输入", async (label) => {
     const { wrapper, connect } = await harness()
     const password = wrapper.get('input[type="password"]')

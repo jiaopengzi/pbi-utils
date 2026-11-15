@@ -119,15 +119,19 @@ useMessageNotices(
                 >
                     <el-option v-for="level in levels" :key="level.value" :value="level.value" :label="level.label" />
                 </el-select>
+                <p class="hint">{{ t("logging.levelHint") }}</p>
             </el-form-item>
         </el-form>
-        <p class="hint">{{ t("logging.levelHint") }}</p>
         <div class="log-directory">
-            <strong>{{ t("logging.directory") }}</strong
-            ><span>{{ settings ? (settings.isSimulation ? hostText(settings.directory) : settings.directory) : "-" }}</span>
+            <div>
+                <strong>{{ t("logging.directory") }}</strong>
+                <p class="log-path">{{ settings ? (settings.isSimulation ? hostText(settings.directory) : settings.directory) : "-" }}</p>
+                <p class="hint">{{ t("logging.retentionHint") }}</p>
+            </div>
+            <el-button :loading="busy && operation === 'opening'" :disabled="busy || !settings" @click="openDirectory">{{
+                t("logging.openDirectory")
+            }}</el-button>
         </div>
-        <el-button :loading="busy && operation === 'opening'" :disabled="busy || !settings" @click="openDirectory">{{ t("logging.openDirectory") }}</el-button>
-        <p class="hint">{{ t("logging.retentionHint") }}</p>
         <el-button v-if="!settings && !busy" @click="update()">{{ t("logging.retry") }}</el-button>
     </UiPanel>
 </template>
@@ -135,17 +139,48 @@ useMessageNotices(
 .logging-panel {
     margin-top: 18px;
 }
+:deep(.el-form-item) {
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) minmax(340px, 1fr);
+    gap: 12px 24px;
+    margin-bottom: 0;
+    padding-block: 14px;
+}
+:deep(.el-form-item__label) {
+    margin-bottom: 0;
+    line-height: 32px;
+}
+.hint {
+    flex-basis: 100%;
+    margin: 6px 0 0;
+}
 .el-select {
     width: 100%;
     max-width: 360px;
 }
 .log-directory {
-    display: grid;
-    gap: 8px;
-    margin: 16px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    padding-top: 14px;
+    border-top: 1px solid var(--el-border-color-lighter);
 }
-.log-directory span {
+.log-directory > div {
+    min-width: 0;
+}
+.log-path {
+    margin: 6px 0 0;
     overflow-wrap: anywhere;
     color: var(--muted);
+}
+@media (max-width: 900px) {
+    :deep(.el-form-item) {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+    .log-directory {
+        flex-wrap: wrap;
+    }
 }
 </style>

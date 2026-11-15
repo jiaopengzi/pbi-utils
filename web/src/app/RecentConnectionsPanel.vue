@@ -119,8 +119,11 @@ onBeforeUnmount(() => {
         <div class="recent-projects">
             <div v-for="item in items" :key="item.id" class="recent-project-row">
                 <el-button class="recent-project-open" :disabled="disabled || confirming" :title="item.detail" @click="open(item.id)">
-                    <strong>{{ item.name }}</strong>
-                    <small>{{ item.detail }}</small>
+                    <span class="recent-project-description">
+                        <strong>{{ item.name }}</strong>
+                        <small>{{ item.detail }}</small>
+                    </span>
+                    <span class="recent-project-action">{{ t("app.recentOpen") }}</span>
                 </el-button>
                 <el-button
                     class="recent-project-remove"
@@ -137,6 +140,23 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
+.recent-project-open :deep(> span) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 20px;
+}
+.recent-project-description {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+}
+.recent-project-action {
+    flex: none;
+    color: var(--brand-primary);
+    font-weight: 600;
+}
 /* 删除操作使用实色危险态增强辨识度, 固定尺寸并保留禁用与键盘焦点边界. */
 .recent-project-row .recent-project-remove {
     &:hover:not(:disabled),

@@ -92,3 +92,31 @@ it("已有标准字段随编号选择覆盖显示, 人工别名保持且提示�
         wrapper.unmount()
     }
 })
+
+it("日期搜索匹配双语含义和技术名, 筛选期间修改保留隐藏选择与必选列", async () => {
+    const calendar = { kind: "simple", startYear: 2025, endYear: 2025, tableName: "Calendar", overrides: [], fields: ["Dates", "Day", "Year"] }
+    const wrapper = mount(CalendarFieldPicker, { props: { calendar, preferenceFields: calendar.fields, disabled: false } })
+    try {
+        const search = wrapper.get('input[aria-label="搜索日期字段"]')
+        await search.setValue("C02_Day")
+        expect(wrapper.findAll(".calendar-fields__choice").filter((item) => (item.element as HTMLElement).style.display !== "none")).toHaveLength(1)
+        await wrapper.get('.calendar-fields__choice input[value="Day"]').setValue(false)
+        expect(wrapper.emitted("change")?.at(-1)?.[0]).toEqual(["Dates", "Year"])
+        await search.setValue("星期")
+        expect(wrapper.findAll(".calendar-fields__choice").filter((item) => (item.element as HTMLElement).style.display !== "none").length).toBeGreaterThan(1)
+        await search.setValue("weekday")
+        expect(
+            wrapper
+                .findAll(".calendar-fields__choice")
+                .some((item) => (item.element as HTMLElement).style.display !== "none" && item.text().includes("WeekDay")),
+        ).toBe(true)
+        await search.setValue("不存在的字段")
+        expect(wrapper.text()).toContain("没有匹配的日期字段")
+        expect(wrapper.emitted("change")).toHaveLength(1)
+        await search.setValue("")
+        expect(wrapper.findAll(".calendar-fields__choice").filter((item) => (item.element as HTMLElement).style.display !== "none")).toHaveLength(63)
+        expect((wrapper.get('input[value="Dates"]').element as HTMLInputElement).disabled).toBe(true)
+    } finally {
+        wrapper.unmount()
+    }
+})

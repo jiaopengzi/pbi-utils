@@ -102,7 +102,7 @@ useMessageNotices("remote-connection-panel", () => [
                     <el-option value="current" :label="t('hostDialog.current')" /><el-option value="windows" :label="t('hostDialog.windows')" />
                 </el-select>
             </el-form-item>
-            <div class="remote-connection__target">
+            <div v-show="explicitWindows" class="remote-connection__target">
                 <el-form-item :label="t('hostDialog.userName')"
                     ><el-input
                         v-model="form.userName"
@@ -133,6 +133,7 @@ useMessageNotices("remote-connection-panel", () => [
                     >{{ t("hostDialog.remember") }}</el-checkbox
                 >
                 <el-checkbox
+                    v-show="explicitWindows"
                     :model-value="form.rememberPassword"
                     :disabled="!explicitWindows || !form.remember || blocked"
                     :class="{ 'operation-lock': preserveAppearance && explicitWindows && form.remember }"
@@ -140,7 +141,7 @@ useMessageNotices("remote-connection-panel", () => [
                     >{{ t("hostDialog.rememberPassword") }}</el-checkbox
                 >
             </div>
-            <p class="remote-connection__hint">{{ t("hostDialog.passwordHint") }}</p>
+            <p v-show="explicitWindows" class="remote-connection__hint">{{ t("hostDialog.passwordHint") }}</p>
             <div class="remote-connection__actions">
                 <el-button v-if="!context?.formId && !connecting" :disabled="blocked" @click="loadForm">{{ t("connection.retryRemote") }}</el-button>
                 <el-button
@@ -156,6 +157,9 @@ useMessageNotices("remote-connection-panel", () => [
     </section>
 </template>
 <style scoped lang="scss">
+.remote-connection {
+    max-width: 960px;
+}
 .remote-connection__target {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

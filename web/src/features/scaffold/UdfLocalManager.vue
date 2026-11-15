@@ -42,7 +42,8 @@ function changeVersion(group: LocalUdfPackage, id: string): void {
 </script>
 <template>
     <UiDialog v-model="manager" :title="t('scaffold.localManager')" :busy="busy"
-        ><el-button :class="{ 'operation-lock': busy }" :disabled="busy" @click="edit()">{{ t("scaffold.newFunction") }}</el-button>
+        ><p v-if="!busy && !groups.length" class="muted" role="status">{{ t("scaffold.localFunctionsEmpty") }}</p>
+        <el-button :class="{ 'operation-lock': busy }" :disabled="busy" @click="edit()">{{ t("scaffold.newFunction") }}</el-button>
         <div class="udf-function-grid udf-local-manager-packages">
             <UdfFunctionRow
                 v-for="group in groups"

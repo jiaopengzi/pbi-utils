@@ -88,6 +88,7 @@ onUnmounted(() => cancelCheck(true))
             >
             <span class="update-status">{{ resultMessage }}</span>
         </div>
+        <p v-if="status === 'current'" class="hint update-policy">{{ t("updates.comparisonHint") }}</p>
         <p v-if="simulation" class="hint">{{ t("updates.simulationHint") }}</p>
         <form class="update-controls" @submit.prevent>
             <div class="update-control">

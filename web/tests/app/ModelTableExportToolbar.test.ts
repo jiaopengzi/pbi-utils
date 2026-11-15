@@ -18,8 +18,6 @@ function render(locked: boolean) {
             locked,
             busy: false,
             exportAvailable: true,
-            canDelete: false,
-            deleting: false,
             validLimit: true,
             opening: false,
             format: "xlsx",
@@ -101,6 +99,32 @@ it("真实行数草稿在临时锁往返后仍保留, 解锁输入继续向工�
         element.value = "42"
         await input.trigger("input")
         expect(wrapper.emitted("update:rowLimit")?.at(-1)).toEqual([42])
+    } finally {
+        wrapper.unmount()
+    }
+})
+
+it("收起导出设置仍显示实际格式与抽样上限, 展开往返保留原生输入草稿", async () => {
+    const wrapper = render(false)
+    try {
+        const disclosure = wrapper.get("details")
+        expect(disclosure.attributes("open")).toBeUndefined()
+        expect(disclosure.get("summary").text()).toContain("100")
+        expect(disclosure.get("summary").text()).toContain("Excel")
+        const input = wrapper.findComponent(ElInputNumber).get("input")
+        const element = input.element
+        element.value = "25"
+        await input.trigger("input")
+        await wrapper.setProps({ rowLimit: 25 })
+        ;(disclosure.element as HTMLDetailsElement).open = true
+        ;(disclosure.element as HTMLDetailsElement).open = false
+        expect(wrapper.findComponent(ElInputNumber).get("input").element).toBe(element)
+        expect(disclosure.get("summary").text()).toContain("25")
+        expect(element.value).toBe("25")
+        await wrapper.setProps({ scope: "all", format: "csv" })
+        expect(disclosure.get("summary").text()).toContain("CSV")
+        expect(disclosure.get("summary").text()).toContain("全部数据")
+        expect(disclosure.get("summary").text()).not.toContain("25")
     } finally {
         wrapper.unmount()
     }

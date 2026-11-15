@@ -17,7 +17,7 @@ import { useModelTableStatistics } from "@/composables/app/useModelTableStatisti
 import { useModelExportLocation } from "@/composables/app/useModelExportLocation"
 import { useModelTableDeletion } from "@/composables/app/useModelTableDeletion"
 const props = defineProps<ModelTableExportProps>()
-const emit = defineEmits<{ busy: [value: boolean]; updated: [value: ProjectSnapshot] }>()
+const emit = defineEmits<{ busy: [value: boolean]; updated: [value: ProjectSnapshot]; edit: [] }>()
 const locations = useModelExportLocation(props)
 const exporting = useModelTableExport(props, () => locations.refresh(false))
 const {
@@ -98,6 +98,9 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
                 <p v-if="statistics.hasEstimates.value" class="statistics-estimate-help">{{ t("model.statisticsEstimateHelp") }}</p>
             </div>
             <div class="tables-actions">
+                <el-button v-if="deletion.writable.value" class="table-edit-button" :disabled="locked" @click="perform(() => emit('edit'))">{{
+                    t("model.editCurrent")
+                }}</el-button>
                 <el-button :disabled="locked" :class="{ 'operation-lock': locked }" @click="perform(statistics.refresh)">{{
                     t("model.statisticsRefresh")
                 }}</el-button>
@@ -121,17 +124,26 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
             :locked="locked"
             :busy="busy"
             :export-available="exportAvailable"
-            :can-delete="deletion.writable.value"
-            :deleting="deletion.busy.value"
             :valid-limit="validLimit"
             :location="locations.location.value"
             :opening="locations.opening.value"
             @export="perform(exportTables)"
-            @delete="perform(deletion.deleteSelected)"
             @open-directory="perform(locations.open)"
         />
         <div class="table-search-toolbar">
             <el-input v-model="query" clearable :disabled="locked" :aria-label="t('model.tableSearch')" :placeholder="t('model.tableSearch')" />
+            <span class="table-selection-count">{{ t("model.exportSelectedCount", { count: selectedTables.length }) }}</span>
+            <el-button
+                v-if="deletion.writable.value"
+                class="table-delete-button"
+                type="danger"
+                text
+                :disabled="locked || !selectedTables.length"
+                :loading="deletion.busy.value"
+                :class="{ 'operation-lock': locked && selectedTables.length > 0 }"
+                @click="perform(deletion.deleteSelected)"
+                >{{ t("model.deleteSelectedTables") }}</el-button
+            >
         </div>
         <p class="table-search-summary" role="status">
             {{
@@ -202,10 +214,14 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
     display: flex;
     gap: 12px;
     align-items: center;
-    margin-top: 16px;
+    flex-wrap: wrap;
     :deep(.el-input) {
         max-width: 420px;
     }
+}
+.table-selection-count {
+    color: var(--el-text-color-regular);
+    font-size: 13px;
 }
 .table-search-summary {
     color: var(--el-text-color-regular);
@@ -217,7 +233,7 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
     flex-wrap: wrap;
     justify-content: space-between;
     gap: 16px 24px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     h2 {
         margin: 0 0 8px;
     }
@@ -248,27 +264,30 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
     font-size: 12px;
     padding: 0 46px 8px 0;
     .table-title {
-        padding-left: 20px;
+        padding-left: 19px;
     }
 }
 .table-title {
     display: grid;
-    grid-template-columns: minmax(140px, 1fr) 120px 160px 82px;
+    grid-template-columns: minmax(140px, 480px) 120px 160px 82px;
     width: 100%;
     align-items: center;
     gap: 12px;
     text-align: left;
+    > span:not(:first-child) {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
 }
 .table-name {
     overflow-wrap: anywhere;
     font-weight: 600;
 }
 .model-table-entry {
-    margin-bottom: 16px;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--el-border-color-light);
     :deep(.el-collapse) {
-        border: 1px solid var(--el-border-color);
-        border-radius: 10px;
-        overflow: hidden;
+        border: 0;
     }
     :deep(.el-collapse-item) {
         border-left: 3px solid transparent;
@@ -277,11 +296,17 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
         border-left-color: var(--el-color-primary);
     }
     :deep(.el-collapse-item__header) {
-        min-height: 56px;
+        min-height: 44px;
         height: auto;
-        padding: 12px 16px;
-        border-bottom: 0;
+        padding: 8px 16px;
+        border-bottom: 1px solid var(--el-border-color-light);
         line-height: 1.5;
+    }
+    :deep(.el-collapse-item__title) {
+        flex: 0 1 878px;
+    }
+    :deep(.el-collapse-item__arrow) {
+        margin-left: 12px;
     }
     :deep(.el-collapse-item.is-active > .el-collapse-item__header) {
         background: var(--el-color-primary-light-9);
@@ -295,6 +320,6 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
 }
 .table-selection {
     align-self: start;
-    margin-top: 14px;
+    margin-top: 6px;
 }
 </style>

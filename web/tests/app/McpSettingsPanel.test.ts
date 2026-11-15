@@ -24,6 +24,27 @@ function configuration(): McpConfiguration {
     }
 }
 
+it("默认折叠全文仍可复制完整提示词, 展开往返不重读配置且边界说明始终可见", async () => {
+    const bridge = markRaw(new BridgeClient(new MockTransport()))
+    const request = vi.spyOn(bridge, "request").mockReturnValue({ id: "configuration", promise: Promise.resolve(configuration()) })
+    const copy = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined)
+    const wrapper = mount(McpSettingsPanel, { props: { bridge }, attachTo: document.body, global: { stubs: { McpConnectionsPanel: true } } })
+    await flushPromises()
+    const toggle = wrapper.get('[aria-controls="mcp-prompt-content"]')
+    expect(toggle.attributes("aria-expanded")).toBe("false")
+    expect(wrapper.get("pre").isVisible()).toBe(false)
+    await wrapper.get(".mcp-prompt button").trigger("click")
+    expect(copy.mock.lastCall?.[0]).toContain("--allow-write")
+    for (const boundary of wrapper.findAll(".mcp-boundary")) expect(boundary.isVisible()).toBe(true)
+    await toggle.trigger("click")
+    expect(wrapper.get("pre").isVisible()).toBe(true)
+    await toggle.trigger("click")
+    expect(wrapper.get("pre").isVisible()).toBe(false)
+    expect(request).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+    bridge.dispose()
+})
+
 it("双语提示词复制完整配置和七项结果表, 切换语言不启动服务", async () => {
     const bridge = markRaw(new BridgeClient(new MockTransport()))
     const value = configuration()
@@ -69,7 +90,7 @@ it("双语提示词复制完整配置和七项结果表, 切换语言不启动�
             "UNRUN",
         )
         expect(wrapper.findAll("pre")).toHaveLength(1)
-        expect(wrapper.findAll("button")).toHaveLength(1)
+        expect(wrapper.findAll("button")).toHaveLength(2)
         expect(wrapper.findAll('[role="tab"]')).toHaveLength(0)
         expect(copy).toHaveBeenCalledTimes(2)
         expect(request.mock.calls).toEqual([["mcp.configuration", {}]])

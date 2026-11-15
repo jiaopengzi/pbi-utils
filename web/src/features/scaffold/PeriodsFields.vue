@@ -6,7 +6,7 @@
  * Description : 时间智能实际绑定、平铺分组选择及声明依赖展示.
 -->
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, ref, useId } from "vue"
 import ScaffoldField from "./ScaffoldField.vue"
 import { calendarColumnOutputName, calendarDateColumn, selectedCalendarFields } from "./calendarFields"
 import { vNumberAccessibility } from "@/ui/numberAccessibility"
@@ -30,6 +30,25 @@ const props = withDefaults(
     { showEnableSwitch: true },
 )
 const { t, locale } = useI18n()
+const explained = ref<Record<string, string>>({})
+const explanationPrefix = useId()
+/** 每组仅显示当前聚焦或已选项的一条释义, 不修改选择; 未知宿主定义保留原说明. */
+function explanation(group: string): string {
+    const definitions = props.definitions.filter((item) => item.group === group)
+    const item =
+        definitions.find((entry) => entry.id === explained.value[group]) ??
+        definitions.find((entry) => periods.value.templates.includes(entry.id)) ??
+        definitions[0]
+    if (!item) return ""
+    const key = `scaffold.periodMeaning${item.id}`
+    const translated = t(key)
+    return translated === key ? item.description || item.id : translated.startsWith(item.id) ? translated : `${item.id}: ${translated}`
+}
+/** 原生分区委托鼠标和键盘事件, 仅已知本组标识更新释义; 不依赖组件私有事件或更改选择. */
+function explainTarget(event: Event, group: string): void {
+    const id = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-period-id]")?.dataset.periodId : undefined
+    if (id && props.definitions.some((item) => item.group === group && item.id === id)) explained.value[group] = id
+}
 const capability = computed(() => props.details?.calendarCapabilities?.find((item) => item.tableName === calendar.value.tableName))
 const groups = computed(() => [...new Set(props.definitions.map((item) => item.group))])
 const tables = computed(() => props.details?.tables ?? [])
@@ -98,103 +117,125 @@ function groupLabel(group: string): string {
             data-optional
         />{{ t("scaffold.periodsEnable") }}</label
     >
-    <div class="scaffold-grid">
-        <ScaffoldField field="periodDateTable"
-            >{{ t("scaffold.dateTable")
-            }}<el-select
-                v-model="periods.dateTable"
-                :class="{ 'operation-lock': disabled && periodsEnabled }"
-                :disabled="disabled || !periodsEnabled"
-                filterable
-                @change="periods.dateColumn = ''"
-                ><el-option v-for="name in dateTables" :key="name" :value="name" /></el-select
-        ></ScaffoldField>
-        <ScaffoldField field="periodDateColumn"
-            >{{ t("scaffold.dateColumn")
-            }}<el-select
-                v-model="periods.dateColumn"
-                :class="{ 'operation-lock': disabled && periodsEnabled }"
-                :disabled="disabled || !periodsEnabled"
-                filterable
-                ><el-option v-for="name in dateColumns" :key="name" :value="name" /></el-select
-        ></ScaffoldField>
-        <ScaffoldField field="periodMeasureTable"
-            >{{ t("scaffold.measureTable")
-            }}<el-select
-                v-model="periods.measureTable"
-                :class="{ 'operation-lock': disabled && periodsEnabled }"
-                :disabled="disabled || !periodsEnabled"
-                filterable
-                ><el-option v-for="table in tables" :key="table.name" :value="table.name" /></el-select
-        ></ScaffoldField>
-        <ScaffoldField field="periodBaseMeasures"
-            >{{ t("scaffold.baseMeasures")
-            }}<el-select
-                v-model="periods.baseMeasures"
-                :class="{ 'operation-lock': disabled && periodsEnabled }"
-                :disabled="disabled || !periodsEnabled"
-                multiple
-                filterable
-                ><el-option v-for="name in baseMeasures" :key="name" :value="name" /></el-select
-        ></ScaffoldField>
-        <ScaffoldField field="periodFolder"
-            >{{ t("scaffold.folder")
-            }}<el-input v-model="periods.folder" :class="{ 'operation-lock': disabled && periodsEnabled }" :disabled="disabled || !periodsEnabled"
-        /></ScaffoldField>
-        <ScaffoldField field="periodNumberDigits"
-            >{{ t("scaffold.numberDigits")
-            }}<el-input-number
-                v-number-accessibility
-                :model-value="periods.numberDigits"
-                @update:model-value="periods.numberDigits = $event ?? 0"
-                :min="0"
-                :max="8"
-                :class="{ 'operation-lock': disabled && periodsEnabled }"
-                :disabled="disabled || !periodsEnabled"
-        /></ScaffoldField>
-        <ScaffoldField field="periodPercentDigits"
-            >{{ t("scaffold.percentDigits")
-            }}<el-input-number
-                v-number-accessibility
-                :model-value="periods.percentDigits"
-                @update:model-value="periods.percentDigits = $event ?? 0"
-                :min="0"
-                :max="8"
-                :class="{ 'operation-lock': disabled && periodsEnabled }"
-                :disabled="disabled || !periodsEnabled"
-        /></ScaffoldField>
-    </div>
-    <ScaffoldField field="periodTemplates" tag="div" error-first>
-        <section v-for="group in groups" :key="group" class="scaffold-period-group">
-            <div class="scaffold-toolbar">
-                <h3>{{ groupLabel(group) }}</h3>
-                <el-button
+    <p v-if="showEnableSwitch && !periodsEnabled" class="muted">{{ t("scaffold.skip") }}</p>
+    <div v-show="!showEnableSwitch || periodsEnabled">
+        <div class="scaffold-grid">
+            <ScaffoldField field="periodDateTable"
+                >{{ t("scaffold.dateTable")
+                }}<el-select
+                    v-model="periods.dateTable"
                     :class="{ 'operation-lock': disabled && periodsEnabled }"
                     :disabled="disabled || !periodsEnabled"
-                    @click="selectGroup(group, true)"
-                    >{{ t("scaffold.selectGroup") }}</el-button
-                ><el-button
+                    filterable
+                    @change="periods.dateColumn = ''"
+                    ><el-option v-for="name in dateTables" :key="name" :value="name" /></el-select
+            ></ScaffoldField>
+            <ScaffoldField field="periodDateColumn"
+                >{{ t("scaffold.dateColumn")
+                }}<el-select
+                    v-model="periods.dateColumn"
                     :class="{ 'operation-lock': disabled && periodsEnabled }"
                     :disabled="disabled || !periodsEnabled"
-                    @click="selectGroup(group, false)"
-                    >{{ t("scaffold.clearGroup") }}</el-button
-                >
-            </div>
-            <el-checkbox-group
-                :model-value="periods.templates"
-                @update:model-value="periods.templates = $event.map(String)"
-                :class="{ 'operation-lock': disabled && periodsEnabled }"
-                :disabled="disabled || !periodsEnabled"
-                ><el-checkbox-button
-                    v-for="item in definitions.filter((definition) => definition.group === group)"
-                    :key="item.id"
-                    :value="item.id"
+                    filterable
+                    ><el-option v-for="name in dateColumns" :key="name" :value="name" /></el-select
+            ></ScaffoldField>
+            <ScaffoldField field="periodMeasureTable"
+                >{{ t("scaffold.measureTable")
+                }}<el-select
+                    v-model="periods.measureTable"
                     :class="{ 'operation-lock': disabled && periodsEnabled }"
-                    :title="locale === 'zh-cn' ? item.description : item.id"
-                    >{{ locale === "zh-cn" ? item.label : item.id }}</el-checkbox-button
-                ></el-checkbox-group
+                    :disabled="disabled || !periodsEnabled"
+                    filterable
+                    ><el-option v-for="table in tables" :key="table.name" :value="table.name" /></el-select
+            ></ScaffoldField>
+            <ScaffoldField field="periodBaseMeasures"
+                >{{ t("scaffold.baseMeasures")
+                }}<el-select
+                    v-model="periods.baseMeasures"
+                    :class="{ 'operation-lock': disabled && periodsEnabled }"
+                    :disabled="disabled || !periodsEnabled"
+                    multiple
+                    filterable
+                    ><el-option v-for="name in baseMeasures" :key="name" :value="name" /></el-select
+            ></ScaffoldField>
+            <ScaffoldField field="periodFolder"
+                >{{ t("scaffold.folder")
+                }}<el-input v-model="periods.folder" :class="{ 'operation-lock': disabled && periodsEnabled }" :disabled="disabled || !periodsEnabled"
+            /></ScaffoldField>
+            <ScaffoldField field="periodNumberDigits"
+                >{{ t("scaffold.numberDigits")
+                }}<el-input-number
+                    v-number-accessibility
+                    :model-value="periods.numberDigits"
+                    @update:model-value="periods.numberDigits = $event ?? 0"
+                    :min="0"
+                    :max="8"
+                    :class="{ 'operation-lock': disabled && periodsEnabled }"
+                    :disabled="disabled || !periodsEnabled"
+            /></ScaffoldField>
+            <ScaffoldField field="periodPercentDigits"
+                >{{ t("scaffold.percentDigits")
+                }}<el-input-number
+                    v-number-accessibility
+                    :model-value="periods.percentDigits"
+                    @update:model-value="periods.percentDigits = $event ?? 0"
+                    :min="0"
+                    :max="8"
+                    :class="{ 'operation-lock': disabled && periodsEnabled }"
+                    :disabled="disabled || !periodsEnabled"
+            /></ScaffoldField>
+        </div>
+        <ScaffoldField field="periodTemplates" tag="div" error-first>
+            <p class="muted">{{ t("scaffold.periodExplanationHint") }}</p>
+            <section
+                v-for="group in groups"
+                :key="group"
+                class="scaffold-period-group"
+                @focusin="explainTarget($event, group)"
+                @mouseover="explainTarget($event, group)"
             >
-        </section>
-        <p v-if="dependencies.length">{{ t("scaffold.dependencyHint") }}: {{ dependencies.join(", ") }}</p>
-    </ScaffoldField>
+                <div class="scaffold-toolbar">
+                    <h3>{{ groupLabel(group) }}</h3>
+                    <el-button
+                        :class="{ 'operation-lock': disabled && periodsEnabled }"
+                        :disabled="disabled || !periodsEnabled"
+                        @click="selectGroup(group, true)"
+                        >{{ t("scaffold.selectGroup") }}</el-button
+                    ><el-button
+                        :class="{ 'operation-lock': disabled && periodsEnabled }"
+                        :disabled="disabled || !periodsEnabled"
+                        @click="selectGroup(group, false)"
+                        >{{ t("scaffold.clearGroup") }}</el-button
+                    >
+                </div>
+                <el-checkbox-group
+                    :model-value="periods.templates"
+                    @update:model-value="periods.templates = $event.map(String)"
+                    :class="{ 'operation-lock': disabled && periodsEnabled }"
+                    :disabled="disabled || !periodsEnabled"
+                    ><el-checkbox-button
+                        v-for="item in definitions.filter((definition) => definition.group === group)"
+                        :key="item.id"
+                        :value="item.id"
+                        :class="{ 'operation-lock': disabled && periodsEnabled }"
+                        :title="locale === 'zh-cn' ? item.description : item.id"
+                        :aria-describedby="`${explanationPrefix}-${group}`"
+                        :data-period-id="item.id"
+                        >{{ locale === "zh-cn" ? item.label : item.id }}</el-checkbox-button
+                    ></el-checkbox-group
+                >
+                <p :id="`${explanationPrefix}-${group}`" class="scaffold-period-explanation muted">{{ explanation(group) }}</p>
+            </section>
+            <p v-if="dependencies.length">{{ t("scaffold.dependencyHint") }}: {{ dependencies.join(", ") }}</p>
+        </ScaffoldField>
+    </div>
 </template>
+
+<style scoped lang="scss">
+.scaffold-period-explanation {
+    margin-block: 8px 0;
+    min-height: 20px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+</style>

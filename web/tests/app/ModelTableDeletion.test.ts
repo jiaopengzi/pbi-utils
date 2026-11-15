@@ -51,6 +51,21 @@ it("只删除所选表, 先读权威同基线再发一个完整批次并保持�
     }
 })
 
+it("编辑入口仅定位编辑器, 不提交模型; 在途操作不发出定位事件", async () => {
+    const { wrapper, sent, cleanup } = await setupTables({ project: desktop() })
+    try {
+        await wrapper.get(".table-edit-button").trigger("click")
+        expect(wrapper.emitted("edit")).toHaveLength(1)
+        expect(sent).toHaveLength(0)
+        await wrapper.setProps({ locked: true })
+        await wrapper.get(".table-edit-button").trigger("click")
+        expect(wrapper.emitted("edit")).toHaveLength(1)
+        expect(wrapper.get(".table-delete-button").element.closest(".table-export-toolbar")).toBeNull()
+    } finally {
+        cleanup()
+    }
+})
+
 it.each(["ssas-xmla", "powerbi-service"] as const)("%s 只读时隐藏删除, 保留可用导出", async (kind) => {
     const project = tablesProject()
     project.connection = { kind, label: kind }

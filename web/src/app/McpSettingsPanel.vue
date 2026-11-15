@@ -10,14 +10,16 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue"
 import type { BridgeClient, McpConfiguration } from "@/bridge/client"
 import { useI18n } from "@/composables/i18n/useI18n"
 import { useMessageNotices } from "@/composables/ui/useMessageNotices"
+import { useFeedback } from "@/composables/ui/useFeedback"
 import McpConnectionsPanel from "./McpConnectionsPanel.vue"
 import UiPanel from "@/ui/UiPanel.vue"
-import CodeBlock from "@/features/code/CodeBlock.vue"
 
 /** bridge 只读取宿主生成的安装路径与命令; 失败不显示可复制的旧配置, 卸载后忽略迟到结果. */
 const props = defineProps<{ bridge: BridgeClient }>()
 const emit = defineEmits<{ busy: [value: boolean] }>()
 const { t } = useI18n()
+const { showFeedback } = useFeedback()
+const expanded = ref(false)
 const configuration = ref<McpConfiguration>()
 const busy = ref(false)
 const connectionsBusy = ref(false)
@@ -40,6 +42,17 @@ const prompt = computed(() =>
 )
 watch(combinedBusy, (value) => emit("busy", value))
 useMessageNotices("mcp-settings", () => [!!error.value && { key: "error", message: error.value, type: "error" }])
+
+/** 无论正文是否展开都复制当前语言的完整提示词; 剪贴板失败通过共享反馈报告. */
+async function copyPrompt(): Promise<void> {
+    if (!configuration.value) return
+    try {
+        await navigator.clipboard.writeText(prompt.value)
+        showFeedback({ message: t("model.copied") })
+    } catch {
+        showFeedback({ message: t("model.copyFailed"), type: "error" })
+    }
+}
 
 /** 读取本次安装的固定启动命令; 不创建 MCP 进程或访问第三方 AI, 出错清空配置并允许重新加载. */
 async function load(): Promise<void> {
@@ -72,10 +85,19 @@ onUnmounted(() => {
         <el-skeleton v-if="busy" :rows="3" animated />
         <template v-if="configuration">
             <p v-if="configuration.isSimulation" class="mcp-simulation" role="status">{{ t("mcp.simulation") }}</p>
-            <CodeBlock class="mcp-prompt" :code="prompt" language="text" :copy-label="t('mcp.copyPrompt')" />
+            <div class="mcp-prompt">
+                <div class="mcp-prompt-actions">
+                    <el-button type="primary" @click="copyPrompt">{{ t("mcp.copyPrompt") }}</el-button>
+                    <el-button :aria-expanded="expanded" aria-controls="mcp-prompt-content" @click="expanded = !expanded">{{
+                        t(expanded ? "mcp.hidePrompt" : "mcp.showPrompt")
+                    }}</el-button>
+                </div>
+                <pre v-show="expanded" id="mcp-prompt-content"><code>{{ prompt }}</code></pre>
+            </div>
         </template>
         <el-button v-else-if="!busy" @click="load">{{ t("mcp.reload") }}</el-button>
         <p class="mcp-boundary">{{ t("mcp.desktop") }}</p>
+        <p class="mcp-boundary">{{ t("mcp.permission") }}</p>
         <p class="mcp-boundary">{{ t("mcp.boundary") }}</p>
         <p class="mcp-boundary">{{ t("mcp.privacy") }}</p>
         <McpConnectionsPanel :bridge="bridge" @busy="connectionsBusy = $event" />
@@ -85,9 +107,25 @@ onUnmounted(() => {
 .mcp-settings p {
     line-height: 1.7;
 }
-.mcp-prompt :deep(pre) {
-    max-height: 220px;
-    overflow-y: auto;
+.mcp-prompt-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-block: 16px;
+}
+.mcp-prompt-actions .el-button + .el-button {
+    margin-left: 0;
+}
+.mcp-prompt pre {
+    margin: 0 0 16px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--el-fill-color-light);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 12px;
+    line-height: 1.7;
 }
 .mcp-boundary,
 .mcp-simulation {

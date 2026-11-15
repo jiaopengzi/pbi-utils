@@ -14,13 +14,11 @@ const props = defineProps<{
     locked: boolean
     busy: boolean
     exportAvailable: boolean
-    canDelete: boolean
-    deleting: boolean
     validLimit: boolean
     location?: ModelExportLocation
     opening: boolean
 }>()
-const emit = defineEmits<{ export: []; delete: []; openDirectory: [] }>()
+const emit = defineEmits<{ export: []; openDirectory: [] }>()
 const format = defineModel<"xlsx" | "csv">("format", { required: true })
 const includeLog = defineModel<boolean>("includeLog", { required: true })
 const scope = defineModel<"sample" | "all">("scope", { required: true })
@@ -29,81 +27,77 @@ const { t, locale } = useI18n()
 </script>
 <template>
     <section class="table-export-toolbar" :class="{ 'locale-en': locale === 'en-us' }" :aria-label="t('model.exportData')">
-        <div class="export-heading">
-            <strong>{{ t("model.exportSelectedCount", { count: selectedCount }) }}</strong
-            ><small>{{ t("model.exportScopeNotice") }}</small>
+        <details class="export-settings">
+            <summary>
+                <span>{{ t("model.exportOptions") }}</span>
+                <span class="export-summary-text"
+                    >{{ t(format === "xlsx" ? "model.exportExcel" : "model.exportCsv") }} ·
+                    {{ scope === "all" ? t("model.exportAll") : t("model.exportSampleSummary", { count: rowLimit ?? "-" }) }}</span
+                >
+            </summary>
+            <el-form class="export-options" label-position="top" @submit.prevent>
+                <el-form-item class="export-format" :label="t('model.exportFormat')">
+                    <el-select
+                        :model-value="format"
+                        :aria-label="t('model.exportFormat')"
+                        :disabled="locked"
+                        :class="{ 'operation-lock': locked }"
+                        @update:model-value="format = $event === 'csv' ? 'csv' : 'xlsx'"
+                    >
+                        <el-option value="xlsx" :label="t('model.exportExcel')" /><el-option value="csv" :label="t('model.exportCsv')" />
+                    </el-select>
+                </el-form-item>
+                <el-form-item :label="t('model.exportScope')">
+                    <el-radio-group
+                        :model-value="scope"
+                        :aria-label="t('model.exportScope')"
+                        :disabled="locked"
+                        :class="{ 'operation-lock': locked }"
+                        @update:model-value="scope = $event === 'all' ? 'all' : 'sample'"
+                    >
+                        <el-radio-button value="sample">{{ t("model.exportSample") }}</el-radio-button
+                        ><el-radio-button value="all">{{ t("model.exportAll") }}</el-radio-button>
+                    </el-radio-group>
+                </el-form-item>
+                <el-form-item v-if="scope === 'sample'" class="export-row-limit" :label="t('model.exportRowLimit')">
+                    <el-input-number
+                        v-number-accessibility
+                        :model-value="rowLimit"
+                        :aria-label="t('model.exportRowLimit')"
+                        :min="1"
+                        :max="2147483647"
+                        :precision="0"
+                        :step="1"
+                        :disabled="locked"
+                        :class="{ 'operation-lock': locked }"
+                        controls-position="right"
+                        @update:model-value="rowLimit = $event"
+                    />
+                </el-form-item>
+                <el-form-item v-if="format === 'xlsx'" class="export-summary" :label="t('model.exportLog')">
+                    <el-switch
+                        :model-value="includeLog"
+                        :aria-label="t('model.exportLog')"
+                        :disabled="locked"
+                        :class="{ 'operation-lock': locked }"
+                        @update:model-value="includeLog = Boolean($event)"
+                    />
+                </el-form-item>
+            </el-form>
+            <p class="export-format-options">{{ t("model.exportScopeNotice") }}</p>
+            <p v-if="format === 'csv'" class="export-format-options">{{ t("model.exportCsvDestination") }}</p>
+        </details>
+        <div class="table-export-actions">
+            <el-button
+                class="table-export-button"
+                type="primary"
+                :disabled="locked || !exportAvailable || !validLimit"
+                :loading="busy"
+                :class="{ 'operation-lock': locked && selectedCount > 0 }"
+                @click="emit('export')"
+                >{{ t("model.exportSelected") }}</el-button
+            >
         </div>
-        <el-form class="export-options" label-position="top" @submit.prevent>
-            <el-form-item class="export-format" :label="t('model.exportFormat')">
-                <el-select
-                    :model-value="format"
-                    :aria-label="t('model.exportFormat')"
-                    :disabled="locked"
-                    :class="{ 'operation-lock': locked }"
-                    @update:model-value="format = $event === 'csv' ? 'csv' : 'xlsx'"
-                >
-                    <el-option value="xlsx" :label="t('model.exportExcel')" /><el-option value="csv" :label="t('model.exportCsv')" />
-                </el-select>
-            </el-form-item>
-            <el-form-item :label="t('model.exportScope')">
-                <el-radio-group
-                    :model-value="scope"
-                    :aria-label="t('model.exportScope')"
-                    :disabled="locked"
-                    :class="{ 'operation-lock': locked }"
-                    @update:model-value="scope = $event === 'all' ? 'all' : 'sample'"
-                >
-                    <el-radio-button value="sample">{{ t("model.exportSample") }}</el-radio-button
-                    ><el-radio-button value="all">{{ t("model.exportAll") }}</el-radio-button>
-                </el-radio-group>
-            </el-form-item>
-            <el-form-item v-if="scope === 'sample'" class="export-row-limit" :label="t('model.exportRowLimit')">
-                <el-input-number
-                    v-number-accessibility
-                    :model-value="rowLimit"
-                    :aria-label="t('model.exportRowLimit')"
-                    :min="1"
-                    :max="2147483647"
-                    :precision="0"
-                    :step="1"
-                    :disabled="locked"
-                    :class="{ 'operation-lock': locked }"
-                    controls-position="right"
-                    @update:model-value="rowLimit = $event"
-                />
-            </el-form-item>
-            <el-form-item v-if="format === 'xlsx'" class="export-summary" :label="t('model.exportLog')">
-                <el-switch
-                    :model-value="includeLog"
-                    :aria-label="t('model.exportLog')"
-                    :disabled="locked"
-                    :class="{ 'operation-lock': locked }"
-                    @update:model-value="includeLog = Boolean($event)"
-                />
-            </el-form-item>
-            <div class="table-export-actions">
-                <el-button
-                    class="table-export-button"
-                    type="primary"
-                    :disabled="locked || !exportAvailable || !validLimit"
-                    :loading="busy"
-                    :class="{ 'operation-lock': locked && selectedCount > 0 }"
-                    @click="emit('export')"
-                    >{{ t("model.exportSelected") }}</el-button
-                >
-                <el-button
-                    v-if="canDelete"
-                    class="table-delete-button"
-                    type="danger"
-                    :disabled="locked || !selectedCount"
-                    :loading="deleting"
-                    :class="{ 'operation-lock': locked && selectedCount > 0 }"
-                    @click="emit('delete')"
-                    >{{ t("model.deleteSelectedTables") }}</el-button
-                >
-            </div>
-        </el-form>
-        <p v-if="format === 'csv'" class="export-format-options">{{ t("model.exportCsvDestination") }}</p>
         <div v-if="props.location?.displayPath" class="export-location">
             <div>
                 <small>{{ t("model.exportLastDirectory") }}</small>
@@ -122,27 +116,44 @@ const { t, locale } = useI18n()
 </template>
 <style scoped lang="scss">
 .table-export-toolbar {
-    padding: 18px;
-    margin-bottom: 24px;
-    border: 1px solid var(--el-border-color);
-    border-radius: 10px;
-    background: var(--el-fill-color-light);
-}
-.export-heading {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px 20px;
-    align-items: center;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
     margin-bottom: 16px;
-    small {
-        color: var(--el-text-color-secondary);
+    border: 1px solid var(--el-border-color);
+    border-radius: 6px;
+    background: var(--el-fill-color-light);
+}
+.export-settings {
+    flex: 1 1 420px;
+    min-width: 0;
+    summary {
+        cursor: pointer;
+        padding-block: 6px;
+        line-height: 20px;
+        color: var(--el-text-color-primary);
+        &:focus-visible {
+            outline: 2px solid var(--el-color-primary);
+            outline-offset: 3px;
+        }
     }
+}
+.export-summary-text {
+    margin-left: 16px;
+    color: var(--el-text-color-regular);
+    font-size: 13px;
+}
+.table-export-actions {
+    margin-left: auto;
 }
 .export-options {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
     gap: 16px;
+    margin-top: 16px;
     :deep(.el-form-item) {
         margin-bottom: 0;
         max-width: 100%;
@@ -165,15 +176,6 @@ const { t, locale } = useI18n()
             width: 100%;
         }
     }
-    .table-export-actions {
-        display: flex;
-        gap: 12px;
-        flex-shrink: 0;
-        margin-left: auto;
-        :deep(.el-button + .el-button) {
-            margin-left: 0;
-        }
-    }
 }
 .locale-en .export-format :deep(.el-select) {
     width: 205px;
@@ -184,6 +186,7 @@ const { t, locale } = useI18n()
     font-size: 12px;
 }
 .export-location {
+    flex-basis: 100%;
     display: flex;
     gap: 20px;
     align-items: center;

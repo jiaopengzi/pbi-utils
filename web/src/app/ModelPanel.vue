@@ -13,7 +13,8 @@ import UiPanel from "@/ui/UiPanel.vue"
 import { useMessageNotices } from "@/composables/ui/useMessageNotices"
 
 import UiTabs from "@/ui/UiTabs.vue"
-import { computed, ref, watch } from "vue"
+import { computed, ref, useTemplateRef, watch } from "vue"
+import { scrollToWorkspaceSection } from "@/ui/scrollToWorkspaceSection"
 import type { ProjectSnapshot, BridgeClient } from "../bridge/client"
 import { modelEditTargetIdentity, type ModelEditorState, type ModelEditSession } from "@/features/model/modelEditSession"
 import CodeBlock from "../features/code/CodeBlock.vue"
@@ -40,6 +41,7 @@ const emit = defineEmits<{
     updated: [value: ProjectSnapshot]
     "draft-change": [value: ModelEditSession]
     "editor-state": [value: ModelEditorState]
+    edit: []
 }>()
 const readOnly = computed(() => isReadOnlyProject(props.project))
 const canGenerateSample = ref(false)
@@ -59,6 +61,19 @@ const lintBusy = ref(false)
 const exportBusy = ref(false)
 const ownBusy = computed(() => panelBusy.value || lintBusy.value || exportBusy.value)
 const busy = computed(() => ownBusy.value || !!props.editorBusy || !!props.externalLocked)
+const editor = useTemplateRef("editor")
+const functionsHeading = useTemplateRef<HTMLElement>("functionsHeading")
+/** 定位内部或宿主拥有的同一个编辑器, 不变更当前模型、选择或草稿. */
+function openEditor(): void {
+    if (busy.value || readOnly.value) return
+    if (props.externalEditor) emit("edit")
+    else editor.value?.focus()
+}
+/** 跳过导入目录直接阅读当前模型函数, 不触发导入、升级或扫描操作. */
+function showFunctions(): void {
+    scrollToWorkspaceSection(functionsHeading.value ?? undefined)
+    functionsHeading.value?.focus({ preventScroll: true })
+}
 /** 同步子面板忙状态并通知父组件, value 为是否存在在途操作, 无返回值. */
 function onBusy(value: boolean): void {
     panelBusy.value = value
@@ -96,6 +111,9 @@ useMessageNotices("model-panel", () => [
 </script>
 <template>
     <UiTabs v-model="tab" :aria-label="t('model.workflow')" :disabled="busy" :items="tabs" />
+    <div v-if="tab === 'udf' && !readOnly" class="model-function-shortcut">
+        <el-button text :disabled="busy" @click="showFunctions">{{ t("model.currentFunctions", { count: project.model.functions.length }) }}</el-button>
+    </div>
     <ConfigurationPanel
         v-if="!readOnly"
         v-show="['templates', 'time', 'udf', 'sample'].includes(tab)"
@@ -115,10 +133,11 @@ useMessageNotices("model-panel", () => [
         :bridge="bridge"
         :locked="panelBusy || editorBusy || externalLocked"
         @busy="exportBusy = $event"
+        @edit="openEditor"
         @updated="emit('updated', $event)"
     />
     <UiPanel v-else-if="tab === 'udf'"
-        ><h2>DAX UDF</h2>
+        ><h2 ref="functionsHeading" tabindex="-1">{{ t("model.currentFunctions", { count: project.model.functions.length }) }}</h2>
         <el-empty v-if="project.connection?.isLimited" :description="t('model.udfUnavailable')" :image-size="64" />
         <template v-else>
             <p>{{ t("model.functionCount", { level: project.model.compatibilityLevel, count: project.model.functions.length }) }}</p>
@@ -139,6 +158,7 @@ useMessageNotices("model-panel", () => [
         </template>
     </UiPanel>
     <ModelEditPanel
+        ref="editor"
         v-if="!externalEditor && !readOnly && tab === 'tables'"
         :key="tab + '-editor'"
         initial-operation="table.set"
@@ -151,3 +171,10 @@ useMessageNotices("model-panel", () => [
         @draft-change="emit('draft-change', $event)"
     />
 </template>
+<style scoped lang="scss">
+.model-function-shortcut {
+    display: flex;
+    justify-content: flex-end;
+    margin: -12px 0 8px;
+}
+</style>

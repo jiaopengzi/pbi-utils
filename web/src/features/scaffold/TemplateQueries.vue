@@ -6,7 +6,7 @@
  * Description : 新建模板的辅助表选择、独立分组草稿及只读 M 预览, 编辑分组不改变选择与原文.
 -->
 <script setup lang="ts">
-import { computed, onBeforeUnmount, provide, ref, useId } from "vue"
+import { computed, onBeforeUnmount, provide, ref, useId, watch } from "vue"
 import { useI18n } from "@/composables/i18n/useI18n"
 import { useFeedback } from "@/composables/ui/useFeedback"
 import CodeEditor from "../code/CodeEditor.vue"
@@ -25,16 +25,30 @@ const previews = ref(new Set<string>())
 const prefix = useId()
 let disposed = false
 // 与页面基础校验共用首个已选分组问题, ScaffoldField 立即关联真实输入, 未选错误只保留草稿.
-provide(
-    scaffoldValidationKey,
-    computed(() =>
-        templateQueryGroupsIssue({
-            templateQueries: selected.value,
-            templateQueryGroups: groups.value,
-            templateQueryDefinitions: props.queries,
-        }),
-    ),
+const issue = computed(() =>
+    templateQueryGroupsIssue({
+        templateQueries: selected.value,
+        templateQueryGroups: groups.value,
+        templateQueryDefinitions: props.queries,
+    }),
 )
+provide(scaffoldValidationKey, issue)
+const expanded = ref(false)
+// 折叠仅影响展示, 校验问题出现时先展开, 让原字段关联与父级聚焦保持可达.
+watch(
+    issue,
+    (value) => {
+        if (value) expanded.value = true
+    },
+    { immediate: true, flush: "sync" },
+)
+/** 操作锁期间保持原状, 有校验问题时保持内容展开以支持工具栏定位; 无问题时原生键盘和鼠标切换均可用. */
+function toggleDetails(event: Event): void {
+    if (props.disabled) return
+    const details = event.target as HTMLDetailsElement
+    if (issue.value) details.open = true
+    expanded.value = details.open
+}
 
 /** 按目录顺序生成显式选择快照, 忽略在途或未知 ID, 不接收代码文本. */
 function select(id: string, enabled: boolean): void {
@@ -75,8 +89,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <section class="template-queries" :aria-labelledby="`${prefix}-title`">
-        <h3 :id="`${prefix}-title`">{{ t("scaffold.queryTitle") }}</h3>
+    <details class="template-queries" :open="expanded" @toggle="toggleDetails">
+        <summary :id="`${prefix}-title`" @click="(disabled || !!issue) && $event.preventDefault()">
+            {{ t("scaffold.queryTitle") }}
+            <span class="muted">{{ t("scaffold.helperSelection", { count: selected.length }) }}</span>
+            <span v-if="issue" class="template-query-issue">{{ t("scaffold.helperFixErrors") }}</span>
+        </summary>
         <p class="muted">{{ t("scaffold.queryHint") }}</p>
         <article v-for="(query, index) in queries" :key="query.id" class="template-query">
             <div class="template-query-toolbar">
@@ -132,16 +150,29 @@ onBeforeUnmount(() => {
                 />
             </div>
         </article>
-    </section>
+    </details>
 </template>
 
 <style scoped lang="scss">
 .template-queries {
     min-width: 0;
     margin-top: 24px;
-    h3 {
-        margin-block: 0 8px;
+    summary {
+        cursor: pointer;
+        font-weight: 600;
+        padding-block: 10px;
+        span {
+            margin-left: 12px;
+            font-weight: 400;
+        }
+        &:focus-visible {
+            outline: 2px solid var(--el-color-primary);
+            outline-offset: 4px;
+        }
     }
+}
+.template-query-issue {
+    color: var(--el-color-danger);
 }
 .template-query {
     min-width: 0;

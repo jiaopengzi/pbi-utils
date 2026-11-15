@@ -6,8 +6,9 @@
  * Description : 按登记来源选择精确函数, 组合目录与本地函数管理并保留依赖和许可边界.
 -->
 <script setup lang="ts">
-import { computed, onMounted, watch } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import type { BridgeClient } from "@/bridge/client"
+import { scrollToWorkspaceSection } from "@/ui/scrollToWorkspaceSection"
 import { useI18n } from "@/composables/i18n/useI18n"
 import { useMessageNotices } from "@/composables/ui/useMessageNotices"
 import ScaffoldField from "./ScaffoldField.vue"
@@ -32,7 +33,10 @@ import { useUdfBulkImport } from "@/composables/features/scaffold/useUdfBulkImpo
 import "./udf.scss"
 /** 按来源组合目录与管理器, 仍向外发出请求和模态共同占用的导航锁. */
 const model = defineModel<UdfSelection[]>({ required: true })
-const props = withDefaults(defineProps<{ bridge: BridgeClient; disabled: boolean; operationLocked?: boolean; active?: boolean }>(), { active: true })
+const props = withDefaults(
+    defineProps<{ bridge: BridgeClient; disabled: boolean; operationLocked?: boolean; active?: boolean; modelConfiguration?: boolean }>(),
+    { active: true },
+)
 defineSlots<{ actions(props: { canSubmit: boolean }): unknown }>()
 const emit = defineEmits<{ busy: [value: boolean]; validity: [value: boolean] }>()
 const { t } = useI18n()
@@ -45,6 +49,15 @@ const local = useLocalUdfLibrary(state, requests, catalog.commitSelection)
 const sourceActions = useUdfSources(state, requests, local.listLocal, cache.load)
 const { source, sources, busy, locked, error, query, catalogStatus } = state
 const { selectionFields } = catalog
+const browseSection = ref<HTMLElement>()
+const selectedSection = ref<HTMLElement>()
+const selectionCount = computed(() => model.value.reduce((total, item) => total + item.functions.length, 0))
+/** 页内跳转保留目录、草稿和请求; 焦点随目标移动, 在途不改变操作上下文. */
+function jumpTo(section: HTMLElement | undefined): void {
+    if (locked.value || !section) return
+    scrollToWorkspaceSection(section)
+    section.focus({ preventScroll: true })
+}
 // 编号独立于包来源连续累计, 移除或重排后随真实选择同步更新.
 const selectionStarts = computed(() => {
     let start = 1
@@ -82,7 +95,6 @@ onMounted(async () => {
 <template>
     <div class="udf-step" :aria-busy="busy">
         <section class="udf-source-section" :aria-label="t('scaffold.sourceAndUpdates')">
-            <h3>{{ t("scaffold.sourceAndUpdates") }}</h3>
             <div class="scaffold-toolbar udf-source-toolbar">
                 <label class="udf-source-picker"
                     >{{ t("scaffold.source") }}
@@ -104,6 +116,9 @@ onMounted(async () => {
                     @click="cache.refresh"
                     >{{ t("scaffold.refreshSource") }}</el-button
                 >
+                <el-button :disabled="locked" :class="{ 'operation-lock': operationLocked || busy }" @click="jumpTo(selectedSection)">
+                    {{ t("scaffold.selectedFunctionsLink", { count: selectionCount }) }}
+                </el-button>
             </div>
             <details class="udf-management">
                 <summary>{{ t("scaffold.udfManagement") }}</summary>
@@ -125,7 +140,7 @@ onMounted(async () => {
                 <el-button :disabled="busy" @click="cache.verify">{{ t("scaffold.verifyCatalog") }}</el-button>
             </section>
         </section>
-        <section class="udf-browse-section" :aria-label="t('scaffold.browseFunctions')">
+        <section ref="browseSection" tabindex="-1" class="udf-browse-section" :aria-label="t('scaffold.browseFunctions')">
             <h3>{{ t("scaffold.browseFunctions") }}</h3>
             <template v-if="source && source !== 'local'">
                 <UdfCatalogBrowser :state="state" :catalog="catalog" :local="local" :operation-locked="operationLocked" @select-source="bulk.prepare" />
@@ -176,11 +191,16 @@ onMounted(async () => {
             </template>
             <p v-else class="udf-empty">{{ t("scaffold.chooseSource") }}</p>
         </section>
-        <section class="udf-selected" aria-live="polite">
-            <h3>
-                {{ t("scaffold.selected") }} <span class="muted">{{ model.reduce((total, item) => total + item.functions.length, 0) }}</span>
-            </h3>
-            <p v-if="!model.length" class="muted">{{ t("scaffold.noSelectedFunctions") }}</p>
+        <section ref="selectedSection" tabindex="-1" class="udf-selected" aria-live="polite">
+            <div class="udf-list-heading">
+                <h3>
+                    {{ t("scaffold.selected") }} <span class="muted">{{ selectionCount }}</span>
+                </h3>
+                <el-button :disabled="locked" :class="{ 'operation-lock': operationLocked || busy }" @click="jumpTo(browseSection)">{{
+                    t("scaffold.browseFunctions")
+                }}</el-button>
+            </div>
+            <p v-if="!model.length" class="muted">{{ t(modelConfiguration ? "scaffold.noSelectedModelFunctions" : "scaffold.noSelectedFunctions") }}</p>
             <ScaffoldField
                 v-for="(item, index) in model"
                 :key="`${item.source}/${item.packageId}`"
@@ -211,10 +231,10 @@ onMounted(async () => {
             <el-button v-if="!cache.valid.value" :disabled="locked" @click="cache.prepare">{{ t("scaffold.revalidate") }}</el-button>
             <div class="scaffold-toolbar udf-selected-actions">
                 <slot name="actions" :can-submit="cache.valid.value"
-                    ><p class="muted">{{ t("scaffold.createUdfHint") }}</p></slot
+                    ><p v-if="!modelConfiguration" class="muted">{{ t("scaffold.createUdfHint") }}</p></slot
                 >
             </div>
-            <p class="muted">{{ t("scaffold.compatibilityHint") }}</p>
+            <p class="muted">{{ t(modelConfiguration ? "scaffold.existingUdfCompatibility" : "scaffold.compatibilityHint") }}</p>
         </section>
     </div>
     <UdfRevalidationDialog :actions="cache" />

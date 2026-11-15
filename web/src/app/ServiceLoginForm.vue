@@ -102,6 +102,9 @@ onBeforeUnmount(() => emit("form", undefined))
     </el-form>
 </template>
 <style scoped lang="scss">
+.el-form {
+    max-width: 680px;
+}
 .el-select {
     width: 100%;
 }

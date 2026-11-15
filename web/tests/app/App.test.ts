@@ -256,7 +256,7 @@ it("统一设置切换全部公共导航, 重挂载读取宿主语言, 示例无
     }
 })
 
-it("设置顶部展示 MCP、底部展示本地数据, 保留运行环境且每次进入自动检测", async () => {
+it("设置从常规开始平铺、底部展示本地数据, 保留运行环境且每次进入自动检测", async () => {
     const transport = new MockTransport()
     const requests = vi.spyOn(transport, "postMessage")
     vi.stubGlobal("chrome", { webview: transport })
@@ -266,9 +266,9 @@ it("设置顶部展示 MCP、底部展示本地数据, 保留运行环境且每�
         await wrapper.get('nav button[aria-label="设置"]').trigger("click")
         await flushPromises()
         expect(wrapper.findAll(".settings-section").map((section) => section.attributes("aria-label"))).toEqual([
-            "本地 MCP",
             "常规",
             "软件更新",
+            "本地 MCP",
             "运行环境",
             "本地数据",
         ])
@@ -288,9 +288,9 @@ it("设置顶部展示 MCP、底部展示本地数据, 保留运行环境且每�
         await wrapper.get('nav button[aria-label="设置"]').trigger("click")
         await flushPromises()
         expect(wrapper.findAll(".settings-section").map((section) => section.attributes("aria-label"))).toEqual([
-            "本地 MCP",
             "常规",
             "软件更新",
+            "本地 MCP",
             "运行环境",
             "本地数据",
         ])

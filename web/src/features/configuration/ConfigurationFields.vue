@@ -69,7 +69,7 @@ function selectMeasureMode(value: TemplateMeasureMode): void {
         >
         <p v-if="canGenerateSample === false" class="muted">{{ t("configuration.sampleUnavailable") }}</p>
         <p class="muted">{{ t("scaffold.sampleHint") }} {{ t("scaffold.skip") }}</p>
-        <div v-if="visited.has('sample')" class="scaffold-grid">
+        <div v-if="visited.has('sample')" v-show="modelConfiguration || draft.sampleEnabled" class="scaffold-grid">
             <ScaffoldField field="productCount"
                 >{{ t("scaffold.productCount")
                 }}<el-input-number
@@ -142,23 +142,25 @@ function selectMeasureMode(value: TemplateMeasureMode): void {
             />{{ t("scaffold.optional") }}</label
         >
         <p v-if="!modelConfiguration" class="muted">{{ t("scaffold.skip") }}</p>
-        <MeasuresMode
-            :model-value="draft.measuresMode"
-            @update:model-value="selectMeasureMode"
-            :disabled="disabled || !draft.measuresEnabled"
-            :operation-locked="operationLocked && draft.measuresEnabled"
-            :config-available="!modelConfiguration || canUseMeasureConfig === true"
-            :unavailable-reason="measureConfigUnavailableReason"
-        />
-        <ScaffoldField field="measures" tag="div" error-first>
-            <MeasuresEditor
-                v-if="visited.has('measures')"
-                :operation-locked="disabled && draft.measuresEnabled"
-                v-model="draft.measures"
+        <div v-show="modelConfiguration || draft.measuresEnabled">
+            <MeasuresMode
+                :model-value="draft.measuresMode"
+                @update:model-value="selectMeasureMode"
                 :disabled="disabled || !draft.measuresEnabled"
-                @dialog="emit('dialog', $event)"
+                :operation-locked="operationLocked && draft.measuresEnabled"
+                :config-available="!modelConfiguration || canUseMeasureConfig === true"
+                :unavailable-reason="measureConfigUnavailableReason"
             />
-        </ScaffoldField>
+            <ScaffoldField field="measures" tag="div" error-first>
+                <MeasuresEditor
+                    v-if="visited.has('measures')"
+                    :operation-locked="disabled && draft.measuresEnabled"
+                    v-model="draft.measures"
+                    :disabled="disabled || !draft.measuresEnabled"
+                    @dialog="emit('dialog', $event)"
+                />
+            </ScaffoldField>
+        </div>
     </section>
     <section :id="`section-${idPrefix}-calendar`" v-show="step === 'calendar'" :aria-labelledby="labelledBy ?? `step-${idPrefix}-calendar`">
         <CalendarStep
@@ -195,10 +197,11 @@ function selectMeasureMode(value: TemplateMeasureMode): void {
             />{{ t("scaffold.optional") }}</label
         >
         <p v-if="!modelConfiguration" class="muted">{{ t("scaffold.skip") }}</p>
-        <ScaffoldField field="udfs" tag="div" error-first>
+        <ScaffoldField v-show="modelConfiguration || draft.udfsEnabled" field="udfs" tag="div" error-first>
             <UdfStep
                 v-if="visited.has('udfs')"
-                :active="active !== false && step === 'udfs'"
+                :active="active !== false && step === 'udfs' && (modelConfiguration || draft.udfsEnabled)"
+                :model-configuration="modelConfiguration"
                 :operation-locked="locked && draft.udfsEnabled"
                 v-model="draft.udfs"
                 :bridge="bridge"

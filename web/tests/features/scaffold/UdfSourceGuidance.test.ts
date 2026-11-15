@@ -169,7 +169,8 @@ it("正常内置来源照常更新, 来源与本地管理集中折叠且所有�
         expect(management.findAll("button").map((button) => button.text())).toEqual(["管理来源", "管理本地函数"])
         await management.get("summary").trigger("click")
         expect(management.attributes("open")).toBeDefined()
-        expect(wrapper.get(".udf-source-toolbar").findAll("button.el-button")).toHaveLength(1)
+        expect(wrapper.get('[data-test="udf-refresh"]').text()).toBe("更新来源")
+        expect(wrapper.get(".udf-source-toolbar").text()).toContain("已选择 0")
         expect(wrapper.get(".udf-browse-section h3").text()).toBe("浏览函数")
         await wrapper.get('[data-test="udf-refresh"]').trigger("click")
         await flushPromises()
@@ -191,7 +192,7 @@ it("英文来源提示与分组随语言切换显示, 不额外发送更新", as
         await flushPromises()
         setLocale("en-us")
         await flushPromises()
-        expect(wrapper.get(".udf-source-section h3").text()).toBe("Source and updates")
+        expect(wrapper.get(".udf-source-section").attributes("aria-label")).toBe("Source and updates")
         expect(wrapper.get(".udf-management summary").text()).toBe("Source and local management")
         await wrapper.get('[data-test="udf-refresh"]').trigger("click")
         expect(feedback).toHaveBeenCalledWith(
@@ -222,5 +223,44 @@ it("未启用的可选 UDF 不自动提示, 更新按钮保持真正禁用", asy
         wrapper.unmount()
         bridge.dispose()
         feedback.mockRestore()
+    }
+})
+
+it("已选与浏览页内跳转保留请求和选择, 锁定后不再跳转", async () => {
+    const header = document.createElement("header")
+    header.className = "workspace-header"
+    document.body.append(header)
+    vi.spyOn(header, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 1000, 132))
+    const bridge = new BridgeClient(new MockTransport())
+    const request = vi.spyOn(bridge, "request")
+    const wrapper = mount(UdfStep, { props: { bridge: markRaw(bridge), disabled: false, modelValue: [] } })
+    try {
+        await flushPromises()
+        const selected = wrapper.get(".udf-selected").element as HTMLElement
+        const browse = wrapper.get(".udf-browse-section").element as HTMLElement
+        const selectedScroll = vi.fn()
+        selected.scrollIntoView = selectedScroll
+        const browseScroll = vi.fn()
+        browse.scrollIntoView = browseScroll
+        const selectedFocus = vi.spyOn(selected, "focus")
+        const before = request.mock.calls.length
+        const jump = wrapper.findAll("button").find((item) => item.text() === "已选择 0")!
+        await jump.trigger("click")
+        expect(selectedScroll).toHaveBeenCalledOnce()
+        expect(selected.style.scrollMarginBlockStart).toBe("150px")
+        expect(selectedFocus).toHaveBeenCalledWith({ preventScroll: true })
+        await wrapper.get(".udf-selected .udf-list-heading button").trigger("click")
+        expect(browseScroll).toHaveBeenCalledOnce()
+        expect(browse.style.scrollMarginBlockStart).toBe("150px")
+        expect(request.mock.calls).toHaveLength(before)
+        expect(wrapper.emitted("update:modelValue")).toBeUndefined()
+        await wrapper.setProps({ disabled: true })
+        await jump.trigger("click")
+        expect(selectedScroll).toHaveBeenCalledOnce()
+    } finally {
+        header.remove()
+        wrapper.unmount()
+        bridge.dispose()
+        vi.restoreAllMocks()
     }
 })

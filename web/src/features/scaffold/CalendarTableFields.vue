@@ -104,67 +104,76 @@ function changeFields(fields: string[], preference: string[], numbered: boolean)
             data-optional
         />{{ t("scaffold.calendarEnable") }}</label
     >
-    <div class="scaffold-grid">
-        <ScaffoldField field="tableName"
-            >{{ t("scaffold.tableName")
-            }}<el-input v-model="calendar.tableName" :class="{ 'operation-lock': disabled && calendarEnabled }" :disabled="disabled || !calendarEnabled"
-        /></ScaffoldField>
-        <ScaffoldField field="startYear"
-            >{{ t("scaffold.startYear")
-            }}<el-input-number
-                v-number-accessibility
-                :model-value="calendar.startYear"
-                @update:model-value="calendar.startYear = $event ?? 0"
-                :min="lunar ? 2000 : 1900"
-                :max="lunar ? 2099 : 2100"
-                :class="{ 'operation-lock': disabled && calendarEnabled }"
+    <p v-if="showEnableSwitch && !calendarEnabled" class="muted">{{ t("scaffold.skip") }}</p>
+    <div v-show="!showEnableSwitch || calendarEnabled">
+        <div class="scaffold-grid">
+            <ScaffoldField field="tableName"
+                >{{ t("scaffold.tableName")
+                }}<el-input v-model="calendar.tableName" :class="{ 'operation-lock': disabled && calendarEnabled }" :disabled="disabled || !calendarEnabled"
+            /></ScaffoldField>
+            <ScaffoldField field="startYear"
+                >{{ t("scaffold.startYear")
+                }}<el-input-number
+                    v-number-accessibility
+                    :model-value="calendar.startYear"
+                    @update:model-value="calendar.startYear = $event ?? 0"
+                    :min="lunar ? 2000 : 1900"
+                    :max="lunar ? 2099 : 2100"
+                    :class="{ 'operation-lock': disabled && calendarEnabled }"
+                    :disabled="disabled || !calendarEnabled"
+            /></ScaffoldField>
+            <ScaffoldField field="endYear"
+                >{{ t("scaffold.endYear")
+                }}<el-input-number
+                    v-number-accessibility
+                    :model-value="calendar.endYear"
+                    @update:model-value="calendar.endYear = $event ?? 0"
+                    :min="lunar ? 2000 : 1900"
+                    :max="lunar ? 2099 : 2100"
+                    :class="{ 'operation-lock': disabled && calendarEnabled }"
+                    :disabled="disabled || !calendarEnabled"
+            /></ScaffoldField>
+        </div>
+        <ScaffoldField field="fields" tag="div" error-first>
+            <CalendarFieldPicker
+                :calendar="calendar"
+                :fields="details?.calendarFields"
+                :capability="capability"
                 :disabled="disabled || !calendarEnabled"
-        /></ScaffoldField>
-        <ScaffoldField field="endYear"
-            >{{ t("scaffold.endYear")
-            }}<el-input-number
-                v-number-accessibility
-                :model-value="calendar.endYear"
-                @update:model-value="calendar.endYear = $event ?? 0"
-                :min="lunar ? 2000 : 1900"
-                :max="lunar ? 2099 : 2100"
-                :class="{ 'operation-lock': disabled && calendarEnabled }"
+                :operation-locked="operationLocked && calendarEnabled"
+                :preference-fields="preferenceFields"
+                :last="preferences?.remembered.value"
+                @change="changeFields"
+            />
+        </ScaffoldField>
+        <p v-if="preferences?.warning.value" role="status" class="muted">{{ preferenceWarning }}</p>
+        <p class="muted">{{ t("scaffold.workdayHint") }}</p>
+        <ScaffoldField field="workdays" tag="div">
+            <h3>{{ t("scaffold.weeklyWorkdays") }}</h3>
+            <el-checkbox-group
+                :model-value="calendar.workdays ?? [0, 1, 2, 3, 4]"
                 :disabled="disabled || !calendarEnabled"
-        /></ScaffoldField>
-    </div>
-    <ScaffoldField field="fields" tag="div" error-first>
-        <CalendarFieldPicker
-            :calendar="calendar"
-            :fields="details?.calendarFields"
-            :capability="capability"
-            :disabled="disabled || !calendarEnabled"
-            :operation-locked="operationLocked && calendarEnabled"
-            :preference-fields="preferenceFields"
-            :last="preferences?.remembered.value"
-            @change="changeFields"
+                :class="{ 'operation-lock': disabled && calendarEnabled }"
+                @update:model-value="calendar.workdays = $event.map(Number)"
+            >
+                <el-checkbox-button v-for="day in 7" :key="day" :value="day - 1">{{ t(`scaffold.weekday${day - 1}`) }}</el-checkbox-button>
+            </el-checkbox-group>
+        </ScaffoldField>
+        <WorkdayOverrides
+            v-model:calendar="calendar"
+            :disabled="disabled"
+            :calendar-enabled="calendarEnabled"
+            :bridge="bridge"
+            @dialog="emit('dialog', $event)"
         />
-    </ScaffoldField>
-    <p v-if="preferences?.warning.value" role="status" class="muted">{{ preferenceWarning }}</p>
-    <p class="muted">{{ t("scaffold.workdayHint") }}</p>
-    <ScaffoldField field="workdays" tag="div">
-        <h3>{{ t("scaffold.weeklyWorkdays") }}</h3>
-        <el-checkbox-group
-            :model-value="calendar.workdays ?? [0, 1, 2, 3, 4]"
-            :disabled="disabled || !calendarEnabled"
-            :class="{ 'operation-lock': disabled && calendarEnabled }"
-            @update:model-value="calendar.workdays = $event.map(Number)"
-        >
-            <el-checkbox-button v-for="day in 7" :key="day" :value="day - 1">{{ t(`scaffold.weekday${day - 1}`) }}</el-checkbox-button>
-        </el-checkbox-group>
-    </ScaffoldField>
-    <WorkdayOverrides v-model:calendar="calendar" :disabled="disabled" :calendar-enabled="calendarEnabled" :bridge="bridge" @dialog="emit('dialog', $event)" />
-    <CalendarCodePreview
-        v-if="bridge"
-        :bridge="bridge"
-        :context="previewContext"
-        :preview-invalidation-key="previewInvalidationKey"
-        :calendar="calendar"
-        :enabled="calendarEnabled"
-        :disabled="disabled"
-    />
+        <CalendarCodePreview
+            v-if="bridge"
+            :bridge="bridge"
+            :context="previewContext"
+            :preview-invalidation-key="previewInvalidationKey"
+            :calendar="calendar"
+            :enabled="calendarEnabled"
+            :disabled="disabled"
+        />
+    </div>
 </template>
