@@ -96,8 +96,8 @@ export default env => {
         try {
             chunks = JSON.parse(await readFile(path.join(root, "chunks.json"), "utf8")) as ChunkFact[]
         } catch (error) {
-            // 解析错误先于generateBundle, 仅缺失观测文件是预期; 不吞损坏JSON或其它I/O异常.
-            if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error
+            // 解析错误先于 generateBundle. 原生文件异常与测试 VM 的 Error 构造器不同, 按文件系统错误码核对.
+            if (typeof error !== "object" || error === null || !("code" in error) || error.code !== "ENOENT") throw error
         }
         return {
             code: result.status,

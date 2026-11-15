@@ -9,7 +9,8 @@ using Xunit;
 
 namespace PbiUtils.ScriptTests;
 
-public sealed partial class ScriptTests
+/// <summary>真实子进程中的原生输出与退出码验证.</summary>
+public sealed class ScriptNativeOutputTests
 {
     /// <summary>仅当前 pnpm 包脚本的精确回显可作为普通信息, 不改其他工具或未知文本的 stderr.</summary>
     /// <param name="scenario">已知回显、失败、未知命令、其他工具、损坏配置或配置读取取消的实际进程场景.</param>
@@ -24,7 +25,7 @@ public sealed partial class ScriptTests
     [InlineData("cancel", 130, false)]
     public async Task PnpmCommandEchoKeepsNativeDiagnostics(string scenario, int expectedCode, bool information)
     {
-        var (code, output, error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(Root(), "scripts", "tests", "native-command-echo-tests.ps1"), "-Scenario", scenario);
+        var (code, output, error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts", "tests", "native-command-echo-tests.ps1"), "-Scenario", scenario);
         Assert.Equal(expectedCode, code);
         if (scenario == "cancel")
         {

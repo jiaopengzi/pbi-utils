@@ -61,15 +61,17 @@ try {
     $null = Export-PbiLicenseBundle -RepositoryRoot (Get-Location).Path -PublishRoot $staging -Scope $options.Scope
     $independentBytes = [long](Get-PbiPublishFiles $compiled | Measure-Object Length -Sum).Sum
     if ($afterCompile -and $options.Scope -eq 'All') { $independentBytes += [long](Get-PbiPublishFiles ([IO.Path]::GetFullPath((Join-Path (Get-Location) 'web/dist'))) | Measure-Object Length -Sum).Sum }
-    $sharedBytes = [long](Get-PbiPublishFiles $staging | Measure-Object Length -Sum).Sum
+    $stagedFiles = @(Get-PbiPublishFiles $staging | Sort-Object FullName)
+    $sharedBytes = [long]($stagedFiles | Measure-Object Length -Sum).Sum
     Write-PbiMessage "共享打包体积 ($label): 独立输出 $independentBytes 字节, 共享目录 $sharedBytes 字节 (不含清单)."
-    $files = @(Get-PbiPublishFiles $staging | Sort-Object FullName | ForEach-Object {
+    $files = @($stagedFiles | ForEach-Object {
         @{ file = [IO.Path]::GetRelativePath($staging, $_.FullName).Replace('\', '/'); sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
     })
-    @{ schemaVersion = 3; layout = 'shared'; deploymentMode = $mode; version = $release.Version; releaseTag = $release.Tag; sdkVersion = $sdkVersion; builtAtUtc = $stamp; runtime = 'win-x64'; scope = $options.Scope; configuration = $options.Configuration; files = $files } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $staging 'manifest.json') -Encoding utf8
-    $null = Assert-PbiPublishedArtifacts $staging
-    $publishedBytes = [long](Get-PbiPublishFiles $staging | Measure-Object Length -Sum).Sum
+    $manifestPath = Join-Path $staging 'manifest.json'
+    @{ schemaVersion = 3; layout = 'shared'; deploymentMode = $mode; version = $release.Version; releaseTag = $release.Tag; sdkVersion = $sdkVersion; builtAtUtc = $stamp; runtime = 'win-x64'; scope = $options.Scope; configuration = $options.Configuration; files = $files } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+    $publishedBytes = $sharedBytes + (Get-Item -LiteralPath $manifestPath).Length
     if ((Get-PbiCurrentRelease -RepositoryRoot (Get-Location).Path).Tag -cne $release.Tag) { throw '构建期间 version 中的标签已改变, 请重新构建' }
+    # 交付函数完整校验 staging, 并在持锁期间校验最终目录; 此处无需重复读取文件及哈希.
     Set-PbiPublishedArtifacts $staging $destination
 }
 catch {

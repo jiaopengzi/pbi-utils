@@ -60,7 +60,8 @@ export function snapshotFrontendInputs(repositoryRoot: string): { fingerprint: s
             record("directory", filename(path))
             for (const name of readdirSync(path).toSorted()) {
                 if (!dependency && path === webRoot && ["dist", "coverage", "node_modules"].includes(name)) continue
-                if (dependency && path === dependencyRoot && [".vite", ".vite-temp", ".cache"].includes(name)) continue
+                // Vitest 运行时写入的转换缓存不属于静态检查或构建的依赖输入.
+                if (dependency && path === dependencyRoot && [".vite", ".vite-temp", ".vitest-cache", ".cache"].includes(name)) continue
                 visit(join(path, name), dependency)
             }
             return

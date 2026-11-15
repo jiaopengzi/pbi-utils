@@ -9,20 +9,12 @@ using Xunit;
 
 namespace PbiUtils.ScriptTests;
 
-/// <summary>固定 xUnit 框架运行真实 PowerShell 入口与安全测试.</summary>
+/// <summary>验证真实 PowerShell 命令入口、构建编排和发布文件契约.</summary>
 public sealed partial class ScriptTests
 {
-    /// <summary>按仓库标记定位, 不依赖测试调用目录.</summary>
-    private static string Root()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "run.ps1"))) directory = directory.Parent;
-        return directory?.FullName ?? throw new InvalidOperationException("找不到仓库");
-    }
-
     /// <summary>启动真正脚本入口, 传递独立参数数组.</summary>
     private static Task<(int Code, string Out, string Error)> Run(params string[] arguments) =>
-        CliTests.Run("pwsh", ["-NoProfile", "-File", Path.Combine(Root(), "run.ps1"), .. arguments]);
+        CliTests.Run("pwsh", ["-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "run.ps1"), .. arguments]);
 
     /// <summary>全部不适用参数、未知动作和缺少值返回 2.</summary>
     /// <param name="arguments">非法参数组合.</param>
@@ -76,11 +68,11 @@ public sealed partial class ScriptTests
     {
         foreach (var script in new[] { "setup", "build", "test", "check", "format", "clean", "dev", "package" })
         {
-            var (Code, _, _) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(Root(), "scripts", script + ".ps1"), "-Unknown");
+            var (Code, _, _) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts", script + ".ps1"), "-Unknown");
             Assert.Equal(2, Code);
         }
-        Assert.Equal(2, (await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(Root(), "scripts/test.ps1"), "-Scope", "Core", "-Scope", "All")).Code);
-        Assert.Equal(2, (await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(Root(), "scripts/build.ps1"), "-AfterCompile", "callback")).Code);
+        Assert.Equal(2, (await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/test.ps1"), "-Scope", "Core", "-Scope", "All")).Code);
+        Assert.Equal(2, (await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/build.ps1"), "-AfterCompile", "callback")).Code);
     }
 
     /// <summary>已移除动作及越界编号拒绝执行, 不再保留产品命令包装层.</summary>
@@ -109,7 +101,7 @@ public sealed partial class ScriptTests
     [Fact]
     public async Task SafetyAndOrchestration()
     {
-        var (Code, Out, Error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(Root(), "scripts/tests/contracts.ps1"));
+        var (Code, Out, Error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/contracts.ps1"));
         Assert.True(Code == 0, Out + Error);
         Assert.Contains("PASS 脚本安全与编排契约", Out);
     }
@@ -118,7 +110,7 @@ public sealed partial class ScriptTests
     [Fact]
     public async Task FrontendCheckReuseAndInvalidation()
     {
-        var (Code, Out, Error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(Root(), "scripts/tests/frontend-check-tests.ps1"));
+        var (Code, Out, Error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/frontend-check-tests.ps1"));
         Assert.True(Code == 0, Out + Error);
         Assert.Contains("PASS 同轮前端检查复用与失效契约", Out);
     }
@@ -128,7 +120,7 @@ public sealed partial class ScriptTests
     public async Task CleanPublishAndManifest()
     {
         // 该脚本执行 26 轮合成构建及完整发布保护检查, 总预算独立于单条 CLI 的 30 秒限制.
-        var (Code, Out, Error) = await CliTests.RunWithTimeout("pwsh", TimeSpan.FromMinutes(1), "-NoProfile", "-File", Path.Combine(Root(), "scripts/tests/publish-tests.ps1"));
+        var (Code, Out, Error) = await CliTests.RunWithTimeout("pwsh", TimeSpan.FromMinutes(1), "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/publish-tests.ps1"));
         Assert.True(Code == 0, Out + Error);
         Assert.Contains("PASS C# 先编译、前端后打包、干净发布与失败保护契约", Out);
     }
@@ -137,7 +129,7 @@ public sealed partial class ScriptTests
     [Fact]
     public async Task SharedPublishRuntimeAndConflicts()
     {
-        var (Code, Out, Error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(Root(), "scripts/tests/shared-publish-tests.ps1"));
+        var (Code, Out, Error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/shared-publish-tests.ps1"));
         Assert.True(Code == 0, Out + Error);
         Assert.Contains("PASS 共享发布双部署模式、框架闭包、精确清单、冲突拒绝及独立编译输出保护", Out);
     }
@@ -146,7 +138,7 @@ public sealed partial class ScriptTests
     [Fact]
     public async Task DevelopmentOutputsKeepRealEntrypointsAndValidateDependencies()
     {
-        var (Code, Out, Error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(Root(), "scripts/tests/dev-output-tests.ps1"));
+        var (Code, Out, Error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/dev-output-tests.ps1"));
         Assert.True(Code == 0, Out + Error);
         Assert.Contains("PASS 开发输出同目录入口、FDD闭包、冲突与占用拒绝", Out);
     }
@@ -166,7 +158,7 @@ public sealed partial class ScriptTests
     [InlineData("invalid", 65001, 2)]
     public async Task NativeOutputEncoding(string scenario, int codePage, int exitCode)
     {
-        var (Code, Out, Error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(Root(), "scripts/tests/encoding.ps1"),
+        var (Code, Out, Error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/encoding.ps1"),
             "-Scenario", scenario, "-CodePage", codePage.ToString(System.Globalization.CultureInfo.InvariantCulture));
         Assert.True(Code == exitCode, Out + Error);
         Assert.Contains("ENCODING_RESTORED", Error);

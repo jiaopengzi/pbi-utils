@@ -9,13 +9,14 @@ using Xunit;
 
 namespace PbiUtils.ScriptTests;
 
-public sealed partial class ScriptTests
+/// <summary>隔离脚本中的测试报告与实际执行验证.</summary>
+public sealed class ScriptTestResultTests
 {
     /// <summary>验证本轮权威报告, 零执行、结构化错误、正当跳过和原生失败优先边界.</summary>
     [Fact]
     public async Task TestResultsRequireAuthoritativeExecution()
     {
-        var (code, output, error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(Root(), "scripts/tests/test-results-tests.ps1"));
+        var (code, output, error) = await CliTests.Run("pwsh", "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/test-results-tests.ps1"));
         Assert.True(code == 0, output + error);
         Assert.Contains("PASS C# 测试回执与实际执行门禁", output);
     }

@@ -7,16 +7,24 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-<# .SYNOPSIS 核验路径位于根目录内且各级不是链接; 返回规范绝对路径, 不存在或越界抛错. #>
+<#
+.SYNOPSIS 核验规范路径及各级现有项, 返回绝对路径.
+.PARAMETER Root 许可来源或发布根目录.
+.PARAMETER Path 待读取或创建的路径, 允许尚未创建.
+.OUTPUTS 规范绝对路径; 越界、重解析点及属性读取错误直接抛错.
+#>
 function Get-PbiLicenseSafePath([string]$Root, [string]$Path) {
     $base = [IO.Path]::GetFullPath($Root).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
     $full = [IO.Path]::GetFullPath($Path)
     if ($full -ne $base -and !$full.StartsWith($base + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw "License path escapes its root: $Path" }
     $current = $full
     while ($current) {
-        if (Test-Path -LiteralPath $current) {
-            $item = Get-Item -LiteralPath $current -Force
-            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw "License path must not contain a link: $current" }
+        try {
+            $attributes = [IO.File]::GetAttributes($current)
+            if (($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw "License path must not contain a link: $current" }
+        }
+        catch [IO.FileNotFoundException], [IO.DirectoryNotFoundException] {
+            # 待写入路径可能尚不存在, 继续检查上级目录以拒绝祖先中的链接.
         }
         $parent = [IO.Path]::GetDirectoryName($current)
         if ($parent -eq $current) { break }

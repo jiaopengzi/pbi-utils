@@ -9,7 +9,8 @@ using Xunit;
 
 namespace PbiUtils.ScriptTests;
 
-public sealed partial class ScriptTests
+/// <summary>归档和本地 Git 远端之间的发布行为验证.</summary>
+public sealed class ScriptReleaseTests
 {
     /// <summary>在独立 PowerShell 中执行真实发布边界测试, 要求退出码和终态标记同时满足.</summary>
     /// <param name="script">只使用隔离文件或本地 bare Git 远端的测试脚本.</param>
@@ -21,7 +22,7 @@ public sealed partial class ScriptTests
     {
         // 别名合集包含多次独立 PowerShell/Git 场景, 本机已实测超过普通 CLI 的 30 秒预算.
         var timeout = script == "release-alias-tests.ps1" ? TimeSpan.FromMinutes(2) : TimeSpan.FromSeconds(30);
-        var (code, output, error) = await CliTests.RunWithTimeout("pwsh", timeout, "-NoProfile", "-File", Path.Combine(Root(), "scripts", "tests", script));
+        var (code, output, error) = await CliTests.RunWithTimeout("pwsh", timeout, "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts", "tests", script));
         Assert.True(code == 0, output + error);
         Assert.Contains(completed, output);
     }

@@ -127,7 +127,14 @@ it.each([".modules.yaml", ".pnpm/lock.yaml"])("依赖元数据 %s 同长度并�
 it("仅约定的生成输出与依赖缓存不影响输入快照", () => {
     const root = repository()
     const before = snapshotFrontendInputs(root)
-    for (const path of ["web/dist", "web/coverage", "web/node_modules/.vite", "web/node_modules/.vite-temp", "web/node_modules/.cache"]) {
+    for (const path of [
+        "web/dist",
+        "web/coverage",
+        "web/node_modules/.vite",
+        "web/node_modules/.vite-temp",
+        "web/node_modules/.vitest-cache",
+        "web/node_modules/.cache",
+    ]) {
         const directory = join(root, path)
         mkdirSync(directory, { recursive: true })
         writeFileSync(join(directory, "generated.js"), "generated")

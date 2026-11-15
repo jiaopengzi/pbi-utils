@@ -13,13 +13,15 @@
 | 在浏览器中用模拟数据预览界面 | `.\run.ps1 -Choice devWeb` |
 | 按需格式化 C# 和 Vue 源码 | `.\run.ps1 -Choice formatAll` |
 | 只读检查 C# 和 Vue | `.\run.ps1 -Choice checkAll` |
+| 只改 C# 时按需检查或运行相关项目测试 | `.\run.ps1 -Choice 'checkC#'` 或 `dotnet test tests/PbiUtils.UnitTests --no-restore --filter "FullyQualifiedName~<测试类>"` |
+| 只改 Vue 时按需检查或运行相关文件测试 | `.\run.ps1 -Choice checkVue` 或 `pnpm --dir web exec vitest run <测试文件>` |
 | 运行 C# 和 Vue 测试 | `.\run.ps1 -Choice testAll` |
 | 构建 Release 应用产物 | `.\run.ps1 -Choice buildAll -Configuration Release` |
 | 完整检查、测试并构建 Debug 应用产物 | `.\run.ps1 -Choice verifyAndBuild` |
 
 `verifyAndBuild -Scope All` 交付后会注册 **pbi-utils (开发)**。重启 Power BI Desktop 后，可从“外部工具”连接当前报表。注册可能需要管理员权限。使用 `-NonInteractive` 时，若缺少系统目录写权限，登记阶段会报错，构建产物仍可使用。
 
-原有脚本中的 `-Choice all` 请改用 `-Choice verifyAndBuild`。
+开发中可以用 `devDesktop` 或 `devWeb` 预览，再运行本次改动对应的检查和测试。需要核验整个应用时运行 `verifyAndBuild`，需要交付安装器时运行 `release`。C# 定向测试按修改范围选用单元、CLI 或桌面测试项目；Vue 文件路径相对于 `web/`。
 
 - `-Scope` 默认为 `All`。选 `Core` 时，C# 范围包含共享业务、CLI、Host、Windows 适配和相应测试。`All` 还覆盖桌面项目及其测试。单独的 Vue 动作没有 `-Scope` 参数。
 - `-Configuration` 默认为 `Debug`，产物在 `artifacts/build/debug/win-x64`。选 `Release` 后，产物在 `artifacts/build/release/win-x64/<模式>`。
@@ -34,7 +36,7 @@
 .\run.ps1 -Choice package -DotNetMode without-dotnet
 ```
 
-打包从 `artifacts/build/release/win-x64/without-dotnet` 读取产物，对照根目录 `version` 核验数字版本和完整标签，并检查 SDK。若缺少可用产物，先按需运行 `setupAll` 还原依赖，再用下面的命令完成 Release 检查、测试、构建和打包。
+打包从 `artifacts/build/release/win-x64/without-dotnet` 读取产物，对照根目录 `version` 核验数字版本和完整标签，并检查 SDK。安装器使用该目录中已构建的程序集和 Vue 资源。需要把本次源码修改纳入安装器时，先按需运行 `setupAll` 还原依赖，再用下面的命令完成 Release 检查、测试、构建和打包。
 
 ```powershell
 .\run.ps1 -Choice release -DotNetMode without-dotnet

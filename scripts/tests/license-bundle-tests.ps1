@@ -66,6 +66,8 @@ try {
     $original = [IO.File]::ReadAllBytes($licenseFile)
     Set-Content -LiteralPath $licenseFile -Value 'changed'
     Assert-Fails { Assert-PbiLicenseBundle -PublishRoot $core } 'integrity mismatch'
+    [IO.File]::Delete($licenseFile)
+    Assert-Fails { Assert-PbiLicenseBundle -PublishRoot $core } 'integrity mismatch'
     [IO.File]::WriteAllBytes($licenseFile, $original)
     Set-Content -LiteralPath (Join-Path $core 'licenses/unlisted.txt') -Value 'extra'
     Assert-Fails { Assert-PbiLicenseBundle -PublishRoot $core } 'Unlisted license'
@@ -170,11 +172,18 @@ try {
     $null = New-Item -ItemType Directory -Path $external
     Set-Content -LiteralPath (Join-Path $external 'sentinel.txt') -Value 'untouched'
     $linked = New-Publish 'linked'
-    $null = New-Item -ItemType Junction -Path (Join-Path $linked 'licenses') -Target $external
-    Assert-Fails { Export-PbiLicenseBundle -RepositoryRoot $repository -PublishRoot $linked -Scope Core } 'must not contain a link'
-    Assert ((Get-Content -LiteralPath (Join-Path $external 'sentinel.txt') -Raw).Trim() -eq 'untouched') 'Refusing a link must preserve its target.'
-    # 显式移除链接本身后才清理自有夹具树, 不递归进入外部目标.
-    [IO.Directory]::Delete((Join-Path $linked 'licenses'))
+    $junction = Join-Path $linked 'licenses'
+    $null = New-Item -ItemType Junction -Path $junction -Target $external
+    try {
+        Assert-Fails { Export-PbiLicenseBundle -RepositoryRoot $repository -PublishRoot $linked -Scope Core } 'must not contain a link'
+        Assert ((Get-Content -LiteralPath (Join-Path $external 'sentinel.txt') -Raw).Trim() -eq 'untouched') 'Refusing a link must preserve its target.'
+        # 最下级路径不存在时, 仍须检查其上级目录中的悬空链接.
+        [IO.Directory]::Move($external, (Join-Path $sandbox 'outside-moved'))
+        Assert-Fails { Assert-PbiLicenseBundle -PublishRoot (Join-Path $junction 'missing') } 'must not contain a link'
+    } finally {
+        # 显式移除链接本身后才清理自有夹具树, 不递归进入外部目标.
+        [IO.Directory]::Delete($junction)
+    }
     Write-Output "License bundle tests passed. $count behavioral checks."
 } finally {
     $env:NUGET_PACKAGES = $savedNuget

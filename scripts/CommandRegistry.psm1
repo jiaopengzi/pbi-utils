@@ -84,11 +84,12 @@ function Show-PbiHelp {
     Write-Host '  .\run.ps1 -Choice checkAll                             # 只读检查'
     Write-Host '  .\run.ps1 -Choice testAll                              # 运行测试'
     Write-Host '  .\run.ps1 -Choice verifyAndBuild                       # 完整验证并构建'
+    Write-Host '  日常修改可先开发预览并执行相关检查和测试；需要交付安装包时再执行 release。'
     Write-Host ''
     Write-Host '生成轻量安装包'
     Write-Host '  .\run.ps1 -Choice package -DotNetMode without-dotnet    # 使用已有产物'
     Write-Host '  .\run.ps1 -Choice release -DotNetMode without-dotnet    # 完整验证、构建后打包'
-    Write-Host '  package 需要已有的同模式 Release/All 产物。缺少产物时用 release。'
+    Write-Host '  package 使用已有的同模式 Release/All 构建产物。需要纳入本次源码修改时用 release。'
     Write-Host '  轻量安装包位于 artifacts/release/win-x64/without-dotnet。'
     Write-Host ''
     Write-Host '动作与可选参数（按开发流程排列）'
@@ -103,7 +104,7 @@ function Show-PbiHelp {
     Write-Host '  -WhatIf         预览 clean 将清理的目录'
     Write-Host ''
     Write-Host '  verifyAndBuild 在 All 范围交付后注册 Power BI 开发外部工具，可能需要管理员权限。'
-    Write-Host '  用法与产物路径见 README 中的「开发命令速查」。'
+    Write-Host '  定向测试与产物路径见 .agents/skills/pbi-utils-development/references/validation-and-delivery.md。'
 }
 
 <# .SYNOPSIS 严格解析参数数组, 未知、缺值和重复参数返回 2. #>

@@ -131,9 +131,13 @@ export default defineConfig(({ command, mode }) => {
             __MOCK_BRIDGE__: JSON.stringify(command === "serve" && mode === "mock"),
             __EDITOR_STYLE_NONCE__: JSON.stringify(editorStyleNonce),
         },
-        // 限制重型 Vue/Element Plus 用例的并发资源争用, 保留逐文件隔离和默认超时; 低核机器不超出可用并发量.
+        // 每个 worker 复用 jsdom 加载, 每个测试文件仍创建独立 VM 和窗口.
         test: {
+            pool: "vmThreads",
+            // 限制重型 Vue/Element Plus 用例的并发资源争用; 低核机器不超出可用并发量.
             maxWorkers: Math.min(4, availableParallelism()),
+            // 测试文件之间检查堆用量并按阈值回收 worker; 进程实际驻留内存另计.
+            vmMemoryLimit: "768MiB",
             environment: "jsdom",
             include: ["tests/**/*.test.ts"],
             setupFiles: ["tests/setup.ts"],
