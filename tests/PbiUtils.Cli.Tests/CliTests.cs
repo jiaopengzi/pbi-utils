@@ -90,7 +90,6 @@ public sealed class CliTests
     [InlineData("doctor", "unexpected", "--json")]
     [InlineData("doctor", "--provider", "online", "--json")]
     [InlineData("doctor", "--name", "x", "--json")]
-    [InlineData("new", "templates", "--json", "--json")]
     [InlineData("unknown", "--json")]
     [InlineData("doctor", "--json", "--json")]
     public async Task InvalidArguments(params string[] arguments)

@@ -272,9 +272,14 @@ public sealed class McpProtocolTests
     }
 }
 
-/// <summary>集合内串行并持有跨进程测试租约, 避免独立验收脚本争用真实用户级回执.</summary>
-[CollectionDefinition("CLI User Data", DisableParallelization = true)]
-public sealed class CliUserDataCollection : ICollectionFixture<CliUserDataLeaseFixture>;
+/// <summary>会连接真实 Host 或访问真实业务回执的用例在集合内串行, 并持有跨进程验收租约.</summary>
+/// <remarks>使用独占夹具或仅写入共享日志的其他集合可以同时执行.</remarks>
+[CollectionDefinition(CliUserDataCollection.Name)]
+public sealed class CliUserDataCollection : ICollectionFixture<CliUserDataLeaseFixture>
+{
+    /// <summary>测试发现及提交顺序使用的集合名称.</summary>
+    public const string Name = "CLI User Data";
+}
 
 /// <summary>覆盖整个集合及各用例清理; 不在子产品进程再次加锁, 防止父子等待死锁.</summary>
 public sealed class CliUserDataLeaseFixture : IDisposable

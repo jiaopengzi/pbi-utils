@@ -10,6 +10,9 @@ if ($MyInvocation.InvocationName -ne '.' -or !(Test-Path Variable:PbiInvocation)
     exit (Invoke-PbiEntry -Arguments $args -Action package)
 }
 $ErrorActionPreference = 'Stop'
+# 只记录各阶段完成时刻, 交付与清理均结束后再输出, 避免干扰事务或首个错误.
+$packageStopwatch = [Diagnostics.Stopwatch]::StartNew()
+$packagePhaseEnds = [ordered]@{}
 $options = $PbiInvocation.Options
 $repository = [IO.Path]::GetFullPath((Split-Path $PSScriptRoot -Parent))
 Import-Module (Join-Path $PSScriptRoot 'PublishArtifacts.psm1') -Force
@@ -27,6 +30,7 @@ $mode = if ($options.DotNetMode -eq 'with-dotnet') { 'self-contained' } else { '
 if ($manifest.configuration -cne 'Release' -or $manifest.scope -cne 'All' -or $manifest.deploymentMode -cne $mode -or $manifest.version -cne $version -or $manifest['releaseTag'] -cne $releaseTag -or $manifest['sdkVersion'] -cne $sdkVersion) {
     Stop-Pbi 3 '安装包需要与当前产品版本、发布标签和 SDK 版本一致的 Release/All 所选模式产物; 请运行 release 并指定相同的 -DotNetMode'
 }
+$packagePhaseEnds.Add('source-validation', $packageStopwatch.Elapsed)
 $fileVersion = "$version.0"
 $destination = Join-Path $repository "artifacts/release/win-x64/$($options.DotNetMode)"
 Assert-PbiPublishPath $destination
@@ -58,6 +62,7 @@ try {
     }
     $inputManifestHash = (Get-FileHash -LiteralPath (Join-Path $app 'manifest.json') -Algorithm SHA256).Hash
     $builtLicenses = Get-Content -LiteralPath (Join-Path $app 'licenses/manifest.json') -Raw | ConvertFrom-Json
+    $packagePhaseEnds.Add('payload-snapshot', $packageStopwatch.Elapsed)
     # 仅刷新许可, 不把当前前端依赖的声明套到旧构建的 JavaScript 上.
     $licenseInputs = @{}
     foreach ($relative in @('LICENSE', 'THIRD-PARTY-NOTICES.md', 'licenses/catalog.json', 'web/package.json', 'web/pnpm-lock.yaml')) {
@@ -120,9 +125,12 @@ try {
     foreach ($required in @('Install-Application.ps1', 'Installation.psm1', 'InstallationPayload.psm1', 'InstallationShell.psm1', 'ExternalToolRegistration.psm1', 'ExternalToolDescriptor.psm1', 'ExternalToolFiles.psm1', 'ExternalTool-Worker.ps1', 'Ensure-Prerequisites.ps1', 'Prerequisites.psm1', 'Prerequisite-Worker.ps1')) {
         if (!(Test-Path -LiteralPath (Join-Path $maintenance $required) -PathType Leaf)) { Stop-Pbi 3 "安装维护文件缺失: $required" }
     }
+    # 许可刷新之后的维护脚本准备也计入载荷阶段.
+    $packagePhaseEnds.Add('payload-license', $packageStopwatch.Elapsed)
     $prerequisitesPath = Join-Path $maintenance 'prerequisites.json'
     $prerequisites = Export-PbiInstallerPrerequisites -RepositoryRoot $repository -PublishRoot $app -OutputPath $prerequisitesPath
     if ($prerequisites.dotnet.sdkVersion -cne $sdkVersion) { throw '生成安装依赖时 SDK 绑定发生变化, 未生成安装包; 请重试' }
+    $packagePhaseEnds.Add('runtime-metadata', $packageStopwatch.Elapsed)
     $installer = Join-Path $stage "$baseName.exe"
     # LicenseData 直接使用已校验的 UTF-8 BOM 聚合文本, 与安装后阅读的完整声明一致.
     $installerLicense = Join-Path $app 'THIRD-PARTY-NOTICES.txt'
@@ -131,7 +139,9 @@ try {
     if ($nsisLicenses.Count -ne 1 -or $nsisLicenses[0].version -notmatch '^\d+\.\d+(?:\.\d+)?$') { throw '安装器缺少精确版本的 NSIS 分发许可' }
     # NSIS 在编译期核对自身版本, 防止开发工具升级后继续分发旧版本许可快照.
     $arguments = @('/V3', '/WX', '/INPUTCHARSET', 'UTF8', "/DPBI_NSIS_VERSION=$($nsisLicenses[0].version)", "/DPBI_PAYLOAD=$payload", "/DPBI_LICENSE_TEXT=$installerLicense", "/DPBI_OUTFILE=$installer", "/DPBI_RELEASE_TAG=$releaseTag", "/DPBI_FILE_VERSION=$fileVersion", "/DPBI_ICON=$(Join-Path $repository 'web/public/branding/logo.ico')", (Join-Path $PSScriptRoot 'installer/installer.nsi'))
+    $packagePhaseEnds.Add('nsis-inputs', $packageStopwatch.Elapsed)
     Invoke-PbiNative makensis $arguments
+    $packagePhaseEnds.Add('nsis-compile', $packageStopwatch.Elapsed)
     & $assertLicenseInputs
     if ((Get-PbiCurrentRelease -RepositoryRoot $repository).Tag -cne $releaseTag) { throw '打包期间 version 中的标签已改变, 请重新打包' }
     if (!(Test-Path -LiteralPath $installer -PathType Leaf) -or (Get-Item -LiteralPath $installer).Length -le 0) { throw 'makensis 未生成有效安装包' }
@@ -170,6 +180,7 @@ try {
         Copy-Item -LiteralPath (Join-Path $stage $artifactName) -Destination (Join-Path $destination $artifactName) -Force
     }
     if ((Get-FileHash -LiteralPath (Join-Path $destination "$baseName.exe") -Algorithm SHA256).Hash -cne $installerHash) { throw '安装包交付后的哈希核验失败' }
+    $packagePhaseEnds.Add('delivery-verification', $packageStopwatch.Elapsed)
 }
 catch {
     $failure = $_
@@ -200,6 +211,13 @@ finally {
         [Console]::Error.WriteLine("安装包临时清理失败, 保留原错误: $($_.Exception.Message)")
     }
     finally { if ($null -ne $gate) { $gate.Dispose() } }
+}
+$packagePhaseEnds.Add('cleanup', $packageStopwatch.Elapsed)
+$previousPhaseEnd = [TimeSpan]::Zero
+foreach ($phase in $packagePhaseEnds.GetEnumerator()) {
+    $elapsedSeconds = ($phase.Value - $previousPhaseEnd).TotalSeconds.ToString('F3', [Globalization.CultureInfo]::InvariantCulture)
+    Write-PbiMessage "打包计时 [$($phase.Key)] ${elapsedSeconds}s"
+    $previousPhaseEnd = $phase.Value
 }
 $finalInstaller = Join-Path $destination "$baseName.exe"
 Write-PbiMessage ("安装包: {0}; {1:N2} MiB; SHA256={2}" -f $finalInstaller, ((Get-Item -LiteralPath $finalInstaller).Length / 1MB), $installerHash) 'Success'

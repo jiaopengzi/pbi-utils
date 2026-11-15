@@ -4,6 +4,10 @@
 # Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
 # Description : 使用隔离本地 Git 仓库验证版本准备、标签预览、原子推送与拒绝边界.
 
+<# .PARAMETER Scenario 单独运行一个互不依赖的场景组, 默认按原顺序运行全部断言. #>
+[CmdletBinding()]
+param([ValidateSet('All', 'Prepare', 'Publish', 'TagRules', 'CleanInputs')][string]$Scenario = 'All')
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
@@ -75,23 +79,8 @@ function Assert-ReleaseRejected([hashtable]$Fixture, [string]$Reason) {
     Assert-ReleaseTest ((Invoke-RequiredGit $Fixture.Repository @('tag', '--list')).Length -eq 0 -and (Invoke-RequiredGit $Fixture.Remote @('for-each-ref', '--format=%(refname)')).Length -eq 0) "$Reason 不修改 refs"
 }
 
-try {
-    # 无窗口测试宿主可能默认使用 CP936; Bash 的 UTF-8 诊断与 C# wrapper 的 UTF-8 读流必须保持同一边界.
-    $utf8 = [Text.UTF8Encoding]::new($false)
-    [Console]::InputEncoding = $utf8
-    [Console]::OutputEncoding = $utf8
-    $OutputEncoding = $utf8
-    $null = New-Item -ItemType Directory -Path $sandbox
-    $ownsSandbox = $true
-    $template = Join-Path $sandbox 'empty-template'
-    $null = New-Item -ItemType Directory -Path $template
-    # 隔离继承的仓库、索引、模板、凭据和全局配置, 所有推送仅指向本次创建的 bare origin.
-    foreach ($name in $savedGitEnvironment.Keys) { Remove-Item -LiteralPath "Env:$name" }
-    $env:GIT_CONFIG_GLOBAL = Join-Path $sandbox 'empty-gitconfig'
-    [IO.File]::WriteAllText($env:GIT_CONFIG_GLOBAL, '')
-    $env:GIT_CONFIG_NOSYSTEM = '1'
-    $env:GIT_TERMINAL_PROMPT = '0'
-
+<# .SYNOPSIS 验证准备、已提交版本与工作区状态的关联, 任一断言失败时抛错. #>
+function Test-ReleasePreparation {
     $fixture = New-ReleaseFixture 'prepare'
     $repository = $fixture.Repository
     $head = Invoke-RequiredGit $repository @('rev-parse', 'HEAD')
@@ -148,7 +137,10 @@ try {
     $null = Invoke-RequiredGit $fixture.Repository @('rm', '--', 'version')
     Save-Fixture $fixture
     Assert-ReleaseRejected $fixture 'version'
+}
 
+<# .SYNOPSIS 验证实际标签预览和发布后的 Git 引用, 任一断言失败时抛错. #>
+function Test-ReleasePublication {
     $fixture = New-ReleaseFixture 'v2-success'
     $head = Invoke-RequiredGit $fixture.Repository @('rev-parse', 'HEAD')
     $subdirectory = Join-Path $fixture.Repository 'subdirectory'
@@ -177,8 +169,11 @@ try {
     Save-Fixture $fixture
     $release = Invoke-TestGit $fixture.Repository @('savetag')
     Assert-ReleaseTest ($release.Code -eq 0 -and (Invoke-RequiredGit $fixture.Remote @('tag', '--list')) -ceq 'v0.1.0-rc12') "最新 RC 标签可多位并兼容保留的历史章节: $($release.Output)"
+}
 
-    foreach ($scenario in @(
+<# .SYNOPSIS 通过真实别名校验分支和标签格式拒绝边界, 任一断言失败时抛错. #>
+function Test-ReleaseTagRules {
+    foreach ($tagCase in @(
         @{ Name = 'out-of-range-version'; Branch = 'v2'; Tag = 'v0.65535.0-rc1'; Reason = '版本超出范围' },
         @{ Name = 'wrong-branch'; Branch = 'feature'; Tag = 'v0.1.0-rc1'; Reason = '仅支持 main 或 v2' },
         @{ Name = 'v2-stable'; Branch = 'v2'; Tag = 'v0.1.0'; Reason = 'v2 分支仅允许 vX.Y.Z-rcN' },
@@ -189,10 +184,13 @@ try {
         @{ Name = 'four-part-version'; Branch = 'main'; Tag = 'v1.0.3.1'; Reason = '标签格式无效' },
         @{ Name = 'historical-desktop-tag'; Branch = 'v2'; Tag = 'desktop-v0.1.0-v2.7'; Reason = '标签格式无效' }
     )) {
-        $fixture = New-ReleaseFixture $scenario.Name $scenario.Branch $scenario.Tag
-        Assert-ReleaseRejected $fixture $scenario.Reason
+        $fixture = New-ReleaseFixture $tagCase.Name $tagCase.Branch $tagCase.Tag
+        Assert-ReleaseRejected $fixture $tagCase.Reason
     }
+}
 
+<# .SYNOPSIS 验证脏工作区和无效发行说明不会更改 Git 引用, 任一断言失败时抛错. #>
+function Test-ReleaseCleanInputs {
     foreach ($kind in @('unstaged', 'staged', 'untracked')) {
         $fixture = New-ReleaseFixture "dirty-$kind"
         $name = if ($kind -ceq 'untracked') { 'new.txt' } else { 'payload.txt' }
@@ -213,7 +211,10 @@ try {
         $reason = switch ($kind) { 'empty' { '变更说明不能为空' }; 'duplicate' { '章节重复' }; 'invalid-date' { '日期无效' } }
         Assert-ReleaseRejected $fixture $reason
     }
+}
 
+<# .SYNOPSIS 验证远端标签冲突、原子推送被拒和远端不可用, 任一断言失败时抛错. #>
+function Test-ReleaseRemoteFailures {
     $fixture = New-ReleaseFixture 'remote-tag'
     $null = Invoke-RequiredGit $fixture.Repository @('tag', '--annotate', $fixture.Tag, '--message', 'Existing remote tag')
     $null = Invoke-RequiredGit $fixture.Repository @('push', '--quiet', 'origin', "refs/tags/$($fixture.Tag)")
@@ -232,6 +233,30 @@ try {
     $fixture = New-ReleaseFixture 'remote-unavailable'
     $null = Invoke-RequiredGit $fixture.Repository @('remote', 'set-url', 'origin', (Join-Path $sandbox 'missing.git'))
     Assert-ReleaseRejected $fixture '无法核验远端标签'
+}
+
+try {
+    # 无窗口测试宿主可能默认使用 CP936; Bash 的 UTF-8 诊断与 C# wrapper 的 UTF-8 读流必须保持同一边界.
+    $utf8 = [Text.UTF8Encoding]::new($false)
+    [Console]::InputEncoding = $utf8
+    [Console]::OutputEncoding = $utf8
+    $OutputEncoding = $utf8
+    $null = New-Item -ItemType Directory -Path $sandbox
+    $ownsSandbox = $true
+    $template = Join-Path $sandbox 'empty-template'
+    $null = New-Item -ItemType Directory -Path $template
+    # 隔离继承的仓库、索引、模板、凭据和全局配置, 所有推送仅指向本次创建的 bare origin.
+    foreach ($name in $savedGitEnvironment.Keys) { Remove-Item -LiteralPath "Env:$name" }
+    $env:GIT_CONFIG_GLOBAL = Join-Path $sandbox 'empty-gitconfig'
+    [IO.File]::WriteAllText($env:GIT_CONFIG_GLOBAL, '')
+    $env:GIT_CONFIG_NOSYSTEM = '1'
+    $env:GIT_TERMINAL_PROMPT = '0'
+
+    if ($Scenario -in @('All', 'Prepare')) { Test-ReleasePreparation }
+    if ($Scenario -in @('All', 'Publish')) { Test-ReleasePublication }
+    if ($Scenario -in @('All', 'TagRules')) { Test-ReleaseTagRules }
+    if ($Scenario -in @('All', 'CleanInputs')) { Test-ReleaseCleanInputs }
+    if ($Scenario -in @('All', 'Publish')) { Test-ReleaseRemoteFailures }
     Write-Host "PASS release alias: $passed assertions."
 } finally {
     try {

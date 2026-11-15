@@ -2,72 +2,38 @@
 // Author      : jiaopengzi
 // Blog        : https://jiaopengzi.com
 // Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-// Description : 用真实 CLI 验证当前模板查询可选字段和严格输入拒绝.
+// Description : 验证真实 CLI 的脚手架请求错误映射及不创建目标的行为.
 
 using System.Text.Json;
 using Xunit;
 
 namespace PbiUtils.Cli.Tests;
 
-/// <summary>使用无效批准在实际发布前停止, 仅写测试拥有的请求文件.</summary>
+/// <summary>代表性请求经过真实 CLI 和 Host, 验证跨进程错误映射及无文件提交.</summary>
 [Collection("CLI User Data")]
 public sealed class ScaffoldTemplateQueryCliTests : IDisposable
 {
-    private readonly string root = Path.Combine(Path.GetTempPath(), "pbi-query-cli-" + Guid.NewGuid().ToString("N"));
+    private readonly ScaffoldRequestFixture request = new();
 
-    /// <summary>当前可选字段支持省略、显式 null、空集和标准选择, 随后由无效批准阻止创建.</summary>
+    /// <summary>验证真实进程的 JSON 错误码和退出码, 并确认失败不创建目标目录.</summary>
+    /// <param name="section">生成请求时覆盖的字段.</param>
+    /// <param name="value">该字段的 JSON 值, null 表示省略字段.</param>
+    /// <param name="exitCode">实际 CLI 应返回的退出码.</param>
+    /// <param name="errorCode">JSON 业务错误码.</param>
     [Theory]
-    [InlineData(null)]
-    [InlineData("null")]
-    [InlineData("[]")]
-    [InlineData("[\"Hour24\",\"MQHY\",\"TypeDetails\"]")]
-    [InlineData("[\"RefreshTime\"]")]
-    [InlineData("[\"Hour24\",\"MQHY\",\"RefreshTime\",\"TypeDetails\"]")]
-    public async Task OptionalQuerySelectionAcceptsCurrentRequestShapes(string? selection)
+    [InlineData("templateQueries", null, 3, "INVALID_SCAFFOLD_PLAN")]
+    [InlineData("templateQueries", "[\"hour24\"]", 2, "INVALID_SCAFFOLD_REQUEST")]
+    [InlineData("measures", "[{\"name\":\"Test\",\"value\":\"1\",\"dataCategory\":\"Uncategorized\",\"description\":\"\",\"displayFolder\":\"\"}]", 2, "INVALID_ARGUMENT")]
+    public async Task RequestFailureReachesRealCli(string section, string? value, int exitCode, string errorCode)
     {
-        var (Code, Out, _) = await RunAsync(selection);
-        Assert.Equal(3, Code);
+        var (Code, Out, _) = await CliTests.Run(CliTests.Executable, await request.CreateArgumentsAsync(section, value));
+        Assert.Equal(exitCode, Code);
         using var document = JsonDocument.Parse(Out);
-        Assert.Equal("INVALID_SCAFFOLD_PLAN", document.RootElement.GetProperty("error").GetProperty("code").GetString());
-        Assert.False(Directory.Exists(Path.Combine(root, "output")));
+        Assert.False(document.RootElement.GetProperty("ok").GetBoolean());
+        Assert.Equal(errorCode, document.RootElement.GetProperty("error").GetProperty("code").GetString());
+        Assert.False(Directory.Exists(request.Output));
     }
 
-    /// <summary>未知、空白、大小写和重复选择先于批准检查失败, 不触发模板准备或创建.</summary>
-    [Theory]
-    [InlineData("[\"Unknown\"]")]
-    [InlineData("[\"\"]")]
-    [InlineData("[\"hour24\"]")]
-    [InlineData("[\"Hour24\",\"Hour24\"]")]
-    public async Task InvalidQuerySelectionFailsBeforeApproval(string selection)
-    {
-        var (Code, Out, _) = await RunAsync(selection);
-        Assert.Equal(2, Code);
-        using var document = JsonDocument.Parse(Out);
-        Assert.Equal("INVALID_SCAFFOLD_REQUEST", document.RootElement.GetProperty("error").GetProperty("code").GetString());
-        Assert.False(Directory.Exists(Path.Combine(root, "output")));
-    }
-
-    /// <summary>生成字段唯一的真实请求并运行正式 CLI, 无效批准避免操作用户计划存储.</summary>
-    /// <param name="selection">查询段 JSON, null 表示完全省略字段.</param>
-    /// <returns>真实退出码、单文档 stdout 及 stderr.</returns>
-    private async Task<(int Code, string Out, string Error)> RunAsync(string? selection)
-    {
-        Directory.CreateDirectory(root);
-        var values = new Dictionary<string, object?>
-        {
-            ["schemaVersion"] = 1,
-            ["templateId"] = "builtin:blank",
-            ["templateBaseline"] = new string('a', 64),
-            ["projectName"] = "output",
-            ["locale"] = "zh-cn"
-        };
-        if (selection is not null) values["templateQueries"] = JsonSerializer.Deserialize<JsonElement>(selection);
-        var path = Path.Combine(root, "request.json");
-        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(values));
-        return await CliTests.Run("dotnet", [typeof(PbiUtils.Cli.Program).Assembly.Location, "new", "create", "--request", path,
-            "--output", Path.Combine(root, "output"), "--approve", "invalid", "--json"]);
-    }
-
-    /// <summary>仅删除本测试自行分配的临时目录.</summary>
-    public void Dispose() { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    /// <summary>释放本测试的独占请求目录.</summary>
+    public void Dispose() => request.Dispose();
 }

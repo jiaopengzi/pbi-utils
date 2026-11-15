@@ -9,21 +9,63 @@ using Xunit;
 
 namespace PbiUtils.ScriptTests;
 
-/// <summary>归档和本地 Git 远端之间的发布行为验证.</summary>
+/// <summary>验证发布上下文和归档内容.</summary>
 public sealed class ScriptReleaseTests
 {
-    /// <summary>在独立 PowerShell 中执行真实发布边界测试, 要求退出码和终态标记同时满足.</summary>
-    /// <param name="script">只使用隔离文件或本地 bare Git 远端的测试脚本.</param>
-    /// <param name="completed">防止未执行测试即返回成功的精确标记.</param>
-    [Theory]
-    [InlineData("release-automation-tests.ps1", "PASS release context, notes and exact ZIP archive")]
-    [InlineData("release-alias-tests.ps1", "PASS release alias")]
-    public async Task ReleaseAutomationBehavior(string script, string completed)
+    /// <summary>在独立 PowerShell 中验证发布说明和归档一致性, 核对退出码及完成标记.</summary>
+    [Fact]
+    public async Task ReleaseArchiveBehavior()
     {
-        // 别名合集包含多次独立 PowerShell/Git 场景, 本机已实测超过普通 CLI 的 30 秒预算.
-        var timeout = script == "release-alias-tests.ps1" ? TimeSpan.FromMinutes(2) : TimeSpan.FromSeconds(30);
-        var (code, output, error) = await CliTests.RunWithTimeout("pwsh", timeout, "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts", "tests", script));
+        var script = Path.Combine(ScriptTestRepository.Root(), "scripts", "tests", "release-automation-tests.ps1");
+        var (code, output, error) = await CliTests.Run("pwsh", "-NoProfile", "-File", script);
         Assert.True(code == 0, output + error);
-        Assert.Contains(completed, output);
+        Assert.Contains("PASS release context, notes and exact ZIP archive", output);
+    }
+}
+
+/// <summary>用独立 Git 仓库验证版本准备和已提交版本.</summary>
+public sealed class ScriptReleaseAliasPreparationTests
+{
+    /// <summary>验证版本准备、重复调用和已提交版本拒绝的场景, 子进程失败时使测试失败.</summary>
+    [Fact]
+    public Task PreparationAndCommittedVersion() => ReleaseAliasTest.RunAsync("Prepare");
+}
+
+/// <summary>用独立 Git 仓库和本地 bare origin 验证真实发布引用.</summary>
+public sealed class ScriptReleaseAliasPublicationTests
+{
+    /// <summary>验证预览、发布成功及远端拒绝场景, 子进程失败时使测试失败.</summary>
+    [Fact]
+    public Task PublicationAndRemoteFailures() => ReleaseAliasTest.RunAsync("Publish");
+}
+
+/// <summary>用独立 Git 仓库验证分支和标签规则.</summary>
+public sealed class ScriptReleaseAliasTagRuleTests
+{
+    /// <summary>验证分支和标签无效时不修改 Git 引用, 子进程失败时使测试失败.</summary>
+    [Fact]
+    public Task InvalidBranchesAndTags() => ReleaseAliasTest.RunAsync("TagRules");
+}
+
+/// <summary>用独立 Git 仓库验证工作区与发布说明.</summary>
+public sealed class ScriptReleaseAliasInputTests
+{
+    /// <summary>验证脏工作区和无效发布说明的拒绝场景, 子进程失败时使测试失败.</summary>
+    [Fact]
+    public Task DirtyWorktreesAndInvalidChangelogs() => ReleaseAliasTest.RunAsync("CleanInputs");
+}
+
+/// <summary>在相互隔离的 PowerShell 进程中执行别名测试组.</summary>
+internal static class ReleaseAliasTest
+{
+    /// <summary>启动指定分组, 核对真实退出码和完成标记; 超时或断言失败时抛错.</summary>
+    /// <param name="scenario">测试脚本支持的独立场景组名称.</param>
+    internal static async Task RunAsync(string scenario)
+    {
+        // Git 别名反复启动 Git、Bash 和 PowerShell, 各组保留原有超时预算.
+        var script = Path.Combine(ScriptTestRepository.Root(), "scripts", "tests", "release-alias-tests.ps1");
+        var (code, output, error) = await CliTests.RunWithTimeout("pwsh", TimeSpan.FromMinutes(2), "-NoProfile", "-File", script, "-Scenario", scenario);
+        Assert.True(code == 0, output + error);
+        Assert.Contains("PASS release alias:", output);
     }
 }

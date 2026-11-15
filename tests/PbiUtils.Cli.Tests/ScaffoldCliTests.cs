@@ -136,7 +136,7 @@ public sealed class ScaffoldCliTests : IDisposable
         Assert.Equal(0, replay.Code);
     }
 
-    /// <summary>未知、重复及不适用参数不能触发模板处理或写入.</summary>
+    /// <summary>未知、重复及不适用参数通过真实 Host 拒绝, 不触发模板处理或写入.</summary>
     [Theory]
     [InlineData("new", "templates", "--output", "unexpected", "--json")]
     [InlineData("new", "templates", "--json", "--json")]
@@ -169,50 +169,6 @@ public sealed class ScaffoldCliTests : IDisposable
         Assert.NotEqual(0, code);
         using var document = JsonDocument.Parse(output);
         Assert.False(document.RootElement.GetProperty("ok").GetBoolean());
-    }
-
-    /// <summary>缺失必需布尔值在请求读取阶段拒绝, 不得到达批准或文件操作.</summary>
-    [Theory]
-    [InlineData("measures", "[{\"name\":\"Test\",\"value\":\"1\",\"dataCategory\":\"Uncategorized\",\"description\":\"\",\"displayFolder\":\"\"}]")]
-    [InlineData("calendar", "{\"kind\":\"simple\",\"startYear\":2026,\"endYear\":2026,\"overrides\":[{\"date\":\"2026-10-19\",\"name\":\"Missing boolean\"}]}")]
-    public async Task RejectsMissingRequiredRequestFields(string section, string value)
-    {
-        var (Code, Out, _) = await ParseRequestThroughCreate(section, value);
-        Assert.Equal(2, Code);
-        using var document = JsonDocument.Parse(Out);
-        Assert.Equal("INVALID_ARGUMENT", document.RootElement.GetProperty("error").GetProperty("code").GetString());
-        Assert.False(Directory.Exists(Path.Combine(root, "新工程")));
-    }
-
-    /// <summary>合法可选字段省略和明确 false 能通过读取, 随后仍被无效批准挡住而不写用户计划.</summary>
-    [Theory]
-    [InlineData("measures", "[{\"name\":\"Test\",\"value\":\"1\",\"dataCategory\":\"Uncategorized\",\"enabled\":false,\"description\":\"\",\"displayFolder\":\"\"}]")]
-    [InlineData("calendar", "{\"kind\":\"simple\",\"startYear\":2026,\"endYear\":2026,\"overrides\":[{\"date\":\"2026-10-19\",\"isWorkday\":false,\"name\":\"Explicit false\"}]}")]
-    [InlineData("udfs", "[{\"source\":\"daxlib\",\"packageId\":\"test.package\",\"functions\":[\"Test.Function\"]}]")]
-    public async Task AcceptsOptionalFieldsAndExplicitFalseBeforeApproval(string section, string value)
-    {
-        var (Code, Out, _) = await ParseRequestThroughCreate(section, value);
-        Assert.Equal(3, Code);
-        using var document = JsonDocument.Parse(Out);
-        Assert.Equal("INVALID_SCAFFOLD_PLAN", document.RootElement.GetProperty("error").GetProperty("code").GetString());
-        Assert.False(Directory.Exists(Path.Combine(root, "新工程")));
-    }
-
-    /// <summary>通过真实 CLI 读取请求, 使用无效批准在环境访问前停止, 避免真实下载或用户计划写入.</summary>
-    private async Task<(int Code, string Out, string Error)> ParseRequestThroughCreate(string section, string value)
-    {
-        using var parsed = JsonDocument.Parse(value);
-        var request = Path.Combine(root, "strict-request.json");
-        await File.WriteAllTextAsync(request, JsonSerializer.Serialize(new Dictionary<string, object?>
-        {
-            ["schemaVersion"] = 1,
-            ["templateId"] = "builtin:blank",
-            ["templateBaseline"] = new string('a', 64),
-            ["projectName"] = "新工程",
-            ["locale"] = "zh-cn",
-            [section] = parsed.RootElement
-        }));
-        return await Cli("new", "create", "--request", request, "--output", Path.Combine(root, "新工程"), "--approve", "invalid", "--json");
     }
 
     /// <summary>运行真正的控制台程序, 进度与业务 stdout 分离.</summary>

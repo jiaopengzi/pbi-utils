@@ -252,6 +252,11 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
         Assert ($arguments -contains '/DPBI_NSIS_VERSION=3.13') '编译器版本必须绑定载荷中审核过的 NSIS 许可版本'
         Assert ($arguments -contains '/DPBI_RELEASE_TAG=v1.2.3-rc4' -and $arguments -contains '/DPBI_FILE_VERSION=1.2.3.0') '安装器从 version 取得完整标签和 Windows 数字文件版本'
         Assert (@($arguments | Where-Object { $_ -clike '/DPBI_PAYLOAD=*' }).Count -eq 1) '含空格路径必须作为完整的单个 NSIS 定义参数传递'
+        $phaseNames = @($state.Messages | Where-Object { $_.Message -clike '打包计时 *' } | ForEach-Object {
+            Assert ($_.Level -eq 'Info' -and $_.Message -cmatch '^打包计时 \[([a-z-]+)\] \d+\.\d{3}s$') '打包阶段计时必须是以固定点号和秒单位显示的普通信息'
+            $Matches[1]
+        })
+        Assert (($phaseNames -join ',') -ceq 'source-validation,payload-snapshot,payload-license,runtime-metadata,nsis-inputs,nsis-compile,delivery-verification,cleanup') '成功打包应按实际顺序报告各段耗时'
         Assert (@($state.Messages | Where-Object { $_.Message -match '^完成 package \(' -and $_.Level -eq 'Success' }).Count -eq 1) 'dot-source 打包脚本不得把完成动作名覆盖为交付文件名'
         $record = Get-Content -LiteralPath (Join-Path $destination "$baseName.json") -Raw | ConvertFrom-Json
         Assert ($record.version -ceq '1.2.3' -and $record.dotNetMode -ceq 'without-dotnet' -and $record.signatureStatus -ceq 'NotSigned') '安装记录必须保存当前版本、模式和真实签名分类'
@@ -417,6 +422,7 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
         Assert ((Invoke-TestPackage) -eq 47) 'NSIS 编译失败必须保留工具退出码'
         Assert (@($state.Messages | Where-Object { $_.Message -like '*[[]package[]]*模拟 makensis 编译失败*' }).Count -eq 1) '编译错误必须保留 package 阶段与原始原因'
         Assert (@($state.Messages | Where-Object { $_.Message -match '^完成 ' }).Count -eq 0) '编译失败不得打印成功完成'
+        Assert (@($state.Messages | Where-Object { $_.Message -clike '打包计时 *' }).Count -eq 0) '编译失败不得输出完整打包计时'
         Assert ((Get-TestPackageSnapshot $destination) -ceq $before) '编译失败不得覆盖已有安装包、JSON 或校验文件'
         Assert-TestPackageReleased $destination
     } finally { $state.CompileFailure = $false }
