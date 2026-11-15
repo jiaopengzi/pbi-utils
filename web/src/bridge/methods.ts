@@ -24,6 +24,7 @@ import type {
     PowerBiServiceStatus,
     PowerBiLoginResult,
     PowerBiServiceModel,
+    ModelSummary,
     RecentPowerBiServiceModelsResult,
     UiSettings,
     ProjectSnapshot,
@@ -83,6 +84,7 @@ export interface Methods extends ScaffoldMethods {
     "powerbi.serviceDeleteLogin": { params: { id: string }; result: PowerBiServiceStatus }
     "powerbi.serviceSignOut": Methods["powerbi.serviceStatus"]
     "powerbi.serviceModels": { params: Record<string, never>; result: PowerBiServiceModel[] }
+    "powerbi.serviceModelSummary": { params: { modelId: string }; result: ModelSummary }
     "powerbi.serviceRecentModels": { params: Record<string, never>; result: RecentPowerBiServiceModelsResult }
     "powerbi.serviceDeleteRecentModel": { params: { id: string }; result: { deleted: boolean } }
     "project.connectService": { params: { modelId: string }; result: ProjectSnapshot }

@@ -17,7 +17,7 @@ public static class BridgeMethods
         "mcp.connections", "mcp.disconnect", "mcp.setAdmission",
         "updates.status", "updates.save", "updates.check", "updates.open",
         "learning.update", "learning.close", "learning.open",
-        "powerbi.instances", "powerbi.serviceStatus", "powerbi.serviceSignIn", "powerbi.serviceDeleteLogin", "powerbi.serviceSignOut", "powerbi.serviceModels", "powerbi.serviceRecentModels", "powerbi.serviceDeleteRecentModel",
+        "powerbi.instances", "powerbi.serviceStatus", "powerbi.serviceSignIn", "powerbi.serviceDeleteLogin", "powerbi.serviceSignOut", "powerbi.serviceModels", "powerbi.serviceModelSummary", "powerbi.serviceRecentModels", "powerbi.serviceDeleteRecentModel",
         "remote.form", "remote.mutate", "project.disconnect", "project.connectLocal", "project.connectExternalTool", "project.connectRemote", "project.connectService",
         "dax.format", "model.udfLint", "model.exportTables", "model.tableStatistics", "model.tableRowCounts", "model.exportLocation", "model.openExportDirectory", "model.edit", "model.save", "model.discard", "project.recent", "project.openRecent", "project.deleteRecent", "project.openPath", "project.open", "project.inspect",
         "sample.status", "sample.chooseDirectory", "sample.generate", "sample.clear", "sample.openDirectory",

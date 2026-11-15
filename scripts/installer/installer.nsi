@@ -40,6 +40,8 @@ Var CreateDesktopShortcut
 Var CreateStartMenuShortcut
 Var DesktopShortcutCheckbox
 Var StartMenuShortcutCheckbox
+Var RemoveUserDataCheckbox
+Var RemoveUserData
 Var PrerequisiteStatus
 Var RegistrationNonInteractive
 Var PrerequisiteDotnetStatus
@@ -88,8 +90,7 @@ Page custom ShortcutOptionsCreate ShortcutOptionsLeave
 !define MUI_FINISHPAGE_SHOWREADME_FUNCTION OpenLicenseNotices
 !define MUI_FINISHPAGE_SHOWREADME_NOTCHECKED
 !insertmacro MUI_PAGE_FINISH
-!define MUI_UNCONFIRMPAGE_TEXT_TOP "$(UninstallDescription)"
-!insertmacro MUI_UNPAGE_CONFIRM
+UninstPage custom un.UninstallConfirmCreate un.UninstallConfirmLeave
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_UNPAGE_FINISH
 !insertmacro MUI_LANGUAGE "SimpChinese"
@@ -130,8 +131,20 @@ LangString ShortcutNotes ${LANG_SIMPCHINESE} "取消勾选会移除本次安装�
 LangString ShortcutNotes ${LANG_ENGLISH} "Clearing an option removes this installation's existing shortcut.$\r$\n$\r$\nUninstall checks both locations and keeps shortcuts owned by other apps."
 LangString ShortcutPageFailed ${LANG_SIMPCHINESE} "无法显示快捷方式选项，请重新运行安装程序。"
 LangString ShortcutPageFailed ${LANG_ENGLISH} "The shortcut options could not be displayed. Please run Setup again."
-LangString UninstallDescription ${LANG_SIMPCHINESE} "卸载 pbi-utils 时会清理属于本安装的快捷方式和 Power BI 外部工具登记；必要时请求管理员权限。用户数据、Power BI 文件和其他安装的入口将保留。"
-LangString UninstallDescription ${LANG_ENGLISH} "Remove this installation's shortcuts and Power BI external tool registration, requesting administrator permission when needed. User data, Power BI files and other installations' entries will be kept."
+LangString UninstallTitle ${LANG_SIMPCHINESE} "卸载 ${PBI_DISPLAY_NAME}"
+LangString UninstallTitle ${LANG_ENGLISH} "Uninstall ${PBI_DISPLAY_NAME}"
+LangString UninstallSubtitle ${LANG_SIMPCHINESE} "从当前 Windows 用户的账户中卸载应用。"
+LangString UninstallSubtitle ${LANG_ENGLISH} "Remove the app from the current Windows account."
+LangString UninstallDescription ${LANG_SIMPCHINESE} "卸载会清理属于本安装的快捷方式和 Power BI 外部工具登记，必要时请求管理员权限。其他安装的入口和数据目录之外的 Power BI 文件将保留。"
+LangString UninstallDescription ${LANG_ENGLISH} "Uninstall removes this installation's shortcuts and Power BI external tool entry. It may request administrator permission. Other installations' entries and Power BI files outside the data folder are kept."
+LangString UninstallLocation ${LANG_SIMPCHINESE} "卸载目录"
+LangString UninstallLocation ${LANG_ENGLISH} "Installation folder"
+LangString UninstallRemoveData ${LANG_SIMPCHINESE} "同时删除当前用户的数据目录 (&D)"
+LangString UninstallRemoveData ${LANG_ENGLISH} "Also &delete the current user's data folder"
+LangString UninstallDataHelp ${LANG_SIMPCHINESE} "%USERPROFILE%\.pbi-utils 包含设置、自定义模板、本地函数、缓存和日志。勾选后会删除该目录及其中的全部内容。"
+LangString UninstallDataHelp ${LANG_ENGLISH} "%USERPROFILE%\.pbi-utils contains settings, custom templates, local functions, caches and logs. Selecting this option deletes the folder and all of its contents."
+LangString UninstallPageFailed ${LANG_SIMPCHINESE} "无法显示卸载选项，请重新运行卸载程序。"
+LangString UninstallPageFailed ${LANG_ENGLISH} "The uninstall options could not be displayed. Please run the uninstaller again."
 LangString PlatformRequired ${LANG_SIMPCHINESE} "此安装包需要 64 位 Windows 和系统 Windows PowerShell."
 LangString PlatformRequired ${LANG_ENGLISH} "This package requires 64-bit Windows and Windows PowerShell."
 LangString Preparing ${LANG_SIMPCHINESE} "正在检查 .NET 桌面运行时和 WebView2; 缺少时将从微软下载并安装, 可能需要管理员确认."
@@ -596,6 +609,50 @@ Function un.onInit
     SetRegView 64
     SetShellVarContext current
     StrCpy $PowerShell "$WINDIR\Sysnative\WindowsPowerShell\v1.0\powershell.exe"
+    StrCpy $RemoveUserData ${BST_UNCHECKED}
+FunctionEnd
+
+; 显示安装路径和数据删除选择; 路径只读, 默认保留用户数据, 页面或复选框无法创建时退出.
+Function un.UninstallConfirmCreate
+    !insertmacro MUI_HEADER_TEXT "$(UninstallTitle)" "$(UninstallSubtitle)"
+    nsDialogs::Create 1018
+    Pop $0
+    ${If} $0 == error
+        Call un.UninstallConfirmFailed
+    ${EndIf}
+    GetDlgItem $0 $HWNDPARENT 1
+    ${NSD_SetText} $0 "$(^UninstallBtn)"
+    ${NSD_CreateLabel} 0 0 100% 42u "$(UninstallDescription)"
+    Pop $0
+    ${NSD_CreateLabel} 0 48u 100% 12u "$(UninstallLocation)"
+    Pop $0
+    ${NSD_CreateText} 0 62u 100% 14u "$INSTDIR"
+    Pop $0
+    ${NSD_Edit_SetReadOnly} $0 1
+    ${NSD_CreateCheckbox} 0 92u 100% 15u "$(UninstallRemoveData)"
+    Pop $RemoveUserDataCheckbox
+    ${If} $RemoveUserDataCheckbox == error
+        Call un.UninstallConfirmFailed
+    ${EndIf}
+    ${NSD_SetState} $RemoveUserDataCheckbox $RemoveUserData
+    ${NSD_CreateLabel} 0 110u 100% 36u "$(UninstallDataHelp)"
+    Pop $0
+    nsDialogs::Show
+FunctionEnd
+
+; 点击卸载时读取当前选择, 只将明确选中映射为 1; 静默卸载不进入此页, 保持初始化的 0.
+Function un.UninstallConfirmLeave
+    ${NSD_GetState} $RemoveUserDataCheckbox $0
+    ${If} $0 == ${BST_CHECKED}
+        StrCpy $RemoveUserData ${BST_CHECKED}
+    ${EndIf}
+FunctionEnd
+
+; 选择页不可用时退出并返回 4, 避免跳过用户选择直接卸载.
+Function un.UninstallConfirmFailed
+    MessageBox MB_ICONSTOP "$(UninstallPageFailed)" /SD IDOK
+    SetErrorLevel 4
+    Quit
 FunctionEnd
 
 Section "Uninstall"
@@ -603,7 +660,7 @@ Section "Uninstall"
     StrCpy $RegistrationNonInteractive 0
     IfSilent 0 +2
         StrCpy $RegistrationNonInteractive 1
-    nsExec::ExecToLog '"$PowerShell" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\maintenance\Install-Application.ps1" -Operation Uninstall -InstallRoot "$INSTDIR" -RegistrationNonInteractive $RegistrationNonInteractive'
+    nsExec::ExecToLog '"$PowerShell" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\maintenance\Install-Application.ps1" -Operation Uninstall -InstallRoot "$INSTDIR" -RegistrationNonInteractive $RegistrationNonInteractive -RemoveUserData $RemoveUserData'
     Pop $0
     ${If} $0 != 0
         MessageBox MB_ICONSTOP "$(UninstallFailed)" /SD IDOK

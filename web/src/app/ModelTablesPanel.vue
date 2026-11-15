@@ -210,6 +210,13 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
     </UiPanel>
 </template>
 <style scoped lang="scss">
+.model-tables-panel {
+    // 表头保留与折叠行一致的内边距、左边框和展开图标空间.
+    --table-row-inline-padding: 16px;
+    --table-row-border: 3px;
+    --table-arrow-width: 16px;
+    --table-arrow-gap: 12px;
+}
 .table-search-toolbar {
     display: flex;
     gap: 12px;
@@ -262,14 +269,15 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
     align-items: center;
     color: var(--el-text-color-secondary);
     font-size: 12px;
-    padding: 0 46px 8px 0;
+    padding: 0 calc(var(--table-row-inline-padding) + var(--table-arrow-width) + var(--table-arrow-gap)) 8px 0;
     .table-title {
-        padding-left: 19px;
+        margin-left: calc(var(--table-row-inline-padding) + var(--table-row-border));
+        width: auto;
     }
 }
 .table-title {
     display: grid;
-    grid-template-columns: minmax(140px, 480px) 120px 160px 82px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, clamp(76px, 12%, 144px)) minmax(0, clamp(76px, 14%, 168px)) minmax(0, clamp(64px, 8%, 96px));
     width: 100%;
     align-items: center;
     gap: 12px;
@@ -290,7 +298,7 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
         border: 0;
     }
     :deep(.el-collapse-item) {
-        border-left: 3px solid transparent;
+        border-left: var(--table-row-border) solid transparent;
     }
     :deep(.el-collapse-item.is-active) {
         border-left-color: var(--el-color-primary);
@@ -298,15 +306,17 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
     :deep(.el-collapse-item__header) {
         min-height: 44px;
         height: auto;
-        padding: 8px 16px;
+        padding: 8px var(--table-row-inline-padding);
         border-bottom: 1px solid var(--el-border-color-light);
         line-height: 1.5;
     }
     :deep(.el-collapse-item__title) {
-        flex: 0 1 878px;
+        flex: 1 1 0;
+        min-width: 0;
     }
     :deep(.el-collapse-item__arrow) {
-        margin-left: 12px;
+        flex: 0 0 var(--table-arrow-width);
+        margin-left: var(--table-arrow-gap);
     }
     :deep(.el-collapse-item.is-active > .el-collapse-item__header) {
         background: var(--el-color-primary-light-9);

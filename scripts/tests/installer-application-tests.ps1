@@ -10,7 +10,7 @@ Import-Module (Join-Path $PSScriptRoot '../installer/Installation.psm1') -Force
 $sandbox = Join-Path ([IO.Path]::GetTempPath()) ('pbi-utils-installer-' + [Guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $sandbox
 $environment = @{ Shell = 'original'; Fail = $false; Writes = 0; Idle = $true; Leased = $false; DeleteCount = 0; DeleteFailAfter = 0; RegistrationNonInteractive = $false
-    ExpectedDeletes = 0; NewPayloadFile = ''; EntryRoot = ''; EntryChecks = 0; CorruptSource = '' }
+    ExpectedDeletes = 0; NewPayloadFile = ''; EntryRoot = ''; EntryChecks = 0; CorruptSource = ''; DataRemovalCount = 0; ExpectedDataRemovalDeletes = 0; DataRemovalReady = $false; DataRemovalFail = $false }
 $adapters = @{
     UserId = 'isolated-test-user'
     AssertIdle = { param($root) if (!$environment.Idle) { throw '请关闭正在运行的 pbi-utils' } }.GetNewClosure()
@@ -44,6 +44,12 @@ $adapters = @{
         if ($environment.DeleteFailAfter -gt 0 -and $environment.DeleteCount -eq $environment.DeleteFailAfter) { throw 'injected second deletion failure' }
         [IO.File]::Delete($path)
         if ($environment.CorruptSource -and $environment.DeleteCount -eq $environment.ExpectedDeletes) { [IO.File]::WriteAllText($environment.CorruptSource, 'injected payload corruption after old removal') }
+    }.GetNewClosure()
+    RemoveUserData = { param($executable)
+        $environment.DataRemovalCount++
+        $environment.DataRemovalReady = $environment.DeleteCount -eq $environment.ExpectedDataRemovalDeletes -and $environment.Shell -like 'Uninstall/*' -and
+            [IO.File]::ReadAllText($executable) -ceq '1.0.0 pbi-utils exe'
+        if ($environment.DataRemovalFail) { throw 'injected user data cleanup failure' }
     }.GetNewClosure()
 }
 
@@ -112,10 +118,10 @@ try {
 # Blog        : https://jiaopengzi.com
 # Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
 # Description : 隔离维护入口测试替身, 只返回真实调用参数, 不执行安装.
-<# .SYNOPSIS 返回入口传递的两个布尔选择, 参数与生产安装事务一致, 不修改系统或文件. #>
+<# .SYNOPSIS 返回入口传递的布尔选择, 参数与生产安装事务一致, 不修改系统或文件. #>
 function Invoke-PbiApplicationInstallation {
-    param($Operation, $InstallRoot, $PayloadRoot, [bool]$CreateDesktopShortcut = $true, [bool]$CreateStartMenuShortcut = $true, [bool]$RegistrationNonInteractive = $false)
-    return @{ desktop = $CreateDesktopShortcut; startMenu = $CreateStartMenuShortcut; registrationNonInteractive = $RegistrationNonInteractive }
+    param($Operation, $InstallRoot, $PayloadRoot, [bool]$CreateDesktopShortcut = $true, [bool]$CreateStartMenuShortcut = $true, [bool]$RegistrationNonInteractive = $false, [bool]$RemoveUserData = $false)
+    return @{ desktop = $CreateDesktopShortcut; startMenu = $CreateStartMenuShortcut; registrationNonInteractive = $RegistrationNonInteractive; removeUserData = $RemoveUserData }
 }
 Export-ModuleMember -Function Invoke-PbiApplicationInstallation
 '@ | Set-Content -LiteralPath (Join-Path $entryDirectory 'Installation.psm1') -Encoding UTF8
@@ -123,6 +129,7 @@ Export-ModuleMember -Function Invoke-PbiApplicationInstallation
     Assert ($entryResult.ExitCode -eq 0 -and !$entryResult.Error) 'Windows PowerShell 5.1 维护入口的默认参数必须成功'
     $choices = $entryResult.Output | ConvertFrom-Json
     Assert ($choices.desktop -eq $true -and $choices.startMenu -eq $true) '维护入口省略选项时必须默认选择两处入口'
+    Assert ($choices.removeUserData -eq $false) '维护入口省略数据清理选项时必须默认保留数据'
     foreach ($desktop in @(0, 1)) {
         foreach ($startMenu in @(0, 1)) {
             $entryResult = Invoke-EntryOptions $entry ('-CreateDesktopShortcut ' + $desktop + ' -CreateStartMenuShortcut ' + $startMenu)
@@ -137,7 +144,13 @@ Export-ModuleMember -Function Invoke-PbiApplicationInstallation
         $choices = $entryResult.Output | ConvertFrom-Json
         Assert ($choices.registrationNonInteractive -is [bool] -and $choices.registrationNonInteractive -eq [bool]$nonInteractive) '登记静默标志必须保持真实布尔值'
     }
-    foreach ($option in @('CreateDesktopShortcut', 'CreateStartMenuShortcut', 'RegistrationNonInteractive')) {
+    foreach ($optionValue in @(0, 1)) {
+        $entryResult = Invoke-EntryOptions $entry ('-RemoveUserData ' + $optionValue)
+        Assert ($entryResult.ExitCode -eq 0 -and !$entryResult.Error) '数据清理选项必须跨 Windows PowerShell 原生参数边界传递'
+        $choices = $entryResult.Output | ConvertFrom-Json
+        Assert ($choices.removeUserData -is [bool] -and $choices.removeUserData -eq [bool]$optionValue) '数据清理选项必须保持真实布尔值'
+    }
+    foreach ($option in @('CreateDesktopShortcut', 'CreateStartMenuShortcut', 'RegistrationNonInteractive', 'RemoveUserData')) {
         $entryResult = Invoke-EntryOptions $entry ('-' + $option + ' 2')
         Assert ($entryResult.ExitCode -ne 0 -and !$entryResult.Output -and $entryResult.Error) '非法创建选项必须在执行业务模块前被拒绝'
     }
@@ -149,7 +162,29 @@ Export-ModuleMember -Function Invoke-PbiApplicationInstallation
     Assert ((Get-Content -LiteralPath (Join-Path $bundledRoot 'app/manifest.json') -Raw | ConvertFrom-Json).deploymentMode -ceq 'self-contained') '包含 .NET 的安装包必须能够安装实际载荷'
     $null = Invoke-PbiApplicationInstallation -Operation Uninstall -InstallRoot $bundledRoot -Adapters $adapters -RegistrationNonInteractive $true
     Assert ($environment.RegistrationNonInteractive -eq $true) '静默卸载必须将无 UAC 约束传入权威 Shell 快照'
+    Assert ($environment.DataRemovalCount -eq 0) '静默卸载不能调用用户数据清理'
     Assert (!(Test-Path -LiteralPath $bundledRoot)) '包含 .NET 的安装包必须按自有清单完整卸载'
+
+    Reject { Invoke-PbiApplicationInstallation -Operation Install -PayloadRoot $bundled -InstallRoot $bundledRoot -Adapters $adapters -RemoveUserData $true } '只能在交互式卸载'
+    $null = Invoke-PbiApplicationInstallation -Operation Install -PayloadRoot $bundled -InstallRoot $bundledRoot -Adapters $adapters
+    Reject { Invoke-PbiApplicationInstallation -Operation Uninstall -InstallRoot $bundledRoot -Adapters $adapters -RemoveUserData $true -RegistrationNonInteractive $true } '只能在交互式卸载'
+    $bundledState = Get-Content -LiteralPath (Join-Path $bundledRoot 'maintenance/installation-state.json') -Raw | ConvertFrom-Json
+    $before = Snapshot $bundledRoot
+    $shellBefore = $environment.Shell
+    $environment.ExpectedDataRemovalDeletes = @($bundledState.files).Count + 1
+    $environment.DeleteCount = 0
+    $environment.DeleteFailAfter = 2
+    Reject { Invoke-PbiApplicationInstallation -Operation Uninstall -InstallRoot $bundledRoot -Adapters $adapters -RemoveUserData $true } 'injected second deletion failure'
+    Assert ($environment.DataRemovalCount -eq 0) '程序文件清理失败时不得调用不可逆的数据删除'
+    $environment.DeleteFailAfter = 0
+    $environment.DeleteCount = 0
+    $environment.DataRemovalFail = $true
+    Reject { Invoke-PbiApplicationInstallation -Operation Uninstall -InstallRoot $bundledRoot -Adapters $adapters -RemoveUserData $true } 'injected user data cleanup failure'
+    Assert ((Snapshot $bundledRoot) -ceq $before -and $environment.Shell -ceq $shellBefore) '数据清理失败必须完整恢复安装文件和系统适配'
+    $environment.DataRemovalFail = $false
+    $environment.DeleteCount = 0
+    $null = Invoke-PbiApplicationInstallation -Operation Uninstall -InstallRoot $bundledRoot -Adapters $adapters -RemoveUserData $true
+    Assert ($environment.DataRemovalCount -eq 2 -and $environment.DataRemovalReady -and !(Test-Path -LiteralPath $bundledRoot)) '明确同意后只能在程序文件和入口完成清理时调用已核验的备份入口'
     $invalidMode = New-Payload 'payload-invalid-mode' '1.0.0' -DeploymentMode 'unknown'
     Reject { Invoke-PbiApplicationInstallation -Operation Install -PayloadRoot $invalidMode -InstallRoot $bundledRoot -Adapters $adapters } '发布清单'
     Assert (!(Test-Path -LiteralPath $bundledRoot)) '未知部署模式必须在修改文件前拒绝'
@@ -302,6 +337,7 @@ Export-ModuleMember -Function Invoke-PbiApplicationInstallation
     Assert ((Snapshot $destination) -ceq $before -and $environment.Shell -ceq $shellBefore) '已删除部分旧文件后的失败必须重建文件并恢复系统适配'
     $null = Invoke-PbiApplicationInstallation -Operation Uninstall -InstallRoot $destination -Adapters $adapters
     Assert (@(Get-ChildItem -LiteralPath $destination -Recurse -File).Count -eq 1 -and (Test-Path -LiteralPath (Join-Path $destination 'personal.txt'))) '卸载只移除自有文件并保留未知文件'
+    Assert ($environment.DataRemovalCount -eq 2) '默认交互式卸载不能调用用户数据清理'
     Write-Output 'PASS installer application transactions, upgrades, rollback, ownership and leases'
 }
 finally {

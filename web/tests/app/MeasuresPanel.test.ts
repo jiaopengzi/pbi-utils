@@ -31,6 +31,25 @@ it("打开度量值页面及选择对象不再自动弹删除说明", async () =
 })
 
 it.each([
+    ["zh-cn", "全选", "删除", "删除（2）"],
+    ["en-us", "Select all", "Delete", "Delete (2)"],
+] as const)("%s 下仅批量删除按钮显示所选数量", async (locale, selectLabel, singleLabel, batchLabel) => {
+    const { wrapper, button, cleanup } = await setup()
+    try {
+        setLocale(locale)
+        await flushPromises()
+        const actions = wrapper.get(".measure-editor .actions")
+        expect(actions.get(".el-button--danger").text()).toBe(singleLabel)
+        await button(selectLabel).trigger("click")
+        await flushPromises()
+        expect(actions.get(".el-button--danger").text()).toBe(batchLabel)
+    } finally {
+        cleanup()
+        setLocale("zh-cn")
+    }
+})
+
+it.each([
     ["edit", "long", "\nDIVIDE ( 1, 2 )", "DIVIDE ( 1, 2 )"],
     ["edit", "short", "\nDIVIDE (\n    1,\n    2\n)", "DIVIDE (\n    1,\n    2\n)"],
     ["create", "long", "\nDIVIDE ( 1, 2 )", "DIVIDE ( 1, 2 )"],
@@ -394,7 +413,7 @@ it("折叠和临时搜索展开不改变选择, 清除搜索恢复折叠, 同名
         expect(wrapper.findAll(".measure-row")).toHaveLength(0)
         await wrapper.findComponent(ElSwitch).get('[role="switch"]').trigger("click")
         request.mockImplementationOnce(() => ({ id: "delete", promise: Promise.resolve(hierarchy) }) as ReturnType<BridgeClient["request"]>)
-        await button("删除（1）").trigger("click")
+        await button("删除").trigger("click")
         await flushPromises()
         const call = request.mock.calls.find(([method]) => method === "model.edit")!
         expect(JSON.parse((call[1] as { value: string }).value).items).toEqual([{ action: "delete", table: "其他表", name: "销售额" }])
@@ -614,7 +633,7 @@ it("已编辑的度量值主动删除成功后清除选择, 不作为外部删�
         const editor = wrapper.findComponent(MeasureFields)
         editor.vm.$emit("update:modelValue", { ...editor.props("modelValue"), description: "未保存输入" })
         await flushPromises()
-        await button("删除（1）").trigger("click")
+        await button("删除").trigger("click")
         await flushPromises()
         expect(request.mock.calls.filter(([method]) => method === "model.edit")).toHaveLength(1)
         const saved = wrapper.emitted("updated")!.at(-1)![0] as typeof previewProject

@@ -42,6 +42,7 @@ const {
     currentService,
     currentServer,
     selectedIsCurrent,
+    selectedServiceSummary,
     modelLabel,
     setInstanceBusy,
     setRemoteBusy,
@@ -194,7 +195,7 @@ useMessageNotices("connection-panel-service-recents", () => [!!recentStorageWarn
                 :class="{ 'current-model-card': selectedIsCurrent }"
                 :title="selectedModel.name"
                 :metadata="selectedModel.workspace"
-                :summary="selectedIsCurrent && currentService ? projectSummary(currentService) : null"
+                :summary="selectedServiceSummary"
                 :current="selectedIsCurrent"
                 :disabled="blocked || !!selectedModel.unavailableReason"
                 :operation-locked="preserveAppearance && !selectedModel.unavailableReason"

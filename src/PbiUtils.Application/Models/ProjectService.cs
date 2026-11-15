@@ -38,6 +38,9 @@ public sealed record ProjectSnapshot(string ProjectPath, string ProjectId, strin
     string ReportFormat, string ModelVersion, string? ReportVersion, ModelInfo Model,
     IReadOnlyList<PageInfo> Pages, IReadOnlyList<ProjectFile> Files, IReadOnlyList<string> Warnings, ModelConnectionInfo? Connection = null, bool HasPendingChanges = false, ModelSaveResult? SaveResult = null)
 {
+    /// <summary>当前云账号实际读取的同工作区关联报表页数, 不用于模型定义、基线或桥接授权.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int? LinkedReportPageCount { get; init; }
     /// <summary>从当前权威快照计算统一展示摘要, 不使用扫描或目录缓存补齐未知项.</summary>
     /// <value>当前实际模型计数及未提供能力.</value>
     public ModelSummary Summary => ModelSummaryFactory.FromSnapshot(this);

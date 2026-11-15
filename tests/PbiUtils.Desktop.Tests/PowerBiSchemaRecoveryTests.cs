@@ -42,7 +42,7 @@ public sealed class PowerBiSchemaRecoveryTests
         Assert.Equal("original-handle", snapshot.Connection!.ModelId);
         Assert.Equal("FinalTable", Assert.Single(snapshot.Model.Tables).Name);
         Assert.Equal("FinalTable", Assert.Single(snapshot.Model.Measures).Table);
-        Assert.Equal(["MDSCHEMA_DIMENSIONS", "MDSCHEMA_HIERARCHIES", "MDSCHEMA_MEASURES"], second.Reads);
+        Assert.Equal(["MDSCHEMA_DIMENSIONS", "MDSCHEMA_HIERARCHIES", "MDSCHEMA_MEASURES", "DBSCHEMA_CATALOGS"], second.Reads);
         Assert.Equal(failedSchema == "MDSCHEMA_DIMENSIONS" ? 1 : 3, first.Reads.Count);
     }
 
@@ -158,7 +158,7 @@ public sealed class PowerBiSchemaRecoveryTests
             if (FailAt == "Open" && Failure is not null) throw Failure;
             AfterOpen?.Invoke();
         }
-        /// <summary>只允许三个固定架构行集, 指定位置抛出可控断链或权限异常.</summary>
+        /// <summary>只允许固定架构行集, 指定位置抛出可控断链或权限异常.</summary>
         public DataTable Read(string schema)
         {
             Reads.Add(schema); if (schema == FailAt && Failure is not null) throw Failure;
@@ -169,7 +169,7 @@ public sealed class PowerBiSchemaRecoveryTests
             { table.Columns.Add("DIMENSION_UNIQUE_NAME"); table.Columns.Add("HIERARCHY_CAPTION"); table.Rows.Add("[" + TableName + "]", "Column"); }
             else if (schema == "MDSCHEMA_MEASURES")
             { table.Columns.Add("MEASUREGROUP_NAME"); table.Columns.Add("MEASURE_NAME"); table.Columns.Add("EXPRESSION"); table.Rows.Add(TableName, "Measure", "1"); }
-            else throw new InvalidOperationException("Unexpected schema");
+            else if (schema != "DBSCHEMA_CATALOGS") throw new InvalidOperationException("Unexpected schema");
             return table;
         }
         /// <summary>标记当前会话释放, 用于精确触发两次尝试之间的取消.</summary>

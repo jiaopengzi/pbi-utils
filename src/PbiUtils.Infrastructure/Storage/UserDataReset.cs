@@ -23,6 +23,7 @@ public sealed class UserDataReset
     /// <summary>测试指定随机隔离根, 仍要求末级目录为 .pbi-utils 并拒绝根目录及链接.</summary>
     internal UserDataReset(string root)
     {
+        if (!Path.IsPathFullyQualified(root)) throw new AppException("UNSAFE_USER_DATA_PATH", "无法定位当前用户的数据目录", 3);
         this.root = Path.GetFullPath(root);
         if (Path.GetFileName(this.root) != ".pbi-utils") throw new ArgumentException("重置目标必须为产品用户数据目录", nameof(root));
         UserDataStore.Check(this.root);
@@ -40,15 +41,27 @@ public sealed class UserDataReset
     /// <summary>宿主与日志均释放后取得独占会话锁, 在首次删除前完整检查全部文件占用和账本, 失败不冒充完成.</summary>
     /// <param name="token">首个删除前可取消; 删除开始后由宿主排空至终态.</param>
     /// <exception cref="AppException">其他宿主、文件锁、链接或待核验账本阻止重置; 删除期间失败明确报告可能只完成部分清理.</exception>
-    public async Task ResetAsync(CancellationToken token)
+    public Task ResetAsync(CancellationToken token) => ClearAsync(removeRoot: false, token);
+
+    /// <summary>仅由明确选择清理的卸载入口调用, 阻止新会话并删除固定数据根; 占用、链接和未知回执会阻止删除.</summary>
+    /// <param name="token">首个删除前可取消; 首次删除后处理到终态.</param>
+    public async Task RemoveForUninstallAsync(CancellationToken token)
+    {
+        using var admission = UserDataSessionLease.ReserveMaintenance(root);
+        await ClearAsync(removeRoot: true, token);
+    }
+
+    /// <summary>持独占会话锁校验并清空数据, 卸载时以固定的原句柄同时删除数据根.</summary>
+    private async Task ClearAsync(bool removeRoot, CancellationToken token)
     {
         using var session = UserDataSessionLease.Acquire(root, exclusive: true);
         await ValidateAsync(token);
         // 所有内容与祖先身份在首次删除前固定, 原句柄贯穿账本回核和删除, 不留下释放预检锁后的路径替换空隙.
-        using var tree = new UserDataResetTree(root, token);
+        using var tree = new UserDataResetTree(root, token, removeRoot);
         tree.ValidateReceipts(token);
         token.ThrowIfCancellationRequested();
         tree.DeleteContents();
+        if (removeRoot) tree.DeleteRoot();
     }
 
     /// <summary>先验证每个目录再单层枚举, 不递归跟随 reparse; 排序后的快照用于删除前复核和由深到浅删除.</summary>

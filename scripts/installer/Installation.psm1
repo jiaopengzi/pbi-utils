@@ -2,7 +2,7 @@
 # Author      : jiaopengzi
 # Blog        : https://jiaopengzi.com
 # Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-# Description : Windows PowerShell 5.1 用户级安装文件事务、同目录互斥、入口租约及失败恢复, 不处理用户业务数据.
+# Description : Windows PowerShell 5.1 用户级安装文件事务、租约及失败恢复, 按卸载选择请求清理用户数据.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -51,6 +51,27 @@ function Remove-PbiEmptyInstallationDirectories([string]$Root, [string[]]$Files)
     }
 }
 
+<# .SYNOPSIS 以当前用户运行已验证的事务备份入口, 等待清理终态; 无运行时、占用或清理失败时抛错. #>
+function Remove-PbiInstallationUserData([string]$Executable) {
+    $start = New-Object Diagnostics.ProcessStartInfo
+    $start.FileName = $Executable
+    $start.Arguments = '--uninstall-remove-user-data'
+    $start.WorkingDirectory = [IO.Path]::GetDirectoryName($Executable)
+    $start.UseShellExecute = $false
+    $start.CreateNoWindow = $true
+    $start.RedirectStandardError = $true
+    $start.StandardErrorEncoding = [Text.Encoding]::UTF8
+    $process = [Diagnostics.Process]::Start($start)
+    try {
+        $detail = $process.StandardError.ReadToEnd().Trim()
+        $process.WaitForExit()
+        if ($process.ExitCode -eq 0) { return }
+        $failure = [InvalidOperationException]::new(('未能清理用户数据。请查看详情，或取消勾选后仅卸载程序。 ' + $detail).TrimEnd())
+        if ($process.ExitCode -in @(3, 4, 130)) { $failure.Data['ExitCode'] = $process.ExitCode }
+        throw $failure
+    } finally { $process.Dispose() }
+}
+
 <#
 .SYNOPSIS 安装、同版修复或升级时先备份并移除旧自有文件再写新包; 卸载仅清理自有文件, 普通失败恢复程序和系统适配.
 .PARAMETER Operation Install 或 Uninstall.
@@ -59,15 +80,21 @@ function Remove-PbiEmptyInstallationDirectories([string]$Root, [string[]]$Files)
 .PARAMETER CreateDesktopShortcut Install 时创建桌面入口, 默认 true; false 只移除本安装拥有的入口, Uninstall 忽略此选择.
 .PARAMETER CreateStartMenuShortcut Install 时创建开始菜单入口, 默认 true; Uninstall 始终核验并清理两处自有入口.
 .PARAMETER RegistrationNonInteractive true 时外部工具登记不得申请 UAC, 权限不足返回前置错误.
+.PARAMETER RemoveUserData 仅在交互式卸载明确选择后清理当前用户数据根, 失败时恢复程序和入口.
 .PARAMETER Adapters 测试可注入身份、进程和系统适配; ApplyShell 接收捕获快照限定修改范围, 安装时接收载荷验证过的发布标签, 正式 CLI 不暴露此参数.
 .OUTPUTS 动作和版本; 并发、占用、身份错误、降级或事务失败时抛错. 不承诺断电原子性或用户数据回滚.
 #>
 function Invoke-PbiApplicationInstallation {
     [CmdletBinding()]
     param([ValidateSet('Install', 'Uninstall')][string]$Operation, [string]$InstallRoot, [string]$PayloadRoot, [hashtable]$Adapters,
-        [bool]$CreateDesktopShortcut = $true, [bool]$CreateStartMenuShortcut = $true, [bool]$RegistrationNonInteractive = $false)
-    if ($null -eq $Adapters) { $Adapters = Get-PbiInstallationAdapters }
+        [bool]$CreateDesktopShortcut = $true, [bool]$CreateStartMenuShortcut = $true, [bool]$RegistrationNonInteractive = $false, [bool]$RemoveUserData = $false)
+    if ($RemoveUserData -and ($Operation -cne 'Uninstall' -or $RegistrationNonInteractive)) { throw '只能在交互式卸载中选择删除用户数据' }
+    if ($null -eq $Adapters) {
+        $Adapters = Get-PbiInstallationAdapters
+        $Adapters.RemoveUserData = ${function:Remove-PbiInstallationUserData}
+    }
     foreach ($field in @('UserId', 'AssertIdle', 'CaptureShell', 'ApplyShell', 'RestoreShell', 'DeleteOwnedFile')) { if (!$Adapters.ContainsKey($field)) { throw '安装系统适配缺失' } }
+    if ($RemoveUserData -and !$Adapters.ContainsKey('RemoveUserData')) { throw '卸载数据适配缺失' }
     $root = Resolve-PbiInstallPath $InstallRoot
     foreach ($special in @('UserProfile', 'DesktopDirectory', 'MyDocuments', 'LocalApplicationData', 'ApplicationData', 'ProgramFiles', 'ProgramFilesX86', 'Windows', 'System')) {
         $protected = [Environment]::GetFolderPath($special)
@@ -168,6 +195,12 @@ function Invoke-PbiApplicationInstallation {
             $null = Resolve-PbiInstallPath $allFiles[$relative]
             & $Adapters.DeleteOwnedFile $allFiles[$relative]
             $deleted[$relative] = $true
+        }
+        if ($RemoveUserData) {
+            # 最后执行不可逆的数据清理. 原入口仍锁定, 子进程从本轮同用户安装备份加载依赖.
+            $cleanupEntry = Resolve-PbiInstallPath $backups['app/pbi-utils.exe']
+            if ((Get-PbiInstallHash $cleanupEntry) -cne $owned['app/pbi-utils.exe']) { throw '数据清理程序备份校验失败' }
+            & $Adapters.RemoveUserData $cleanupEntry
         }
         return @{ operation = $Operation; version = $version; installRoot = $root }
     } catch {

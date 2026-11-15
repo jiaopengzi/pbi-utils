@@ -26,7 +26,7 @@ public interface IPowerBiTableStatisticsSession : IDisposable
     /// <summary>打开当前后端已绑定目标, 认证失败须抛出而非返回空统计.</summary>
     void Open();
     /// <summary>读取固定行集并在内部释放游标; 元数据未提供返回 null, 取消或连接错误须抛出.</summary>
-    /// <param name="schema">仅允许四个编译时固定行集名称, 不接受 DAX 或地址.</param>
+    /// <param name="schema">仅允许编译时固定行集名称, 不接受 DAX 或地址.</param>
     /// <param name="token">同步边界和逐行读取的取消令牌.</param>
     /// <returns>调用方负责释放的有界元数据表, 或服务未提供该行集时的 null.</returns>
     DataTable? Read(string schema, CancellationToken token);
@@ -38,7 +38,8 @@ public interface IPowerBiTableStatisticsSession : IDisposable
 }
 
 /// <summary>仅供已经核验的当前模型使用, 密钥连接串与访问令牌不回传或记录.</summary>
-internal sealed class ModelTableStatisticsSession(string connectionString, PowerBiServiceTarget? service, IReadOnlyList<string>? unavailableTables = null, ILogger? logger = null) : IPowerBiTableStatisticsSession
+internal sealed class ModelTableStatisticsSession(string connectionString, PowerBiServiceTarget? service, IReadOnlyList<string>? unavailableTables = null, ILogger? logger = null,
+    bool discoverDimensions = false) : IPowerBiTableStatisticsSession
 {
     private const int MaximumRows = 250000;
     private AdomdConnection? connection;
@@ -62,15 +63,42 @@ internal sealed class ModelTableStatisticsSession(string connectionString, Power
     /// <summary>只接受固定列投影, 数据量超过边界明确失败, 不发布部分行集组成的尺寸.</summary>
     public DataTable? Read(string schema, CancellationToken token)
     {
+        if (discoverDimensions && schema == "MDSCHEMA_DIMENSIONS") return ReadDimensions(token);
         var query = schema switch
         {
-            "MDSCHEMA_DIMENSIONS" => "SELECT DIMENSION_UNIQUE_NAME,DIMENSION_TYPE,DIMENSION_CARDINALITY FROM $SYSTEM.MDSCHEMA_DIMENSIONS",
             "DISCOVER_STORAGE_TABLES" => "SELECT DIMENSION_NAME,TABLE_ID,ROWS_COUNT FROM $SYSTEM.DISCOVER_STORAGE_TABLES",
             "DISCOVER_STORAGE_TABLE_COLUMNS" => "SELECT DIMENSION_NAME,TABLE_ID,COLUMN_ID,COLUMN_TYPE,DICTIONARY_SIZE FROM $SYSTEM.DISCOVER_STORAGE_TABLE_COLUMNS",
             "DISCOVER_STORAGE_TABLE_COLUMN_SEGMENTS" => "SELECT DIMENSION_NAME,TABLE_ID,COLUMN_ID,SEGMENT_NUMBER,TABLE_PARTITION_NUMBER,USED_SIZE FROM $SYSTEM.DISCOVER_STORAGE_TABLE_COLUMN_SEGMENTS",
+            "TMSCHEMA_TABLES" => "SELECT ID,Name FROM $SYSTEM.TMSCHEMA_TABLES",
+            "TMSCHEMA_PARTITIONS" => "SELECT TableID,Mode FROM $SYSTEM.TMSCHEMA_PARTITIONS",
+            "TMSCHEMA_MODEL" => "SELECT DefaultMode FROM $SYSTEM.TMSCHEMA_MODEL",
             _ => throw new AppException("INVALID_SCHEMA", "未授权的架构行集")
         };
         return ReadQuery(query, optional: true, MaximumRows, 16, token);
+    }
+
+    /// <summary>共享容量通过原生 Discover 读取当前目录维度, 不依赖其接受 DMV 查询语法.</summary>
+    /// <param name="token">同步调用前后的取消令牌.</param>
+    /// <returns>当前目录维度行集, 权限或能力限制时返回 null.</returns>
+    private DataTable? ReadDimensions(CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        try
+        {
+            var catalog = connection!.Database;
+            AdomdRestrictionCollection restrictions = catalog.Length == 0 ? [] : [new("CATALOG_NAME", catalog)];
+            using var schema = connection.GetSchemaDataSet("MDSCHEMA_DIMENSIONS", restrictions);
+            token.ThrowIfCancellationRequested();
+            if (schema.Tables.Count != 1) return null;
+            if (schema.Tables[0].Rows.Count > MaximumRows) throw Limit(optional: true);
+            return schema.Tables[0].Copy();
+        }
+        catch (AdomdErrorResponseException error) when (!AuthenticationFailure(error))
+        {
+            token.ThrowIfCancellationRequested();
+            SsasConnection.LogFailure(log, "TableStatisticsDimensions", error);
+            return null;
+        }
     }
 
     /// <summary>显式计数固定模板在生成/排版期间检查取消, 同一会话复用身份和30秒命令预算; 同步 SDK 只在前后检查.</summary>

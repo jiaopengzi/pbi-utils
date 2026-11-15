@@ -34,7 +34,7 @@ public sealed partial class ModelTableStatisticsTests
         Assert.False(result.IsSimulation);
     }
 
-    /// <summary>真实Service注册路由仅查询一次固定维度行集, 统计独立于可见模型指纹且保持只读限制.</summary>
+    /// <summary>存储行集不可用时保留服务报告的维度估计, 且不改变可见模型指纹.</summary>
     [Fact]
     public async Task LimitedServiceUsesOneMetadataBatchAndKeepsVisibleBaselineUnchanged()
     {
@@ -46,9 +46,27 @@ public sealed partial class ModelTableStatisticsTests
             var table = Assert.Single(result.Tables);
             Assert.Equal(2191L, table.RowCount); Assert.True(table.IsEstimate); Assert.Null(table.SizeBytes);
             Assert.Equal(snapshot.ProjectId, result.ProjectId); Assert.Equal(snapshot.BaselineId, result.BaselineId);
-            Assert.Equal(["MDSCHEMA_DIMENSIONS"], session.Reads); Assert.True(session.Disposed);
+            Assert.Equal(["DISCOVER_STORAGE_TABLES", "MDSCHEMA_DIMENSIONS"], session.Reads); Assert.True(session.Disposed);
             Assert.True(snapshot.Connection!.IsLimited); Assert.Equal(3, schema.OpenCount);
             Assert.Equal(schema.OpenCount, schema.DisposeCount);
+        }
+        finally { reader.Disconnect(); }
+    }
+    /// <summary>共享容量只接受能核验为 Import 的完整存储统计, 非 Import 仍提供维度估计.</summary>
+    [Theory]
+    [InlineData(2, 91L, false, 77L)]
+    [InlineData(1, 2191L, true, null)]
+    public async Task SharedServiceReadsStorageWhenImportModeIsConfirmed(int partitionMode, long rows, bool estimated, long? bytes)
+    {
+        var session = new Session { Storage = true, PartitionMode = partitionMode, Cardinality = 2191L };
+        var (reader, snapshot) = await Connect(new(), new(), session);
+        try
+        {
+            var table = Assert.Single((await reader.ReadStatisticsAsync(snapshot, default)).Tables);
+            Assert.Equal(rows, table.RowCount);
+            Assert.Equal(estimated, table.IsEstimate);
+            Assert.Equal(bytes, table.SizeBytes);
+            Assert.Empty(session.CountBatches);
         }
         finally { reader.Disconnect(); }
     }
@@ -205,6 +223,8 @@ public sealed partial class ModelTableStatisticsTests
     {
         public long Cardinality { get; init; } = 5;
         public bool Unavailable { get; init; }
+        public bool Storage { get; init; }
+        public int PartitionMode { get; init; } = 2;
         public bool OpenFailure { get; init; }
         public bool ReadFailure { get; init; }
         public bool DisposeFailure { get; init; }
@@ -222,10 +242,21 @@ public sealed partial class ModelTableStatisticsTests
         public DataTable? Read(string schema, CancellationToken token)
         {
             token.ThrowIfCancellationRequested(); Reads.Add(schema);
-            Assert.Equal("MDSCHEMA_DIMENSIONS", schema);
             if (ReadFailure) throw new InvalidOperationException("secret-test-token C:/private");
             AfterRead?.Invoke(); token.ThrowIfCancellationRequested();
-            return Unavailable ? null : Data(["DIMENSION_UNIQUE_NAME", "DIMENSION_TYPE", "DIMENSION_CARDINALITY"], ["[Sales]", 3, Cardinality]);
+            if (Unavailable) return null;
+            return schema switch
+            {
+                "MDSCHEMA_DIMENSIONS" => Data(["DIMENSION_UNIQUE_NAME", "DIMENSION_TYPE", "DIMENSION_CARDINALITY"], ["[Sales]", 3, Cardinality]),
+                "DISCOVER_STORAGE_TABLES" when Storage => Data(["DIMENSION_NAME", "TABLE_ID", "ROWS_COUNT"], ["Sales", "Sales (1)", 91L]),
+                "DISCOVER_STORAGE_TABLES" => null,
+                "DISCOVER_STORAGE_TABLE_COLUMNS" => Data(["DIMENSION_NAME", "TABLE_ID", "COLUMN_ID", "COLUMN_TYPE", "DICTIONARY_SIZE"], ["Sales", "Sales (1)", "Value", "BASIC_DATA", 55L]),
+                "DISCOVER_STORAGE_TABLE_COLUMN_SEGMENTS" => Data(["DIMENSION_NAME", "TABLE_ID", "COLUMN_ID", "SEGMENT_NUMBER", "TABLE_PARTITION_NUMBER", "USED_SIZE"], ["Sales", "Sales (1)", "Value", 0, 0, 22L]),
+                "TMSCHEMA_MODEL" => Data(["DefaultMode"], [0]),
+                "TMSCHEMA_TABLES" => Data(["ID", "Name"], ["10", "Sales"]),
+                "TMSCHEMA_PARTITIONS" => Data(["TableID", "Mode"], ["10", PartitionMode]),
+                _ => throw new InvalidOperationException("Unexpected statistics schema")
+            };
         }
         /// <summary>只返回明确所选表的查询计数, 支持批次失败和协议错误; 不把认证失败伪装为0.</summary>
         public DataTable ReadRowCounts(IReadOnlyList<string> tables, CancellationToken token)

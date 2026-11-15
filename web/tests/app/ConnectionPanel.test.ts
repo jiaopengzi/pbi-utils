@@ -456,6 +456,25 @@ async function serviceReady(onRecent?: (value: RecentSlot) => void) {
     return context
 }
 
+it("Service 仅预读所选模型的摘要, 连接前展示统计且不改变当前模型", async () => {
+    const { bridge, request, wrapper } = await serviceReady()
+    try {
+        const card = wrapper.get(".instance-card")
+        expect(request.mock.calls.filter(([method]) => method === "powerbi.serviceModelSummary").map(([method, params]) => [method, params])).toEqual([
+            ["powerbi.serviceModelSummary", { modelId: "preview-service-model" }],
+        ])
+        expect(request.mock.calls.some(([method]) => method === "project.connectService")).toBe(false)
+        expect(card.classes()).not.toContain("is-current")
+        expect(card.get('[data-stat="tableCount"] dd').text()).toBe(String(previewProject.model.tables.length))
+        expect(card.get('[data-stat="measureCount"] dd').text()).toBe(String(previewProject.model.measures.length))
+        expect(card.get('[data-stat="compatibilityLevel"] dd').text()).toBe(String(previewProject.model.compatibilityLevel))
+        expect(card.get('[data-stat="reportPageCount"] dd').text()).toBe("0")
+    } finally {
+        wrapper.unmount()
+        bridge.dispose()
+    }
+})
+
 /** 临时锁保持外观时仍阻止操作, 原本不可用的模型选择与父级业务锁不能被美化为可用. */
 it("Service 区分临时锁、缺少工作区和父级业务禁用", async () => {
     const { bridge, request, wrapper } = await serviceReady()
@@ -640,7 +659,8 @@ it.each(["removed", "failure"] as const)("云端最近连接重开先刷新权�
     })
     await recent.openServiceRecent(id)
     await flushPromises()
-    expect(request).toHaveBeenLastCalledWith(outcome === "removed" ? "powerbi.serviceModels" : "powerbi.serviceRecentModels", {})
+    const directoryCalls = request.mock.calls.filter(([method]) => method === "powerbi.serviceModels" || method === "powerbi.serviceRecentModels")
+    expect(directoryCalls.at(-1)).toEqual([outcome === "removed" ? "powerbi.serviceModels" : "powerbi.serviceRecentModels", {}])
     expect(request.mock.calls.filter(([method]) => method === "project.connectService")).toHaveLength(connectionCount)
     expect(recent.serviceRecents).toEqual([])
     expect(document.querySelector(".el-message--error")?.textContent).toContain(outcome === "removed" ? "最近连接已不可用" : "读取模型目录失败")
@@ -1406,7 +1426,8 @@ it.each(["zh-cn", "en-us"] as const)("%s Service 单行卡片按目录身份查�
     expect(popup.get(".current-model-card").classes()).toContain("is-current")
     const selected = popup.findAll(".instance-card").find((item) => !item.classes().includes("is-current"))!
     expect(selected.get("button").text()).toBe(locale === "zh-cn" ? "切换到此模型" : "Switch to this model")
-    expect(selected.get('[data-stat="tableCount"] dd').text()).toBe("-")
+    await flushPromises()
+    expect(selected.get('[data-stat="tableCount"] dd').text()).toBe(String(previewProject.model.tables.length))
     await wrapper.setProps({ activeProject: { ...active, connection: { kind: "desktop", label: "Power BI Desktop", instanceId: "preview-service-model" } } })
     expect(popup.find(".instance-card.is-current").exists()).toBe(false)
     wrapper.unmount()

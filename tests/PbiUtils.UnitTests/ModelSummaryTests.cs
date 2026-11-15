@@ -52,7 +52,9 @@ public sealed class ModelSummaryTests
     [Fact]
     public void LimitedSchemaRetainsReturnedCountsAndUnknownCompatibility()
     {
-        var snapshot = Snapshot(new("powerbi-service", "Power BI Service", true));
+        var limited = Snapshot(new("powerbi-service", "Power BI Service", true));
+        Assert.Equal(1600, limited.Summary.CompatibilityLevel);
+        var snapshot = limited with { Model = limited.Model with { CompatibilityLevel = 0 } };
         Assert.Null(snapshot.Summary.CompatibilityLevel);
         Assert.Equal(2, snapshot.Summary.TableCount);
         Assert.Equal(2, snapshot.Summary.MeasureCount);

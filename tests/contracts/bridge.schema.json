@@ -42,6 +42,7 @@
         "powerbi.serviceDeleteLogin",
         "powerbi.serviceSignOut",
         "powerbi.serviceModels",
+        "powerbi.serviceModelSummary",
         "powerbi.serviceRecentModels",
         "powerbi.serviceDeleteRecentModel",
         "project.disconnect",
@@ -598,6 +599,27 @@
             "additionalProperties": false,
             "properties": {},
             "required": []
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "method": {
+            "const": "powerbi.serviceModelSummary"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "modelId": { "type": "string", "minLength": 1, "maxLength": 64 }
+            },
+            "required": ["modelId"]
           }
         }
       }

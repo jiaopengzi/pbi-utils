@@ -7,10 +7,8 @@
 -->
 <!-- 模型列表与代码展示, 不把高亮视为执行或验证. -->
 <script setup lang="ts">
-import { hostText } from "@/i18n"
 import { useI18n } from "@/composables/i18n/useI18n"
 import UiPanel from "@/ui/UiPanel.vue"
-import { useMessageNotices } from "@/composables/ui/useMessageNotices"
 
 import UiTabs from "@/ui/UiTabs.vue"
 import { computed, ref, useTemplateRef, watch } from "vue"
@@ -97,17 +95,6 @@ watch(
         if (!tabs.value.some(([key]) => key === tab.value)) tab.value = "measures"
     },
 )
-useMessageNotices("model-panel", () => [
-    !!props.project.connection?.isLimited && {
-        key: "limited",
-        identity: JSON.stringify(props.project.warnings),
-        // 合并能力说明与原始警告, 各行仍按原有宿主翻译规则处理, 避免进入模型时多条说明同时占屏.
-        message: [
-            t("model.limitedNotice"),
-            ...props.project.warnings.filter((item) => item.includes("度量值") || item.includes("未读取")).map((warning) => hostText(warning)),
-        ].join("\n"),
-    },
-])
 </script>
 <template>
     <UiTabs v-model="tab" :aria-label="t('model.workflow')" :disabled="busy" :items="tabs" />

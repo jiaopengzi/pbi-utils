@@ -53,6 +53,7 @@ public static class McpDesktopCatalog
         Add("powerbi.serviceDeleteLogin", "Delete a saved Service login record.");
         Add("powerbi.serviceSignOut", "Sign out of Service and disconnect its active model.");
         Add("powerbi.serviceModels", "List models available to the existing Service account.");
+        Add("powerbi.serviceModelSummary", "Read the selected Service model summary using its catalog handle without switching the current model.");
         Add("powerbi.serviceRecentModels", "Read account-scoped recent Service models.");
         Add("powerbi.serviceDeleteRecentModel", "Remove a recent Service model record, without deleting the remote model.");
         Add("remote.form", "Read the remote connection form identity. Enter passwords only in the pbi-utils application.");

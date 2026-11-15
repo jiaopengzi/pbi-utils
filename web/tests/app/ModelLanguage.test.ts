@@ -105,18 +105,13 @@ it("英文 Service 有限架构持续明确未知项, 不展示未确认的零�
     project.model.measures[0]!.expression = ""
     const wrapper = mount(ModelPanel, { props: { bridge, project } })
     await flushPromises()
-    expect(Array.from(document.querySelectorAll(".el-message"), (message) => message.textContent).join(" ")).toContain(
-        "partitions, compatibility level, relationships, roles and UDFs are unavailable",
-    )
-    expect(Array.from(document.querySelectorAll(".el-message"), (message) => message.textContent).join(" ")).toContain(
-        "The service did not provide a DAX definition",
-    )
+    expect(document.body.textContent).not.toContain("partitions, compatibility level, relationships, roles and UDFs are unavailable")
     expect(wrapper.text()).not.toContain("Measure templates")
     await wrapper
         .findAll('[role="tab"]')
         .find((tab) => tab.text() === "UDF")!
         .trigger("click")
-    expect(wrapper.text()).toContain("does not provide a compatibility level or UDF definitions")
+    expect(wrapper.text()).toContain("does not provide UDF definitions")
     expect(wrapper.text()).not.toContain("0 model functions")
     wrapper.unmount()
     bridge.dispose()

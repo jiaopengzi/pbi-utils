@@ -43,7 +43,7 @@ public sealed class PowerBiSchemaTests
     [InlineData("Power BI Desktop", "未命名报表")]
     public void UsesDesktopReportTitle(string title, string expected) => Assert.Equal(expected, ConnectedModelReader.DesktopModelName(title));
 
-    private static readonly string[] ExpectedSchemas = ["MDSCHEMA_DIMENSIONS", "MDSCHEMA_HIERARCHIES", "MDSCHEMA_MEASURES"];
+    private static readonly string[] ExpectedSchemas = ["MDSCHEMA_DIMENSIONS", "MDSCHEMA_HIERARCHIES", "MDSCHEMA_MEASURES", "DBSCHEMA_CATALOGS"];
 
     /// <summary>实际 ConnectedModelReader 将 pbiazure 分发给架构会话, 不进入 TOM 或读取本机文件.</summary>
     [Theory]
@@ -61,7 +61,7 @@ public sealed class PowerBiSchemaTests
         Assert.True(snapshot.Connection!.IsLimited);
         Assert.Equal(modelId, snapshot.Connection.ModelId);
         Assert.Null(snapshot.Connection.InstanceId);
-        Assert.Null(snapshot.Summary.CompatibilityLevel);
+        Assert.Equal(1606, snapshot.Summary.CompatibilityLevel);
         Assert.Null(snapshot.Summary.ReportPageCount);
         Assert.Equal(1, snapshot.Summary.TableCount);
         Assert.Equal(1, snapshot.Summary.MeasureCount);
@@ -124,15 +124,17 @@ public sealed class PowerBiSchemaTests
             Reads.Add(schema);
             if (FailRead) throw new InvalidOperationException("sensitive-test-token C:\\private");
             DataTable result = new();
-            var columns = schema switch
+            string[] columns = schema switch
             {
-                "MDSCHEMA_DIMENSIONS" => new[] { "DIMENSION_UNIQUE_NAME", "DIMENSION_TYPE" },
+                "DBSCHEMA_CATALOGS" => ["CATALOG_NAME", "COMPATIBILITY_LEVEL"],
+                "MDSCHEMA_DIMENSIONS" => ["DIMENSION_UNIQUE_NAME", "DIMENSION_TYPE"],
                 "MDSCHEMA_HIERARCHIES" => ["DIMENSION_UNIQUE_NAME", "HIERARCHY_CAPTION"],
                 "MDSCHEMA_MEASURES" => ["MEASUREGROUP_NAME", "MEASURE_CAPTION"],
                 _ => throw new InvalidOperationException("Unexpected schema")
             };
             foreach (var column in columns) result.Columns.Add(column);
-            if (schema == "MDSCHEMA_DIMENSIONS") { result.Rows.Add("[销售]]表]", "1"); result.Rows.Add("[Measures]", "2"); }
+            if (schema == "DBSCHEMA_CATALOGS") { result.Rows.Add("other-db", "1702"); result.Rows.Add("vs-db", "1606"); }
+            else if (schema == "MDSCHEMA_DIMENSIONS") { result.Rows.Add("[销售]]表]", "1"); result.Rows.Add("[Measures]", "2"); }
             else if (schema == "MDSCHEMA_HIERARCHIES") result.Rows.Add("[销售]]表]", "日期");
             else result.Rows.Add("销售]表", "销售额");
             return result;

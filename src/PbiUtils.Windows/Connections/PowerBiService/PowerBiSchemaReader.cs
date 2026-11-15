@@ -30,6 +30,8 @@ namespace PbiUtils.Windows.Connections.PowerBiService;
 public interface IPowerBiSchemaSession : IDisposable
 {
     string ServerVersion { get; }
+    /// <summary>已打开连接中 SDK 返回的目录名称, 空值使用宿主解析的目录.</summary>
+    string? Catalog => null;
     /// <summary>建立一个短生命周期的后端认证连接.</summary>
     void Open(PowerBiServiceTarget target);
     /// <summary>读取一个固定元数据行集, 不执行用户 DAX 或查询业务值.</summary>
@@ -93,7 +95,7 @@ public sealed class PowerBiSchemaReader(Func<IPowerBiSchemaSession>? createSessi
         BusinessLog.ModelStage(log, stage);
         using var dimensions = session.Read("MDSCHEMA_DIMENSIONS");
         token.ThrowIfCancellationRequested();
-        List<string> warnings = ["当前工作区使用架构只读连接. 分区、兼容级别、关系、角色和 UDF 未提供; 度量值定义以服务实际返回为准", "在线模型不含报表布局, 未查询业务数据或提交模型"];
+        List<string> warnings = ["当前工作区使用架构只读连接. 分区、关系、角色和 UDF 未提供; 度量值定义以服务实际返回为准", "在线模型不含报表布局, 未查询业务数据或提交模型"];
         stage = "字段架构";
         BusinessLog.ModelStage(log, stage);
         using var hierarchies = Optional("MDSCHEMA_HIERARCHIES");
@@ -101,6 +103,11 @@ public sealed class PowerBiSchemaReader(Func<IPowerBiSchemaSession>? createSessi
         BusinessLog.ModelStage(log, stage);
         using var measures = session.Read("MDSCHEMA_MEASURES");
         var model = Map(target.ModelName ?? target.Database, dimensions, hierarchies, measures);
+        stage = "目录兼容级别";
+        using var catalogs = Optional("DBSCHEMA_CATALOGS");
+        var catalog = session.Catalog is { Length: > 0 } opened ? opened : target.Database;
+        var compatibility = ReadCompatibilityLevel(catalogs, catalog);
+        model = model with { CompatibilityLevel = compatibility };
         if (model.Measures.Count == 0) warnings.Add("服务架构未返回度量值; 请核对当前模型和架构读取权限, 不代表已确认模型没有度量值");
         if (model.Measures.Any(m => string.IsNullOrWhiteSpace(m.Expression))) warnings.Add("部分度量值 DAX 定义未提供, 只能查看实际返回的名称和属性");
         token.ThrowIfCancellationRequested();
@@ -121,6 +128,16 @@ public sealed class PowerBiSchemaReader(Func<IPowerBiSchemaSession>? createSessi
                 return new DataTable();
             }
         }
+    }
+    /// <summary>只采用当前目录的唯一有效值; 缺失或歧义时以模型内部的未知值0表示.</summary>
+    /// <param name="catalogs">当前连接的可选固定目录行集.</param>
+    /// <param name="catalog">已绑定并打开的目录名称.</param>
+    /// <returns>正整数兼容级别, 无确证时为0.</returns>
+    private static int ReadCompatibilityLevel(DataTable catalogs, string catalog)
+    {
+        if (!catalogs.Columns.Contains("CATALOG_NAME") || !catalogs.Columns.Contains("COMPATIBILITY_LEVEL") || catalogs.Rows.Count > 50000) return 0;
+        var matched = catalogs.Rows.Cast<DataRow>().Where(row => Value(row, "CATALOG_NAME") == catalog).Take(2).ToArray();
+        return matched.Length == 1 && int.TryParse(Value(matched[0], "COMPATIBILITY_LEVEL"), NumberStyles.None, CultureInfo.InvariantCulture, out var level) && level > 0 ? level : 0;
     }
     /// <summary>只识别真实 ADOMD 的 HTTP 传输链中10053或10054断链, 认证、权限、取消和超时均不重试.</summary>
     private static int? TransportReset(Exception error)
@@ -216,6 +233,7 @@ public sealed class PowerBiSchemaReader(Func<IPowerBiSchemaSession>? createSessi
     {
         private AdomdConnection? connection;
         public string ServerVersion => connection!.ServerVersion;
+        public string Catalog => connection!.Database;
         /// <summary>与 Bravo 一致在构造前提供 ClaimsToken; 不同时设置 AccessToken, 不持久化或回传凭据.</summary>
         public void Open(PowerBiServiceTarget target)
         {
@@ -225,8 +243,8 @@ public sealed class PowerBiSchemaReader(Func<IPowerBiSchemaSession>? createSessi
         /// <summary>Catalog 约束由已经打开的连接确定, 仅查询固定架构行集.</summary>
         public DataTable Read(string schema)
         {
-            if (schema is not ("MDSCHEMA_DIMENSIONS" or "MDSCHEMA_HIERARCHIES" or "MDSCHEMA_MEASURES")) throw new AppException("INVALID_SCHEMA", "未授权的架构行集");
-            var restrictions = Restrictions(schema);
+            if (schema is not ("MDSCHEMA_DIMENSIONS" or "MDSCHEMA_HIERARCHIES" or "MDSCHEMA_MEASURES" or "DBSCHEMA_CATALOGS")) throw new AppException("INVALID_SCHEMA", "未授权的架构行集");
+            var restrictions = schema == "DBSCHEMA_CATALOGS" && Catalog.Length > 0 ? [new("CATALOG_NAME", Catalog)] : Restrictions(schema);
             using var data = connection!.GetSchemaDataSet(schema, restrictions);
             if (data.Tables.Count != 1) throw new AppException("MODEL_SCHEMA_INVALID", "服务未返回唯一架构行集", 3);
             return data.Tables[0].Copy();

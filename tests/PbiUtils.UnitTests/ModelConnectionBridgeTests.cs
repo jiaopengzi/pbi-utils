@@ -244,6 +244,23 @@ public sealed class ModelConnectionBridgeTests
         await fixture.Call("powerbi.serviceRecentModels", new { });
         Assert.Equal("POWER_BI_SIGN_IN_REQUIRED", fixture.Last.GetProperty("error").GetProperty("code").GetString());
     }
+    /// <summary>读取所选 Service 摘要时, 不替换当前模型或写入最近连接.</summary>
+    [Fact]
+    public async Task ServiceModelSummaryLeavesCurrentConnectionAndRecentsIntact()
+    {
+        var store = new RecentStore(); using var fixture = new Fixture(recentModelStore: store);
+        await fixture.Call("project.connectLocal", new { processId = "100" });
+        var path = fixture.Last.GetProperty("result").GetProperty("projectPath").GetString();
+        await fixture.Call("powerbi.serviceModelSummary", new { modelId = "service-model" });
+        var summary = fixture.Last.GetProperty("result");
+        Assert.Equal(1600, summary.GetProperty("compatibilityLevel").GetInt32());
+        Assert.Equal(0, summary.GetProperty("tableCount").GetInt32());
+        Assert.Equal(0, summary.GetProperty("measureCount").GetInt32());
+        Assert.Empty(store.Saved);
+        Assert.Single(fixture.Reader.Targets);
+        await fixture.Call("project.inspect", new { });
+        Assert.Equal(path, fixture.Last.GetProperty("result").GetProperty("projectPath").GetString());
+    }
     /// <summary>切换成功才淘汰旧目标, 失败保持原当前模型, 退出 Service 同步断开.</summary>
     [Fact]
     public async Task SwitchingKeepsOneModelAndFailurePreservesPrevious()

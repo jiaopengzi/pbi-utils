@@ -19,9 +19,10 @@ internal sealed partial class UserDataResetTree : IDisposable
     private readonly List<SafeFileHandle> ancestors = [];
     private readonly List<Entry> entries = [];
     private readonly string root;
+    private readonly SafeFileHandle? rootForDeletion;
 
     /// <summary>固定根与祖先后逐层锁定全部内容, 任何枚举、占用或链接错误均发生在首次删除之前.</summary>
-    internal UserDataResetTree(string root, CancellationToken token)
+    internal UserDataResetTree(string root, CancellationToken token, bool removeRoot = false)
     {
         this.root = root;
         try
@@ -31,7 +32,11 @@ internal sealed partial class UserDataResetTree : IDisposable
             while (parents.TryPop(out var path))
             {
                 token.ThrowIfCancellationRequested();
-                if (Directory.Exists(path)) ancestors.Add(Open(path, directory: true, delete: false));
+                if (!Directory.Exists(path)) continue;
+                var delete = removeRoot && path == root;
+                var handle = Open(path, directory: true, delete);
+                ancestors.Add(handle);
+                if (delete) rootForDeletion = handle;
             }
             if (Directory.Exists(root)) Visit(root, token);
         }
@@ -70,14 +75,26 @@ internal sealed partial class UserDataResetTree : IDisposable
     internal void DeleteContents()
     {
         foreach (var entry in Enumerable.Reverse(entries))
-        {
-            var disposition = (byte)1;
-            if (!SetFileInformationByHandle(entry.Handle, 4, in disposition, 1))
-                throw new AppException("USER_DATA_RESET_INCOMPLETE", "用户数据重置未完成, 部分内容可能已删除; 请关闭其他程序后重试", 4);
-            entry.Handle.Dispose();
-        }
+            DeleteEntry(entry.Handle);
         if (Directory.Exists(root) && Directory.EnumerateFileSystemEntries(root).Any())
             throw new AppException("USER_DATA_RESET_INCOMPLETE", "重置期间出现新内容, 用户数据重置未完成", 4);
+    }
+
+    /// <summary>卸载在子项删除后用预检固定的原句柄删除空根; 根从一开始不存在时无需删除.</summary>
+    internal void DeleteRoot()
+    {
+        if (rootForDeletion is not null) DeleteEntry(rootForDeletion);
+        else if (Directory.Exists(root))
+            throw new AppException("USER_DATA_RESET_INCOMPLETE", "清理期间出现新数据目录, 用户数据清理未完成", 4);
+    }
+
+    /// <summary>设置原对象的删除标记并释放其句柄; 拒绝删除时明确报告此前的项可能已清理.</summary>
+    private static void DeleteEntry(SafeFileHandle handle)
+    {
+        var disposition = (byte)1;
+        if (!SetFileInformationByHandle(handle, 4, in disposition, 1))
+            throw new AppException("USER_DATA_RESET_INCOMPLETE", "用户数据清理未完成, 部分内容可能已删除; 请关闭其他程序后重试", 4);
+        handle.Dispose();
     }
 
     /// <summary>父目录已固定时只枚举一层, 取得子项句柄并核对实际属性后才进入下层.</summary>

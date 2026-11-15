@@ -74,6 +74,7 @@ const labels = computed(() => ({
             <CodeEditor
                 v-else-if="key === 'expression'"
                 v-model="fields.expression"
+                class="measure-expression-editor"
                 language="dax"
                 :label="label"
                 :disabled="disabled || (batch && !enabled.includes(key))"
@@ -121,6 +122,24 @@ const labels = computed(() => ({
 }
 .measure-field-wide {
     grid-column: 1 / -1;
+}
+.measure-expression-editor {
+    // 采用共享编辑器的 22px 行高, 加上 20px 内边距和 2px 边框, 限制自动与手动高度在 5 到 20 行.
+    :deep(.code-editor__surface) {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        min-height: calc(5 * 22px + 22px);
+        max-height: calc(20 * 22px + 22px);
+    }
+    :deep(.cm-editor) {
+        flex: 1 1 auto;
+        height: auto;
+        min-height: 0;
+    }
+    :deep(.cm-scroller) {
+        flex: 1 1 auto;
+    }
 }
 .measure-field-complete {
     width: 100%;

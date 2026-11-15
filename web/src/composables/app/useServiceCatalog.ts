@@ -5,8 +5,9 @@
  * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
  * Description : 按当前账号与云核验 Service 模型目录、工作区选择及最近模型记录.
  */
-import { computed, nextTick, readonly, ref, watch, type Ref } from "vue"
-import type { PowerBiServiceModel, PowerBiServiceStatus, ProjectSnapshot, RecentPowerBiServiceModel } from "@/bridge/client"
+import { computed, nextTick, readonly, ref, shallowRef, watch, type Ref } from "vue"
+import type { ModelSummary, PowerBiServiceModel, PowerBiServiceStatus, ProjectSnapshot, RecentPowerBiServiceModel } from "@/bridge/client"
+import { projectSummary } from "@/app/modelSummary"
 import type { ServiceAccountCall } from "@/composables/app/useServiceAccount"
 import { useI18n } from "@/composables/i18n/useI18n"
 import { useFeedback } from "@/composables/ui/useFeedback"
@@ -19,6 +20,7 @@ type ServiceCatalogOptions = {
     recentStorageWarning: Ref<string>
     call: ServiceAccountCall
     run: (action: () => Promise<void>, showProgress?: boolean) => Promise<void>
+    runPreview: (action: () => Promise<void>) => Promise<void>
     getActiveProject: () => ProjectSnapshot | undefined
     isMounted: () => boolean
     accept: (snapshot: ProjectSnapshot) => void
@@ -38,6 +40,7 @@ export function useServiceCatalog({
     recentStorageWarning,
     call,
     run,
+    runPreview,
     getActiveProject,
     isMounted,
     accept,
@@ -57,6 +60,34 @@ export function useServiceCatalog({
     const currentService = computed(() => (getActiveProject()?.connection?.kind === "powerbi-service" ? getActiveProject() : undefined))
     /** Service 当前目录条目只按宿主绑定的非空句柄匹配, 标题和模型名称不能代替身份. */
     const selectedIsCurrent = computed(() => !!currentService.value?.connection?.modelId && currentService.value.connection.modelId === selectedModel.value?.id)
+    const previewTarget = computed(() => {
+        const target = selectedModel.value
+        if (source.value === "service" && status.value?.account && target && !target.unavailableReason && !selectedIsCurrent.value) return target
+        return undefined
+    })
+    const preview = shallowRef<{ target: PowerBiServiceModel; summary: ModelSummary }>()
+    let attempted: PowerBiServiceModel | undefined
+    const selectedServiceSummary = computed(() => {
+        if (selectedIsCurrent.value && currentService.value) return projectSummary(currentService.value)
+        if (preview.value && preview.value.target === previewTarget.value) return preview.value.summary
+        return null
+    })
+
+    // 仅预读已选条目. 与连接共享请求门闩, 目录替换后丢弃旧回复且同一次选择不反复请求.
+    watch(
+        [previewTarget, blocked],
+        ([target, locked]) => {
+            if (!target || (preview.value && preview.value.target !== target)) preview.value = undefined
+            if (!target) attempted = undefined
+            if (!target || locked || target === attempted) return
+            attempted = target
+            void runPreview(async () => {
+                const summary = await call("powerbi.serviceModelSummary", { modelId: target.id })
+                if (isMounted() && previewTarget.value === target) preview.value = { target, summary }
+            })
+        },
+        { flush: "post" },
+    )
 
     /** 重名模型附带服务标识, 帮助用户区分独立的目录条目. */
     function modelLabel(model: PowerBiServiceModel) {
@@ -161,6 +192,7 @@ export function useServiceCatalog({
         selectedModel,
         currentService,
         selectedIsCurrent,
+        selectedServiceSummary,
         modelLabel,
         loadModels,
         loadServiceRecents,

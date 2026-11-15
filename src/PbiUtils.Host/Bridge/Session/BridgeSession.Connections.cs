@@ -42,13 +42,15 @@ public sealed partial class BridgeSession
             case "powerbi.serviceSignIn":
             case "powerbi.serviceDeleteLogin":
             case "powerbi.serviceModels":
+            case "powerbi.serviceModelSummary":
             case "powerbi.serviceRecentModels":
             case "powerbi.serviceDeleteRecentModel":
             case "powerbi.serviceSignOut":
                 var loginRequest = method == "powerbi.serviceSignIn" ? ServiceLoginRequest(parameters) : null;
                 var loginId = method == "powerbi.serviceDeleteLogin" ? Strings(parameters, ["id"], 64)["id"] : null;
+                var summaryModelId = method == "powerbi.serviceModelSummary" ? Strings(parameters, ["modelId"], 64)["modelId"] : null;
                 var deleteRecentModel = method == "powerbi.serviceDeleteRecentModel" ? RecentDeletionRequest(parameters) : null;
-                if (loginRequest is null && loginId is null && deleteRecentModel is null) RequireEmpty(parameters);
+                if (loginRequest is null && loginId is null && summaryModelId is null && deleteRecentModel is null) RequireEmpty(parameters);
                 if (cloudConnection is null) throw new AppException("UNSUPPORTED", "当前宿主不支持 Power BI Service", 3);
                 if (!await projectGate.WaitAsync(0, flight.Cancellation.Token)) throw new AppException("BUSY", "连接操作正在执行", 3);
                 try
@@ -68,6 +70,13 @@ public sealed partial class BridgeSession
                         result = new { account = currentStatus.Account, recentLogins = currentStatus.RecentLogins, storageWarning = currentStatus.StorageWarning, isSimulation = false };
                     }
                     else if (method == "powerbi.serviceModels") result = await cloudConnection.ModelsAsync(flight.Cancellation.Token);
+                    else if (summaryModelId is not null)
+                    {
+                        if (cloudConnection.Account is null) throw new AppException("POWER_BI_SIGN_IN_REQUIRED", "请先登录 Microsoft 工作或学校账号", 3);
+                        if (connections is null) throw new AppException("UNSUPPORTED", "当前宿主不支持模型连接", 3);
+                        var summary = await connections.ServiceSummaryAsync(summaryModelId, flight.Cancellation.Token);
+                        result = summary with { ReportPageCount = await cloudConnection.ReadReportPageCountAsync(summaryModelId, flight.Cancellation.Token) };
+                    }
                     else if (method == "powerbi.serviceRecentModels") result = await cloudConnection.RecentModelsAsync(flight.Cancellation.Token);
                     else if (method == "powerbi.serviceDeleteRecentModel") result = await cloudConnection.DeleteRecentModelAsync(deleteRecentModel!.Id, flight.Cancellation.Token, () => BeginCommit(flight));
                     else
@@ -161,7 +170,12 @@ public sealed partial class BridgeSession
                     var snapshot = method == "project.connectService" ? await connections.ServiceAsync(serviceModelId!, flight.Cancellation.Token)
                         : method == "project.connectLocal" ? await connections.LocalAsync(pid, flight.Cancellation.Token, expectedInstanceId)
                         : await connections.RemoteAsync(address!, flight.Cancellation.Token);
-                    try { PublishProject(snapshot, flight); result = snapshot; }
+                    try
+                    {
+                        if (serviceModelId is not null && cloudConnection is not null)
+                            snapshot = snapshot with { LinkedReportPageCount = await cloudConnection.ReadReportPageCountAsync(serviceModelId, flight.Cancellation.Token) };
+                        PublishProject(snapshot, flight); result = snapshot;
+                    }
                     catch { connections.Forget(snapshot.ProjectPath); throw; }
                     if (method == "project.connectService" && cloudConnection is not null)
                         await cloudConnection.RecordConnectionAsync(recentServiceConnection, CancellationToken.None);
@@ -208,6 +222,8 @@ public sealed partial class BridgeSession
                         : await connections!.FileAsync(selected, flight.Cancellation.Token);
                     try
                     {
+                        if (method == "project.inspect" && snapshot.Connection is { Kind: "powerbi-service", ModelId: { } modelId } && cloudConnection is not null)
+                            snapshot = snapshot with { LinkedReportPageCount = await cloudConnection.ReadReportPageCountAsync(modelId, flight.Cancellation.Token) };
                         if (method != "project.inspect" || !HasPendingChanges) PublishProject(snapshot, flight, method == "project.inspect" ? null : selected);
                         result = snapshot;
                     }

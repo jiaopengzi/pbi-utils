@@ -226,6 +226,44 @@ public sealed class PowerBiCloudTests
         await LoginAsync(client);
         Assert.Equal("INVALID_SERVICE_MODEL", (await Assert.ThrowsAsync<AppException>(() => client.ResolveAsync(id, default))).Code);
     }
+    /// <summary>只统计当前目录模型同工作区报表, 任何匹配报表不可读取时不返回部分页数.</summary>
+    [Theory]
+    [InlineData(false, 3)]
+    [InlineData(true, null)]
+    public async Task CountsAllAccessibleLinkedReportPagesOrLeavesUnknown(bool denied, int? expected)
+    {
+        const string workspace = "11111111-1111-1111-1111-111111111111";
+        const string dataset = "22222222-2222-2222-2222-222222222222";
+        const string first = "33333333-3333-3333-3333-333333333333";
+        const string second = "44444444-4444-4444-4444-444444444444";
+        const string path = $"/v1.0/myorg/groups/{workspace}/reports";
+        var reports = new[]
+        {
+            new { id = first, datasetId = dataset }, new { id = second, datasetId = dataset },
+            new { id = first, datasetId = dataset }, new { id = "unrelated-report", datasetId = workspace }
+        };
+        using var handler = new Handler
+        {
+            WorkspacePayload = JsonSerializer.Serialize(new[] { new { id = workspace, name = "Team" } }),
+            CatalogPayload = JsonSerializer.Serialize(new[] { new { workspaceObjectId = workspace, model = new { displayName = "Sales", dbName = dataset, vsName = "vs" } } }),
+            ReportResponse = uri => uri.AbsolutePath switch
+            {
+                path => (HttpStatusCode.OK, JsonSerializer.Serialize(new { value = reports })),
+                $"{path}/{first}/pages" => (HttpStatusCode.OK, "{\"value\":[{\"name\":\"one\"}]}"),
+                $"{path}/{second}/pages" => denied ? (HttpStatusCode.Forbidden, "test-access-token") : (HttpStatusCode.OK, "{\"value\":[{\"name\":\"one\"},{\"name\":\"two\"}]}"),
+                _ => throw new InvalidOperationException("Unexpected report request")
+            }
+        };
+        using var http = new HttpClient(handler); using var client = new PowerBiCloudClient(http, new SignIn());
+        await LoginAsync(client);
+        var handle = Assert.Single(await client.ModelsAsync(default)).Id;
+        Assert.Equal(expected, await client.ReadReportPageCountAsync(handle, default));
+        Assert.Equal(3, handler.ReportUris.Count);
+        Assert.All(handler.ReportUris, uri => Assert.Equal("api.powerbi.com", uri.Host));
+        await client.SignOutAsync(default);
+        Assert.Equal("POWER_BI_SIGN_IN_REQUIRED", (await Assert.ThrowsAsync<AppException>(() => client.ReadReportPageCountAsync(handle, default))).Code);
+        Assert.Equal(3, handler.ReportUris.Count);
+    }
     /// <summary>认证取消不得替换已有账号或清空原模型目录.</summary>
     [Fact]
     public async Task CancelledSignInPreservesExistingSession()
@@ -282,6 +320,8 @@ public sealed class PowerBiCloudTests
         public string DiscoveryPayload { get; set; } = Discovery;
         public string WorkspacePayload { get; set; } = "[{\"id\":\"workspace\",\"name\":\"团队\"}]";
         public string CatalogPayload { get; set; } = Catalog;
+        public Func<Uri, (HttpStatusCode Status, string Payload)>? ReportResponse { get; init; }
+        public System.Collections.Concurrent.ConcurrentQueue<Uri> ReportUris { get; } = new();
         public List<string> AuthenticatedHosts { get; } = [];
         public List<Uri> DiscoveryUris { get; } = [];
         public string? Cluster { get; set; }
@@ -297,6 +337,8 @@ public sealed class PowerBiCloudTests
             { Discoveries++; DiscoveryUris.Add(uri); payload = DiscoveryPayload; if (uri.AbsolutePath.Contains("v202408", StringComparison.Ordinal)) status = HttpStatusCode.NotFound; }
             else if (uri.AbsolutePath.Contains("GetOrInsertClusterUris", StringComparison.Ordinal)) payload = JsonSerializer.Serialize(new { FixedClusterUri = Cluster ?? (uri.Host == "api.powerbi.cn" ? "https://wabi-test.analysis.chinacloudapi.cn/" : "https://wabi-test.analysis.windows.net/") });
             else if (uri.AbsolutePath.EndsWith("workspaces", StringComparison.Ordinal)) payload = WorkspacePayload;
+            else if (uri.AbsolutePath.StartsWith("/v1.0/myorg/", StringComparison.Ordinal) && ReportResponse is { } respond)
+            { ReportUris.Enqueue(uri); (status, payload) = respond(uri); }
             else { payload = CatalogPayload; if (Denied) { status = HttpStatusCode.Forbidden; payload = "test-access-token"; } }
             return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(payload) });
         }

@@ -291,12 +291,20 @@ export class BridgeClient {
                 return
             }
             const expire = () => {
-                if (["model.exportTables", "model.tableStatistics", "model.tableRowCounts", "model.openExportDirectory"].includes(method)) {
+                if (
+                    [
+                        "model.exportTables",
+                        "model.tableStatistics",
+                        "model.tableRowCounts",
+                        "model.openExportDirectory",
+                        "powerbi.serviceModelSummary",
+                    ].includes(method)
+                ) {
                     const entry = this.pending.get(id)
                     if (!entry || entry.expiring || entry.committing) return
                     entry.expiring = true
                     entry.phase?.("canceling")
-                    // 不提前拒绝原 Promise: 文件选择/导出/统计查询取消须由宿主回执终结, 防止界面解锁后与未排空操作交错.
+                    // 这些操作取消后由宿主回执终结, 防止界面解锁后与未排空的查询或文件操作交错.
                     this.request("request.cancel", { requestId: id }).promise.catch(() => undefined)
                     return
                 }

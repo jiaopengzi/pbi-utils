@@ -23,9 +23,7 @@ it("架构只读模型明确显示未提供范围, 隐藏空 DAX 与零角色/�
     project.model.measures[0]!.expression = ""
     const wrapper = mount(ModelPanel, { props: { project, bridge } })
     await flushPromises()
-    expect(Array.from(document.querySelectorAll(".el-message"), (message) => message.textContent).join(" ")).toContain(
-        "分区、兼容级别、关系、角色与 UDF 未提供",
-    )
+    expect(document.body.textContent).not.toContain("当前为 Service 架构只读连接")
     expect(wrapper.findComponent(CodeBlock).exists()).toBe(false)
     await wrapper
         .findAll('[role="tab"]')
@@ -37,7 +35,7 @@ it("架构只读模型明确显示未提供范围, 隐藏空 DAX 与零角色/�
         .findAll('[role="tab"]')
         .find((tab) => tab.text() === "UDF")!
         .trigger("click")
-    expect(wrapper.text()).toContain("不提供兼容级别或 UDF 定义")
+    expect(wrapper.text()).toContain("不提供 UDF 定义")
     expect(wrapper.text()).not.toContain("0 个模型函数")
     wrapper.unmount()
     bridge.dispose()

@@ -119,6 +119,19 @@ export class MockConnections {
             reply([{ id: "preview-service-model", name: "销售模型 (模拟)", workspace: "示例工作区", unavailableReason: null }])
             return true
         }
+        if (method === "powerbi.serviceModelSummary") {
+            if (!this.serviceStatus.account || params.modelId !== "preview-service-model") {
+                fail("INVALID_SERVICE_MODEL")
+                return true
+            }
+            reply({
+                compatibilityLevel: previewProject.model.compatibilityLevel,
+                tableCount: previewProject.model.tables.length,
+                measureCount: previewProject.model.measures.length,
+                reportPageCount: null,
+            } satisfies Methods["powerbi.serviceModelSummary"]["result"])
+            return true
+        }
         if (method === "powerbi.serviceRecentModels") {
             const account = this.serviceStatus.account
             if (!account) {

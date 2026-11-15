@@ -111,6 +111,16 @@ public sealed class ModelConnectionService(IConnectedModelReader reader, ILogger
         if (string.IsNullOrWhiteSpace(modelId) || modelId.Length > 64) throw new AppException("INVALID_SERVICE_MODEL", "请选择有效的服务模型");
         return ReadAsync(reader.RegisterService(modelId), token);
     });
+    /// <summary>只读取目录中所选服务模型的展示摘要, 成功、失败或取消均释放临时目标.</summary>
+    /// <param name="modelId">当前账号目录发布的不透明句柄.</param>
+    /// <param name="token">读取期间的取消令牌.</param>
+    /// <returns>本次服务实际返回的模型摘要, 不发布或保留连接.</returns>
+    public async Task<ModelSummary> ServiceSummaryAsync(string modelId, CancellationToken token)
+    {
+        var snapshot = await ServiceAsync(modelId, token);
+        try { token.ThrowIfCancellationRequested(); return snapshot.Summary; }
+        finally { reader.Forget(snapshot.ProjectPath); }
+    }
     /// <summary>宿主提交成功快照后撤销上一个模型的注册.</summary>
     public void Retain(string? id) => reader.Retain(id);
     /// <summary>宿主在提交前取消时撤销尚未生效的新目标.</summary>

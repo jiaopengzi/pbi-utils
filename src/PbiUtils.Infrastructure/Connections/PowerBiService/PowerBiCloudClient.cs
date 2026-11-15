@@ -76,7 +76,7 @@ public sealed class MsalPowerBiSignIn : IPowerBiSignIn
     }
 }
 /// <summary>按邮箱发现全球版和世纪互联, 认证及模型请求始终绑定同一受信任云环境.</summary>
-public sealed class PowerBiCloudClient : IPowerBiServiceClient, IDisposable
+public sealed partial class PowerBiCloudClient : IPowerBiServiceClient, IDisposable
 {
     private readonly HttpClient http;
     private readonly bool ownsHttp;
@@ -86,7 +86,7 @@ public sealed class PowerBiCloudClient : IPowerBiServiceClient, IDisposable
     private string? discoveredEmail;
     private Dictionary<string, PowerBiLoginConfiguration> discovered = [];
     private Dictionary<string, Entry> models = [];
-    private sealed record Entry(PowerBiServiceModel View, string Database, string Server, string DatabaseId);
+    private sealed record Entry(PowerBiServiceModel View, string Database, string Server, string DatabaseId, bool Personal);
     private static readonly Uri Api = new("https://api.powerbi.com/");
     public PowerBiAccount? Account => session is not null && configuration is not null
         ? session.Account with { EnvironmentName = configuration.EnvironmentName, EnvironmentLabel = configuration.EnvironmentLabel } : null;
@@ -205,7 +205,7 @@ public sealed class PowerBiCloudClient : IPowerBiServiceClient, IDisposable
             var xmla = workspaceInfo?.Premium == true && !personal && unavailable is null;
             var server = xmla ? new UriBuilder(cluster) { Scheme = "powerbi", Port = -1, Path = "/v1.0/myorg/" + Uri.EscapeDataString(workspace) }.Uri.AbsoluteUri
                 : "pbiazure://" + config.Backend.Host;
-            next[id] = new(new(id, name, workspace, unavailable, workspaceId, dbName), xmla ? name : database, server, dbName);
+            next[id] = new(new(id, name, workspace, unavailable, workspaceId, dbName), xmla ? name : database, server, dbName, personal);
             if (next.Count > 2000) throw new AppException("POWER_BI_CATALOG_LIMIT", "服务模型超过目录上限, 请改用指定 XMLA 端点", 3);
         }
         token.ThrowIfCancellationRequested();
@@ -217,13 +217,19 @@ public sealed class PowerBiCloudClient : IPowerBiServiceClient, IDisposable
     public async Task<PowerBiServiceTarget> ResolveAsync(string modelId, CancellationToken token) => await BusinessLog.RunAsync<PowerBiServiceTarget>(log, "PowerBiCloud.Resolve", async () =>
     {
         var auth = session ?? throw new AppException("POWER_BI_SIGN_IN_REQUIRED", "请先登录 Microsoft 工作或学校账号", 3);
-        if (!models.TryGetValue(modelId, out var model)) throw new AppException("INVALID_SERVICE_MODEL", "模型已失效, 请重新获取并选择", 3);
-        if (model.View.UnavailableReason is not null) throw new AppException("SERVICE_MODEL_UNSUPPORTED", model.View.UnavailableReason, 3);
+        var model = RequireModel(modelId);
         var (Value, ExpiresOn) = await auth.TokenAsync(token);
         token.ThrowIfCancellationRequested();
         if (!ReferenceEquals(auth, session)) throw new AppException("POWER_BI_SIGN_IN_REQUIRED", "登录状态已改变", 3);
         return new(model.Server, model.Database, $"{configuration!.Authority}, {configuration.Resource}, {configuration.ClientId}", Value, ExpiresOn, configuration.EnvironmentName + ":" + auth.AccountId, model.DatabaseId, model.View.Name);
     });
+    /// <summary>只接受当前目录发布且可读的模型句柄; 禁止猜测同名或使用前一个账号的条目.</summary>
+    private Entry RequireModel(string modelId)
+    {
+        if (!models.TryGetValue(modelId, out var model)) throw new AppException("INVALID_SERVICE_MODEL", "模型已失效, 请重新获取并选择", 3);
+        if (model.View.UnavailableReason is not null) throw new AppException("SERVICE_MODEL_UNSUPPORTED", model.View.UnavailableReason, 3);
+        return model;
+    }
     /// <summary>退出后旧模型句柄全部失效; 不影响系统浏览器账号.</summary>
     public async Task SignOutAsync(CancellationToken token, Action? committing = null)
     {

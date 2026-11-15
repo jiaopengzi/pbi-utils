@@ -9,6 +9,7 @@ using System.Data;
 using System.Globalization;
 using PbiUtils.Application;
 using PbiUtils.Core;
+using TOM = Microsoft.AnalysisServices.Tabular;
 
 namespace PbiUtils.Windows.Models.Statistics;
 
@@ -63,10 +64,42 @@ public static class ModelTableStatisticsParser
         return tables.Select(table =>
         {
             token.ThrowIfCancellationRequested();
-            var found = rows.GetValueOrDefault(table);
-            var count = found?.Count == 1 ? Integer(found[0], "DIMENSION_CARDINALITY") : null;
+            // 同一个表可由多个透视重复列出, 只有各条记录都确认了同一成员数时才使用该估计.
+            var counts = rows.GetValueOrDefault(table)?.Select(row => Integer(row, "DIMENSION_CARDINALITY")).Distinct().Take(2).ToArray();
+            var count = counts is { Length: 1 } ? counts[0] : null;
             return new ModelTableStatistics(table, count, null, count is not null);
         }).ToArray();
+    }
+
+    /// <summary>按表 ID 核验每个可读表的全部分区均为 Import; 无法确认的表不能采用驻留统计.</summary>
+    /// <param name="tables">已连接模型的表 ID 和名称行集.</param>
+    /// <param name="partitions">固定的分区表 ID 和模式行集, 不含查询定义.</param>
+    /// <param name="model">用于解析默认分区模式的可选模型行集.</param>
+    /// <param name="token">分组与遍历时检查的取消令牌.</param>
+    /// <returns>能用固定存储行集统计的表名称集合.</returns>
+    internal static HashSet<string> ImportTables(DataTable? tables, DataTable? partitions, DataTable? model, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        if (!Has(tables, "ID", "Name") || !Has(partitions, "TableID", "Mode")) return result;
+        var importByDefault = model is { Rows.Count: 1 } && Has(model, "DefaultMode") && Integer(model.Rows[0], "DefaultMode") == (long)TOM.ModeType.Import;
+        var grouped = new Dictionary<string, bool>(StringComparer.Ordinal);
+        foreach (DataRow row in partitions!.Rows)
+        {
+            token.ThrowIfCancellationRequested();
+            var id = Text(row, "TableID");
+            if (id.Length == 0) return result;
+            var mode = Integer(row, "Mode");
+            var imported = mode == (long)TOM.ModeType.Import || mode == (long)TOM.ModeType.Default && importByDefault;
+            grouped[id] = grouped.GetValueOrDefault(id, true) && imported;
+        }
+        foreach (var matching in tables!.Rows.Cast<DataRow>().GroupBy(row => Text(row, "Name"), StringComparer.Ordinal))
+        {
+            token.ThrowIfCancellationRequested();
+            if (matching.Key.Length > 0 && matching.Take(2).Count() == 1 && grouped.GetValueOrDefault(Text(matching.First(), "ID")))
+                result.Add(matching.Key);
+        }
+        return result;
     }
 
     /// <summary>聚合基础表行数与完整VertiPaq组成; 任一组成缺失、无效或歧义均不返回部分尺寸.</summary>

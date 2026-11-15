@@ -575,6 +575,20 @@
       "nonEmpty": []
     },
     {
+      "name": "desktop_powerbi_serviceModelSummary",
+      "readOnly": true,
+      "category": "prerequisite-rejected",
+      "arguments": {
+        "parameters": { "modelId": "0123456789abcdef0123456789abcdef" }
+      },
+      "errorCode": "POWER_BI_SIGN_IN_REQUIRED",
+      "fields": [],
+      "note": "Unsigned-in private host; requires the signed-in account's catalog handle",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
       "name": "desktop_powerbi_serviceRecentModels",
       "readOnly": true,
       "category": "prerequisite-rejected",

@@ -12,18 +12,20 @@
 .PARAMETER CreateDesktopShortcut 桌面入口选择, 仅接受 0 或 1, 默认 1; 卸载忽略创建选择.
 .PARAMETER CreateStartMenuShortcut 开始菜单入口选择, 仅接受 0 或 1, 默认 1.
 .PARAMETER RegistrationNonInteractive 静默安装或卸载使用 1, 登记权限不足直接失败, 不请求 UAC.
+.PARAMETER RemoveUserData 交互式卸载复选框的 0 或 1, 默认 0; 只删除当前用户的固定产品数据根.
 .NOTES 使用整数跨越 Windows PowerShell 5.1 -File 原生参数边界, 进入事务前转换为布尔值.
 #>
 param([Parameter(Mandatory = $true)][ValidateSet('Install', 'Uninstall')][string]$Operation,
     [Parameter(Mandatory = $true)][string]$InstallRoot, [string]$PayloadRoot,
     [ValidateSet(0, 1)][int]$CreateDesktopShortcut = 1, [ValidateSet(0, 1)][int]$CreateStartMenuShortcut = 1,
-    [ValidateSet(0, 1)][int]$RegistrationNonInteractive = 0)
+    [ValidateSet(0, 1)][int]$RegistrationNonInteractive = 0, [ValidateSet(0, 1)][int]$RemoveUserData = 0)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 try {
     Import-Module (Join-Path $PSScriptRoot 'Installation.psm1') -Force
     $result = Invoke-PbiApplicationInstallation -Operation $Operation -InstallRoot $InstallRoot -PayloadRoot $PayloadRoot `
-        -CreateDesktopShortcut ([bool]$CreateDesktopShortcut) -CreateStartMenuShortcut ([bool]$CreateStartMenuShortcut) -RegistrationNonInteractive ([bool]$RegistrationNonInteractive)
+        -CreateDesktopShortcut ([bool]$CreateDesktopShortcut) -CreateStartMenuShortcut ([bool]$CreateStartMenuShortcut) `
+        -RegistrationNonInteractive ([bool]$RegistrationNonInteractive) -RemoveUserData ([bool]$RemoveUserData)
     Write-Output ($result | ConvertTo-Json -Compress)
     exit 0
 } catch {

@@ -80,6 +80,7 @@ public sealed partial class BridgeSession
             case "powerbi.serviceSignIn":
             case "powerbi.serviceDeleteLogin":
             case "powerbi.serviceModels":
+            case "powerbi.serviceModelSummary":
             case "powerbi.serviceRecentModels":
             case "powerbi.serviceDeleteRecentModel":
             case "powerbi.serviceSignOut":

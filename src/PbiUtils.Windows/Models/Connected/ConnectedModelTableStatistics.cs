@@ -37,23 +37,43 @@ public sealed partial class ConnectedModelReader
         });
 
     /// <summary>只读取固定元数据; 非Import驻留部分不冒充整表统计, 明确计数另由用户所选表入口触发.</summary>
-    private static IReadOnlyList<ModelTableStatistics> ReadMetadataStatistics(ProjectSnapshot snapshot, IPowerBiTableStatisticsSession session, bool limited, CancellationToken token)
+    private static ModelTableStatistics[] ReadMetadataStatistics(ProjectSnapshot snapshot, IPowerBiTableStatisticsSession session, bool limited, CancellationToken token)
     {
         var names = snapshot.Model.Tables.Select(table => table.Name).ToArray();
-        if (limited)
-        {
-            using var dimensions = session.Read("MDSCHEMA_DIMENSIONS", token);
-            return ModelTableStatisticsParser.FromDimensions(names, dimensions, token);
-        }
         using var storage = session.Read("DISCOVER_STORAGE_TABLES", token);
         token.ThrowIfCancellationRequested();
-        using var columns = session.Read("DISCOVER_STORAGE_TABLE_COLUMNS", token);
-        token.ThrowIfCancellationRequested();
-        using var segments = session.Read("DISCOVER_STORAGE_TABLE_COLUMN_SEGMENTS", token);
-        token.ThrowIfCancellationRequested();
+        if (limited)
+        {
+            var imported = new HashSet<string>(StringComparer.Ordinal);
+            if (storage?.Rows.Count > 0)
+            {
+                using var tables = session.Read("TMSCHEMA_TABLES", token);
+                if (tables?.Rows.Count > 0)
+                {
+                    using var partitions = session.Read("TMSCHEMA_PARTITIONS", token);
+                    using var model = partitions?.Rows.Count > 0 ? session.Read("TMSCHEMA_MODEL", token) : null;
+                    imported = ModelTableStatisticsParser.ImportTables(tables, partitions, model, token);
+                }
+            }
+            var storageStatistics = imported.Count == 0 ? [] : ReadStorage(names.Where(imported.Contains).ToArray());
+            var exact = storageStatistics.ToDictionary(table => table.Table, StringComparer.Ordinal);
+            var missing = names.Where(name => !exact.TryGetValue(name, out var value) || value.RowCount is null).ToArray();
+            using var dimensions = missing.Length > 0 ? session.Read("MDSCHEMA_DIMENSIONS", token) : null;
+            var estimates = ModelTableStatisticsParser.FromDimensions(missing, dimensions, token).ToDictionary(table => table.Table, StringComparer.Ordinal);
+            return [.. names.Select(name => estimates.TryGetValue(name, out var estimate)
+                ? estimate with { SizeBytes = exact.GetValueOrDefault(name)?.SizeBytes } : exact[name])];
+        }
         var unavailable = session.UnavailableTables.ToHashSet(StringComparer.Ordinal);
-        return ModelTableStatisticsParser.FromStorage(names, storage, columns, segments, token)
-            .Select(table => unavailable.Contains(table.Table) ? table with { RowCount = null, SizeBytes = null } : table).ToArray();
+        return [.. ReadStorage(names)
+            .Select(table => unavailable.Contains(table.Table) ? table with { RowCount = null, SizeBytes = null } : table)];
+
+        // 只聚合固定存储组成; 统计不改变当前模型的定义或权限.
+        IReadOnlyList<ModelTableStatistics> ReadStorage(IReadOnlyList<string> tables)
+        {
+            using var columns = session.Read("DISCOVER_STORAGE_TABLE_COLUMNS", token);
+            using var segments = session.Read("DISCOVER_STORAGE_TABLE_COLUMN_SEGMENTS", token);
+            return ModelTableStatisticsParser.FromStorage(tables, storage, columns, segments, token);
+        }
     }
 
     /// <summary>元数据与显式计数共用唯一目标、前后基线、凭据范围和SDK生命周期, 不建立第二套身份验证通道.</summary>
@@ -126,7 +146,7 @@ public sealed partial class ConnectedModelReader
     private ModelTableStatisticsSession CreateStatisticsSession(ProjectSnapshot snapshot, Target target, PowerBiServiceTarget? service, bool ssas, CancellationToken token)
     {
         if (service?.Server.StartsWith("pbiazure://", StringComparison.Ordinal) == true)
-            return new ModelTableStatisticsSession(PowerBiSchemaReader.ConnectionString(service, includeCredential: true), null, logger: log);
+            return new ModelTableStatisticsSession(PowerBiSchemaReader.ConnectionString(service, includeCredential: true), null, logger: log, discoverDimensions: true);
         using var server = new TOM.Server();
         var settings = ExportConnection(target, service, ssas);
         if (service is not null) server.AccessToken = new(service.AccessToken, service.ExpiresOn, null);

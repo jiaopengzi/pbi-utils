@@ -42,6 +42,7 @@ public static class BusinessOperationCatalog
         new("powerbi.serviceDeleteLogin", true, true),
         new("powerbi.serviceSignOut", true, true),
         new("powerbi.serviceModels", false, false),
+        new("powerbi.serviceModelSummary", false, false),
         new("powerbi.serviceRecentModels", false, false),
         new("powerbi.serviceDeleteRecentModel", true, true),
         new("remote.form", false, false),
@@ -106,7 +107,7 @@ public static class BusinessOperationCatalog
     {
         "doctor", "app.info", "mcp.configuration",
         "ui.settings", "logging.settings", "powerbi.instances",
-        "powerbi.serviceStatus", "powerbi.serviceModels", "powerbi.serviceRecentModels",
+        "powerbi.serviceStatus", "powerbi.serviceModels", "powerbi.serviceModelSummary", "powerbi.serviceRecentModels",
         "remote.form", "project.recent", "project.inspect",
         "dax.format", "model.udfLint", "model.tableStatistics",
         "model.tableRowCounts", "model.exportLocation", "sample.status",

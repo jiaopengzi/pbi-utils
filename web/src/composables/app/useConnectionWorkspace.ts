@@ -51,6 +51,8 @@ export function useConnectionWorkspace(props: ConnectionWorkspaceProps, emit: Co
         switch (pendingMethod.value) {
             case "project.connectService":
                 return t("connection.connectingService")
+            case "powerbi.serviceModelSummary":
+                return t("connection.loadingModelSummary")
             case "powerbi.serviceSignIn":
                 return t(serviceLoginPhase.value === "discoveringEnvironment" ? "connection.discoveringEnvironment" : "connection.signingIn")
             case "powerbi.serviceDeleteLogin":
@@ -111,6 +113,7 @@ export function useConnectionWorkspace(props: ConnectionWorkspaceProps, emit: Co
         selectedModel,
         currentService,
         selectedIsCurrent,
+        selectedServiceSummary,
         modelLabel,
         loadModels,
         loadServiceRecents,
@@ -125,6 +128,7 @@ export function useConnectionWorkspace(props: ConnectionWorkspaceProps, emit: Co
         recentStorageWarning,
         call,
         run,
+        runPreview: (action) => run(action, true, false),
         getActiveProject: () => props.activeProject,
         isMounted: () => mounted,
         accept,
@@ -162,27 +166,28 @@ export function useConnectionWorkspace(props: ConnectionWorkspaceProps, emit: Co
         remoteConnecting.value = false
         cancellationRequested.value = false
         const request =
-            method === "project.open" || method === "powerbi.serviceSignIn"
+            method === "project.open" || method === "powerbi.serviceSignIn" || method === "powerbi.serviceModelSummary"
                 ? props.bridge.request(method, params, undefined, (phase) => {
                       if (!mounted || pendingMethod.value !== method || !requestLoading.value) return
                       if (phase === "connecting") remoteConnecting.value = true
                       if (phase === "discoveringEnvironment" || phase === "authenticating") serviceLoginPhase.value = phase
+                      if (phase === "canceling") cancellationRequested.value = true
                   })
                 : props.bridge.request(method, params)
         requestId.value = request.id
         return await request.promise
     }
-    /** 执行操作并保留原模型; showProgress 仅控制在途消息, 后台核验仍保留操作锁及错误. */
-    async function run(action: () => Promise<void>, showProgress = true) {
+    /** 执行操作并保留原模型; 预读失败仅保留未读取的摘要, 不覆盖显式操作错误. */
+    async function run(action: () => Promise<void>, showProgress = true, reportError = true) {
         if (blocked.value) return
         operationMessageVisible.value = showProgress
         setBusy(true)
-        error.value = ""
+        if (reportError) error.value = ""
         cancellationRequested.value = false
         try {
             await action()
         } catch (e) {
-            if (mounted) {
+            if (mounted && reportError) {
                 const message = e instanceof Error ? e.message : t("connection.failed")
                 if (e instanceof BridgeError && e.code === "CANCELLED") showFeedback({ message, type: "info" })
                 else error.value = message
@@ -250,6 +255,7 @@ export function useConnectionWorkspace(props: ConnectionWorkspaceProps, emit: Co
         source,
         async (current) => {
             error.value = ""
+            if (pendingMethod.value === "powerbi.serviceModelSummary") void cancel()
             if (current !== "service") return
             serviceRecents.value = []
             recentStorageWarning.value = ""
@@ -298,6 +304,7 @@ export function useConnectionWorkspace(props: ConnectionWorkspaceProps, emit: Co
         currentService,
         currentServer,
         selectedIsCurrent,
+        selectedServiceSummary,
         modelLabel,
         setInstanceBusy,
         setRemoteBusy,

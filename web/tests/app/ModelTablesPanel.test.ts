@@ -76,7 +76,7 @@ it("受限Service可选择导出时仍只读, 关系/隐藏/UDF未知事实保�
             .findAll('[role="tab"]')
             .find((tab) => tab.text() === "UDF")!
             .trigger("click")
-        expect(wrapper.text()).toContain("不提供兼容级别或 UDF 定义")
+        expect(wrapper.text()).toContain("不提供 UDF 定义")
         expect(wrapper.text()).not.toContain("0 个模型函数")
     } finally {
         wrapper.unmount()

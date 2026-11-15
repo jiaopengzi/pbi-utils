@@ -171,7 +171,7 @@ useMessageNotices("measures-panel", () => [
                             current ? t("model.formatLocal") : t("model.formatBatch")
                         }}</el-button
                         ><el-button type="danger" plain :disabled="blocked" :loading="busy && activeOperation === 'delete'" @click="deleteSelected">{{
-                            t("model.deleteCount", { count: chosen.length })
+                            current ? t("model.deleteMeasure") : t("model.deleteCount", { count: chosen.length })
                         }}</el-button>
                     </div>
                     <MeasureFields

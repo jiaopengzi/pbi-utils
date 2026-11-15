@@ -98,6 +98,8 @@ public interface IPowerBiServiceClient
     Task<IReadOnlyList<PowerBiServiceModel>> ModelsAsync(CancellationToken token);
     /// <summary>只解析当前账号已发布的模型, 令牌由后端刷新.</summary>
     Task<PowerBiServiceTarget> ResolveAsync(string modelId, CancellationToken token);
+    /// <summary>按当前账号授权读取同工作区关联报表的页数; 服务未提供时返回 null.</summary>
+    Task<int?> ReadReportPageCountAsync(string modelId, CancellationToken token) => Task.FromResult<int?>(null);
     /// <summary>清除本应用的账号和内存缓存.</summary>
     Task SignOutAsync(CancellationToken token, Action? committing = null);
 }
@@ -106,6 +108,12 @@ public sealed class PowerBiServiceConnection(IPowerBiServiceClient client, ILogg
     IPowerBiRecentModelStore? recentModelStore = null)
 {
     private readonly ILogger log = logger ?? NullLogger<PowerBiServiceConnection>.Instance;
+
+    /// <summary>只读取所选目录模型的关联报表页数, 不更改会话、目录或最近连接.</summary>
+    /// <param name="modelId">当前账号已发布的后端句柄.</param>
+    /// <param name="token">本次读取的原请求取消令牌.</param>
+    /// <returns>同工作区可访问关联报表的已核实页数; 接口不可用时为 null.</returns>
+    public Task<int?> ReadReportPageCountAsync(string modelId, CancellationToken token) => client.ReadReportPageCountAsync(modelId, token);
     private IReadOnlyList<PowerBiServiceModel> catalog = [];
     private string? catalogAccountId;
     private string? catalogEnvironment;

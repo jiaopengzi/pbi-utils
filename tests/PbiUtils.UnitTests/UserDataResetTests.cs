@@ -35,6 +35,38 @@ public sealed class UserDataResetTests : IDisposable
         Assert.Equal("user-project-preserved", await File.ReadAllTextAsync(project));
     }
 
+    /// <summary>卸载明确选择后删除数据根本身, 保护同层协调目录和外部工程, 并允许重试已完成的清理.</summary>
+    [Fact]
+    public async Task UninstallRemovesOnlyDataRootAndAllowsRetryWhenMissing()
+    {
+        Write("Templates/custom/template.txt", "isolated-test-content");
+        var coordination = Path.Combine(temporary, ".pbi-utils-runtime");
+        Directory.CreateDirectory(coordination);
+        var project = Path.Combine(temporary, "external.pbip");
+        await File.WriteAllTextAsync(project, "user-project-preserved");
+
+        await new UserDataReset(Root).RemoveForUninstallAsync(default);
+        await new UserDataReset(Root).RemoveForUninstallAsync(default);
+
+        Assert.False(Directory.Exists(Root));
+        Assert.True(Directory.Exists(coordination));
+        Assert.Equal("user-project-preserved", await File.ReadAllTextAsync(project));
+    }
+
+    /// <summary>其他安装仍在使用同一个数据根时, 清理先拒绝且释放本轮预约, 用户可正常关闭后重试.</summary>
+    [Fact]
+    public async Task UninstallRejectsActiveDataSessionBeforeRemovingAnyFile()
+    {
+        var preserved = Write("custom.txt", "original");
+        using var existing = new LoggingRuntime(Root, "test");
+
+        var error = await Assert.ThrowsAsync<AppException>(() => new UserDataReset(Root).RemoveForUninstallAsync(default));
+
+        Assert.Equal("USER_DATA_BUSY", error.Code);
+        Assert.Equal("original", await File.ReadAllTextAsync(preserved));
+        Assert.False(UserDataSessionLease.IsMaintenanceReserved(Root));
+    }
+
     /// <summary>任何文件仍被占用时先完成整体验证再拒绝, 排序在其前面的其他内容也不得先删除.</summary>
     [Fact]
     public async Task LockedFileRejectsBeforeAnyDeletionAndCanResetAfterRelease()
