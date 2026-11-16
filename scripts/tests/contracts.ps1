@@ -389,6 +389,25 @@ try {
         try { Assert-PbiGateRunning $mixedGate; throw '检查点未停止' }
         catch { Assert ($_.Exception -is [OperationCanceledException] -and $_.Exception.Data.Contains('PbiGateCheckpoint')) '检查点在已有取消时必须按取消抛出' }
         Assert ((Get-PbiGateStopReason $mixedGate) -ceq 'cancelled') '清理方式在已有取消时必须选择排空'
+        # 异步批处理的子语句可先进入 Completed, 整个看护仍未结束.
+        $watchdogCompletion = [Threading.Tasks.TaskCompletionSource[bool]]::new()
+        $watchdogGate = [pscustomobject]@{
+            Lanes = [Collections.Generic.List[object]]::new()
+            State = @{ Trigger = $null }
+            Watchdog = [pscustomobject]@{
+                Handle = $watchdogCompletion.Task
+                PowerShell = [pscustomobject]@{
+                    InvocationStateInfo = [pscustomobject]@{ State = [Management.Automation.PSInvocationState]::Completed; Reason = $null }
+                    Streams = [pscustomobject]@{ Error = @() }
+                }
+            }
+        }
+        Assert-PbiGateRunning $watchdogGate
+        $watchdogCompletion.SetResult($true)
+        $watchdogFailure = $null
+        try { Assert-PbiGateRunning $watchdogGate }
+        catch { $watchdogFailure = $_ }
+        Assert ($null -ne $watchdogFailure -and (Get-PbiExitCode $watchdogFailure.Exception) -eq 4 -and $watchdogFailure.Exception.Message.Contains('并行门禁看护未运行')) '异步看护真正结束后必须阻止后续阶段'
         # 主流程在门禁中且已有失败时, 原生命令在启动前被拒绝.
         $failedGate = New-PbiVerificationGate $options
         $sentinel = Join-Path ([IO.Path]::GetTempPath()) ('pbi-gate-native-' + [Guid]::NewGuid().ToString('N'))

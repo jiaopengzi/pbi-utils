@@ -761,17 +761,6 @@ function New-PbiGateLaneException([pscustomobject]$Lane, [bool]$Checkpoint) {
 }
 
 <#
-.SYNOPSIS 判断看护是否仍在运行; 进程内同步通道没有看护时视为正常.
-.PARAMETER Gate 当前并行门禁上下文.
-.OUTPUTS 看护 runspace 处于未开始或运行中返回 $true; 已结束、失败或停止返回 $false.
-#>
-function Test-PbiGateWatchdogRunning([pscustomobject]$Gate) {
-    if ($null -eq $Gate.Watchdog) { return $true }
-    $invocation = $Gate.Watchdog.PowerShell.InvocationStateInfo.State
-    return $invocation -eq [Management.Automation.PSInvocationState]::Running -or $invocation -eq [Management.Automation.PSInvocationState]::NotStarted
-}
-
-<#
 .SYNOPSIS 不抛出地判断门禁是否应结束主流程在途原生命令, 供其轮询.
 .PARAMETER Gate 当前并行门禁上下文.
 .OUTPUTS 有通道以 130 结束时返回 cancelled (取消优先); 已记录失败来源或有未被终止的失败通道时返回 failed; 否则返回 null.
@@ -793,7 +782,7 @@ function Get-PbiGateStopReason([pscustomobject]$Gate) {
 .PARAMETER Gate 当前并行门禁上下文.
 .NOTES 已结束的通道中任一以 130 取消即按取消抛出 (取消优先, 使门禁按取消排空); 否则按规范阶段顺序选择首个失败, 被快速失败终止的通道不计入.
        看护已记录失败来源但通道尚无结论时按该来源停止. 这些异常带 PbiGateCheckpoint 标记, 汇总时只代表已记录的结果.
-       看护未运行时无法保证快速失败, 作为门禁自身失败抛出.
+       看护异步调用已结束时无法保证快速失败, 作为门禁自身失败抛出.
 #>
 function Assert-PbiGateRunning([pscustomobject]$Gate) {
     Update-PbiGateLanes $Gate
@@ -812,9 +801,10 @@ function Assert-PbiGateRunning([pscustomobject]$Gate) {
         $stopped.Data['PbiGateCheckpoint'] = $true
         throw $stopped
     }
-    if (!(Test-PbiGateWatchdogRunning $Gate)) {
-        $reason = $Gate.Watchdog.PowerShell.InvocationStateInfo.Reason
-        $detail = if ($null -ne $reason) { $reason.Message } elseif ($Gate.Watchdog.PowerShell.Streams.Error.Count) { $Gate.Watchdog.PowerShell.Streams.Error[0].ToString() } else { $Gate.Watchdog.PowerShell.InvocationStateInfo.State.ToString() }
+    # PowerShell 批处理在加载模块与运行看护之间会短暂进入 Completed, 异步句柄才表示整个调用是否结束.
+    if ($null -ne $Gate.Watchdog -and $Gate.Watchdog.Handle.IsCompleted) {
+        $invocation = $Gate.Watchdog.PowerShell.InvocationStateInfo
+        $detail = if ($null -ne $invocation.Reason) { $invocation.Reason.Message } elseif ($Gate.Watchdog.PowerShell.Streams.Error.Count) { $Gate.Watchdog.PowerShell.Streams.Error[0].ToString() } else { $invocation.State.ToString() }
         Stop-Pbi 4 "并行门禁看护未运行, 无法保证首个失败立即终止其余阶段: $detail"
     }
 }
