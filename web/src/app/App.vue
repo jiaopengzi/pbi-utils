@@ -235,7 +235,7 @@ useMessageNotices("application-workspace", () => [
                     />
                     <SamplePanel v-else-if="page === 'sample' && bridge" :bridge="bridge" @busy="operationBusy = $event" />
                     <LearningPanel v-else-if="page === 'learning' && bridge" :bridge="bridge" :disabled="busy" @busy="operationBusy = $event" />
-                    <UiPanel v-else class="empty"
+                    <UiPanel v-else class="connect-first-panel"
                         ><el-empty :description="t('app.connectFirst')" :image-size="88"
                             ><p>{{ t("app.accessBoundary") }}</p>
                             <el-button type="primary" :disabled="busy || !bridge" @click="navigate('connections')">{{

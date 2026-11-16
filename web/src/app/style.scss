@@ -369,6 +369,20 @@ p {
 .panel-body {
     min-width: 0;
 }
+.content:has(> .connect-first-panel) {
+    display: grid;
+    padding-block: clamp(20px, 2.2vw, 32px);
+}
+.panel.connect-first-panel {
+    // Element Plus 卡片默认使用纵向 flex, 此处在卡片内居中整组提示.
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: safe center;
+    margin-bottom: 0;
+}
+.connect-first-panel .el-empty {
+    text-align: center;
+}
 .panel h2 {
     font-size: 16px;
     margin: 0 0 16px;

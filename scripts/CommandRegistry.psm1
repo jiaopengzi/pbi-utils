@@ -94,6 +94,7 @@ function Show-PbiHelp {
     Write-Host '  .\run.ps1 -Choice checkAll                             # 只读检查'
     Write-Host '  .\run.ps1 -Choice testAll                              # 运行测试'
     Write-Host '  .\run.ps1 -Choice verifyAndBuild                       # 完整验证并构建'
+    Write-Host '  .\run.ps1 -Choice buildAll -Configuration Debug        # 构建调试版本 F12打开开发者工具'
     Write-Host '  日常修改可先开发预览并执行相关检查和测试；需要交付安装包时再执行 release。'
     Write-Host ''
     Write-Host '生成轻量安装包'
