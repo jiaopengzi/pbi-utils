@@ -9,6 +9,7 @@
 import { computed, onBeforeUnmount, provide, ref, useId, watch } from "vue"
 import { useI18n } from "@/composables/i18n/useI18n"
 import { useFeedback } from "@/composables/ui/useFeedback"
+import UiIcon from "@/ui/UiIcon.vue"
 import CodeEditor from "../code/CodeEditor.vue"
 import ScaffoldField from "./ScaffoldField.vue"
 import type { TemplateQueryDefinition } from "./contracts"
@@ -134,7 +135,7 @@ onBeforeUnmount(() => {
                     :class="{ 'operation-lock': disabled }"
                     :aria-label="t('scaffold.queryCopy', { name: query.id })"
                     @click="copy(query)"
-                    >{{ t("model.copy") }}</el-button
+                    ><UiIcon name="copy" monochrome />{{ t("model.copy") }}</el-button
                 >
             </div>
             <p class="muted">{{ t(`scaffold.query${query.id}`) }}</p>

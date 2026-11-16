@@ -10,6 +10,7 @@ import { onMounted, onUnmounted, ref, watch } from "vue"
 import type { BridgeClient, Methods } from "@/bridge/client"
 import { setUiSettings } from "@/i18n"
 import { useI18n } from "@/composables/i18n/useI18n"
+import UiIcon from "@/ui/UiIcon.vue"
 import UiPanel from "@/ui/UiPanel.vue"
 import { useMessageNotices } from "@/composables/ui/useMessageNotices"
 import { useFeedback, useOperationMessage } from "@/composables/ui/useFeedback"
@@ -132,7 +133,7 @@ useMessageNotices(
             </el-form-item>
         </el-form>
 
-        <el-button v-if="!settings && !busy" @click="update()">{{ t("uiSettings.retry") }}</el-button>
+        <el-button v-if="!settings && !busy" @click="update()"><UiIcon name="refresh-cw" monochrome />{{ t("uiSettings.retry") }}</el-button>
     </UiPanel>
 </template>
 <style scoped lang="scss">

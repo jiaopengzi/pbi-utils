@@ -11,6 +11,7 @@ import UdfLibraryCard from "./UdfLibraryCard.vue"
 import UdfLocalBrowser from "./UdfLocalBrowser.vue"
 import UdfFunctionPageActions from "./UdfFunctionPageActions.vue"
 import { useI18n } from "@/composables/i18n/useI18n"
+import UiIcon from "@/ui/UiIcon.vue"
 import type { UdfState } from "@/composables/features/scaffold/useUdfState"
 import type { UdfCatalog } from "@/composables/features/scaffold/useUdfCatalog"
 import type { LocalUdfLibrary } from "@/composables/features/scaffold/useLocalUdfLibrary"
@@ -66,7 +67,7 @@ const hasLocalMatches = computed(() => locals.value.some((item) => matchUdfName(
             :class="{ 'operation-lock': operationLocked || busy }"
             :disabled="locked || uncertain || !currentSource || (catalogStatus?.initialized === false && !locals.length)"
             @click="catalog.search"
-            >{{ t("scaffold.search") }}</el-button
+            ><UiIcon name="search" monochrome />{{ t("scaffold.search") }}</el-button
         >
     </div>
     <section class="udf-browser">

@@ -9,6 +9,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue"
 import { useI18n } from "@/composables/i18n/useI18n"
 import type { BridgeClient, LoggingView, LogLevel } from "../bridge/client"
+import UiIcon from "@/ui/UiIcon.vue"
 import UiPanel from "@/ui/UiPanel.vue"
 import { useMessageNotices } from "@/composables/ui/useMessageNotices"
 import { useFeedback, useOperationMessage } from "@/composables/ui/useFeedback"
@@ -122,14 +123,14 @@ useMessageNotices(
                 <p class="hint">{{ t("logging.levelHint") }}</p>
             </el-form-item>
             <el-form-item class="log-directory" :label="t('logging.directory')">
-                <el-button :loading="busy && operation === 'opening'" :disabled="busy || !settings" @click="openDirectory">{{
-                    t("logging.openDirectory")
-                }}</el-button>
+                <el-button :loading="busy && operation === 'opening'" :disabled="busy || !settings" @click="openDirectory">
+                    <UiIcon name="folder-open" monochrome />{{ t("logging.openDirectory") }}
+                </el-button>
                 <p class="log-path">{{ settings ? (settings.isSimulation ? hostText(settings.directory) : settings.directory) : "-" }}</p>
                 <p class="hint">{{ t("logging.retentionHint") }}</p>
             </el-form-item>
         </el-form>
-        <el-button v-if="!settings && !busy" @click="update()">{{ t("logging.retry") }}</el-button>
+        <el-button v-if="!settings && !busy" @click="update()"><UiIcon name="refresh-cw" monochrome />{{ t("logging.retry") }}</el-button>
     </UiPanel>
 </template>
 <style scoped lang="scss">

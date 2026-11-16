@@ -8,6 +8,7 @@
 <script setup lang="ts">
 import type { ProjectSnapshot } from "@/bridge/client"
 import CodeBlock from "@/features/code/CodeBlock.vue"
+import UiIcon from "@/ui/UiIcon.vue"
 import UiPanel from "@/ui/UiPanel.vue"
 import UiDialog from "@/ui/UiDialog.vue"
 import { measureExpressionForEditor } from "@/features/code/measureExpression"
@@ -73,7 +74,9 @@ useMessageNotices("measures-panel", () => [
         </div>
         <div class="measure-toolbar">
             <el-input v-model="query" :disabled="busy" clearable :aria-label="t('model.searchLabel')" :placeholder="t('model.searchPlaceholder')" />
-            <el-button v-if="!readOnly" :disabled="blocked || !project.model.tables.length" @click="startCreate">{{ t("model.newMeasure") }}</el-button>
+            <el-button v-if="!readOnly" :disabled="blocked || !project.model.tables.length" @click="startCreate">
+                <UiIcon name="plus" monochrome />{{ t("model.newMeasure") }}
+            </el-button>
         </div>
         <div
             :ref="listResize.layoutRef"
@@ -114,7 +117,8 @@ useMessageNotices("measures-panel", () => [
                 <template v-if="creating && !readOnly">
                     <h3>{{ t("model.createCount", { count: drafts.length }) }}</h3>
                     <div class="actions">
-                        <el-button :disabled="blocked || drafts.length >= 128" @click="addDraft">{{ t("model.addOne") }}</el-button
+                        <el-button :disabled="blocked || drafts.length >= 128" @click="addDraft">
+                            <UiIcon name="plus" monochrome />{{ t("model.addOne") }}</el-button
                         ><el-button :disabled="blocked" :loading="busy && activeOperation === 'format'" @click="format">{{ t("model.formatLocal") }}</el-button
                         ><el-button type="primary" :disabled="blocked" :loading="busy && activeOperation === 'create'" @click="saveCreates">{{
                             t("model.createSave")

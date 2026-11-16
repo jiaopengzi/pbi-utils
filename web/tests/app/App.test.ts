@@ -96,7 +96,7 @@ it("未连接业务页通过连接页返回三种连接入口, 不打开连接�
     await wrapper.get('nav button[aria-label="模型"]').trigger("click")
     await flushPromises()
     expect(wrapper.find(".connection-center").exists()).toBe(false)
-    await wrapper.get(".empty button").trigger("click")
+    await wrapper.get(".connect-first-panel button").trigger("click")
     await flushPromises()
     expect(wrapper.get('nav button[aria-label="连接"]').attributes("aria-current")).toBe("page")
     expect(wrapper.findAll(".connection-center")).toHaveLength(1)

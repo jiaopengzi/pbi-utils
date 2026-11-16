@@ -11,6 +11,7 @@ import type { BridgeClient } from "@/bridge/client"
 import { useProductUpdates, type ProductUpdates } from "@/composables/app/useProductUpdates"
 import { useI18n } from "@/composables/i18n/useI18n"
 import { useOperationMessage } from "@/composables/ui/useFeedback"
+import UiIcon from "@/ui/UiIcon.vue"
 import UiPanel from "@/ui/UiPanel.vue"
 import { productReleaseName } from "./productReleaseName"
 
@@ -113,11 +114,11 @@ onUnmounted(() => cancelCheck(true))
                 </el-select>
             </div>
             <div class="update-actions">
-                <el-button data-action="check" type="primary" :loading="checking" :disabled="settingsDisabled || checking" @click="check(false)">{{
-                    t("updates.check")
-                }}</el-button>
-                <el-button data-action="release" @click="open()">{{ t("updates.release") }}</el-button>
-                <el-button v-if="!state && !loading" @click="load">{{ t("updates.retry") }}</el-button>
+                <el-button data-action="check" type="primary" :loading="checking" :disabled="settingsDisabled || checking" @click="check(false)">
+                    <UiIcon name="refresh-cw" monochrome />{{ t("updates.check") }}
+                </el-button>
+                <el-button data-action="release" @click="open()"><UiIcon name="external-link" monochrome />{{ t("updates.release") }}</el-button>
+                <el-button v-if="!state && !loading" @click="load"><UiIcon name="refresh-cw" monochrome />{{ t("updates.retry") }}</el-button>
             </div>
         </form>
         <dl class="update-details">

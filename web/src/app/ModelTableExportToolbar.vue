@@ -7,6 +7,7 @@
 -->
 <script setup lang="ts">
 import type { ModelExportLocation } from "@/bridge/client"
+import UiIcon from "@/ui/UiIcon.vue"
 import { vNumberAccessibility } from "@/ui/numberAccessibility"
 import { useI18n } from "@/composables/i18n/useI18n"
 const props = defineProps<{
@@ -94,8 +95,9 @@ const { t, locale } = useI18n()
                 :loading="busy"
                 :class="{ 'operation-lock': locked && exportAvailable && validLimit }"
                 @click="emit('export')"
-                >{{ t("model.exportSelected") }}</el-button
             >
+                <UiIcon name="download" monochrome />{{ t("model.exportSelected") }}
+            </el-button>
         </div>
         <div v-if="props.location?.displayPath" class="export-location">
             <div>
@@ -108,8 +110,9 @@ const { t, locale } = useI18n()
                 :loading="opening"
                 :title="location?.warning ?? undefined"
                 @click="emit('openDirectory')"
-                >{{ t("model.exportOpenDirectory") }}</el-button
             >
+                <UiIcon name="folder-open" monochrome />{{ t("model.exportOpenDirectory") }}
+            </el-button>
         </div>
     </section>
 </template>

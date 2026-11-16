@@ -275,9 +275,15 @@ it.each(["zh-cn", "en-us"])("移除说明和刷新入口, %s 的全部动作按�
     expect(wrapper.findAll(".sample-directory-row > .el-button")).toHaveLength(2)
     expect(wrapper.find(".sample-language").exists()).toBe(false)
     expect(wrapper.find(".el-select").exists()).toBe(false)
-    for (const action of wrapper.findAll(".sample-directory-row button, .sample-actions button, .sample-cutoff button")) {
-        expect(action.find("img.ui-icon").attributes("src")).toMatch(/^\/icons\/[a-z0-9-]+\.svg$/)
-    }
+    expect(wrapper.findAll(".sample-directory-row button .ui-icon--monochrome").map((icon) => icon.attributes("style"))).toEqual([
+        expect.stringContaining("/icons/folder.svg"),
+        expect.stringContaining("/icons/folder-open.svg"),
+    ])
+    expect(wrapper.get(".sample-cutoff button img.ui-icon").attributes("src")).toBe("/icons/arrow-right.svg")
+    const actionIcons = wrapper.findAll(".sample-actions button .ui-icon--monochrome")
+    expect(actionIcons.map((icon) => icon.attributes("style"))).toEqual(
+        ["database", "calendar-plus", "trash-2"].map((name) => expect.stringContaining(`/icons/${name}.svg`)),
+    )
     expect(wrapper.text()).not.toContain("Refresh Results")
     expect(wrapper.text()).not.toContain("11 related tables")
     wrapper.unmount()

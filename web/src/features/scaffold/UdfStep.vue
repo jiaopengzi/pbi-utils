@@ -11,6 +11,7 @@ import type { BridgeClient } from "@/bridge/client"
 import { scrollToWorkspaceSection } from "@/ui/scrollToWorkspaceSection"
 import { useI18n } from "@/composables/i18n/useI18n"
 import { useMessageNotices } from "@/composables/ui/useMessageNotices"
+import UiIcon from "@/ui/UiIcon.vue"
 import ScaffoldField from "./ScaffoldField.vue"
 import UdfFunctionList from "./UdfFunctionList.vue"
 import UdfLocalBrowser from "./UdfLocalBrowser.vue"
@@ -114,7 +115,7 @@ onMounted(async () => {
                     :class="{ 'operation-lock': operationLocked || busy }"
                     :disabled="locked || state.uncertain.value"
                     @click="cache.refresh"
-                    >{{ t("scaffold.refreshSource") }}</el-button
+                    ><UiIcon name="refresh-cw" monochrome />{{ t("scaffold.refreshSource") }}</el-button
                 >
                 <el-button :disabled="locked" :class="{ 'operation-lock': operationLocked || busy }" @click="jumpTo(selectedSection)">
                     {{ t("scaffold.selectedFunctionsLink", { count: selectionCount }) }}
@@ -162,9 +163,9 @@ onMounted(async () => {
                     <header class="udf-list-heading">
                         <h4>{{ t("scaffold.local") }}</h4>
                         <div class="scaffold-toolbar udf-list-actions">
-                            <el-button :class="{ 'operation-lock': operationLocked || busy }" :disabled="locked" @click="listLocal">{{
-                                t("scaffold.refresh")
-                            }}</el-button>
+                            <el-button :class="{ 'operation-lock': operationLocked || busy }" :disabled="locked" @click="listLocal"
+                                ><UiIcon name="refresh-cw" monochrome />{{ t("scaffold.refresh") }}</el-button
+                            >
                             <el-button
                                 :class="{ 'operation-lock': operationLocked || busy }"
                                 :disabled="locked || !state.currentSource.value"

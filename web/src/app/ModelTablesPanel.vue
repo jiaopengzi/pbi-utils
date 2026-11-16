@@ -7,6 +7,7 @@
 -->
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue"
+import UiIcon from "@/ui/UiIcon.vue"
 import UiPanel from "@/ui/UiPanel.vue"
 import UiSearchHighlight from "@/ui/UiSearchHighlight.vue"
 import ModelTableDetails from "./ModelTableDetails.vue"
@@ -98,9 +99,9 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
                 <el-button v-if="deletion.writable.value" class="table-edit-button" :disabled="locked" @click="perform(() => emit('edit'))">{{
                     t("model.editCurrent")
                 }}</el-button>
-                <el-button :disabled="locked" :class="{ 'operation-lock': locked }" @click="perform(statistics.refresh)">{{
-                    t("model.statisticsRefresh")
-                }}</el-button>
+                <el-button :disabled="locked" :class="{ 'operation-lock': locked }" @click="perform(statistics.refresh)">
+                    <UiIcon name="refresh-cw" monochrome />{{ t("model.statisticsRefresh") }}
+                </el-button>
             </div>
         </div>
         <ModelTableExportToolbar
@@ -129,8 +130,9 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
                 :loading="deletion.busy.value"
                 :class="{ 'operation-lock': locked && selectedTables.length > 0 }"
                 @click="perform(deletion.deleteSelected)"
-                >{{ t("model.deleteSelectedTables") }}</el-button
             >
+                <UiIcon name="trash-2" monochrome />{{ t("model.deleteSelectedTables") }}
+            </el-button>
         </div>
         <p class="table-search-summary" role="status">
             {{

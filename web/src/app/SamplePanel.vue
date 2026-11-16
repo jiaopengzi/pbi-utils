@@ -109,8 +109,10 @@ useMessageNotices("sample-panel", () => [
                             :loading="active === 'choose'"
                             :disabled="busy"
                             @click="inspect(true)"
-                            ><UiIcon name="folder" />{{ text.choose }}</el-button
-                        ><el-button :disabled="busy || !state?.outputPath" @click="openDirectory"><UiIcon name="folder" />{{ text.open }}</el-button>
+                            ><UiIcon name="folder" monochrome />{{ text.choose }}</el-button
+                        ><el-button :disabled="busy || !state?.outputPath" @click="openDirectory">
+                            <UiIcon name="folder-open" monochrome />{{ text.open }}</el-button
+                        >
                     </div>
                 </el-form-item>
                 <div v-if="state?.lastFactDate" class="sample-cutoff">
@@ -120,16 +122,16 @@ useMessageNotices("sample-panel", () => [
 
                 <div class="sample-actions">
                     <el-button type="primary" native-type="submit" :loading="active === 'full'" :disabled="!canGenerate"
-                        ><UiIcon name="database" />{{ text.generate }}</el-button
+                        ><UiIcon name="database" monochrome />{{ text.generate }}</el-button
                     ><el-button
                         type="primary"
                         plain
                         :loading="active === 'incremental'"
                         :disabled="!canGenerate || !state?.hasData"
                         @click="generate('incremental')"
-                        ><UiIcon name="calendar-days" />{{ text.incremental }}</el-button
+                        ><UiIcon name="calendar-plus" monochrome />{{ text.incremental }}</el-button
                     ><el-button type="danger" plain :disabled="busy || !state?.hasData" :loading="active === 'clear'" @click="clear"
-                        ><UiIcon name="trash-2" />{{ text.clear }}</el-button
+                        ><UiIcon name="trash-2" monochrome />{{ text.clear }}</el-button
                     >
                 </div>
             </el-form>

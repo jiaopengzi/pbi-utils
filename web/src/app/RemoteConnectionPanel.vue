@@ -9,6 +9,7 @@
 import { useTemplateRef } from "vue"
 import type { ProjectSnapshot } from "@/bridge/client"
 import { useMessageNotices } from "@/composables/ui/useMessageNotices"
+import UiIcon from "@/ui/UiIcon.vue"
 import { useRemoteConnection, type RemoteConnectionProps } from "@/composables/app/useRemoteConnection"
 const formRoot = useTemplateRef<HTMLElement>("formRoot")
 const props = defineProps<RemoteConnectionProps>()
@@ -64,7 +65,7 @@ useMessageNotices("remote-connection-panel", () => [
                         :disabled="blocked || !context?.formId || !selectedRecent"
                         :class="{ 'operation-lock': preserveAppearance && !!selectedRecent }"
                         @click="mutate('delete')"
-                        >{{ t("hostDialog.delete") }}</el-button
+                        ><UiIcon name="trash-2" monochrome />{{ t("hostDialog.delete") }}</el-button
                     >
                     <el-button
                         :disabled="blocked || !context?.formId || !selectedRecent?.hasSavedPassword"
@@ -143,14 +144,16 @@ useMessageNotices("remote-connection-panel", () => [
             </div>
             <p v-show="explicitWindows" class="remote-connection__hint">{{ t("hostDialog.passwordHint") }}</p>
             <div class="remote-connection__actions">
-                <el-button v-if="!context?.formId && !connecting" :disabled="blocked" @click="loadForm">{{ t("connection.retryRemote") }}</el-button>
+                <el-button v-if="!context?.formId && !connecting" :disabled="blocked" @click="loadForm">
+                    <UiIcon name="refresh-cw" monochrome />{{ t("connection.retryRemote") }}
+                </el-button>
                 <el-button
                     type="primary"
                     :loading="connecting"
                     :disabled="blocked || !canSubmit"
                     :class="{ 'operation-lock': preserveAppearance && (validValues || connecting) }"
                     @click="connect"
-                    >{{ t("hostDialog.connect") }}</el-button
+                    ><UiIcon name="plug" monochrome />{{ t("hostDialog.connect") }}</el-button
                 >
             </div>
         </el-form>

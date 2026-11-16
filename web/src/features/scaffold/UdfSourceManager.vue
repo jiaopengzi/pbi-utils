@@ -7,6 +7,7 @@
 -->
 <script setup lang="ts">
 import UiDialog from "@/ui/UiDialog.vue"
+import UiIcon from "@/ui/UiIcon.vue"
 import { useI18n } from "@/composables/i18n/useI18n"
 import type { UdfState } from "@/composables/features/scaffold/useUdfState"
 import type { UdfSources } from "@/composables/features/scaffold/useUdfSources"
@@ -28,9 +29,9 @@ const { t } = useI18n()
                     >{{ item.baseUrl }}<template v-if="item.gitRef"> @ {{ item.gitRef }}</template></span
                 ></span
             >
-            <el-button v-if="item.kind === 'custom'" :class="{ 'operation-lock': busy }" :disabled="busy" @click="sourceDeleteTarget = item">{{
-                t("scaffold.delete")
-            }}</el-button>
+            <el-button v-if="item.kind === 'custom'" :class="{ 'operation-lock': busy }" :disabled="busy" @click="sourceDeleteTarget = item"
+                ><UiIcon name="trash-2" monochrome />{{ t("scaffold.delete") }}</el-button
+            >
         </div>
         <form class="scaffold-form udf-source-form" @submit.prevent.stop>
             <label
@@ -66,9 +67,9 @@ const { t } = useI18n()
         </form>
         <template #footer
             ><el-button :class="{ 'operation-lock': busy }" :disabled="busy" @click="sourceManager = false">{{ t("scaffold.done") }}</el-button
-            ><el-button type="primary" :class="{ 'operation-lock': busy }" :disabled="busy" @click="saveSource">{{
-                t("scaffold.addSource")
-            }}</el-button></template
+            ><el-button type="primary" :class="{ 'operation-lock': busy }" :disabled="busy" @click="saveSource"
+                ><UiIcon name="plus" monochrome />{{ t("scaffold.addSource") }}</el-button
+            ></template
         >
     </UiDialog>
     <UiDialog :model-value="!!sourceDeleteTarget" :title="t('scaffold.sourceDeleteTitle')" :busy="busy" @update:model-value="sourceDeleteTarget = undefined">

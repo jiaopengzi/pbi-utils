@@ -3,10 +3,23 @@
  * Author      : jiaopengzi
  * Blog        : https://jiaopengzi.com
  * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
- * Description : 复用现有本地 SVG 图标及 BASE_URL, 不引入参考项目图标注册方案.
+ * Description : 从本地资源渲染 SVG 图标, 单色操作图标可继承按钮文字色.
 -->
 <script setup lang="ts">
-defineProps<{ name: string }>()
-const base = import.meta.env.BASE_URL
+import { computed } from "vue"
+
+/** 按 name 读取随包分发的装饰图标; monochrome 让单色图标跟随文字色, 彩色图标使用原始资源. */
+const props = defineProps<{ name: string; monochrome?: boolean }>()
+const source = computed(() => `${import.meta.env.BASE_URL}icons/${props.name}.svg`)
 </script>
-<template><img class="ui-icon" :src="`${base}icons/${name}.svg`" alt="" /></template>
+<template>
+    <span v-if="monochrome" class="ui-icon ui-icon--monochrome" :style="{ '--ui-icon-mask': `url('${source}')` }" aria-hidden="true"></span>
+    <img v-else class="ui-icon" :src="source" alt="" />
+</template>
+<style scoped lang="scss">
+.ui-icon--monochrome {
+    display: inline-block;
+    background-color: currentColor;
+    mask: var(--ui-icon-mask) center / contain no-repeat;
+}
+</style>

@@ -10,6 +10,7 @@ import { watch } from "vue"
 import type { BridgeClient } from "@/bridge/client"
 import { useI18n } from "@/composables/i18n/useI18n"
 import { useMcpConnections } from "@/composables/app/useMcpConnections"
+import UiIcon from "@/ui/UiIcon.vue"
 
 /** bridge 仅调用桌面管理白名单; busy 上报手动管理, 静默刷新不抢焦点或移除旧卡片. */
 const props = defineProps<{ bridge: BridgeClient }>()
@@ -28,7 +29,9 @@ function formatTime(value: string): string {
     <section class="mcp-connections" :aria-label="t('mcp.connectionsTitle')" :aria-busy="busy">
         <div class="connections-toolbar">
             <h3>{{ t("mcp.connectionsTitle") }}</h3>
-            <el-button :loading="refreshing" :disabled="busy || refreshing" @click="refresh(false)">{{ t("mcp.connectionsRefresh") }}</el-button>
+            <el-button :loading="refreshing" :disabled="busy || refreshing" @click="refresh(false)">
+                <UiIcon name="refresh-cw" monochrome />{{ t("mcp.connectionsRefresh") }}
+            </el-button>
             <el-button :disabled="disabled" @click="manage()">{{
                 t(snapshot?.acceptingConnections === false ? "mcp.resumeAdmission" : "mcp.pauseAdmission")
             }}</el-button>
@@ -46,7 +49,9 @@ function formatTime(value: string): string {
             <li v-for="connection in snapshot.connections" :key="connection.id" :data-connection-id="connection.id">
                 <div class="connection-heading">
                     <strong>{{ connection.clientName || "-" }} · {{ connection.clientVersion || "-" }}</strong>
-                    <el-button :disabled="disabled || connection.state !== 'connected'" @click="manage(connection.id)">{{ t("mcp.disconnect") }}</el-button>
+                    <el-button :disabled="disabled || connection.state !== 'connected'" @click="manage(connection.id)">
+                        <UiIcon name="unplug" monochrome />{{ t("mcp.disconnect") }}
+                    </el-button>
                 </div>
                 <dl>
                     <div>

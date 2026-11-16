@@ -7,6 +7,7 @@
 -->
 <script setup lang="ts">
 import UiDialog from "@/ui/UiDialog.vue"
+import UiIcon from "@/ui/UiIcon.vue"
 import { useI18n } from "@/composables/i18n/useI18n"
 import type { PbipTemplateInfo } from "./contracts"
 /** 展示宿主目录和模板登记, 打开或刷新由父级受控业务链执行. */
@@ -26,8 +27,8 @@ const { t } = useI18n()
     <UiDialog v-model="templateManager" :title="t('configuration.manageTemplates')" :busy="formLocked">
         <div class="scaffold-toolbar">
             <span class="scaffold-path" :title="templateDirectory">{{ templateDirectory || "-" }}</span>
-            <el-button :disabled="formLocked" @click="emit('open')">{{ t("scaffold.openTemplates") }}</el-button
-            ><el-button :disabled="formLocked" @click="emit('refresh')">{{ t("scaffold.refresh") }}</el-button>
+            <el-button :disabled="formLocked" @click="emit('open')"><UiIcon name="folder-open" monochrome />{{ t("scaffold.openTemplates") }}</el-button
+            ><el-button :disabled="formLocked" @click="emit('refresh')"><UiIcon name="refresh-cw" monochrome />{{ t("scaffold.refresh") }}</el-button>
         </div>
         <p>{{ t("configuration.templateStructure") }}</p>
         <pre>{{ t("configuration.templateExample") }}</pre>

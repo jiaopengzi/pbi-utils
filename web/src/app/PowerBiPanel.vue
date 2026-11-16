@@ -59,7 +59,7 @@ useMessageNotices("desktop-instances", () => [!!error.value && { key: "error", m
                 :loading="loading && operation === 'scan'"
                 :disabled="loading || disabled"
                 @click="refresh()"
-                >{{ t("powerbi.refresh") }}</el-button
+                ><UiIcon name="refresh-cw" monochrome />{{ t("powerbi.refresh") }}</el-button
             >
         </div>
         <p v-if="snapshot && snapshotStale" class="hint" role="status">{{ t("powerbi.staleSnapshot") }}</p>
@@ -90,6 +90,7 @@ useMessageNotices("desktop-instances", () => [!!error.value && { key: "error", m
                     :reason-disabled="loading || disabled || !snapshotFresh"
                     :disabled="loading || disabled || !snapshotFresh || (!isCurrentInstance(instance) && !hasReadableModel(instance))"
                     :action-label="t(isCurrentInstance(instance) ? 'app.viewModel' : activeProject ? 'powerbi.switch' : 'powerbi.connect')"
+                    :show-connect-icon="!activeProject"
                     @action="activateInstance(instance)"
                     @reason="showInstanceReason(instance)"
                 />

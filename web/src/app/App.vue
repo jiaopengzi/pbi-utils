@@ -151,20 +151,11 @@ useMessageNotices("application-workspace", () => [
                             >{{ t("app.discard") }}</el-button
                         >
                         <el-button v-if="connectedDesktop && pendingChanges" :disabled="busy" @click="finishEdits(true)">{{ t("app.reloadModel") }}</el-button>
-                        <el-button
-                            v-if="project"
-                            :class="{ 'operation-lock': busy }"
-                            :loading="projectInspecting"
-                            :disabled="busy"
-                            @click="openProject(true)"
-                            >{{ t("app.refreshModel") }}</el-button
+                        <el-button v-if="project" :class="{ 'operation-lock': busy }" :loading="projectInspecting" :disabled="busy" @click="openProject(true)"
+                            ><UiIcon name="refresh-cw" monochrome />{{ t("app.refreshModel") }}</el-button
                         >
-                        <el-button
-                            v-if="project"
-                            :class="{ 'operation-lock': busy && !pendingChanges }"
-                            :disabled="busy || pendingChanges"
-                            @click="disconnect"
-                            >{{ t("app.disconnect") }}</el-button
+                        <el-button v-if="project" :class="{ 'operation-lock': busy && !pendingChanges }" :disabled="busy || pendingChanges" @click="disconnect"
+                            ><UiIcon name="unplug" monochrome />{{ t("app.disconnect") }}</el-button
                         >
                     </div>
                 </header>
@@ -238,9 +229,9 @@ useMessageNotices("application-workspace", () => [
                     <UiPanel v-else class="connect-first-panel"
                         ><el-empty :description="t('app.connectFirst')" :image-size="88"
                             ><p>{{ t("app.accessBoundary") }}</p>
-                            <el-button type="primary" :disabled="busy || !bridge" @click="navigate('connections')">{{
-                                t("app.connections")
-                            }}</el-button></el-empty
+                            <el-button type="primary" :disabled="busy || !bridge" @click="navigate('connections')">
+                                <UiIcon name="plug" monochrome />{{ t("app.connections") }}</el-button
+                            ></el-empty
                         ></UiPanel
                     >
                     <ModelEditPanel

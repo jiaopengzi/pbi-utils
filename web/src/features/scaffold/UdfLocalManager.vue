@@ -10,6 +10,7 @@ import { computed } from "vue"
 import UdfFunctionRow from "./UdfFunctionRow.vue"
 import { groupLocalUdfPackages, preferredLocalUdfEntry, type LocalUdfPackage } from "./udfLocalPackages"
 import UiDialog from "@/ui/UiDialog.vue"
+import UiIcon from "@/ui/UiIcon.vue"
 import CodeEditor from "@/features/code/CodeEditor.vue"
 import { useI18n } from "@/composables/i18n/useI18n"
 import type { UdfState } from "@/composables/features/scaffold/useUdfState"
@@ -43,7 +44,9 @@ function changeVersion(group: LocalUdfPackage, id: string): void {
 <template>
     <UiDialog v-model="manager" :title="t('scaffold.localManager')" :busy="busy"
         ><p v-if="!busy && !groups.length" class="muted" role="status">{{ t("scaffold.localFunctionsEmpty") }}</p>
-        <el-button :class="{ 'operation-lock': busy }" :disabled="busy" @click="edit()">{{ t("scaffold.newFunction") }}</el-button>
+        <el-button :class="{ 'operation-lock': busy }" :disabled="busy" @click="edit()"
+            ><UiIcon name="plus" monochrome />{{ t("scaffold.newFunction") }}</el-button
+        >
         <div class="udf-function-grid udf-local-manager-packages">
             <UdfFunctionRow
                 v-for="group in groups"

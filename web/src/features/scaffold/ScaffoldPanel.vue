@@ -11,6 +11,7 @@ import type { ComponentPublicInstance } from "vue"
 import type { BridgeClient, ProjectSnapshot } from "@/bridge/client"
 import { useI18n } from "@/composables/i18n/useI18n"
 import { useMessageNotices } from "@/composables/ui/useMessageNotices"
+import UiIcon from "@/ui/UiIcon.vue"
 import UiPanel from "@/ui/UiPanel.vue"
 import UiSteps from "@/ui/UiSteps.vue"
 import TemplateManagerDialog from "./TemplateManagerDialog.vue"
@@ -144,7 +145,9 @@ onBeforeUnmount(() => {
         <div class="scaffold-actions" :style="{ top: `${toolbarTop}px` }">
             <template v-if="!result?.projectCreated">
                 <ScaffoldField field="output" tag="div" class="scaffold-output">
-                    <el-button :class="{ 'operation-lock': locked }" :disabled="locked" @click="choose">{{ t("scaffold.choose") }}</el-button>
+                    <el-button :class="{ 'operation-lock': locked }" :disabled="locked" @click="choose"
+                        ><UiIcon name="folder" monochrome />{{ t("scaffold.choose") }}</el-button
+                    >
                     <span class="scaffold-path" :title="output">{{ output || "-" }}</span>
                 </ScaffoldField>
                 <el-checkbox
@@ -161,7 +164,7 @@ onBeforeUnmount(() => {
                     :class="{ 'operation-lock': locked && createdOpenReady }"
                     :disabled="locked || !createdOpenReady"
                     @click="openCreated('scaffold.openDirectory')"
-                    >{{ t("scaffold.openDirectory") }}</el-button
+                    ><UiIcon name="folder-open" monochrome />{{ t("scaffold.openDirectory") }}</el-button
                 >
                 <span class="scaffold-path scaffold-created-target" :title="result.projectPath">{{ t("configuration.target") }}: {{ result.projectPath }}</span>
             </div>
@@ -169,13 +172,8 @@ onBeforeUnmount(() => {
                 {{ t(baseIssue.key, baseIssue.params) }}
             </button>
             <span class="scaffold-action-spacer" />
-            <el-button
-                v-if="!result?.projectCreated"
-                type="primary"
-                :class="{ 'operation-lock': locked && createReady }"
-                :disabled="!canCreate"
-                @click="create"
-                >{{ t("scaffold.create") }}</el-button
+            <el-button v-if="!result?.projectCreated" type="primary" :class="{ 'operation-lock': locked && createReady }" :disabled="!canCreate" @click="create"
+                ><UiIcon name="file-plus" monochrome />{{ t("scaffold.create") }}</el-button
             >
             <template v-else>
                 <el-button :disabled="!canStartAnother" @click="startAnother">{{ t("configuration.another") }}</el-button>
@@ -184,7 +182,7 @@ onBeforeUnmount(() => {
                     :class="{ 'operation-lock': locked && desktopOpenReady }"
                     :disabled="locked || !desktopOpenReady"
                     @click="openCreated('scaffold.openDesktop')"
-                    >{{ t("scaffold.openDesktop") }}</el-button
+                    ><UiIcon name="power-bi" />{{ t("scaffold.openDesktop") }}</el-button
                 >
             </template>
         </div>

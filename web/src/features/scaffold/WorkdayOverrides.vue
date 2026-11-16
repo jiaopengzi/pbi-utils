@@ -11,6 +11,7 @@ import ScaffoldField from "./ScaffoldField.vue"
 import WorkdayImportDialog from "./WorkdayImportDialog.vue"
 import { scaffoldValidationKey } from "./validationContext"
 import { useI18n } from "@/composables/i18n/useI18n"
+import UiIcon from "@/ui/UiIcon.vue"
 import type { BridgeClient } from "@/bridge/client"
 import type { ScaffoldCalendarOptions } from "./contracts"
 /** 工作日覆盖编辑保留绝对行号与50行分页, 批量导入仅确认后合并. */
@@ -54,9 +55,9 @@ function addOverride(): void {
 </script>
 <template>
     <h3>{{ t("scaffold.workdays") }}</h3>
-    <el-button v-if="bridge" :disabled="disabled || !calendarEnabled" :class="{ 'operation-lock': disabled && calendarEnabled }" @click="setImporting(true)">{{
-        t("scaffold.importWorkdays")
-    }}</el-button>
+    <el-button v-if="bridge" :disabled="disabled || !calendarEnabled" :class="{ 'operation-lock': disabled && calendarEnabled }" @click="setImporting(true)"
+        ><UiIcon name="upload" monochrome />{{ t("scaffold.importWorkdays") }}</el-button
+    >
     <WorkdayImportDialog
         v-if="bridge"
         :model-value="importing"
@@ -128,8 +129,8 @@ function addOverride(): void {
             :disabled="disabled || !calendarEnabled"
             :aria-label="t('scaffold.workdayPages')"
         />
-        <el-button :class="{ 'operation-lock': disabled && calendarEnabled }" :disabled="disabled || !calendarEnabled" @click="addOverride">{{
-            t("scaffold.add")
-        }}</el-button>
+        <el-button :class="{ 'operation-lock': disabled && calendarEnabled }" :disabled="disabled || !calendarEnabled" @click="addOverride"
+            ><UiIcon name="plus" monochrome />{{ t("scaffold.add") }}</el-button
+        >
     </ScaffoldField>
 </template>

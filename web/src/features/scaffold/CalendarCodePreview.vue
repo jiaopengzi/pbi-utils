@@ -11,6 +11,7 @@ import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue"
 import { BridgeError, type BridgeClient } from "@/bridge/client"
 import { useI18n } from "@/composables/i18n/useI18n"
 import { useFeedback } from "@/composables/ui/useFeedback"
+import UiIcon from "@/ui/UiIcon.vue"
 import CodeEditor from "../code/CodeEditor.vue"
 import { validateConfiguration } from "./validation"
 import type { CalendarCodeProgram, CalendarPreviewContext, ScaffoldCalendarOptions, ScaffoldMethods } from "./contracts"
@@ -153,17 +154,19 @@ onBeforeUnmount(() => {
         <p class="muted">{{ t("scaffold.calendarCodeHint") }}</p>
         <p v-if="!enabled" role="status" class="muted">{{ t("scaffold.calendarCodeDisabled") }}</p>
         <p v-if="message" role="status" aria-live="polite">{{ message }}</p>
-        <el-button v-if="error && context && !problem && !disabled" @click="refresh">{{ t("scaffold.calendarCodeRetry") }}</el-button>
+        <el-button v-if="error && context && !problem && !disabled" @click="refresh"
+            ><UiIcon name="refresh-cw" monochrome />{{ t("scaffold.calendarCodeRetry") }}</el-button
+        >
         <template v-if="program">
             <p v-if="program.isSimulation" role="status" class="muted">{{ t("scaffold.simulation") }}</p>
             <div class="scaffold-toolbar">
                 <h4>{{ t("scaffold.calendarFunctionCode") }} · {{ program.functionName }}</h4>
-                <el-button data-calendar-copy="function" @click="copy('function')">{{ t("model.copy") }}</el-button>
+                <el-button data-calendar-copy="function" @click="copy('function')"><UiIcon name="copy" monochrome />{{ t("model.copy") }}</el-button>
             </div>
             <CodeEditor :model-value="program.functionExpression" language="m" :label="t('scaffold.calendarFunctionCode')" readonly :rows="14" />
             <div class="scaffold-toolbar">
                 <h4>{{ t("scaffold.calendarInvocationCode") }}</h4>
-                <el-button data-calendar-copy="invocation" @click="copy('invocation')">{{ t("model.copy") }}</el-button>
+                <el-button data-calendar-copy="invocation" @click="copy('invocation')"><UiIcon name="copy" monochrome />{{ t("model.copy") }}</el-button>
             </div>
             <CodeEditor :model-value="program.invocationExpression" language="m" :label="t('scaffold.calendarInvocationCode')" readonly :rows="7" />
         </template>

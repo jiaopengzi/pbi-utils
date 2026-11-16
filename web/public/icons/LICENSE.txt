@@ -3,12 +3,13 @@
 上游: https://github.com/lucide-icons/lucide/tree/main/icons
 本地 SVG 随产品分发, 不使用运行时 CDN. 许可保留上游署名, 不随本项目年份改写.
 本目录当前 Lucide 文件:
-arrow-right, arrow-up, book-open, braces, calendar-days, database, flask-conical, folder, house, image-plus, info, panel-left-close, plug, search, settings, sparkles, square, square-function, trash-2, users, x.
+arrow-right, arrow-up, book-open, braces, calendar-days, calendar-plus, copy, database, download, external-link, file-plus, flask-conical, folder, folder-open, house, image-plus, info, panel-left-close, plug, plus, refresh-cw, search, settings, sparkles, square, square-function, trash-2, unplug, upload, users, x.
 
 初次引入核查日期: 2026-10-10. 后续已记录的固定来源为 Lucide 0.468.0:
 trash-2, x (2026-10-14); plug (2026-10-20); square-function (2026-10-23).
+calendar-plus, copy, download, external-link, file-plus, folder-open, plus, refresh-cw, unplug, upload (2026-11-16, 使用上游 SVG 原始字节).
 https://github.com/lucide-icons/lucide/tree/0.468.0/icons
-历史未逐个记录固定提交的图标不据此重新声明为该版本. 本轮仅核对当前文件清单和许可原文, 未替换 SVG.
+历史未逐个记录固定提交的图标不据此重新声明为该版本. 既有 SVG 原样保留.
 
 下列 ISC 原文取自 Lucide 0.468.0/LICENSE (2026-11-03 核对):
 https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/LICENSE

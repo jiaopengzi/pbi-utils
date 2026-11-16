@@ -10,6 +10,7 @@
 import { computed } from "vue"
 import type { ModelSummary } from "@/bridge/client"
 import { useI18n } from "@/composables/i18n/useI18n"
+import UiIcon from "@/ui/UiIcon.vue"
 import UiPanel from "@/ui/UiPanel.vue"
 
 const props = defineProps<{
@@ -20,6 +21,8 @@ const props = defineProps<{
     disabled?: boolean
     operationLocked?: boolean
     actionLabel: string
+    /** 连接入口显示插头, 查看模型与切换实例继续由动作文案区分. */
+    showConnectIcon?: boolean
     status?: "connected" | "starting" | "unavailable"
     statusLabel?: string
     hasReason?: boolean
@@ -49,7 +52,7 @@ function requestReason() {
                 :type="current ? 'primary' : 'default'"
                 :disabled="disabled"
                 @click="emit('action')"
-                >{{ actionLabel }}</el-button
+                ><UiIcon v-if="showConnectIcon" name="plug" monochrome />{{ actionLabel }}</el-button
             >
             <div class="instance-details">
                 <h2 :title="title">{{ title }}</h2>

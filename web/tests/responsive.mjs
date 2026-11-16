@@ -131,28 +131,29 @@ try {
         assert.ok(directory.items[0].width > 250, "目录路径保留可读宽度")
         assert.equal(await page.getByRole("button", { name: "刷新结果", exact: true }).count(), 0)
         assert.equal(await page.locator(".sample-config .hint, .sample-config .eyebrow").count(), 0)
-        await page.locator(".sample-config button img.ui-icon").evaluateAll((icons) =>
-            Promise.all(
-                icons.map((icon) =>
-                    icon.complete
-                        ? Promise.resolve()
-                        : new Promise((resolve) => {
-                              icon.addEventListener("load", resolve, { once: true })
-                              icon.addEventListener("error", resolve, { once: true })
-                          }),
-                ),
-            ),
-        )
-        const missingIcons = await page
-            .locator(".sample-config button")
-            .evaluateAll((buttons) =>
-                buttons
-                    .filter(
-                        (button) =>
-                            !button.querySelector("svg") && ![...button.querySelectorAll("img.ui-icon")].some((icon) => icon.complete && icon.naturalWidth > 0),
+        const missingIcons = await page.locator(".sample-config button").evaluateAll(async (buttons) => {
+            // 共享 UiIcon 可用图片或本地 SVG 遮罩; 两种资源都必须成功解码.
+            const results = await Promise.all(
+                buttons.map(async (button) => {
+                    const icon = button.querySelector(".ui-icon")
+                    if (icon instanceof HTMLImageElement)
+                        return icon.decode().then(
+                            () => null,
+                            () => button.textContent,
+                        )
+                    if (!icon) return button.textContent
+                    const source = /^url\("(.*)"\)$/.exec(getComputedStyle(icon).maskImage)?.[1]
+                    if (!source) return button.textContent
+                    const image = new Image()
+                    image.src = source
+                    return image.decode().then(
+                        () => null,
+                        () => button.textContent,
                     )
-                    .map((button) => button.textContent),
+                }),
             )
+            return results.filter((label) => label !== null)
+        })
         assert.deepEqual(missingIcons, [], "所有示例按钮都必须实际载入图标")
         if (width === 1422 && rows.filter((row) => row.name === "示例").length === 0) {
             await page.locator(".new-panel .el-tabs__active-bar").evaluate(async (element) => {

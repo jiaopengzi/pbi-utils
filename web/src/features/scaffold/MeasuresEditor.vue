@@ -9,6 +9,7 @@
 import { ref, watch } from "vue"
 import { useI18n } from "@/composables/i18n/useI18n"
 import UiDialog from "@/ui/UiDialog.vue"
+import UiIcon from "@/ui/UiIcon.vue"
 import ScaffoldField from "./ScaffoldField.vue"
 import CodeEditor from "@/features/code/CodeEditor.vue"
 import type { TemplateMeasureDefinition } from "./contracts"
@@ -121,7 +122,9 @@ function save(): void {
             </tbody>
         </table>
     </div>
-    <el-button :class="{ 'operation-lock': operationLocked }" :disabled="disabled" @click="add">{{ t("scaffold.add") }}</el-button>
+    <el-button :class="{ 'operation-lock': operationLocked }" :disabled="disabled" @click="add"
+        ><UiIcon name="plus" monochrome />{{ t("scaffold.add") }}</el-button
+    >
     <UiDialog :model-value="editing !== undefined" :title="t('scaffold.value')" :busy="disabled" @update:model-value="editing = undefined">
         <CodeEditor v-model="longValue" language="dax" :label="t('scaffold.value')" :maxlength="32768" :disabled="disabled" />
         <template #footer

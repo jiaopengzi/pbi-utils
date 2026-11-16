@@ -144,12 +144,12 @@
       "license": "ISC AND MIT",
       "files": [
         {
-          "sha256": "FC32550BE36C0094BCF4564B00EAFE68E9FA551EED85DF4692E7283CE98394FB",
+          "sha256": "E95CAC1908A42DF063393AB55BB3F9F29D5FD2A5C3F2B760A48DAB9CADB75599",
           "source": "repository:THIRD-PARTY-NOTICES.md",
           "path": "web/public/icons/LICENSE.txt"
         }
       ],
-      "version": "2026-11-03",
+      "version": "2026-11-16",
       "name": "Local icon provenance",
       "scope": "All",
       "source": "repository:THIRD-PARTY-NOTICES.md"

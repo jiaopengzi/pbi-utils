@@ -11,6 +11,7 @@ import type { BridgeClient, McpConfiguration } from "@/bridge/client"
 import { useI18n } from "@/composables/i18n/useI18n"
 import { useMessageNotices } from "@/composables/ui/useMessageNotices"
 import { useFeedback } from "@/composables/ui/useFeedback"
+import UiIcon from "@/ui/UiIcon.vue"
 import McpConnectionsPanel from "./McpConnectionsPanel.vue"
 import UiPanel from "@/ui/UiPanel.vue"
 
@@ -87,7 +88,7 @@ onUnmounted(() => {
             <p v-if="configuration.isSimulation" class="mcp-simulation" role="status">{{ t("mcp.simulation") }}</p>
             <div class="mcp-prompt">
                 <div class="mcp-prompt-actions">
-                    <el-button type="primary" @click="copyPrompt">{{ t("mcp.copyPrompt") }}</el-button>
+                    <el-button type="primary" @click="copyPrompt"><UiIcon name="copy" monochrome />{{ t("mcp.copyPrompt") }}</el-button>
                     <el-button :aria-expanded="expanded" aria-controls="mcp-prompt-content" @click="expanded = !expanded">{{
                         t(expanded ? "mcp.hidePrompt" : "mcp.showPrompt")
                     }}</el-button>
@@ -95,7 +96,7 @@ onUnmounted(() => {
                 <pre v-show="expanded" id="mcp-prompt-content"><code>{{ prompt }}</code></pre>
             </div>
         </template>
-        <el-button v-else-if="!busy" @click="load">{{ t("mcp.reload") }}</el-button>
+        <el-button v-else-if="!busy" @click="load"><UiIcon name="refresh-cw" monochrome />{{ t("mcp.reload") }}</el-button>
         <p class="mcp-boundary">{{ t("mcp.desktop") }}</p>
         <p class="mcp-boundary">{{ t("mcp.permission") }}</p>
         <p class="mcp-boundary">{{ t("mcp.boundary") }}</p>

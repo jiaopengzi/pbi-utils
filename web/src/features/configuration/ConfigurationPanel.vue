@@ -8,6 +8,7 @@
 <script setup lang="ts">
 import { useTemplateRef } from "vue"
 import type { ProjectSnapshot } from "@/bridge/client"
+import UiIcon from "@/ui/UiIcon.vue"
 import UiPanel from "@/ui/UiPanel.vue"
 import ConfigurationRecovery from "./ConfigurationRecovery.vue"
 import ConfigurationFields from "./ConfigurationFields.vue"
@@ -41,7 +42,7 @@ const {
 <template>
     <section ref="root" class="scaffold-panel configuration-panel" :aria-busy="locked">
         <UiPanel
-            ><el-button v-if="!context" :disabled="locked" @click="load">{{ t("configuration.reloadModel") }}</el-button>
+            ><el-button v-if="!context" :disabled="locked" @click="load"><UiIcon name="refresh-cw" monochrome />{{ t("configuration.reloadModel") }}</el-button>
             <ConfigurationRecovery
                 :context="context"
                 :locked="locked"
@@ -82,7 +83,9 @@ const {
                             :disabled="!canApply(operation) || canSubmit === false"
                             :class="{ 'operation-lock': locked && canWrite }"
                             @click="apply(operation)"
-                            >{{ t(`configuration.apply${operation[0]!.toUpperCase()}${operation.slice(1)}`) }}</el-button
+                            ><UiIcon v-if="operation === 'udfs'" name="upload" monochrome />{{
+                                t(`configuration.apply${operation[0]!.toUpperCase()}${operation.slice(1)}`)
+                            }}</el-button
                         >
                         <el-button
                             v-if="operation === 'measures'"

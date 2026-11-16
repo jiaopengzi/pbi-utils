@@ -11,6 +11,7 @@ import { useI18n } from "@/composables/i18n/useI18n"
 import { computed, onMounted, ref, watch } from "vue"
 import { normalizeLanguage, paintCode } from "./highlight"
 import { useFeedback } from "@/composables/ui/useFeedback"
+import UiIcon from "@/ui/UiIcon.vue"
 const { t } = useI18n()
 const { showFeedback } = useFeedback()
 /** code 为原始文本, language 选择本地着色, copyLabel 可提供业务复制名称; 复制失败经共享反馈提示. */
@@ -36,7 +37,7 @@ watch([() => props.code, language], paint, { flush: "post" })
 <template>
     <section class="code-block">
         <div class="code-toolbar">
-            <el-button @click="copy">{{ copyLabel || t("model.copyCode", { language: language.toUpperCase() }) }}</el-button>
+            <el-button @click="copy"><UiIcon name="copy" monochrome />{{ copyLabel || t("model.copyCode", { language: language.toUpperCase() }) }}</el-button>
         </div>
         <pre :data-lang="language"><code ref="element"></code></pre>
     </section>

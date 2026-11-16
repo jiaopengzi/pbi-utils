@@ -33,16 +33,20 @@ it("打开度量值页面及选择对象不再自动弹删除说明", async () =
 it.each([
     ["zh-cn", "全选", "删除", "删除（2）"],
     ["en-us", "Select all", "Delete", "Delete (2)"],
-] as const)("%s 下仅批量删除按钮显示所选数量", async (locale, selectLabel, singleLabel, batchLabel) => {
+] as const)("%s 下删除按钮使用纯文字, 仅批量删除显示所选数量", async (locale, selectLabel, singleLabel, batchLabel) => {
     const { wrapper, button, cleanup } = await setup()
     try {
         setLocale(locale)
         await flushPromises()
         const actions = wrapper.get(".measure-editor .actions")
-        expect(actions.get(".el-button--danger").text()).toBe(singleLabel)
+        const singleDelete = actions.get(".el-button--danger")
+        expect(singleDelete.text()).toBe(singleLabel)
+        expect(singleDelete.find(".ui-icon").exists()).toBe(false)
         await button(selectLabel).trigger("click")
         await flushPromises()
-        expect(actions.get(".el-button--danger").text()).toBe(batchLabel)
+        const batchDelete = actions.get(".el-button--danger")
+        expect(batchDelete.text()).toBe(batchLabel)
+        expect(batchDelete.find(".ui-icon").exists()).toBe(false)
     } finally {
         cleanup()
         setLocale("zh-cn")

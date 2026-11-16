@@ -11,6 +11,7 @@ import type { BridgeClient } from "@/bridge/client"
 import { useI18n } from "@/composables/i18n/useI18n"
 import { useFeedback } from "@/composables/ui/useFeedback"
 import { useLearningView } from "@/composables/app/useLearningView"
+import UiIcon from "@/ui/UiIcon.vue"
 
 /** 显示固定学习网站; disabled 保护应用操作锁, busy 仅报告显式浏览器打开请求, 失败保留页面. */
 const props = defineProps<{ bridge: BridgeClient; disabled?: boolean }>()
@@ -44,12 +45,12 @@ onUnmounted(() => (mounted = false))
 <template>
     <section class="learning-panel">
         <el-button type="primary" :disabled="disabled || opening" :loading="opening" @click="openBrowser">
-            {{ t("learning.openBrowser") }}
+            <UiIcon name="external-link" monochrome />{{ t("learning.openBrowser") }}
         </el-button>
         <div ref="viewport" class="learning-viewport" :aria-label="t('learning.viewport')" tabindex="0">
             <div class="learning-placeholder">
                 <p>{{ t(simulation ? "learning.preview" : failed ? "learning.failed" : "learning.loading") }}</p>
-                <el-button v-if="failed" :disabled="disabled" @click="retry">{{ t("learning.retry") }}</el-button>
+                <el-button v-if="failed" :disabled="disabled" @click="retry"> <UiIcon name="refresh-cw" monochrome />{{ t("learning.retry") }} </el-button>
             </div>
         </div>
     </section>

@@ -151,7 +151,9 @@ it.each([
     const wrapper = mount(ScaffoldPanel, { props: { bridge: markRaw(bridge) } })
     try {
         await flushPromises()
-        await button(wrapper, choose).trigger("click")
+        const chooseDirectory = button(wrapper, choose)
+        expect(chooseDirectory.get(".ui-icon--monochrome").attributes("style")).toContain("/icons/folder.svg")
+        await chooseDirectory.trigger("click")
         await flushPromises()
         await button(wrapper, create).trigger("click")
         await flushPromises()
@@ -164,7 +166,9 @@ it.each([
         expect(wrapper.find(".scaffold-form").exists()).toBe(false)
         expect(wrapper.find('[id^="section-scaffold-"]').exists()).toBe(false)
         expect(transport.requests.some((item) => item.method.startsWith("configuration."))).toBe(false)
-        await button(wrapper, directory).trigger("click")
+        const openDirectory = button(wrapper, directory)
+        expect(openDirectory.get(".ui-icon--monochrome").attributes("style")).toContain("/icons/folder-open.svg")
+        await openDirectory.trigger("click")
         await flushPromises()
         await button(wrapper, desktop).trigger("click")
         await flushPromises()
@@ -1204,6 +1208,8 @@ it("模板刷新不静默接受同ID新基线, 保留其他配置并要求重新
         await button(wrapper, "自定义模板").trigger("click")
         await flushPromises()
         const modal = new DOMWrapper(document.querySelector(".el-dialog")!)
+        const openTemplates = modal.findAll("button").find((item) => item.text() === "打开模板目录")
+        expect(openTemplates?.get(".ui-icon--monochrome").attributes("style")).toContain("/icons/folder-open.svg")
         await modal
             .findAll("button")
             .find((item) => item.text() === "刷新")!

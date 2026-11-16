@@ -9,6 +9,7 @@
 import { computed } from "vue"
 import type { ProjectSnapshot } from "@/bridge/client"
 import { useMessageNotices } from "@/composables/ui/useMessageNotices"
+import UiIcon from "@/ui/UiIcon.vue"
 import UiSelectOptionLabel from "@/ui/UiSelectOptionLabel.vue"
 import UiTabs from "@/ui/UiTabs.vue"
 import PowerBiPanel from "./PowerBiPanel.vue"
@@ -137,9 +138,9 @@ useMessageNotices("connection-panel-service-recents", () => [!!recentStorageWarn
             <div v-if="status?.account" class="connection-account">
                 <template v-if="status?.account">
                     <span class="account-name">{{ status.account.username }} · {{ hostText(status.account.environmentLabel) }}</span>
-                    <el-button :class="{ 'operation-lock': preserveAppearance }" :disabled="blocked" @click="run(loadModels)">{{
-                        t("connection.refreshModels")
-                    }}</el-button>
+                    <el-button :class="{ 'operation-lock': preserveAppearance }" :disabled="blocked" @click="run(loadModels)">
+                        <UiIcon name="refresh-cw" monochrome />{{ t("connection.refreshModels") }}
+                    </el-button>
                     <el-button :class="{ 'operation-lock': preserveAppearance }" :disabled="blocked" @click="signOut">{{ t("connection.signOut") }}</el-button>
                 </template>
             </div>

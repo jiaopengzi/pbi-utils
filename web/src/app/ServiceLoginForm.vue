@@ -11,6 +11,7 @@ import type { FormInstance, FormRules } from "element-plus"
 import type { Methods, PowerBiServiceStatus } from "@/bridge/client"
 import type { ServiceLoginDraft } from "@/composables/app/useServiceAccount"
 import { useI18n } from "@/composables/i18n/useI18n"
+import UiIcon from "@/ui/UiIcon.vue"
 
 /** 只呈现非秘密登录草稿及环境候选; busy/disabled 由连接 owner 决定, form 事件保持父级原有校验与请求 guard. */
 defineProps<{
@@ -54,7 +55,7 @@ onBeforeUnmount(() => emit("form", undefined))
                     :class="{ 'operation-lock': preserveAppearance && !!recentLoginId }"
                     :disabled="blocked || !recentLoginId"
                     @click="emit('deleteRecent')"
-                    >{{ t("connection.deleteRecent") }}</el-button
+                    ><UiIcon name="trash-2" monochrome />{{ t("connection.deleteRecent") }}</el-button
                 >
             </div>
         </el-form-item>
