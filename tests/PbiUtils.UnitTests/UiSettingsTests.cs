@@ -222,17 +222,28 @@ public sealed class UiSettingsTests : IDisposable
     public async Task BridgeCancellationHonorsCommitBoundary(bool committed)
     {
         ConcurrentQueue<JsonElement> output = new();
-        using var store = new GatedStore(committed);
+        var store = new GatedStore(committed);
         using var session = Create(store, output);
-        var saving = Task.Run(() => Call(session, "ui.saveSettings", "{\"locale\":\"en-us\",\"showRecentFiles\":false,\"daxFormatStyle\":\"long\"}"));
-        await store.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        await Call(session, "request.cancel", "{\"requestId\":\"ui.saveSettings\"}");
-        Assert.Equal(!committed, output.Last().GetProperty("result").GetProperty("accepted").GetBoolean());
-        store.Release.Set();
-        await saving.WaitAsync(TimeSpan.FromSeconds(5));
+        // 同步存储在专用线程等待放行, 为取消请求及测试续体留出线程池容量.
+        var saving = Task.Factory.StartNew(
+            () => Call(session, "ui.saveSettings", """{"locale":"en-us","showRecentFiles":false,"daxFormatStyle":"long"}"""),
+            CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
+        try
+        {
+            await store.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await Call(session, "request.cancel", """{"requestId":"ui.saveSettings"}""").WaitAsync(TimeSpan.FromSeconds(5));
+            var cancellation = Assert.Single(output);
+            Assert.Equal("request.cancel", cancellation.GetProperty("id").GetString());
+            Assert.Equal(!committed, cancellation.GetProperty("result").GetProperty("accepted").GetBoolean());
+        }
+        finally
+        {
+            store.Release.TrySetResult();
+            await saving.WaitAsync(TimeSpan.FromSeconds(5));
+        }
         Assert.Equal(committed ? "en-us" : "zh-cn", store.Read().Locale);
         Assert.Equal(!committed, store.Read().ShowRecentFiles);
-        var reply = output.Last();
+        var reply = Assert.Single(output, message => message.GetProperty("id").GetString() == "ui.saveSettings");
         if (committed)
         {
             Assert.Equal("en-us", reply.GetProperty("result").GetProperty("locale").GetString());
@@ -261,12 +272,12 @@ public sealed class UiSettingsTests : IDisposable
     private static Task Call(BridgeSession session, string method, string parameters, string source = OriginPolicy.Production) =>
         session.ReceiveAsync(source, "{\"protocolVersion\":1,\"id\":\"" + method + "\",\"method\":\"" + method + "\",\"params\":" + parameters + "}");
 
-    /// <summary>不依赖延时推测竞争顺序的同步存储门闩.</summary>
-    private sealed class GatedStore(bool committed) : IUiSettingsStore, IDisposable
+    /// <summary>同步存储门闩, 由测试在收到取消响应后或失败清理时显式放行.</summary>
+    private sealed class GatedStore(bool committed) : IUiSettingsStore
     {
         private UiSettings settings = new();
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public ManualResetEventSlim Release { get; } = new();
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         /// <summary>返回门闩适配器当前实际保存值.</summary>
         public UiSettings Read() => settings;
@@ -280,14 +291,11 @@ public sealed class UiSettingsTests : IDisposable
         {
             if (committed) committing?.Invoke();
             Entered.SetResult();
-            if (!Release.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException();
+            Release.Task.GetAwaiter().GetResult();
             if (!committed) { token.ThrowIfCancellationRequested(); committing?.Invoke(); }
             settings = new(patch.Locale ?? settings.Locale, patch.ShowRecentFiles ?? settings.ShowRecentFiles, patch.DaxFormatStyle ?? settings.DaxFormatStyle);
             return settings;
         }
-
-        /// <summary>释放测试门闩句柄.</summary>
-        public void Dispose() => Release.Dispose();
     }
 
     /// <summary>只清理已核验的本次临时目录, 不访问用户配置.</summary>
