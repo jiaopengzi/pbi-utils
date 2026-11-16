@@ -123,7 +123,7 @@ it("打开运行环境自动检测一次, 使用描述列表且不展示 Hello�
     expect(wrapper.findComponent({ name: "ElSkeleton" }).exists()).toBe(true)
     await flushPromises()
     expect(transport.methods).toEqual(["doctor"])
-    expect(wrapper.findAll(".el-descriptions__label")).toHaveLength(7)
+    expect(wrapper.findAll(".el-descriptions__label").map((label) => label.text())).toEqual(["应用版本", "操作系统", "进程架构", ".NET 运行时", "WebView2"])
     expect(wrapper.text()).toContain("WebView2")
     expect(wrapper.text()).toContain("浏览器模拟")
     expect(wrapper.get(".environment-descriptions strong").text()).toBe("-")
@@ -223,7 +223,13 @@ it("英文诊断翻译标签与状态并保留宿主原始系统信息, 切换�
     await flushPromises()
     expect(wrapper.text()).toContain("Runtime environment")
     expect(wrapper.text()).toContain("Detection complete")
-    expect(wrapper.text()).toContain("Read-only local instance discovery available")
+    expect(wrapper.findAll(".el-descriptions__label").map((label) => label.text())).toEqual([
+        "App version",
+        "Operating system",
+        "Process architecture",
+        ".NET runtime",
+        "WebView2",
+    ])
     expect(wrapper.text()).toContain("Microsoft Windows 11 10.0.26100")
     expect(wrapper.text()).toContain(".NET 10.0.1")
     expect(wrapper.text()).toContain("140.0.3485.81")

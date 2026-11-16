@@ -197,7 +197,7 @@ it("设置按常规、更新、MCP、环境、数据平铺, 无需切换且保�
     expect(wrapper.findComponent(DataResetPanel).exists()).toBe(true)
     expect(wrapper.find(".about-panel").exists()).toBe(false)
     expect(wrapper.find(".environment-panel").exists()).toBe(true)
-    expect(wrapper.findAll(".environment-descriptions .el-descriptions__label")).toHaveLength(7)
+    expect(wrapper.findAll(".environment-descriptions .el-descriptions__label")).toHaveLength(5)
     expect(wrapper.text()).not.toContain("C# / .NET 10 · Vue 3 · WinForms / WebView2")
     expect(wrapper.findAll("h2").map((heading) => heading.text())).not.toContain("关于")
     expect(wrapper.text()).not.toContain("模型保存")

@@ -33,7 +33,7 @@ const errorMessage = computed(() => {
     if (error.value === "运行环境检测失败") return t("diagnostic.failed")
     return error.value
 })
-/** 仅翻译标签与能力状态, 原始系统信息和真实版本按宿主结果展示. */
+/** 展示应用与运行时信息, 仅翻译标签和模拟占位, 原始系统信息及真实版本保留宿主结果. */
 const rows = computed(() => {
     if (!result.value) return []
     const data = result.value.diagnostic.environment
@@ -46,29 +46,7 @@ const rows = computed(() => {
             note: t("diagnostic.architectureNote"),
         },
         { label: t("diagnostic.runtime"), value: result.value.isSimulation ? t("diagnostic.notDetected") : data.runtime, note: t("diagnostic.runtimeNote") },
-        {
-            label: t("diagnostic.desktop"),
-            value: t(
-                data.desktop === "available-platform"
-                    ? "diagnostic.desktopAvailable"
-                    : data.desktop === "simulation"
-                      ? "diagnostic.browserPreview"
-                      : "diagnostic.desktopUnavailable",
-            ),
-            note: t("diagnostic.desktopNote"),
-        },
         { label: "WebView2", value: result.value.isSimulation ? t("diagnostic.notDetected") : result.value.webView2, note: t("diagnostic.webViewNote") },
-        {
-            label: "Power BI",
-            value: t(
-                data.powerBi === "read-only-discovery"
-                    ? "diagnostic.discoveryAvailable"
-                    : data.powerBi === "simulation"
-                      ? "diagnostic.simulation"
-                      : "diagnostic.discoveryUnavailable",
-            ),
-            note: t("diagnostic.powerBiNote"),
-        },
     ]
 })
 /** 根据卡片可用宽度调整列数, 零宽度测量保留默认三列; 不依赖整页视口断点. */

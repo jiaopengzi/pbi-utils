@@ -272,7 +272,7 @@ it("设置从常规开始平铺、底部展示本地数据, 保留运行环境�
             "运行环境",
             "本地数据",
         ])
-        expect(wrapper.findAll(".environment-descriptions .el-descriptions__label")).toHaveLength(7)
+        expect(wrapper.findAll(".environment-descriptions .el-descriptions__label")).toHaveLength(5)
         expect(wrapper.text()).toContain("浏览器模拟")
         expect(wrapper.find("#name").exists()).toBe(false)
         expect(wrapper.find(".environment-panel button").exists()).toBe(false)
