@@ -114,6 +114,21 @@ try {
     Assert-Fails { Export-PbiLicenseBundle -RepositoryRoot $repository -PublishRoot (New-Publish 'missing') -Scope Core } 'Missing declared NuGet license'
     Move-Item -LiteralPath (Join-Path $package 'original.txt') -Destination (Join-Path $package 'LICENSE.txt')
 
+    # runtimepack 的 MIT 包级元数据不足以覆盖 Windows 专有二进制, 新版本需要对应的已审核许可.
+    $windowsRuntime = 'Microsoft.NETCore.App.Runtime.win-x64'
+    $windowsRuntimeVersion = '10.0.99'
+    $runtimePackage = Join-Path $env:NUGET_PACKAGES "$($windowsRuntime.ToLowerInvariant())/$windowsRuntimeVersion"
+    $null = New-Item -ItemType Directory -Path $runtimePackage -Force
+    Set-Content -LiteralPath (Join-Path $runtimePackage "$($windowsRuntime.ToLowerInvariant()).nuspec") -Value "<package><metadata><id>$windowsRuntime</id><version>$windowsRuntimeVersion</version><license type='expression'>MIT</license></metadata></package>"
+    Set-Content -LiteralPath (Join-Path $runtimePackage 'LICENSE.txt') -Value 'Package-level MIT fixture.'
+    $unreviewedRuntime = New-Publish 'unreviewed-windows-runtime'
+    $cliDeps = Join-Path $unreviewedRuntime 'pbi-utils.deps.json'
+    $runtimeDeps = Get-Content -LiteralPath $cliDeps -Raw | ConvertFrom-Json -AsHashtable
+    $runtimeDeps.libraries["runtimepack.$windowsRuntime/$windowsRuntimeVersion"] = @{ type = 'runtimepack' }
+    Write-Json $cliDeps $runtimeDeps
+    Assert-Fails { Export-PbiLicenseBundle -RepositoryRoot $repository -PublishRoot $unreviewedRuntime -Scope Core } 'Unreviewed Windows runtime license'
+    Assert (!(Test-Path -LiteralPath (Join-Path $unreviewedRuntime 'licenses'))) 'Unreviewed runtime must fail before license output is generated.'
+
     # 长组件身份和原文名保留在清单, 发布文件通过旧 Windows 文件 API 实际读取, 防止安装器 MAX_PATH 回归.
     $longSourceName = ('ThirdPartyDistributionLicense-' * 3) + '2026.txt'
     $longSourceRelative = 'licenses/source/' + $longSourceName

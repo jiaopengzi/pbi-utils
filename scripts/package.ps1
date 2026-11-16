@@ -24,6 +24,20 @@ Import-Module (Join-Path $PSScriptRoot 'ReleaseAutomation.psm1') -Force
 $packageContext = if ($PbiInvocation.ContainsKey('PackageContext') -and $null -ne $PbiInvocation.PackageContext) { $PbiInvocation.PackageContext } else { @{} }
 $pending = if ($packageContext.ContainsKey('Pending')) { $packageContext.Pending } else { $null }
 <#
+.SYNOPSIS 复核已捕获的安装许可输入, 防止编译或等待交付期间混入新旧内容.
+.PARAMETER ExpectedHashes 输入绝对路径及编译前的 SHA-256.
+.OUTPUTS 无; 路径、读取或任一输入变化均抛错.
+#>
+$assertPackageLicenseInputs = {
+    param([hashtable]$ExpectedHashes)
+    foreach ($inputPath in $ExpectedHashes.Keys) {
+        Assert-PbiPublishPath $inputPath
+        if ((Get-FileHash -LiteralPath $inputPath -Algorithm SHA256).Hash -cne $ExpectedHashes[$inputPath]) {
+            throw "打包期间许可来源已改变: $inputPath; 请重新打包"
+        }
+    }
+}
+<#
 .SYNOPSIS 清理本次打包临时目录并释放打包锁, 重复调用不会再次删除.
 .PARAMETER State 打包状态, 含 Stage、Destination、Gate 与 KeepStage.
 .PARAMETER Failure 主流程错误; 存在时清理失败只写诊断并保留原错误.
@@ -113,7 +127,7 @@ if ($null -eq $pending) {
         $packagePhaseEnds.Add('payload-snapshot', $packageStopwatch.Elapsed)
         # 仅刷新许可, 不把当前前端依赖的声明套到旧构建的 JavaScript 上.
         $licenseInputs = @{}
-        foreach ($relative in @('LICENSE', 'THIRD-PARTY-NOTICES.md', 'licenses/catalog.json', 'web/package.json', 'web/pnpm-lock.yaml')) {
+        foreach ($relative in @('LICENSE', 'THIRD-PARTY-NOTICES.md', 'licenses/catalog.json', 'web/package.json', 'web/pnpm-lock.yaml', 'scripts/installer/installer.nsi')) {
             $inputPath = Join-Path $repository $relative
             Assert-PbiPublishPath $inputPath
             $licenseInputs[$inputPath] = (Get-FileHash -LiteralPath $inputPath -Algorithm SHA256).Hash
@@ -142,13 +156,6 @@ if ($null -eq $pending) {
                 if ($licenseInputs[$inputPath] -cne [string]$document.sha256) { $catalogDocumentsMatch = $false }
             }
         }
-        # 编译前后按内容复核本轮许可来源, 不用 mtime 缓存, 也不交付并发修改后的混合版本.
-        $assertLicenseInputs = {
-            foreach ($inputPath in $licenseInputs.Keys) {
-                Assert-PbiPublishPath $inputPath
-                if ((Get-FileHash -LiteralPath $inputPath -Algorithm SHA256).Hash -cne $licenseInputs[$inputPath]) { throw "打包期间许可来源已改变: $inputPath; 请重新打包" }
-            }
-        }
         # release 的 staging 许可由本轮同一仓库状态生成: 根文档、来源清单与载荷副本一致且清单原文仍符合登记哈希时, 刷新结果相同.
         $licensesCurrent = $freshSource -and $catalogDocumentsMatch
         foreach ($pair in @(@('LICENSE', 'LICENSE'), @('THIRD-PARTY-NOTICES.md', 'THIRD-PARTY-NOTICES.md'), @('licenses/catalog.json', 'licenses/inputs/catalog.json'))) {
@@ -156,7 +163,7 @@ if ($null -eq $pending) {
         }
         if ($licensesCurrent) {
             Write-PbiMessage '本轮 staging 的许可输入与仓库一致, 不重复生成安装许可.'
-            & $assertLicenseInputs
+            & $assertPackageLicenseInputs $licenseInputs
         } else {
             $licenseOutput = [IO.Path]::GetFullPath((Join-Path $app 'licenses'))
             if ([IO.Path]::GetDirectoryName($licenseOutput) -cne [IO.Path]::GetFullPath($app) -or
@@ -168,7 +175,7 @@ if ($null -eq $pending) {
             $currentNpm = @($currentLicenses.components | Where-Object ecosystem -CEQ 'npm' | ForEach-Object { "$($_.name)/$($_.version)" } | Sort-Object)
             $builtNpm = @($builtLicenses.components | Where-Object ecosystem -CEQ 'npm' | ForEach-Object { "$($_.name)/$($_.version)" } | Sort-Object)
             if (($currentNpm -join "`n") -cne ($builtNpm -join "`n")) { Stop-Pbi 3 '前端实际依赖闭包已改变; 请先重新构建对应 Release/All 产物再打包' }
-            & $assertLicenseInputs
+            & $assertPackageLicenseInputs $licenseInputs
             # 原始发布目录保持不变; 仅更新私有载荷清单中的文件身份, 保留原二进制构建元数据.
             $snapshotManifest.files = @(Get-PbiPublishFiles $app | Where-Object FullName -NE (Join-Path $app 'manifest.json') | Sort-Object FullName | ForEach-Object {
                 @{ file = [IO.Path]::GetRelativePath($app, $_.FullName).Replace('\', '/'); sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
@@ -203,12 +210,12 @@ if ($null -eq $pending) {
         $licenseManifest = Get-Content -LiteralPath (Join-Path $app 'licenses/manifest.json') -Raw | ConvertFrom-Json
         $nsisLicenses = @($licenseManifest.components | Where-Object { $_.ecosystem -ceq 'resource' -and $_.name -ceq 'NSIS-COPYING' })
         if ($nsisLicenses.Count -ne 1 -or $nsisLicenses[0].version -notmatch '^\d+\.\d+(?:\.\d+)?$') { throw '安装器缺少精确版本的 NSIS 分发许可' }
-        # NSIS 在编译期核对自身版本, 防止开发工具升级后继续分发旧版本许可快照.
-        $arguments = @('/V3', '/WX', '/INPUTCHARSET', 'UTF8', "/DPBI_NSIS_VERSION=$($nsisLicenses[0].version)", "/DPBI_PAYLOAD=$payload", "/DPBI_LICENSE_TEXT=$installerLicense", "/DPBI_OUTFILE=$installer", "/DPBI_RELEASE_TAG=$releaseTag", "/DPBI_FILE_VERSION=$fileVersion", "/DPBI_ICON=$(Join-Path $repository 'web/public/branding/logo.ico')", (Join-Path $PSScriptRoot 'installer/installer.nsi'))
+        # 编译器版本与 COPYING 对应, 安装许可的接受范围来自已验证的实际载荷模式.
+        $arguments = @('/V3', '/WX', '/INPUTCHARSET', 'UTF8', "/DPBI_NSIS_VERSION=$($nsisLicenses[0].version)", "/DPBI_PACKAGE_DEPLOYMENT=$($snapshotManifest.deploymentMode)", "/DPBI_PAYLOAD=$payload", "/DPBI_LICENSE_TEXT=$installerLicense", "/DPBI_OUTFILE=$installer", "/DPBI_RELEASE_TAG=$releaseTag", "/DPBI_FILE_VERSION=$fileVersion", "/DPBI_ICON=$(Join-Path $repository 'web/public/branding/logo.ico')", (Join-Path $PSScriptRoot 'installer/installer.nsi'))
         $packagePhaseEnds.Add('nsis-inputs', $packageStopwatch.Elapsed)
         Invoke-PbiNative makensis $arguments
         $packagePhaseEnds.Add('nsis-compile', $packageStopwatch.Elapsed)
-        & $assertLicenseInputs
+        & $assertPackageLicenseInputs $licenseInputs
         if ((Get-PbiCurrentRelease -RepositoryRoot $repository).Tag -cne $releaseTag) { throw '打包期间 version 中的标签已改变, 请重新打包' }
         if (!(Test-Path -LiteralPath $installer -PathType Leaf) -or (Get-Item -LiteralPath $installer).Length -le 0) { throw 'makensis 未生成有效安装包' }
         $installerBytes = (Get-Item -LiteralPath $installer).Length
@@ -231,6 +238,8 @@ if ($null -eq $pending) {
         $pending.Names = @("$baseName.exe", "$baseName.json", "$baseName.sha256")
         $pending.InstallerHash = $installerHash
         $pending.SignatureStatus = $packageRecord.signatureStatus
+        $pending.LicenseInputs = $licenseInputs
+        $pending.ReleaseTag = $releaseTag
         $prepared = $true
     }
     catch {
@@ -261,6 +270,8 @@ $previous = @{}
 $deliveryFailure = $null
 $deliveryComplete = $false
 try {
+    & $assertPackageLicenseInputs $pending.LicenseInputs
+    if ((Get-PbiCurrentRelease -RepositoryRoot $repository).Tag -cne $pending.ReleaseTag) { throw '打包期间 version 中的标签已改变, 请重新打包' }
     # 只备份/替换本版本的三个已知文件; 不清理其他版本或目录中的用户文件.
     foreach ($artifactName in $pending.Names) {
         $target = Join-Path $destination $artifactName
@@ -278,6 +289,8 @@ try {
         Copy-Item -LiteralPath (Join-Path $stage $artifactName) -Destination (Join-Path $destination $artifactName) -Force
     }
     if ((Get-FileHash -LiteralPath (Join-Path $destination "$baseName.exe") -Algorithm SHA256).Hash -cne $pending.InstallerHash) { throw '安装包交付后的哈希核验失败' }
+    & $assertPackageLicenseInputs $pending.LicenseInputs
+    if ((Get-PbiCurrentRelease -RepositoryRoot $repository).Tag -cne $pending.ReleaseTag) { throw '打包期间 version 中的标签已改变, 请重新打包' }
     $pending.PhaseEnds.Add('delivery-verification', $pending.Stopwatch.Elapsed)
     $deliveryComplete = $true
 }

@@ -69,7 +69,7 @@ Var JobWait
 !define MUI_CUSTOMFUNCTION_ABORT OnAbortCheck
 !define MUI_WELCOMEPAGE_TEXT "$(WelcomeDescription)"
 !insertmacro MUI_PAGE_WELCOME
-; 同页显示项目 MIT 与完整第三方许可, 勾选项只用于明确接受 AMO/ADOMD 条款.
+; 同页显示项目 MIT 与完整第三方许可, 勾选项用于接受此模式实际随包的 Microsoft 条款.
 !define MUI_PAGE_HEADER_TEXT "$(LicenseTitle)"
 !define MUI_PAGE_HEADER_SUBTEXT "$(LicenseSubtitle)"
 !define MUI_LICENSEPAGE_TEXT_TOP "$(LicenseIntroduction)"
@@ -105,14 +105,25 @@ LangString LicenseTitle ${LANG_SIMPCHINESE} "许可与声明"
 LangString LicenseTitle ${LANG_ENGLISH} "Licenses and notices"
 LangString LicenseSubtitle ${LANG_SIMPCHINESE} "pbi-utils 的 MIT 许可及随包分发的第三方许可。"
 LangString LicenseSubtitle ${LANG_ENGLISH} "The pbi-utils MIT License and the bundled third-party licenses."
-LangString LicenseIntroduction ${LANG_SIMPCHINESE} "请滚动阅读许可全文，包括 Microsoft AMO/ADOMD 组件条款。"
-LangString LicenseIntroduction ${LANG_ENGLISH} "Scroll to read the full licenses, including the Microsoft AMO/ADOMD terms."
 LangString LicenseContinue ${LANG_SIMPCHINESE} "接受微软组件条款后继续。安装后可在 app 文件夹查看完整声明。"
 LangString LicenseContinue ${LANG_ENGLISH} "Accept the Microsoft component terms to continue. Full notices are kept in the installed app folder."
+!if "${PBI_PACKAGE_DEPLOYMENT}" == "self-contained"
+LangString LicenseIntroduction ${LANG_SIMPCHINESE} "请滚动阅读许可全文。勾选项适用于 Microsoft AMO/ADOMD、.NET Library 和 Windows SDK 条款。"
+LangString LicenseIntroduction ${LANG_ENGLISH} "Read the bundled licenses. Acceptance covers Microsoft AMO/ADOMD, .NET Library, and Windows SDK terms."
+LangString MicrosoftTermsAccept ${LANG_SIMPCHINESE} "我接受上述随包 Microsoft 条款(&A)"
+LangString MicrosoftTermsAccept ${LANG_ENGLISH} "I &accept these bundled Microsoft terms"
+LangString SilentTermsRequired ${LANG_SIMPCHINESE} "静默安装前须阅读随包许可，并用 /ACCEPTMICROSOFTTERMS=1 明确接受 Microsoft AMO/ADOMD、.NET Library 和 Windows SDK 条款。"
+LangString SilentTermsRequired ${LANG_ENGLISH} "Before silent setup, read the bundled licenses and pass /ACCEPTMICROSOFTTERMS=1 to accept the Microsoft AMO/ADOMD, .NET Library, and Windows SDK terms."
+!else if "${PBI_PACKAGE_DEPLOYMENT}" == "framework-dependent"
+LangString LicenseIntroduction ${LANG_SIMPCHINESE} "请滚动阅读许可全文，包括 Microsoft AMO/ADOMD 组件条款。"
+LangString LicenseIntroduction ${LANG_ENGLISH} "Scroll to read the full licenses, including the Microsoft AMO/ADOMD terms."
 LangString MicrosoftTermsAccept ${LANG_SIMPCHINESE} "我接受 Microsoft AMO/ADOMD 组件许可条款(&A)"
 LangString MicrosoftTermsAccept ${LANG_ENGLISH} "I &accept the Microsoft AMO/ADOMD component license terms"
 LangString SilentTermsRequired ${LANG_SIMPCHINESE} "静默安装前须阅读随包许可，并用 /ACCEPTMICROSOFTTERMS=1 明确接受 Microsoft AMO/ADOMD 组件条款。"
 LangString SilentTermsRequired ${LANG_ENGLISH} "Before silent setup, read the bundled licenses and pass /ACCEPTMICROSOFTTERMS=1 to accept the Microsoft AMO/ADOMD component terms."
+!else
+    !error "Installer deployment mode must match the verified payload."
+!endif
 LangString OpenNoticesText ${LANG_SIMPCHINESE} "查看许可和第三方声明"
 LangString OpenNoticesText ${LANG_ENGLISH} "View licenses and third-party notices"
 LangString OpenNoticesFailed ${LANG_SIMPCHINESE} "无法打开声明。请在安装目录的 app 文件夹查看 THIRD-PARTY-NOTICES.txt。"

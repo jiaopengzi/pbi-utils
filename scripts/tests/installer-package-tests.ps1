@@ -250,6 +250,9 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
         Assert ($arguments -contains '/V3' -and $arguments -contains '/WX') 'NSIS 必须启用既定日志等级并把警告视为失败'
         Assert ($arguments -contains '/INPUTCHARSET' -and $arguments -contains 'UTF8') 'NSIS 必须显式按 UTF-8 读取双语安装向导源码'
         Assert ($arguments -contains '/DPBI_NSIS_VERSION=3.13') '编译器版本必须绑定载荷中审核过的 NSIS 许可版本'
+        if ($Scenario -ceq 'Package') {
+            Assert ($arguments -contains '/DPBI_PACKAGE_DEPLOYMENT=framework-dependent') '框架依赖载荷必须使用对应的微软条款接受范围'
+        }
         Assert ($arguments -contains '/DPBI_RELEASE_TAG=v1.2.3-rc4' -and $arguments -contains '/DPBI_FILE_VERSION=1.2.3.0') '安装器从 version 取得完整标签和 Windows 数字文件版本'
         Assert (@($arguments | Where-Object { $_ -clike '/DPBI_PAYLOAD=*' }).Count -eq 1) '含空格路径必须作为完整的单个 NSIS 定义参数传递'
         $phaseNames = @($state.Messages | Where-Object { $_.Message -clike '打包计时 *' } | ForEach-Object {
@@ -320,6 +323,22 @@ Export-ModuleMember -Function Export-PbiInstallerPrerequisites
         } finally { [IO.File]::WriteAllBytes($licensePath, $licenseBytes) }
         Assert ((Get-TestPackageSnapshot $destination) -ceq $delivered) '丢弃刷新后的待交付安装包不得改动已交付文件'
         Assert-TestPackageReleased $destination
+
+        # 在编译完成、门禁等待及最终交付之间改变来源, 验证不交付过期的安装许可.
+        $noticesPath = Join-Path $sandbox 'THIRD-PARTY-NOTICES.md'
+        $noticesBytes = [IO.File]::ReadAllBytes($noticesPath)
+        $context = @{ DeferDelivery = $true; Pending = $null; Source = $staging }
+        & $registry { param($Context) Invoke-PbiInstallerStep @{ DotNetMode = 'without-dotnet' } $Context } $context
+        try {
+            Set-Content -LiteralPath $noticesPath -Value 'new notices after NSIS compilation' -Encoding utf8
+            $context.DeferDelivery = $false
+            $failure = $null
+            try { & $registry { param($Context) Invoke-PbiInstallerStep @{ DotNetMode = 'without-dotnet' } $Context } $context }
+            catch { $failure = $_.Exception.Message }
+            Assert ($failure -like '*打包期间许可来源已改变*THIRD-PARTY-NOTICES.md*') '交付前必须拒绝等待期间已过期的许可'
+            Assert ((Get-TestPackageSnapshot $destination) -ceq $delivered) '拒绝过期许可后必须保留先前已交付的安装包'
+            Assert-TestPackageReleased $destination
+        } finally { [IO.File]::WriteAllBytes($noticesPath, $noticesBytes) }
         Write-Host 'PASS installer deferred release package delivery and discard'
         return
     }

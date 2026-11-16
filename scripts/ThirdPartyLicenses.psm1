@@ -71,7 +71,7 @@ function Export-PbiLicenseBundle {
     $null = $text.AppendLine('pbi-utils — Licenses and notices / 许可与声明').AppendLine()
     $null = $text.AppendLine('PROJECT LICENSE / 项目许可证').AppendLine((Get-Content -LiteralPath (Join-Path $publish 'LICENSE') -Raw)).AppendLine()
     $null = $text.AppendLine('THIRD-PARTY LICENSES AND NOTICES / 第三方许可与声明').AppendLine()
-    $null = $text.AppendLine('Important Microsoft terms / 重要 Microsoft 条款: Microsoft.AnalysisServices and Microsoft.AnalysisServices.AdomdClient are distributed under their own Microsoft software license terms, not the pbi-utils MIT license. Their complete English and Chinese terms are reproduced below and retained under licenses/nuget/. The acceptance checkbox on the installer license page applies only to these Microsoft terms.').AppendLine()
+    $null = $text.AppendLine('Important Microsoft terms / 重要 Microsoft 条款: Microsoft.AnalysisServices and Microsoft.AnalysisServices.AdomdClient use the separate Microsoft terms reproduced below in English and Chinese. For a self-contained package, the applicable .NET Library and Windows SDK terms for the Windows runtime binaries are also reproduced below.').AppendLine()
     $null = $text.AppendLine('This offline document contains the source notices, an exact version index, and the full license/NOTICE/COPYING texts. npm entries conservatively cover the installed production dependency and peer closure; inclusion does not assert every module is present in a JavaScript chunk. Development-only root dependencies are excluded.').AppendLine()
     $null = $text.AppendLine((Get-Content -LiteralPath (Join-Path $publish 'THIRD-PARTY-NOTICES.md') -Raw)).AppendLine()
     $null = $text.AppendLine('INDEX / 索引')

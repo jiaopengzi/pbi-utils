@@ -1,20 +1,44 @@
 # 离线许可来源
 
-`catalog.json` 是需要人工核对的补充来源清单, 按生态、组件名称、精确版本和 SHA-256 绑定全文. `source/` 保存上游许可证与声明的原始文本; Microsoft Analysis Services 英文/中文条款同时保留原始 RTF 和便于离线阅读的 TXT. RTF 转换来源与档案条目写在清单中.
+## 来源与归属
 
-发布调用 `scripts/ThirdPartyLicenses.psm1` 的 `Export-PbiLicenseBundle`. 生成过程只读取本地文件, 不访问网络、安装依赖或下载许可:
+| 位置 | 维护内容 |
+| --- | --- |
+| [项目许可](../LICENSE) | pbi-utils 自有代码的 MIT 原文。 |
+| [第三方来源说明](../THIRD-PARTY-NOTICES.md) | 随项目发布的组件、资源与改编来源。 |
+| [catalog.json](catalog.json) | 用精确身份、来源和 SHA-256 绑定必需的补充文件。 |
+| [source/](source/) | 来自精确上游版本或提交的许可、NOTICE 和可离线阅读的补充文本。 |
+| 资源目录 | 字体、图标、配色和日期字段来源的许可随对应资源维护，由清单直接引用。 |
 
-- 从最终合并的 `*.deps.json` 取 NuGet 和 runtimepack 联集, 校验缓存 nuspec 身份及还原内容标识. 许可证、NOTICE、COPYING 和版权文件随包复制.
-- All 范围从前端 `dependencies` 起始, 遍历实际安装的生产、peer 和已安装 optional 依赖; 不遍历根 `devDependencies`. 解析 npm 别名, 将同身份的不同 peer 实例所需依赖取并集, 核对仓库/已安装锁文件的精确版本.
-- 从本清单补全仅在 nuspec 声明许可表达式、缺少包内全文的组件以及源码、图标、字体、主题、日历、示例与安装器来源. 未知表达式、缺失全文、缺失依赖、版本或来源 hash 漂移均阻止发布.
-- 发布根包含项目 `LICENSE`、来源说明 `THIRD-PARTY-NOTICES.md`、带 UTF-8 BOM 的完整聚合 `THIRD-PARTY-NOTICES.txt` 和 `licenses/manifest.json`. `licenses/inputs/` 保留来源目录与前端输入快照; 每份分发文档记录长度及 hash, 供打包再次核验.
+核对每种组件时优先使用对应精确版本包内的 LICENSE、NOTICE、COPYING 和版权文件。CodeMirror、Lezer、Element Plus、Marked 和 DOMPurify 的随包许可原文直接来自 npm 包。
 
-独立执行 `package` 时也会调用同一生成器: 先校验原发布目录和私有打包副本, 再用当前仓库来源重建副本的许可目录、聚合文本及发布清单. 原构建目录不被改写, 每轮都按内容读取最新许可, 不依据文件时间或旧许可副本复用结果. 此步骤读取现有 Node、前端安装依赖和 NuGet 缓存; 缺失时明确失败, 不自动还原. 前端依赖声明/锁文件及实际依赖集合、内嵌资源身份必须与原构建一致, 否则先重新构建; 本轮实际编译的 NSIS 独立核验版本. 许可来源在打包期间变化也会拒绝交付. NSIS 单页直接展示带 UTF-8 BOM 的完整聚合文本, 同页勾选仅接受 Microsoft AMO/ADOMD 组件条款. 安装后可离线阅读同一聚合文本, 也可单独查看保留原始字节的根 LICENSE.
+- Analysis Services 的 Microsoft 英文与中文条款原始 RTF 及便于阅读的 TXT 都保留。转换来源见清单。WebView2 SDK 的 Microsoft 条款和声明来自对应 NuGet 包。
+- ModelContextProtocol.Core 的上游 LICENSE 包含现行 Apache 条款、既有 MIT 条款及适用范围说明。
+- 两种 .NET 模式的可执行入口均内嵌 Windows x64 apphost。维护清单时以实际选用的 `AppHostPack` 为准，收录对应 .NET Runtime 源的 MIT 许可和第三方声明。
+- 自包含版的 Windows Desktop runtime 包补充对应 `dotnet/dotnet` 固定提交的 WPF 和 WinForms NOTICE。`coreclr.dll`、`Microsoft.DiaSymReader.Native.amd64.dll`、`PresentationNative_cor3.dll`、`vcruntime140_cor3.dll` 和 `wpfgfx_cor3.dll` 适用 .NET Library 条款，`D3DCompiler_47_cor3.dll` 适用 Windows SDK 条款。完整条款按实际随包的 runtimepack 收录。适用文件见 [Microsoft 的 Windows 文件级说明](https://github.com/dotnet/core/blob/main/license-information-windows.md)。
+- Microsoft.Identity.Client.NativeInterop 和 lodash-unified 的包元数据声明 MIT。本目录的补充文件同时记录发行方提供的版权或作者信息及标准 MIT 全文。
+- NSIS 的 COPYING 保留固定版本原文。打包时按实际编译器版本核验。
+- Vite 的预加载代码、`@vitejs/plugin-vue` 的导出辅助代码和 Rolldown 的运行时辅助代码进入前端产物。All 范围按锁定版本收录相应原文。Rolldown 保留其 LICENSE 引用的 THIRD-PARTY-LICENSE。
+- 开发期样式检查用的 `vscode-css-languageservice` 与 `vscode-languageserver-textdocument` 均为 MIT，精确版本见 [前端锁文件](../web/pnpm-lock.yaml)。它们供 [样式检查脚本](../web/scripts/check-styles.ts) 使用。
 
-分发文件使用 `licenses/<生态>/<完整身份 SHA-256 前16位>/01.txt` 等稳定短路径, RTF 等文档保留扩展, 避免安装器暂存路径叠加长组件名称后超过 Windows 传统文件 API 限制. 完整组件名、版本、来源 URL 和原始文档相对名称 `sourceDocument` 保留在机器清单及聚合阅读文本中, 不截断版权正文; 短标识冲突会明确失败.
+## 生成与核验
 
-NuGet 中的 MIT/Apache 等分类来自包声明和对应固定源提交, 不能按 Microsoft/其他发行方名称猜测. AnalysisServices/AdomdClient、WebView2 的 Microsoft 条款各自保留. ModelContextProtocol.Core 2.3.0 的完整上游 LICENSE 包括 Apache、历史 MIT 与文档说明, 不能简化为通用 MIT. WindowsDesktop runtime 包没有附带独立 NOTICE, 因此按其 nuspec 的同一 `dotnet/dotnet` 固定提交补全 WPF/WinForms 的 NOTICE.
+`scripts/ThirdPartyLicenses.psm1` 的 `Export-PbiLicenseBundle` 离线读取本地输入。
 
-两个已声明 MIT 但未附许可文件的包有明确的补充说明: `Microsoft.Identity.Client.NativeInterop` 保留 nuspec 版权与声明, `lodash-unified` 保留 npm 元数据中的作者和声明; 附标准 MIT 的完整授权与免责正文, 不编造未提供的版权年份或版权人. 这些文件明确区分包内事实与补充文本, 不伪装成上游原始 LICENSE.
+1. 从合并后的发布 `*.deps.json` 收集实际 NuGet 包和 runtimepack，核验 nuspec 的身份与恢复时的内容标识。
+2. All 范围从前端 `dependencies` 出发，遍历已安装的生产、peer 与可选依赖。解析 npm 别名，合并同一身份的 peer 实例，核验仓库和已安装锁文件。根 `devDependencies` 不参与该闭包。
+3. 收录包内原文、清单列出的离线补充及适用于当前范围的随包资源。缺失全文、未知许可、依赖缺失和身份或 SHA-256 漂移会使构建失败。
 
-更新组件时, 核对新的包声明、完整来源文本及 NOTICE, 保存对应精确版本和来源 URL, 然后更新清单 hash. 不用旧版本快照或网站链接替代新版本离线全文. 同时运行 `scripts/tests/license-bundle-tests.ps1` 与 `scripts/tests/license-bundle-validation-tests.ps1`, 最后按仓库规则完成发布门禁. NSIS 版本更新也需重新核对其分发组件许可.
+输出包括根目录的 `LICENSE`、`THIRD-PARTY-NOTICES.md`、带 UTF-8 BOM 的聚合 `THIRD-PARTY-NOTICES.txt` 和 `licenses/manifest.json`。`licenses/inputs/` 保存生成所用的清单和适用的前端依赖文件。分发原文使用 `licenses/<生态>/<身份散列前 16 位>/` 下的短文件名，以适应 Windows 安装器暂存路径。清单记录组件全名、精确版本、原文名称、来源、长度与 SHA-256。
+
+独立执行 `package` 时先核验已验证的发布目录，再以当前来源刷新私有打包副本的许可与清单。依赖集合或内嵌资源身份变化时须重新构建。安装器编译和交付时都会复核所用许可输入。门禁等待期间来源变化时，重新打包才能交付。
+
+NSIS 许可页和安装后的 `app/THIRD-PARTY-NOTICES.txt` 使用同一份全文。轻量包的勾选项和静默参数 `/ACCEPTMICROSOFTTERMS=1` 对应 AMO/ADOMD 条款。自包含包还纳入所附 Windows 原生运行时的 .NET Library 和 Windows SDK 条款。
+
+## 变更验证
+
+核对新增、更新或移除的组件在直接依赖、传递依赖、内嵌资源及安装器中的实际使用。同步维护来源、精确版本、原文和 SHA-256。共享许可仍供其他组件使用时一并保留。
+
+- 升级 .NET SDK 时，使用 `ProcessFrameworkReferences` 查询各入口的 `AppHostPack`，并核对实际发布的两个 runtimepack。自包含包要求每个实际 runtimepack 版本有对应的已审核许可全文。
+- 升级前端构建工具时，检查产物仍注入哪些辅助代码，并按锁文件中的实际版本更新其原文。
+- 运行 `scripts/tests/license-source-git-tests.ps1`、`scripts/tests/license-bundle-tests.ps1` 和 `scripts/tests/license-bundle-validation-tests.ps1`，并按 [仓库约定](../AGENTS.md) 核验两种 .NET 模式的分发内容。

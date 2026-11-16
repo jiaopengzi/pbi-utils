@@ -4,6 +4,25 @@
       "license": "MIT",
       "files": [
         {
+          "sha256": "CFC21F5E8BD655AE997EEC916138B707B1D290B83272C02A95C9F821B8C87310",
+          "source": "https://raw.githubusercontent.com/dotnet/dotnet/0427b9abbead3fa64c6655eb4290c537397131fa/src/runtime/LICENSE.TXT",
+          "path": "licenses/source/dotnet-apphost-10.0.14-MIT.txt"
+        },
+        {
+          "sha256": "66F1D4E44973185519BB4AA8A9718EB22FC7AF2CC532E3AE9CFC4C127EE7FC54",
+          "source": "https://raw.githubusercontent.com/dotnet/dotnet/0427b9abbead3fa64c6655eb4290c537397131fa/src/runtime/THIRD-PARTY-NOTICES.TXT",
+          "path": "licenses/source/dotnet-apphost-10.0.14-NOTICES.txt"
+        }
+      ],
+      "version": "10.0.14",
+      "name": "Microsoft.NETCore.App.Host.win-x64 apphost",
+      "scope": "Core",
+      "source": "https://www.nuget.org/packages/Microsoft.NETCore.App.Host.win-x64/10.0.14"
+    },
+    {
+      "license": "MIT",
+      "files": [
+        {
           "sha256": "DD50E5C19EFCF0A482FFA2BE24B58FFC1D613C01E5678D5986AB26F9C0E3B4BA",
           "source": "https://raw.githubusercontent.com/sql-bi/Bravo/fbc2b12950ddb4344ae71f16de8861407c32050e/LICENSE",
           "path": "licenses/source/Bravo-MIT.txt"
@@ -62,7 +81,7 @@
         {
           "sha256": "4D83B2FF4020D7A8DB41F2656DAD5C19140809BD3E57A8B7D9C0C4E18647543D",
           "source": "repository:src/PbiUtils.Application/Calendar/Resources/calendar-LICENSE.txt",
-          "path": "licenses/source/calendar-MIT.txt"
+          "path": "src/PbiUtils.Application/Calendar/Resources/calendar-LICENSE.txt"
         }
       ],
       "version": "MIT Copyright 2023 焦棚子",
@@ -71,7 +90,7 @@
       "source": "repository:src/PbiUtils.Application/Calendar/Resources/calendar-LICENSE.txt"
     },
     {
-      "license": "Zlib; bzip2; CPL-1.0 with LZMA exception",
+      "license": "Zlib; CPL-1.0 with LZMA exception",
       "files": [
         {
           "sha256": "388357C1215FF403C5EBDE3A5ECD273E68F8B79A579996775245D1EE65442ABA",
@@ -145,14 +164,61 @@
       "files": [
         {
           "sha256": "E95CAC1908A42DF063393AB55BB3F9F29D5FD2A5C3F2B760A48DAB9CADB75599",
-          "source": "repository:THIRD-PARTY-NOTICES.md",
+          "source": "repository:web/public/icons/LICENSE.txt",
           "path": "web/public/icons/LICENSE.txt"
         }
       ],
       "version": "2026-11-16",
       "name": "Local icon provenance",
       "scope": "All",
-      "source": "repository:THIRD-PARTY-NOTICES.md"
+      "source": "repository:web/public/icons/LICENSE.txt"
+    },
+    {
+      "license": "MIT",
+      "files": [
+        {
+          "sha256": "444C5EC3BF7F798AF5C5179D734673CBCB115B22B1EF48E6D85BC941AC8777A2",
+          "source": "https://registry.npmjs.org/vite/-/vite-8.3.8.tgz (LICENSE.md, complete Vite core license section)",
+          "path": "licenses/source/Vite-8.3.8-MIT.txt"
+        }
+      ],
+      "version": "8.3.8",
+      "name": "Vite preload helpers",
+      "scope": "All",
+      "source": "https://github.com/vitejs/vite/tree/v8.3.8"
+    },
+    {
+      "license": "MIT",
+      "files": [
+        {
+          "sha256": "29B68325FE026047D13E187B44C33B2ACACF7DC647DEC4583702E59F235E13B5",
+          "source": "https://registry.npmjs.org/@vitejs/plugin-vue/-/plugin-vue-6.0.11.tgz (LICENSE)",
+          "path": "licenses/source/Vite-Plugin-Vue-6.0.11-MIT.txt"
+        }
+      ],
+      "version": "6.0.11",
+      "name": "@vitejs/plugin-vue export helper",
+      "scope": "All",
+      "source": "https://www.npmjs.com/package/@vitejs/plugin-vue/v/6.0.11"
+    },
+    {
+      "license": "MIT",
+      "files": [
+        {
+          "sha256": "23ECFFF35A5A2E80D92142F75228912C3B1ABC4B5A8337A821FF4397E2F9F734",
+          "source": "https://registry.npmjs.org/rolldown/-/rolldown-1.2.19.tgz (LICENSE)",
+          "path": "licenses/source/Rolldown-1.2.19-MIT.txt"
+        },
+        {
+          "sha256": "A877291D800ED43692F3F9AE09D8E01CC6F7293AD39D43896059C188FFBB8B7C",
+          "source": "https://registry.npmjs.org/rolldown/-/rolldown-1.2.19.tgz (THIRD-PARTY-LICENSE)",
+          "path": "licenses/source/Rolldown-1.2.19-THIRD-PARTY-LICENSE.txt"
+        }
+      ],
+      "version": "1.2.19",
+      "name": "Rolldown runtime helpers",
+      "scope": "All",
+      "source": "https://github.com/rolldown/rolldown/tree/v1.2.19"
     }
   ],
   "schemaVersion": 1,
@@ -479,7 +545,21 @@
     },
     {
       "declaredLicense": "MIT",
-      "license": "MIT",
+      "license": "MIT AND LicenseRef-Microsoft-DotNet-Library (coreclr.dll and Microsoft.DiaSymReader.Native.amd64.dll)",
+      "ecosystem": "nuget",
+      "version": "10.0.14",
+      "name": "Microsoft.NETCore.App.Runtime.win-x64",
+      "files": [
+        {
+          "sha256": "7F6839A61CE892B79C6549E2DC5A81FDBD240A0B260F8881216B45B7FDA8B45D",
+          "source": "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-10.0.403-windows-x64-binaries-zip (LICENSE.txt)",
+          "path": "licenses/source/dotnet-library-10.0.14.txt"
+        }
+      ]
+    },
+    {
+      "declaredLicense": "MIT",
+      "license": "MIT AND LicenseRef-Microsoft-DotNet-Library AND LicenseRef-Microsoft-Windows-SDK",
       "ecosystem": "nuget",
       "version": "10.0.14",
       "name": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
@@ -493,6 +573,16 @@
           "sha256": "5A412B38EFAE0B162DC0893B319023F4CD14A8985A0F9F9AE01AC052B37A36EB",
           "source": "https://raw.githubusercontent.com/dotnet/dotnet/0427b9abbead3fa64c6655eb4290c537397131fa/src/winforms/THIRD-PARTY-NOTICES.TXT",
           "path": "licenses/source/WindowsDesktop-10.0.14-WinForms-NOTICES.txt"
+        },
+        {
+          "sha256": "7F6839A61CE892B79C6549E2DC5A81FDBD240A0B260F8881216B45B7FDA8B45D",
+          "source": "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-10.0.403-windows-x64-binaries-zip (LICENSE.txt; PresentationNative_cor3.dll, vcruntime140_cor3.dll and wpfgfx_cor3.dll)",
+          "path": "licenses/source/dotnet-library-10.0.14.txt"
+        },
+        {
+          "sha256": "2789763155A8AB04143396C7D1AF037D73782378C256BED308AAD7A25D6850A2",
+          "source": "https://raw.githubusercontent.com/microsoft/win32metadata/bd964b20fd0996865afd827ba0d6e712f69712a6/licenses/sdk_license.txt (D3DCompiler_47_cor3.dll; EULAID:WIN10SDK.RTM.AUG_2018_en-US)",
+          "path": "licenses/source/Windows-SDK-Software-License.txt"
         }
       ]
     },

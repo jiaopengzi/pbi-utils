@@ -114,6 +114,9 @@ function Get-PbiNugetLicenseComponent([string]$RepositoryRoot, [string]$Key, $Li
     $license = if ($licenseNode) { $licenseNode.InnerText } else { '' }
     $override = @($Catalog.packages | Where-Object { $_.ecosystem -eq 'nuget' -and $_.name -ieq $name -and $_.version -ceq $version })
     if ($override.Count -gt 1) { throw "Duplicate catalog package: $Key" }
+    # Windows 运行时包含适用独立条款的 DLL, 每个实际版本都必须收录对应的离线原文.
+    if ($name -in @('Microsoft.NETCore.App.Runtime.win-x64', 'Microsoft.WindowsDesktop.App.Runtime.win-x64') -and
+        ($override.Count -ne 1 -or !$override[0].files.Count)) { throw "Unreviewed Windows runtime license: $Key" }
     $documents = @(Get-PbiLicenseDocuments $directory)
     if ($override.Count -eq 1) {
         if ($licenseNode -and $licenseNode.GetAttribute('type') -eq 'expression' -and $license -cne $override[0].declaredLicense) { throw "NuGet declared license changed: $Key" }
