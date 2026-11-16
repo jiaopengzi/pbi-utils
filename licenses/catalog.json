@@ -1,6 +1,20 @@
 {
   "resources": [
     {
+      "license": "All rights reserved",
+      "files": [
+        {
+          "sha256": "C162703A02396F3762BE897463435BFF0397FC59B14CED050AB028AA535BC8F5",
+          "source": "https://raw.githubusercontent.com/jiaopengzi/logo/58374853f41be580fe54390955e874d9d543e239/LICENSE",
+          "path": "licenses/source/jiaopengzi-logo-LICENSE.txt"
+        }
+      ],
+      "version": "58374853f41be580fe54390955e874d9d543e239",
+      "name": "jiaopengzi/logo",
+      "scope": "Core",
+      "source": "https://github.com/jiaopengzi/logo/tree/58374853f41be580fe54390955e874d9d543e239"
+    },
+    {
       "license": "MIT",
       "files": [
         {

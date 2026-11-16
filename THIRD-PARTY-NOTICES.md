@@ -24,6 +24,7 @@ pbi-utils 自有代码采用 [MIT 许可](LICENSE)。第三方组件和资源适
 | 新建工程的 `blank` 模板 | 用户提供的 PBIP 素材，保留 Microsoft `Fluent2-CY26SU09` 主题及原有报表内容。素材暂无单独的许可文件，来源见 [新建资源说明](src/PbiUtils.Infrastructure/Scaffolding/Assets/README.md)。 |
 | DAX、Power Query M 配色 | 参照 `highlightjs-dax` 1.1.0 和 `highlightjs-m` 1.0.0 的 MIT 主题。对应原文随本地页面资源提供。 |
 | 代码字体 | JetBrains Mono Medium，SIL Open Font License 1.1。字节来自 blog-client 提交 `4df1e327`，SHA-256 为 `086c48dfbea9ddaff1320f7e09399b8e2924e88ce67453721255db3bdbb5a353`。 |
-| 界面图标与产品标识 | 本地图标保留 Lucide（ISC 和 Feather 的 MIT）及 VSCode Icons 中 Power BI 图标的许可和署名。详见 [图标来源](web/public/icons/LICENSE.txt) 和 [品牌资源](BRANDING.md)。 |
+| 界面图标 | 本地图标保留 Lucide（ISC 和 Feather 的 MIT）及 VSCode Icons 中 Power BI 图标的许可和署名，见 [图标来源](web/public/icons/LICENSE.txt)。 |
+| 产品标识与安装向导竖图 | 由 jiaopengzi 创作并保留所有权利。品牌许可原文随包提供，来源及导出方法见 [品牌资源](BRANDING.md)。 |
 
 许可原文、固定来源及校验值的维护方法见 [离线许可来源](licenses/README.md)。

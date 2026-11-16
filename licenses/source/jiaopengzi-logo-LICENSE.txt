@@ -1,0 +1,17 @@
+Copyright (c) 2026 jiaopengzi (焦棚子). All rights reserved.
+
+本仓库中的 logo, 字标, 图标及其全部衍生图形 (包括 SVG, PNG, ICO, BMP 等格式,
+以及 tools/gen-logo.mjs 中描述这些图形的路径与参数), 均为 jiaopengzi 的原创作品
+与品牌标识, 保留所有权利.
+
+允许:
+- 在介绍, 链接或评论 jiaopengzi 及其博客 (https://jiaopengzi.com) 与项目时,
+  按原样展示上述图形, 不得改变图形, 颜色与比例.
+
+未经书面许可, 不得:
+1. 将上述图形用作或改作自己的 logo, 商标, 头像或产品标识;
+2. 修改, 重绘, 拆分或二次创作上述图形;
+3. 以暗示与 jiaopengzi 存在合作, 授权或背书关系的方式使用;
+4. 用于商业用途, 或将上述文件单独再分发, 出售, 再授权.
+
+其他用途请联系: jiaopengzi@qq.com

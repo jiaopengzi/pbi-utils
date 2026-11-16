@@ -8,9 +8,9 @@
 
 # 品牌资源
 
-来源：[jiaopengzi/logo](https://github.com/jiaopengzi/logo)，固定提交 `5292ff432729e84b86aa7b4dcef259f4062dfcbd`，核对日期 2026-10-09。
+应用和安装向导的品牌资源取自 [jiaopengzi/logo 固定提交](https://github.com/jiaopengzi/logo/tree/58374853f41be580fe54390955e874d9d543e239)，核对日期为 2026-11-16。品牌图形由 jiaopengzi 创作，保留所有权利。随包声明收录[品牌许可原文](licenses/source/jiaopengzi-logo-LICENSE.txt)。
 
-采用该提交的 [logo.svg](https://github.com/jiaopengzi/logo/blob/5292ff432729e84b86aa7b4dcef259f4062dfcbd/logo.svg)：深蓝底、金色 J。上游没有单独的 pbi-utils 字标或主题配置文件，因此保留 pbi-utils 产品名称，从 SVG 的填充色提取品牌原色，不将带“焦棚子”文字的横版图替代产品名。
+应用使用深蓝底、金色 J 的方形图标，界面并排显示产品名称 pbi-utils。安装向导使用金色底、深蓝 J 与“焦棚子 / JIAOPENGZI”双行字标的竖图。两种品牌原色来自方形 SVG 的填充色。
 
 | 用途 | 色值 | 应用位置 |
 | --- | --- | --- |
@@ -20,58 +20,34 @@
 | 页面 / 侧栏 / 面板 | `#F5F6FA` / `#ECEEF5` / `#FFFFFF` | 中性背景与层次 |
 | 结果 / 提示 | `#E9EDF8` / `#F7EFD9` | 主色与强调色的浅色衍生背景 |
 
-只有前两项为上游原色，其余为应用配色。金色不用作浅色背景上的正文；提示文字采用深棕 `#70531A`，错误仍使用独立红色语义。产品主题变量集中在 [style.scss](web/src/app/style.scss)，Element Plus 的主色、金色强调及交互色阶由 [ui/_theme.scss](web/src/ui/_theme.scss) 映射。本次不增加深色模式或主题切换。
+只有前两项为上游原色，其余为应用配色。浅色背景上的提示文字使用深棕 `#70531A`，错误使用独立的红色。产品主题变量集中在 [style.scss](web/src/app/style.scss)，Element Plus 的主色、金色强调及交互色阶由 [ui/_theme.scss](web/src/ui/_theme.scss) 映射。
 
-模板组件与程序式组件（浮动提示、确认框等）必须统一经过品牌 SCSS：两个 `ElementPlusResolver` 均使用 `importStyle: "sass"`，显式样式使用 `element-plus/es/components/<组件>/style/index`。不要混入 `style/css` 或预编译的 `theme-chalk/*.css`，它们会重新注入默认全局变量，将品牌深蓝和金色覆盖为组件库默认色。验收时检查实际渲染的按钮、悬停/禁用状态、输入焦点、选中项、弹窗和浮动提示，不能只检查源码中的品牌变量。
+模板组件和程序式组件共用品牌 SCSS。两个 `ElementPlusResolver` 均使用 `importStyle: "sass"`，显式样式使用 `element-plus/es/components/<组件>/style/index`。`style/css` 与预编译的 `theme-chalk/*.css` 会重新注入组件库默认全局变量。修改主题时检查实际渲染的按钮、悬停和禁用状态、输入焦点、选中项、弹窗和浮动提示。
 
 ## 本地资源与使用
 
-- [logo.svg](web/public/branding/logo.svg) 保留上游原始字节和原始注释，作为页面品牌图与 SVG favicon。
-- [logo.ico](web/public/branding/logo.ico) 从同一 SVG 生成，包含 16、24、32、48、64、128、256 px，用作 favicon、桌面 EXE、CLI EXE 及 WinForms 窗口图标。
-- 桌面窗口从程序集嵌入资源读取 ICO，并在窗口释放时清理；不依赖启动工作目录。两个 EXE 在编译时使用同一 ICO。
-- Vite 将本地资源复制到 dist，现有桌面构建/发布将其打包至 web/branding。运行时不请求 GitHub、不下载主题、不放宽 CSP；CLI 输出契约不变。
+- [logo.svg](web/public/branding/logo.svg) 保留固定提交中的原始字节和注释，用于应用侧栏、SVG favicon 和 Power BI Desktop 外部工具。
+- [logo.ico](web/public/branding/logo.ico) 从同一 SVG 导出，包含 16、24、32、48、64、128、256 px，用于 ICO favicon、桌面与 CLI EXE、WinForms 窗口及安装与卸载程序图标。WinForms 窗口从程序集内嵌资源读取 ICO，并在窗口释放时清理。
+- [logo_w550_h1054.svg](scripts/installer/assets/logo_w550_h1054.svg) 保留固定提交中的竖图原始字节和署名。
+- [logo_w164_h314.bmp](scripts/installer/assets/logo_w164_h314.bmp) 从竖图 SVG 导出，为 164×314、24 位无透明 BMP3。[installer.nsi](scripts/installer/installer.nsi) 通过 `${__FILEDIR__}` 引用该文件。MUI2 将其适配到安装欢迎页、安装完成页和卸载完成页的图像控件。
+- Vite 将方形资源复制到 `dist/branding`，桌面发布包从 `web/branding` 本地加载。NSIS 将竖图嵌入安装与卸载程序。
 
-SHA256：
-
-```text
-logo.svg  A7E9C8C7AF6663C1571D751B6070A092A76DF83C4321055A608CECCF202B57F5
-logo.ico  03F3BA00BA0DA0D7B5EE538A914C58176BC9DF333A4F176C2D8BE7D238713318
-```
+| 文件 | SHA-256 |
+| --- | --- |
+| logo.svg | `A7E9C8C7AF6663C1571D751B6070A092A76DF83C4321055A608CECCF202B57F5` |
+| logo.ico | `EF9F2DA9420D65F616BFC9A0D6C9372E05C5C6546071584FA35AE8FE398830B1` |
+| logo_w550_h1054.svg | `57FE86A4D6AD871D9A8359D77848B6DFFEE9768A89AFE7F2583E060A8D67C37F` |
+| logo_w164_h314.bmp | `83D3C08824AFDB2733C4063DCDCBFC2FA93101170F9C00073C7224E540FDED71` |
+| jiaopengzi-logo-LICENSE.txt | `C162703A02396F3762BE897463435BFF0397FC59B14CED050AB028AA535BC8F5` |
 
 ## 更新资源
 
-### NSIS 安装向导竖图
-
-安装欢迎页、安装完成页和卸载完成页使用用户提供的 `logo_w550_h1054` 竖图: 金色背景、深蓝 J 与“焦棚子 / JIAOPENGZI”字标. 来源为本地 logo 仓库, 固定提交 `b90951beef86feb8f57af17b7a05aa7f0be872d1`, 核对日期 2026-11-02.
-
-- [原始 SVG](scripts/installer/assets/logo_w550_h1054.svg) 保留上游原始字节与署名, 用于后续维护.
-- [安装器 BMP](scripts/installer/assets/logo_w550_h1054.bmp) 为同一 SVG 导出的 550×1054、24 位无透明 BMP3, 供 MUI2 原生加载.
-- [installer.nsi](scripts/installer/installer.nsi) 通过 `${__FILEDIR__}` 引用同目录下资源, 不依赖开发者桌面路径、网络或当前工作目录. 安装和卸载共用图片, 使用 MUI2 默认 FitControl 缩放, 不沿用旧安装器的 NOSTRETCH.
-- SVG/BMP 随源码维护; 正常打包只读取已生成 BMP, 不要求 ImageMagick. 图片由 NSIS 嵌入安装器与卸载器, 不额外复制到应用运行目录.
-
-SHA256:
-
-```text
-logo_w550_h1054.svg  F340F4EC47D43752E4FA8DEF54108119C460EC193467E81F62A8E57D68251153
-logo_w550_h1054.bmp  AE491D4B2FAD2BA031263EC8DF842C87C719E27069313DD420DD1B6B6051D415
-```
-
-需要更新时从仓库根目录运行以下维护命令, 核对图像和哈希后同时更新两个资源:
+从来源仓库的固定提交读取两份 SVG 和许可原文，按原始字节存入对应路径。从项目根目录运行下列命令导出图像。当前资源使用 ImageMagick 7.1.2-35 生成，日常构建和打包直接读取已有资源。
 
 ```powershell
-magick -background '#C89828' scripts/installer/assets/logo_w550_h1054.svg -alpha off -depth 8 -type TrueColor BMP3:scripts/installer/assets/logo_w550_h1054.bmp
-magick identify scripts/installer/assets/logo_w550_h1054.bmp
+magick -background none -density 384 web/public/branding/logo.svg -filter Triangle -define icon:auto-resize=16,24,32,48,64,128,256 web/public/branding/logo.ico
+magick -density 384 scripts/installer/assets/logo_w550_h1054.svg -filter Triangle -resize 164x314 -alpha off -type TrueColor BMP3:scripts/installer/assets/logo_w164_h314.bmp
+magick identify web/public/branding/logo.ico scripts/installer/assets/logo_w164_h314.bmp
 ```
 
-### 应用图标
-
-先核对上游提交、SVG 内容及颜色，再显式更新本地文件和本说明。只更换图标时无需修改依赖锁文件或产品版本。
-
-本次使用现有 ImageMagick 7.1.2-32 生成 ICO（仅为资源维护工具，不加入开发或运行前置条件）：
-
-```powershell
-magick -background none -density 384 web/public/branding/logo.svg -define icon:auto-resize=16,24,32,48,64,128,256 web/public/branding/logo.ico
-magick identify web/public/branding/logo.ico
-```
-
-更换品牌后通过统一入口执行 All/Release 检查、构建、测试及本地发布；验证发布文件哈希、两个 EXE 的图标和真实桌面窗口，点击 Hello/mock Agent 并保存截图。浏览器预览不替代 WebView2 验收。
+核对资源哈希、ICO 各尺寸和 BMP 格式，同步更新本说明及[离线许可清单](licenses/catalog.json)。通过 [release 动作](.agents/skills/pbi-utils-development/references/validation-and-delivery.md#生成轻量安装包)验证本地构建和打包，检查发布文件哈希、桌面和 CLI EXE 图标、真实应用侧栏与窗口，以及安装和卸载向导中的竖图。
