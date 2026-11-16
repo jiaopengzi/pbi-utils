@@ -10,7 +10,6 @@ import type { ModelExportLocation } from "@/bridge/client"
 import { vNumberAccessibility } from "@/ui/numberAccessibility"
 import { useI18n } from "@/composables/i18n/useI18n"
 const props = defineProps<{
-    selectedCount: number
     locked: boolean
     busy: boolean
     exportAvailable: boolean
@@ -93,7 +92,7 @@ const { t, locale } = useI18n()
                 type="primary"
                 :disabled="locked || !exportAvailable || !validLimit"
                 :loading="busy"
-                :class="{ 'operation-lock': locked && selectedCount > 0 }"
+                :class="{ 'operation-lock': locked && exportAvailable && validLimit }"
                 @click="emit('export')"
                 >{{ t("model.exportSelected") }}</el-button
             >

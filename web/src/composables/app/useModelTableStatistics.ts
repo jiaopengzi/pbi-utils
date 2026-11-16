@@ -196,6 +196,11 @@ export function useModelTableStatistics(props: ModelTableExportProps, onUpdated:
         if (value?.rowCountUnavailableReason === "no_queryable_columns") return t("model.rowCountNotApplicable")
         return value?.rowCount === undefined || value.rowCount === null ? "-" : new Intl.NumberFormat(locale.value).format(value.rowCount)
     }
+    /** 根据指定表的原始统计判断是否至少有一行, 未知或不适用均不满足. */
+    function hasRows(table: string): boolean {
+        const value = byTable.value.get(table)
+        return value?.rowCountUnavailableReason !== "no_queryable_columns" && (value?.rowCount ?? 0) > 0
+    }
     /** 大小采用二进制单位换算, 不用导出文件字节数代替模型驻留结构占用. */
     function size(table: string): string {
         let value = byTable.value.get(table)?.sizeBytes
@@ -215,5 +220,5 @@ export function useModelTableStatistics(props: ModelTableExportProps, onUpdated:
         document.removeEventListener("visibilitychange", resume)
         void cancel()
     })
-    return { busy, countKind, refresh, rowCount, size }
+    return { busy, countKind, refresh, rowCount, hasRows, size }
 }

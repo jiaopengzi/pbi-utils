@@ -14,8 +14,11 @@ import { useFeedback, useOperationMessage } from "@/composables/ui/useFeedback"
 export type ModelTableExportProps = { project: ProjectSnapshot; bridge: BridgeClient; locked?: boolean }
 type ModelTable = ProjectSnapshot["model"]["tables"][number]
 
-/** 只管理已核验模型的选择和意图, 不读取业务值或构造文件路径; 取消始终等待原请求唯一终态. */
-export function useModelTableExport(props: ModelTableExportProps, onExported?: () => Promise<void>) {
+/**
+ * 管理已核验模型的表选择、导出和取消排空.
+ * hasRows 根据当前统计判定表是否已知有数据, onExported 在文件发布后更新最近目录.
+ */
+export function useModelTableExport(props: ModelTableExportProps, hasRows: (table: string) => boolean, onExported?: () => Promise<void>) {
     const { t, hostText, locale } = useI18n()
     const { showFeedback } = useFeedback()
     const selected = ref<string[]>([]),
@@ -51,7 +54,8 @@ export function useModelTableExport(props: ModelTableExportProps, onExported?: (
     }
     const eligible = computed(() => props.project.model.tables.filter((table) => !selectionUnavailable(table)))
     const selectedTables = computed(() => eligible.value.filter((table) => selected.value.includes(table.name)))
-    const exportAvailable = computed(() => selectedTables.value.length > 0 && selectedTables.value.every((table) => !unavailable(table)))
+    const exportableTables = computed(() => selectedTables.value.filter((table) => !unavailable(table)))
+    const exportAvailable = computed(() => exportableTables.value.some((table) => hasRows(table.name)))
     /** 全选或取消指定可见表, 未指定范围时作用于全部; 核验真实可选身份并保留范围外选择, 不允许过期基线选择混入新操作. */
     function selectAll(value: boolean, names?: readonly string[]): void {
         if (!locked.value) {
@@ -93,7 +97,7 @@ export function useModelTableExport(props: ModelTableExportProps, onExported?: (
         const item = progress.value
         if (phase.value === "committing") return item ? t("model.exportProgressPublishing", { total: item.totalTables }) : t("model.exportPublishing")
         if (cancelling.value) return t("model.exportCancelling")
-        if (!item) return t("model.exportProcessing", { table: selectedTables.value.length })
+        if (!item) return t("model.exportProcessing", { table: exportableTables.value.length })
         const key = {
             reading: "model.exportProgressReading",
             verifying: "model.exportProgressVerifying",
@@ -126,7 +130,7 @@ export function useModelTableExport(props: ModelTableExportProps, onExported?: (
             .map((table) => table.name)
         if (JSON.parse(next)[0] !== JSON.parse(previous)[0]) selected.value = []
     })
-    /** 冻结选定表及统一格式, 一次选择目标并等待全批发布; 失败保留选择, 迟到结果不通知新工作区. */
+    /** 冻结有导出能力的选定表及统一格式, 一次选择目标并等待全批发布; 失败保留选择, 迟到结果不通知新工作区. */
     async function exportTables(): Promise<void> {
         if (disposed || locked.value || !exportAvailable.value) return
         if (!validLimit.value) {
@@ -135,7 +139,7 @@ export function useModelTableExport(props: ModelTableExportProps, onExported?: (
         }
         const epoch = ++generation,
             target = identity(),
-            tables = selectedTables.value.map((table) => table.name),
+            tables = exportableTables.value.map((table) => table.name),
             bridge = props.bridge
         busy.value = true
         phase.value = undefined

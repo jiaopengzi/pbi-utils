@@ -456,6 +456,27 @@ async function serviceReady(onRecent?: (value: RecentSlot) => void) {
     return context
 }
 
+it("Service 的两个目录下拉框分别标记筛选字词, 关闭后复位", async () => {
+    const { bridge, wrapper } = await serviceReady()
+    try {
+        /** 输入筛选词并关闭当前下拉框, 核对标记随输入切换且复位. */
+        async function checkFilter(label: string, query: string) {
+            const input = wrapper.get(`input[role="combobox"][aria-label="${label}"]`)
+            await input.setValue(query)
+            await flushPromises()
+            expect(Array.from(document.querySelectorAll('[role="option"] mark'), (mark) => mark.textContent)).toEqual([query])
+            await input.trigger("keydown", { key: "Escape", code: "Escape" })
+            await flushPromises()
+            expect(document.querySelector('[role="option"] mark')).toBeNull()
+        }
+        await checkFilter("工作区", "示例")
+        await checkFilter("语义模型", " (模拟)")
+    } finally {
+        wrapper.unmount()
+        bridge.dispose()
+    }
+})
+
 it("Service 仅预读所选模型的摘要, 连接前展示统计且不改变当前模型", async () => {
     const { bridge, request, wrapper } = await serviceReady()
     try {

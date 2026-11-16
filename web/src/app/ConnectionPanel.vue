@@ -6,8 +6,10 @@
  * Description : 连接页平铺三种模型来源, 复用类型化桥接与实例操作并保留连接取消边界.
 -->
 <script setup lang="ts">
+import { computed } from "vue"
 import type { ProjectSnapshot } from "@/bridge/client"
 import { useMessageNotices } from "@/composables/ui/useMessageNotices"
+import UiSelectOptionLabel from "@/ui/UiSelectOptionLabel.vue"
 import UiTabs from "@/ui/UiTabs.vue"
 import PowerBiPanel from "./PowerBiPanel.vue"
 import ModelInstanceCard from "./ModelInstanceCard.vue"
@@ -62,6 +64,14 @@ const {
     hostText,
     projectSummary,
 } = useConnectionWorkspace(props, emit)
+// 筛选和下拉渲染使用相同的标签, 重名工作区继续显示服务端身份.
+const workspaceOptions = computed(() =>
+    workspaces.value.map((item, _, items) => ({
+        id: item.id,
+        label: items.filter((other) => other.name === item.name).length > 1 ? `${item.name} · ${item.id}` : item.name,
+    })),
+)
+const modelOptions = computed(() => visibleModels.value.map((model) => ({ id: model.id, label: modelLabel(model), disabled: !!model.unavailableReason })))
 useMessageNotices("connection-panel-errors", () => [!!error.value && { key: "error", message: error.value, type: "error" }])
 // Service 选中模型的既有反馈由页面持有, 共享卡片不再因挂载或状态变化产生提示.
 useMessageNotices(
@@ -160,12 +170,9 @@ useMessageNotices("connection-panel-service-recents", () => [!!recentStorageWarn
                             :placeholder="t('connection.selectWorkspace')"
                             :aria-label="t('connection.workspace')"
                         >
-                            <el-option
-                                v-for="item in workspaces"
-                                :key="item.id"
-                                :label="`${item.name}${workspaces.filter((other) => other.name === item.name).length > 1 ? ` · ${item.id}` : ''}`"
-                                :value="item.id"
-                            /> </el-select
+                            <el-option v-for="item in workspaceOptions" :key="item.id" :label="item.label" :value="item.id">
+                                <UiSelectOptionLabel :text="item.label" />
+                            </el-option> </el-select
                     ></el-form-item>
                     <el-form-item :label="t('connection.semanticModel')"
                         ><el-select
@@ -176,13 +183,9 @@ useMessageNotices("connection-panel-service-recents", () => [!!recentStorageWarn
                             :placeholder="t('connection.selectModel')"
                             :aria-label="t('connection.semanticModel')"
                         >
-                            <el-option
-                                v-for="model in visibleModels"
-                                :key="model.id"
-                                :label="modelLabel(model)"
-                                :value="model.id"
-                                :disabled="!!model.unavailableReason"
-                            /> </el-select
+                            <el-option v-for="model in modelOptions" :key="model.id" :label="model.label" :value="model.id" :disabled="model.disabled">
+                                <UiSelectOptionLabel :text="model.label" />
+                            </el-option> </el-select
                     ></el-form-item>
                 </el-form>
                 <el-empty v-if="!loading && !models.length" :description="t('connection.noModels')" :image-size="48" />

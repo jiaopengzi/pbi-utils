@@ -3,17 +3,20 @@
  * Author      : jiaopengzi
  * Blog        : https://jiaopengzi.com
  * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
- * Description : 将空白分词查询的字面命中渲染为安全文本标记, 供模型名称与目录复用.
+ * Description : 将查询的字面命中渲染为安全文本标记, 供模型名称与目录复用.
 -->
 <script setup lang="ts">
 import { computed } from "vue"
 
-/** text 为原始名称, query 按空白分词且忽略大小写; 空查询原样显示, 特殊字符不作为正则语法或HTML执行. */
-const props = defineProps<{ text: string; query: string }>()
+/** text 为原始名称; query 默认按空白分词, exact 保留完整筛选词与空格, 两种模式都忽略大小写. */
+const props = defineProps<{ text: string; query: string; exact?: boolean }>()
 const parts = computed(() => {
-    const words = [...new Set(props.query.trim().split(/\s+/u).filter(Boolean))].toSorted((a, b) => b.length - a.length)
+    const words = props.exact
+        ? [props.query].filter(Boolean)
+        : [...new Set(props.query.trim().split(/\s+/u).filter(Boolean))].toSorted((a, b) => b.length - a.length)
     if (!words.length) return [{ text: props.text, match: false }]
-    const pattern = new RegExp(words.map((word) => word.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")).join("|"), "giu")
+    // 完整筛选词与 Element Plus 的默认选项筛选使用同一大小写匹配规则.
+    const pattern = new RegExp(words.map((word) => word.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")).join("|"), props.exact ? "gi" : "giu")
     const result: { text: string; match: boolean }[] = []
     let cursor = 0
     for (const match of props.text.matchAll(pattern)) {

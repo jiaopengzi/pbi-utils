@@ -106,6 +106,51 @@ it("批量入口初始不选表, 全选后只发一轮包含全部所选表的�
     }
 })
 
+it("只有已知有行的表可激活导出, 全选时跳过无数据列且保留删除选择", async () => {
+    const project = tablesProject()
+    project.connection = { kind: "desktop", label: "Desktop", instanceId: "isolated" }
+    project.model.tables.push({ ...structuredClone(project.model.tables[0]!), name: "纯度量表", columns: [] })
+    const { wrapper, sent, send, cleanup } = await setupTables({
+        project,
+        statistics: [
+            { table: "销售", rowCount: 2, sizeBytes: null, isQueryCount: false },
+            { table: "另一张表", rowCount: 0, sizeBytes: null, isQueryCount: false },
+            { table: "纯度量表", rowCount: 0, sizeBytes: null, isQueryCount: false },
+        ],
+    })
+    try {
+        const exportButton = wrapper.get<HTMLButtonElement>(".table-export-button")
+        await selectTable(wrapper, "另一张表")
+        expect(exportButton.element.disabled).toBe(true)
+        await selectTable(wrapper, "纯度量表")
+        expect(exportButton.element.disabled).toBe(true)
+        expect(wrapper.get<HTMLButtonElement>(".table-delete-button").element.disabled).toBe(false)
+        await exportButton.trigger("click")
+        expect(sent).toHaveLength(0)
+
+        await wrapper.get<HTMLInputElement>(".table-list-head input").setValue(true)
+        expect(exportButton.element.disabled).toBe(false)
+        expect(wrapper.get<HTMLInputElement>('[aria-label="选择表 纯度量表"] input').element.checked).toBe(true)
+        await exportButton.trigger("click")
+        expect(sent).toHaveLength(1)
+        expect(sent[0]).toMatchObject({ method: "model.exportTables", params: { tables: ["销售", "另一张表"] } })
+        send({
+            id: sent[0]!.id,
+            result: {
+                ...exportResult("tables.xlsx", ["销售"]),
+                tables: [
+                    { table: "销售", rowCount: 2 },
+                    { table: "另一张表", rowCount: 0 },
+                ],
+            },
+        })
+        await flushPromises()
+        expect(wrapper.get<HTMLInputElement>('[aria-label="选择表 纯度量表"] input').element.checked).toBe(true)
+    } finally {
+        cleanup()
+    }
+})
+
 it("全选跳过不可导出的表, 部分选择显示indeterminate且取消全选清空", async () => {
     const project = tablesProject()
     project.model.tables.push({
@@ -438,6 +483,11 @@ it("统计请求绑定精确身份, 如实显示零值和未知值并更新刷�
         expect(sales.text()).toMatch(/0\s*(B|Bytes)/)
         expect(other.text()).toContain("-")
         expect(other.text()).not.toMatch(/0\s*(B|Bytes)/)
+        const exportButton = wrapper.get<HTMLButtonElement>(".table-export-button")
+        await selectTable(wrapper, "另一张表")
+        expect(exportButton.element.disabled).toBe(true)
+        await selectTable(wrapper, "销售")
+        expect(exportButton.element.disabled).toBe(true)
         setStatistics([
             { table: "销售", rowCount: 4096, sizeBytes: 2048, isQueryCount: false },
             { table: "另一张表", rowCount: null, sizeBytes: null, isQueryCount: false },
@@ -450,6 +500,7 @@ it("统计请求绑定精确身份, 如实显示零值和未知值并更新刷�
         expect(sales.text()).toMatch(/4[,. ]?096/)
         expect(sales.text()).not.toContain("≈")
         expect(sales.text()).toMatch(/2\s*KB/i)
+        expect(exportButton.element.disabled).toBe(false)
     } finally {
         cleanup()
     }

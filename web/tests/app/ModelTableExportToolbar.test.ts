@@ -14,7 +14,6 @@ import ModelTableExportToolbar from "@/app/ModelTableExportToolbar.vue"
 function render(locked: boolean) {
     return mount(ModelTableExportToolbar, {
         props: {
-            selectedCount: 1,
             locked,
             busy: false,
             exportAvailable: true,

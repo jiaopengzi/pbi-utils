@@ -29,7 +29,7 @@ export function tablesProject(): ProjectSnapshot {
 export function controlledBridge(project: ProjectSnapshot, initial: TableTestOptions = {}) {
     let receive: ((event: MessageEvent) => void) | undefined
     let statistics: StatisticsRows =
-        initial.statistics ?? project.model.tables.map((table) => ({ table: table.name, rowCount: null, sizeBytes: null, isQueryCount: false }))
+        initial.statistics ?? project.model.tables.map((table) => ({ table: table.name, rowCount: 2, sizeBytes: null, isQueryCount: false }))
     let autoStatistics = initial.autoStatistics ?? true
     let location: ModelExportLocation = initial.location ?? { id: null, displayPath: null, available: false, warning: null, isSimulation: false }
     let autoLocation = initial.autoLocation ?? true

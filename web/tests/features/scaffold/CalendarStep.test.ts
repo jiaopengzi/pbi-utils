@@ -291,23 +291,35 @@ it("六组平铺51项, 组选不删除其他组, 依赖可见且跳过保留工�
     wrapper.unmount()
 })
 
-it("时间智能焦点提供可见解释, 切语言不改选择", async () => {
+it("时间智能释义仅在悬停或聚焦时显示, 切语言不改选择", async () => {
     const draft = createConfigurationDraft("zh-cn")
+    draft.periods.templates = ["AC"]
     const definitions = [
         { id: "AC", label: "AC", group: "Day", description: "AC：当前选择日期对应的值。", dependencies: [] },
         { id: "PD", label: "PD", group: "Day", description: "PD：当前选择日期的前一日的值。", dependencies: [] },
     ]
     const wrapper = mount(PeriodsFields, {
+        attachTo: document.body,
         props: { calendar: draft.calendar, periods: draft.periods, calendarEnabled: true, periodsEnabled: true, disabled: false, definitions, measures: [] },
     })
     try {
-        expect(wrapper.get(".scaffold-period-explanation").text()).toContain("当前选择日期")
-        await wrapper.get('input[value="PD"]').trigger("focusin")
-        expect(wrapper.get(".scaffold-period-explanation").text()).toContain("前一日")
+        expect(wrapper.text()).toContain("聚焦或悬停可查看含义。")
+        expect(wrapper.text()).not.toContain("当前选择日期")
+        const previousDay = wrapper.get<HTMLInputElement>('input[value="PD"]')
+        const button = previousDay.element.closest("label")!
+        const tooltip = () => document.getElementById(button.getAttribute("aria-describedby") ?? "")
+        button.dispatchEvent(new MouseEvent("mouseenter"))
+        await vi.waitFor(() => expect(tooltip()?.textContent).toContain("前一日"))
+        button.dispatchEvent(new MouseEvent("mouseleave"))
+        await vi.waitFor(() => expect(tooltip()).toBeNull())
+        previousDay.element.focus()
+        await vi.waitFor(() => expect(tooltip()?.textContent).toContain("前一日"))
+        expect(previousDay.element.dispatchEvent(new KeyboardEvent("keydown", { code: "Space", bubbles: true, cancelable: true }))).toBe(true)
         const before = [...draft.periods.templates]
         setLocale("en-us")
         await nextTick()
-        expect(wrapper.get(".scaffold-period-explanation").text()).toContain("previous day")
+        expect(wrapper.text()).toContain("Focus or hover to see the meaning.")
+        expect(tooltip()?.textContent).toContain("previous day")
         expect(draft.periods.templates).toEqual(before)
     } finally {
         wrapper.unmount()

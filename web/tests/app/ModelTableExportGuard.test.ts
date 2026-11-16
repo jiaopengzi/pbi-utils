@@ -18,7 +18,7 @@ it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, undefined, 2147483648
     const wrapper = mount(
         defineComponent({
             setup() {
-                exporting = useModelTableExport({ project, bridge })
+                exporting = useModelTableExport({ project, bridge }, () => true)
                 return () => null
             },
         }),
@@ -45,7 +45,7 @@ it("明确全部行时忽略未使用的样本草稿, 仅传null而不传NaN", a
     const wrapper = mount(
         defineComponent({
             setup() {
-                exporting = useModelTableExport({ project, bridge })
+                exporting = useModelTableExport({ project, bridge }, () => true)
                 return () => null
             },
         }),

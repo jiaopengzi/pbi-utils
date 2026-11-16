@@ -19,7 +19,11 @@ import { useModelTableDeletion } from "@/composables/app/useModelTableDeletion"
 const props = defineProps<ModelTableExportProps>()
 const emit = defineEmits<{ busy: [value: boolean]; updated: [value: ProjectSnapshot]; edit: [] }>()
 const locations = useModelExportLocation(props)
-const exporting = useModelTableExport(props, () => locations.refresh(false))
+const exporting = useModelTableExport(
+    props,
+    (table) => statistics.hasRows(table),
+    () => locations.refresh(false),
+)
 const {
     t,
     selected,
@@ -104,7 +108,6 @@ const fieldCount = (table: ModelTableExportProps["project"]["model"]["tables"][n
             v-model:include-log="includeLog"
             v-model:scope="scope"
             v-model:row-limit="rowLimit"
-            :selected-count="selectedTables.length"
             :locked="locked"
             :busy="busy"
             :export-available="exportAvailable"
