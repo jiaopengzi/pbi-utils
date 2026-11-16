@@ -62,9 +62,9 @@ Var JobWait
 !define PBI_STATUS_NEUTRAL 515A6B
 !define MUI_ICON "${PBI_ICON}"
 !define MUI_UNICON "${PBI_ICON}"
-; 安装欢迎页、安装完成页和卸载完成页共用 164×314 BMP, 由 MUI2 适配控件尺寸.
-!define MUI_WELCOMEFINISHPAGE_BITMAP "${__FILEDIR__}\assets\logo_w164_h314.bmp"
-!define MUI_UNWELCOMEFINISHPAGE_BITMAP "${__FILEDIR__}\assets\logo_w164_h314.bmp"
+; 安装欢迎页、安装完成页和卸载完成页共用 550×1054 BMP, 由 MUI2 适配控件尺寸.
+!define MUI_WELCOMEFINISHPAGE_BITMAP "${__FILEDIR__}\assets\logo_w550_h1054.bmp"
+!define MUI_UNWELCOMEFINISHPAGE_BITMAP "${__FILEDIR__}\assets\logo_w550_h1054.bmp"
 !define MUI_ABORTWARNING
 !define MUI_CUSTOMFUNCTION_ABORT OnAbortCheck
 !define MUI_WELCOMEPAGE_TEXT "$(WelcomeDescription)"

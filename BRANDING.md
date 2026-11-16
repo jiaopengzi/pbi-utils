@@ -29,7 +29,7 @@
 - [logo.svg](web/public/branding/logo.svg) 保留固定提交中的原始字节和注释，用于应用侧栏、SVG favicon 和 Power BI Desktop 外部工具。
 - [logo.ico](web/public/branding/logo.ico) 从同一 SVG 导出，包含 16、24、32、48、64、128、256 px，用于 ICO favicon、桌面与 CLI EXE、WinForms 窗口及安装与卸载程序图标。WinForms 窗口从程序集内嵌资源读取 ICO，并在窗口释放时清理。
 - [logo_w550_h1054.svg](scripts/installer/assets/logo_w550_h1054.svg) 保留固定提交中的竖图原始字节和署名。
-- [logo_w164_h314.bmp](scripts/installer/assets/logo_w164_h314.bmp) 从竖图 SVG 导出，为 164×314、24 位无透明 BMP3。[installer.nsi](scripts/installer/installer.nsi) 通过 `${__FILEDIR__}` 引用该文件。MUI2 将其适配到安装欢迎页、安装完成页和卸载完成页的图像控件。
+- [logo_w550_h1054.bmp](scripts/installer/assets/logo_w550_h1054.bmp) 直接复制自本地 logo 仓库，为 550×1054、24 位无透明 BMP3。[installer.nsi](scripts/installer/installer.nsi) 通过 `${__FILEDIR__}` 引用该文件。MUI2 根据向导字体和 Windows 显示缩放，将源图适配到安装欢迎页、安装完成页和卸载完成页的图像控件。
 - Vite 将方形资源复制到 `dist/branding`，桌面发布包从 `web/branding` 本地加载。NSIS 将竖图嵌入安装与卸载程序。
 
 | 文件 | SHA-256 |
@@ -37,17 +37,17 @@
 | logo.svg | `A7E9C8C7AF6663C1571D751B6070A092A76DF83C4321055A608CECCF202B57F5` |
 | logo.ico | `EF9F2DA9420D65F616BFC9A0D6C9372E05C5C6546071584FA35AE8FE398830B1` |
 | logo_w550_h1054.svg | `57FE86A4D6AD871D9A8359D77848B6DFFEE9768A89AFE7F2583E060A8D67C37F` |
-| logo_w164_h314.bmp | `83D3C08824AFDB2733C4063DCDCBFC2FA93101170F9C00073C7224E540FDED71` |
+| logo_w550_h1054.bmp | `E7B659EB18702A300779ADB1346159D9F64F2F65AD3D6834C803064C06360817` |
 | jiaopengzi-logo-LICENSE.txt | `C162703A02396F3762BE897463435BFF0397FC59B14CED050AB028AA535BC8F5` |
 
 ## 更新资源
 
-从来源仓库的固定提交读取两份 SVG 和许可原文，按原始字节存入对应路径。从项目根目录运行下列命令导出图像。当前资源使用 ImageMagick 7.1.2-35 生成，日常构建和打包直接读取已有资源。
+从来源仓库的固定提交读取两份 SVG 和许可原文，按原始字节存入对应路径。在 logo 仓库按其 README 导出 550×1054 BMP，再将文件原样复制到本项目。下列命令在项目根目录执行，以两个仓库位于同一目录为例。当前应用 ICO 使用 ImageMagick 7.1.2-35 生成。
 
 ```powershell
 magick -background none -density 384 web/public/branding/logo.svg -filter Triangle -define icon:auto-resize=16,24,32,48,64,128,256 web/public/branding/logo.ico
-magick -density 384 scripts/installer/assets/logo_w550_h1054.svg -filter Triangle -resize 164x314 -alpha off -type TrueColor BMP3:scripts/installer/assets/logo_w164_h314.bmp
-magick identify web/public/branding/logo.ico scripts/installer/assets/logo_w164_h314.bmp
+Copy-Item -LiteralPath ../logo/logo_w550_h1054.bmp -Destination scripts/installer/assets/logo_w550_h1054.bmp
+magick identify web/public/branding/logo.ico scripts/installer/assets/logo_w550_h1054.bmp
 ```
 
 核对资源哈希、ICO 各尺寸和 BMP 格式，同步更新本说明及[离线许可清单](licenses/catalog.json)。通过 [release 动作](.agents/skills/pbi-utils-development/references/validation-and-delivery.md#生成轻量安装包)验证本地构建和打包，检查发布文件哈希、桌面和 CLI EXE 图标、真实应用侧栏与窗口，以及安装和卸载向导中的竖图。
