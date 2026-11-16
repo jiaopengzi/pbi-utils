@@ -44,7 +44,7 @@ read_git() {
 # 复核初始分支、HEAD 与干净状态; 参数为原分支和提交, 变化时拒绝继续且不修改仓库.
 assert_baseline() {
     local current_branch current_head status
-    current_branch=$(read_git '当前必须位于 main 或 v2 分支' symbolic-ref --quiet --short HEAD)
+    current_branch=$(read_git '当前必须位于 main 或 vN 分支' symbolic-ref --quiet --short HEAD)
     current_head=$(read_git '无法读取当前 HEAD' rev-parse --verify HEAD)
     status=$(read_git '无法核验工作区' status --porcelain=v1 --untracked-files=all)
     [[ "$current_branch" == "$1" && "$current_head" == "$2" ]] || fail '发布期间分支或 HEAD 已变化, 请重新核验.'
@@ -52,7 +52,7 @@ assert_baseline() {
 }
 
 # 复用发布规范, 首参为分支, 可选次参为待发布提交.
-# 准备输出完整版本, 提交核验另输出预发布标记; 失败给出诊断并返回非零.
+# 输出准备或提交核验取得的完整版本; 失败给出诊断并返回非零.
 invoke_release_spec() {
     PBI_SAVETAG_BRANCH="$1" PBI_SAVETAG_COMMIT="${2:-}" pwsh -NoProfile -NonInteractive -Command '
         $ErrorActionPreference = "Stop"
@@ -61,8 +61,8 @@ invoke_release_spec() {
             if ($PSVersionTable.PSVersion.Major -lt 7) { throw "读取发布版本需要 PowerShell 7." }
             Import-Module (Join-Path $PWD "scripts/ReleaseAutomation.psm1") -Force
             if ($env:PBI_SAVETAG_COMMIT) {
-                $context = (Get-PbiCommitReleaseSpec -RepositoryRoot $PWD -Commit $env:PBI_SAVETAG_COMMIT).Context
-                [Console]::Write(("{0} {1}" -f $context.ReleaseTag, $context.Prerelease))
+                $context = (Get-PbiCommitReleaseSpec -RepositoryRoot $PWD -Commit $env:PBI_SAVETAG_COMMIT -Branch $env:PBI_SAVETAG_BRANCH).Context
+                [Console]::Write($context.ReleaseTag)
             } else {
                 $release = Initialize-PbiReleaseVersion -RepositoryRoot $PWD -Branch $env:PBI_SAVETAG_BRANCH
                 [Console]::Write($release.Tag)
@@ -85,8 +85,8 @@ cd -- "$repository"
 git_root=$(read_git '脚本必须位于本项目 Git 仓库的 .gitalias 目录' rev-parse --show-toplevel)
 # 通过 cd 统一 Git 的 Windows 路径与 Git Bash 的 /盘符 路径, 不依赖调用目录.
 [[ "$(cd -- "$git_root" && pwd -P)" == "$repository" ]] || fail '脚本所在目录不是 Git 仓库根目录.'
-branch=$(read_git '当前必须位于 main 或 v2 分支' symbolic-ref --quiet --short HEAD)
-[[ "$branch" == main || "$branch" == v2 ]] || fail '发布仅支持 main 或 v2 分支.'
+branch=$(read_git '当前必须位于 main 或 vN 分支' symbolic-ref --quiet --short HEAD)
+[[ "$branch" == main || "$branch" =~ ^v[1-9][0-9]*$ ]] || fail '发布仅支持 main 或 vN 分支 (N 为正整数).'
 if [[ "$action" == --prepare ]]; then
     tag=$(invoke_release_spec "$branch") || exit 1
     printf '已准备 version %s. 请审阅并提交 CHANGELOG.md 和 version 后执行 git savetag.\n' "$tag"
@@ -96,13 +96,7 @@ fi
 head=$(read_git '无法读取当前 HEAD' rev-parse --verify HEAD)
 assert_baseline "$branch" "$head"
 
-release_spec=$(invoke_release_spec "$branch" "$head") || exit 1
-read -r tag prerelease <<< "$release_spec"
-if [[ "$branch" == v2 && "$prerelease" != True ]]; then
-    fail 'v2 分支仅允许 vX.Y.Z-rcN 预发布标签.'
-elif [[ "$branch" == main && "$prerelease" != False ]]; then
-    fail 'main 分支仅允许 vX.Y.Z 正式标签.'
-fi
+tag=$(invoke_release_spec "$branch" "$head") || exit 1
 
 tag_ref="refs/tags/$tag"
 if git show-ref --verify --quiet "$tag_ref" >/dev/null 2>&1; then

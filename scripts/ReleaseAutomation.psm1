@@ -6,19 +6,17 @@
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$script:VersionBranchPattern = 'v[1-9][0-9]*'
+$script:ReleaseBranchPattern = "\A(?:main|$script:VersionBranchPattern)\z"
 
 <#
 .SYNOPSIS 从精确标签提取 Windows 数字版本和发布类型; 格式或数值超界时抛错.
 .PARAMETER Tag version 或 CHANGELOG 章节中的完整发布标签.
-.PARAMETER Historical 读取已有标签原始发行版时, 也识别此前的 desktop 标签.
 .OUTPUTS Version、Tag 和 Prerelease.
 #>
-function ConvertFrom-PbiReleaseTag([string]$Tag, [switch]$Historical) {
-    $match = [regex]::Match($Tag, '\Av(?<version>(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){2})(?:-rc(?<revision>[1-9][0-9]*))?\z')
-    if (!$match.Success -and $Historical) {
-        $match = [regex]::Match($Tag, '\Adesktop-v(?<version>(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){2,3})(?:-v2\.(?<revision>[1-9][0-9]*))?\z')
-    }
-    if (!$match.Success) { throw '标签格式无效, 使用 vX.Y.Z 或 vX.Y.Z-rcN (N 为正整数)' }
+function ConvertFrom-PbiReleaseTag([string]$Tag) {
+    $match = [regex]::Match($Tag, '\Av(?<version>(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){2})(?:-(?:alpha|beta|rc)(?<revision>[1-9][0-9]*))?\z')
+    if (!$match.Success) { throw '标签格式无效, 使用 vX.Y.Z、vX.Y.Z-alphaN、vX.Y.Z-betaN 或 vX.Y.Z-rcN (N 为正整数)' }
     $version = $match.Groups['version'].Value
     foreach ($part in $version.Split('.')) {
         $number = [uint16]0
@@ -61,9 +59,21 @@ function Get-PbiCurrentRelease([string]$RepositoryRoot) {
 #>
 function Get-PbiChangelogReleaseSpec([string[]]$Lines) {
     $heading = $Lines | Where-Object { $_ -cmatch '^##\s' } | Select-Object -First 1
-    if ($heading -cnotmatch '^## \[([^\]]+)\] - \d{4}-\d{2}-\d{2}$') { throw 'CHANGELOG 版本标题格式无效, 必须精确使用 ## [vX.Y.Z] - YYYY-MM-DD 或 ## [vX.Y.Z-rcN] - YYYY-MM-DD' }
+    if ($heading -cnotmatch '^## \[([^\]]+)\] - \d{4}-\d{2}-\d{2}$') { throw 'CHANGELOG 版本标题格式无效, 必须精确使用 ## [<完整发布标签>] - YYYY-MM-DD' }
     $release = ConvertFrom-PbiReleaseTag $Matches[1]
     [pscustomobject]@{ Release = $release; Notes = Get-PbiReleaseSection $Lines $release.Tag }
+}
+
+<# .SYNOPSIS 根据已解析发布标签返回允许的来源分支正则. #>
+function Get-PbiReleaseSourceBranchPattern($Release) {
+    if ($Release.Prerelease) { return $script:ReleaseBranchPattern }
+    return '\Amain\z'
+}
+
+<# .SYNOPSIS 核验现行发布标签可在指定本地分支发布, 分支或版本类型不符时抛错. #>
+function Assert-PbiReleaseBranch($Release, [string]$Branch) {
+    if ($Branch -cnotmatch $script:ReleaseBranchPattern) { throw '发布仅支持 main 或 vN 分支 (N 为正整数)' }
+    if ($Branch -cnotmatch (Get-PbiReleaseSourceBranchPattern $Release)) { throw '正式标签仅允许在 main 分支发布' }
 }
 
 <#
@@ -73,10 +83,8 @@ function Get-PbiChangelogReleaseSpec([string[]]$Lines) {
 .OUTPUTS Version、Tag 和 Prerelease; 输入无效或写入失败时抛错.
 #>
 function Initialize-PbiReleaseVersion([string]$RepositoryRoot, [string]$Branch) {
-    if ($Branch -cnotin @('main', 'v2')) { throw '发布仅支持 main 或 v2 分支' }
     $release = (Get-PbiChangelogReleaseSpec ([IO.File]::ReadAllLines((Join-Path $RepositoryRoot 'CHANGELOG.md')))).Release
-    if ($Branch -ceq 'v2' -and !$release.Prerelease) { throw 'v2 分支仅允许 vX.Y.Z-rcN 预发布标签' }
-    if ($Branch -ceq 'main' -and $release.Prerelease) { throw 'main 分支仅允许 vX.Y.Z 正式标签' }
+    Assert-PbiReleaseBranch $release $Branch
     $path = Join-Path $RepositoryRoot 'version'
     $temporary = Join-Path $RepositoryRoot ('.version-' + [Guid]::NewGuid().ToString('N'))
     try {
@@ -119,23 +127,25 @@ function Read-PbiCommitFile([string]$RepositoryRoot, [string]$Commit, [string]$F
 .PARAMETER RepositoryRoot Git 仓库根目录.
 .PARAMETER Commit 已冻结的完整提交 ID.
 .PARAMETER ExpectedTag 可选外部 Git 标签, 必须与提交中的两处版本完全一致.
+.PARAMETER Branch 可选本地发布分支, 必须允许发布该标签.
 .OUTPUTS Context 和 Notes; 文件缺失、无效或身份不一致时抛错.
 #>
-function Get-PbiCommitReleaseSpec([string]$RepositoryRoot, [string]$Commit, [string]$ExpectedTag) {
+function Get-PbiCommitReleaseSpec([string]$RepositoryRoot, [string]$Commit, [string]$ExpectedTag, [string]$Branch) {
     if ($Commit -cnotmatch '\A(?:[0-9a-f]{40}|[0-9a-f]{64})\z') { throw '发布提交 ID 无效' }
     $release = ConvertFrom-PbiVersionText (Read-PbiCommitFile $RepositoryRoot $Commit 'version')
     $changelog = Get-PbiChangelogReleaseSpec ((Read-PbiCommitFile $RepositoryRoot $Commit 'CHANGELOG.md') -split '\r\n|\r|\n')
     if ($release.Tag -cne $changelog.Release.Tag) { throw '提交的 version 与 CHANGELOG 最新发布标签不一致, 请运行 git savetag --prepare 并提交' }
     if ($PSBoundParameters.ContainsKey('ExpectedTag') -and $ExpectedTag -cne $release.Tag) { throw 'Git 标签与提交的 version 和 CHANGELOG 最新发布标签不一致' }
+    if ($PSBoundParameters.ContainsKey('Branch')) { Assert-PbiReleaseBranch $release $Branch }
     [pscustomobject]@{ Context = New-PbiReleaseContext $release -Tagged; Notes = $changelog.Notes }
 }
 
 <#
 .SYNOPSIS 将 Git ref 映射到构建或发布策略; 只有新标签发布读取对应提交中的 CHANGELOG.
 .PARAMETER RepositoryRoot 仓库根目录; 标签发布需要对应的 Git 标签及检出提交.
-.PARAMETER Ref GitHub 完整 ref; PR merge ref 仅构建, 稳定标签要求 main, rcN 标签要求 v2.
-.OUTPUTS 包含 Version、ArchiveName、InstallerName、ReleaseTag、Prerelease、SourceBranch 的对象; 未知 ref 或版本不符抛错.
-.NOTES 本函数只确定策略, 调用者仍须核验提交属于 SourceBranch, 不能以标签名证明提交归属.
+.PARAMETER Ref GitHub 完整 ref; PR merge ref 仅构建, 标签发布返回允许的来源分支.
+.OUTPUTS 包含 Version、ArchiveName、InstallerName、ReleaseTag、Prerelease、SourceBranchPattern 的对象; 未知 ref 或版本不符抛错.
+.NOTES 标签发布调用者仍须通过 Assert-PbiReleaseAncestry 核验提交归属.
 #>
 function Get-PbiReleaseContext([string]$RepositoryRoot, [string]$Ref) {
     if ($Ref.StartsWith('refs/tags/', [StringComparison]::Ordinal)) {
@@ -150,37 +160,48 @@ function Get-PbiReleaseContext([string]$RepositoryRoot, [string]$Ref) {
         if ($LASTEXITCODE -ne 0 -or $head -cne $commit) { throw 'Git 发布标签目标与当前检出的提交不一致' }
         return (Get-PbiCommitReleaseSpec $RepositoryRoot $commit $tag).Context
     }
-    $branch = ''
-    if ($Ref -cmatch '^refs/heads/(main|v2)$') { $branch = $Matches[1] }
-    elseif ($Ref -cnotmatch '^refs/pull/[1-9][0-9]*/merge$') { throw '发布 ref 无效' }
-    return New-PbiReleaseContext (Get-PbiCurrentRelease $RepositoryRoot) -SourceBranch $branch
+    if ($Ref -cnotmatch "\Arefs/heads/(?:main|$script:VersionBranchPattern)\z" -and
+        $Ref -cnotmatch '\Arefs/pull/[1-9][0-9]*/merge\z') { throw '发布 ref 无效' }
+    return New-PbiReleaseContext (Get-PbiCurrentRelease $RepositoryRoot)
 }
 
 <#
-.SYNOPSIS 使用核验后的发布身份生成 ZIP 和安装器共用名称, 历史 desktop 发行保留数字文件名.
-.PARAMETER Release Get-PbiCurrentRelease 或原标签解析的发布身份.
+.SYNOPSIS 核验发布提交是任一允许来源分支的祖先或分支头; 无匹配或 Git 查询异常时抛错.
+.PARAMETER RepositoryRoot 包含 origin 的远端跟踪分支的仓库.
+.PARAMETER Commit 已核验的完整发布提交 ID 或已与标签目标核对的 HEAD.
+.PARAMETER SourceBranchPattern 发布上下文返回的允许来源分支正则.
+#>
+function Assert-PbiReleaseAncestry([string]$RepositoryRoot, [string]$Commit, [string]$SourceBranchPattern) {
+    $PSNativeCommandUseErrorActionPreference = $false
+    if (!$SourceBranchPattern) { throw '缺少发布来源分支规则' }
+    $containingBranches = @(& git --no-replace-objects -C $RepositoryRoot for-each-ref "--contains=$Commit" '--format=%(refname:lstrip=3)' refs/remotes/origin/)
+    if ($LASTEXITCODE -ne 0) { throw '无法核验发布提交归属' }
+    if (!($containingBranches -cmatch $SourceBranchPattern)) { throw '发布提交不属于允许的来源分支' }
+}
+
+<#
+.SYNOPSIS 使用核验后的完整发布标签生成 ZIP 和安装器共用名称.
+.PARAMETER Release 已解析的发布身份.
 .PARAMETER DotNetMode 本轮打包的部署模式.
 .OUTPUTS 不含扩展名和安装器后缀的归档基础名称; 模式不受支持时抛错.
 #>
 function Get-PbiPackageBaseName($Release, [ValidateSet('with-dotnet', 'without-dotnet')][string]$DotNetMode) {
-    $fileVersion = if ($Release.Tag.StartsWith('desktop-v', [StringComparison]::Ordinal)) { $Release.Version } else { $Release.Tag }
-    return "pbi-utils-$fileVersion-win-x64-$DotNetMode"
+    return "pbi-utils-$($Release.Tag)-win-x64-$DotNetMode"
 }
 
 <#
 .SYNOPSIS 将已核验的发布身份映射到归档、安装器名称及发布分支.
 .PARAMETER Release 已核验的发布身份.
-.PARAMETER SourceBranch 非标签构建的可选来源分支.
 .PARAMETER Tagged 表示已选定 Git 发布标签, 启用发布所需标签和分支信息.
 .OUTPUTS 构建或发布上下文.
 #>
-function New-PbiReleaseContext($Release, [string]$SourceBranch, [switch]$Tagged) {
+function New-PbiReleaseContext($Release, [switch]$Tagged) {
     $baseName = Get-PbiPackageBaseName $Release 'without-dotnet'
-    if ($Tagged) { $SourceBranch = if ($Release.Prerelease) { 'v2' } else { 'main' } }
     [pscustomobject]@{
         Version = $Release.Version; ArchiveName = "$baseName.zip"; InstallerName = "$baseName-setup.exe"
         ReleaseTag = if ($Tagged) { $Release.Tag } else { '' }
-        Prerelease = $Tagged -and $Release.Prerelease; SourceBranch = $SourceBranch
+        Prerelease = $Tagged -and $Release.Prerelease
+        SourceBranchPattern = if ($Tagged) { Get-PbiReleaseSourceBranchPattern $Release } else { '' }
     }
 }
 
@@ -247,7 +268,7 @@ function Get-PbiReleaseNotes([string]$RepositoryRoot, [string]$Tag, [string]$Ins
 .OUTPUTS Context 和 Notes; 标签读取或原发布规范无效时抛错.
 #>
 function Get-PbiTaggedReleaseSpec([string]$RepositoryRoot, [string]$Tag, [string]$InstallerSha256) {
-    $release = ConvertFrom-PbiReleaseTag $Tag -Historical
+    $release = ConvertFrom-PbiReleaseTag $Tag
     $PSNativeCommandUseErrorActionPreference = $false
     $commit = & git --no-replace-objects -C $RepositoryRoot rev-parse --verify "refs/tags/${Tag}^{commit}" 2>$null
     if ($LASTEXITCODE -ne 0) { throw '原发布标签的目标提交读取失败' }
@@ -305,4 +326,4 @@ function New-PbiReleaseArchive([string]$RepositoryRoot, [string]$Destination, [s
     }
 }
 
-Export-ModuleMember -Function Get-PbiCurrentRelease, Initialize-PbiReleaseVersion, Get-PbiCommitReleaseSpec, Get-PbiPackageBaseName, Get-PbiReleaseContext, Get-PbiReleaseNotes, Get-PbiTaggedReleaseSpec, Add-PbiInstallerHash, New-PbiReleaseArchive
+Export-ModuleMember -Function Get-PbiCurrentRelease, Initialize-PbiReleaseVersion, Get-PbiCommitReleaseSpec, Get-PbiPackageBaseName, Get-PbiReleaseContext, Assert-PbiReleaseAncestry, Get-PbiReleaseNotes, Get-PbiTaggedReleaseSpec, Add-PbiInstallerHash, New-PbiReleaseArchive

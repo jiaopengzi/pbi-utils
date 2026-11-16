@@ -91,7 +91,7 @@ function New-Payload([string]$Directory) {
     $files = @(Get-ChildItem -LiteralPath $app -Recurse -File | ForEach-Object {
         @{ file = $_.FullName.Substring($app.Length + 1).Replace('\', '/'); sha256 = (Get-FileHash -LiteralPath $_.FullName).Hash }
     })
-    @{ schemaVersion = 3; layout = 'shared'; runtime = 'win-x64'; scope = 'All'; configuration = 'Release'; deploymentMode = 'framework-dependent'; version = '1.0.0'; releaseTag = 'v1.0.0-rc3'; files = $files } |
+    @{ schemaVersion = 3; layout = 'shared'; runtime = 'win-x64'; scope = 'All'; configuration = 'Release'; deploymentMode = 'framework-dependent'; version = '1.0.0'; releaseTag = 'v1.0.0-alpha3'; files = $files } |
         ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $app 'manifest.json') -Encoding UTF8
     return $payload
 }
@@ -109,7 +109,7 @@ try {
             $adapters.AssertIdle = { param($root) }
             $null = Invoke-PbiApplicationInstallation -Operation Install -InstallRoot $scenario.Root -PayloadRoot $payload -Adapters $adapters -CreateDesktopShortcut $desktop -CreateStartMenuShortcut $startMenu
             Assert ([IO.File]::Exists($scenario.Desktop) -eq $desktop -and [IO.File]::Exists($scenario.Start) -eq $startMenu) '首次安装必须准确应用桌面和开始菜单的四种选择组合'
-            Assert ((Read-RegistryValue $scenario.UninstallKey 'DisplayVersion') -ceq 'v1.0.0-rc3') 'Windows 已安装应用的显示版本必须来自载荷发布标签'
+            Assert ((Read-RegistryValue $scenario.UninstallKey 'DisplayVersion') -ceq 'v1.0.0-alpha3') 'Windows 已安装应用的显示版本必须来自载荷发布标签'
             Assert ((Read-RegistryValue $scenario.ProductKey 'Version') -ceq '1.0.0') '产品安装登记必须保留数字版本'
             $before = @{}
             foreach ($path in @($scenario.Start, $scenario.Desktop)) { $before[$path] = if ([IO.File]::Exists($path)) { (Get-FileHash -LiteralPath $path).Hash } else { $null } }

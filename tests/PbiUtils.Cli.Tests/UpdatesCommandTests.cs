@@ -24,11 +24,11 @@ public sealed class UpdatesCommandTests : IDisposable
     [Fact]
     public async Task CliAndMcpSharePublicReleaseList()
     {
-        var source = new Releases { Entries = [new("desktop-v0.2.0-v2.10", false, true, "preview"), new("desktop-v0.1.0", false, false, "stable")] };
+        var source = new Releases { Entries = [new("v0.2.0-beta10", false, true, "preview"), new("v0.1.0", false, false, "stable")] };
         var service = new ProductUpdateService(new LocalProductUpdateStore(root), source, "v0.1.0-rc1");
         var result = await ProductUpdateCommands.RunAsync(["updates", "check", "--source", "gitee", "--json"], service, default);
         Assert.Equal("v0.1.0-rc1", result.Check!.CurrentVersion);
-        Assert.Equal(["desktop-v0.2.0-v2.10", "desktop-v0.1.0"], result.Check!.Releases.Select(release => release.Version));
+        Assert.Equal(["v0.2.0-beta10", "v0.1.0"], result.Check!.Releases.Select(release => release.Version));
         await using var runtime = new McpBusinessRuntime(false, root, NullLoggerFactory.Instance, productUpdates: service);
         var response = await runtime.CallAsync(new CallToolRequestParams
         {

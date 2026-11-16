@@ -86,7 +86,7 @@ function Assert-StandalonePublishedArtifacts([string]$Root) {
     $actualFiles = @(Get-StandalonePublishFiles $absolute)
     $manifest = Get-Content -LiteralPath (Join-Path $absolute 'manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($manifest.schemaVersion -ne 3 -or $manifest.layout -cne 'shared' -or $manifest.runtime -cne 'win-x64' -or $manifest.scope -cnotin @('Core', 'All') -or $manifest.configuration -cnotin @('Debug', 'Release') -or !$manifest.version -or $manifest.deploymentMode -cnotin @('self-contained', 'framework-dependent')) { throw '发布清单版本、布局、目标、范围、配置或模式无效' }
-    $releasePattern = '\Av' + [regex]::Escape($manifest.version) + '(?:-rc[1-9][0-9]*)?\z'
+    $releasePattern = '\Av' + [regex]::Escape($manifest.version) + '(?:-(?:alpha|beta|rc)[1-9][0-9]*)?\z'
     if ($manifest.releaseTag -isnot [string] -or $manifest.releaseTag -cnotmatch $releasePattern) { throw '发布清单缺少有效且匹配数字版本的完整发布标签' }
     if ($manifest.configuration -ceq 'Debug' -and $manifest.deploymentMode -cne 'self-contained') { throw 'Debug 发布必须为自包含模式' }
     $expected = [Collections.Generic.Dictionary[string, string]]::new([StringComparer]::OrdinalIgnoreCase)

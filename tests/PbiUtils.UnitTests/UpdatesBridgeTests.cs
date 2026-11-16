@@ -118,7 +118,7 @@ public sealed class UpdatesBridgeTests
         {
             token.ThrowIfCancellationRequested();
             if (fail) return Task.FromException<ProductRelease[]>(new AppException("UPDATE_NETWORK_FAILED", "固定传输错误", 3));
-            return Task.FromResult<ProductRelease[]>([new("desktop-v0.2.0", false, false, "plain text")]);
+            return Task.FromResult<ProductRelease[]>([new("v0.2.0", false, false, "plain text")]);
         }
     }
 

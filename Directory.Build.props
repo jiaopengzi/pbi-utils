@@ -16,7 +16,7 @@
     <!-- version 记录单行完整标签. SDK 从数字 Version 生成程序集版本与文件版本. -->
     <_PbiVersionPath>$(MSBuildThisFileDirectory)version</_PbiVersionPath>
     <_PbiVersionText Condition="Exists('$(_PbiVersionPath)')">$([System.IO.File]::ReadAllText('$(_PbiVersionPath)'))</_PbiVersionText>
-    <_PbiVersionPattern>\A(?&lt;tag&gt;v(?&lt;version&gt;(?&lt;major&gt;0|[1-9][0-9]{0,4})\.(?&lt;minor&gt;0|[1-9][0-9]{0,4})\.(?&lt;patch&gt;0|[1-9][0-9]{0,4}))(?:-rc(?&lt;revision&gt;[1-9][0-9]{0,9}))?)(?:\r?\n)?\z</_PbiVersionPattern>
+    <_PbiVersionPattern>\A(?&lt;tag&gt;v(?&lt;version&gt;(?&lt;major&gt;0|[1-9][0-9]{0,4})\.(?&lt;minor&gt;0|[1-9][0-9]{0,4})\.(?&lt;patch&gt;0|[1-9][0-9]{0,4}))(?:-(?:alpha|beta|rc)(?&lt;revision&gt;[1-9][0-9]{0,9}))?)(?:\r?\n)?\z</_PbiVersionPattern>
     <_PbiVersionTag>$([System.Text.RegularExpressions.Regex]::Match('$(_PbiVersionText)', '$(_PbiVersionPattern)').Groups['tag'].Value)</_PbiVersionTag>
     <_PbiVersion>$([System.Text.RegularExpressions.Regex]::Match('$(_PbiVersionText)', '$(_PbiVersionPattern)').Groups['version'].Value)</_PbiVersion>
     <_PbiVersionMajor>$([System.Text.RegularExpressions.Regex]::Match('$(_PbiVersionText)', '$(_PbiVersionPattern)').Groups['major'].Value)</_PbiVersionMajor>

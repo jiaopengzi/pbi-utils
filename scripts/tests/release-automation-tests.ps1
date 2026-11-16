@@ -58,11 +58,6 @@ try {
 
 - 引入 version 之前的现行格式预发布说明.
 
-## [desktop-v0.1.0-v2.7] - 2026-11-03
-
-### Added
-
-- 旧格式预发布说明.
 '@ | Set-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md')
     $validChangelog = Get-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md') -Raw
     $versionPath = Join-Path $sandbox 'version'
@@ -71,8 +66,8 @@ try {
     Move-Item -LiteralPath $changelogPath -Destination (Join-Path $sandbox 'saved-notes.md')
     $current = Get-PbiCurrentRelease -RepositoryRoot $sandbox
     Assert ($current.Tag -ceq 'v0.1.0-rc1' -and $current.Version -ceq '0.1.0' -and $current.Prerelease) '缺少 CHANGELOG 时仍从 version 读取完整构建身份'
-    $branch = Get-PbiReleaseContext -RepositoryRoot $sandbox -Ref 'refs/heads/v2'
-    Assert (!$branch.ReleaseTag -and $branch.SourceBranch -ceq 'v2') '分支构建只读 version'
+    $branch = Get-PbiReleaseContext -RepositoryRoot $sandbox -Ref 'refs/heads/v12'
+    Assert (!$branch.ReleaseTag -and !$branch.SourceBranchPattern) '版本分支构建只读 version'
     $pr = Get-PbiReleaseContext -RepositoryRoot $sandbox -Ref 'refs/pull/42/merge'
     Assert (!$pr.ReleaseTag -and $pr.ArchiveName -ceq $branch.ArchiveName) 'PR 构建只读 version'
     Move-Item -LiteralPath (Join-Path $sandbox 'saved-notes.md') -Destination $changelogPath
@@ -83,7 +78,7 @@ try {
     Remove-Item -LiteralPath $versionPath
     Assert-Rejected { Get-PbiCurrentRelease -RepositoryRoot $sandbox }
     [IO.File]::WriteAllText($versionPath, "v0.1.0-rc1`n")
-    foreach ($heading in @('## [Unreleased]', '## [v00.1.0]', '## [v65535.1.0]', '## [v0.1.0-rc0]', '## [v0.1.0-rc01]', '## [v0.1.0-rc2147483648]', '## [v0.1.0.1]', '## [desktop-v0.1.0-v2.8]')) {
+    foreach ($heading in @('## [Unreleased]', '## [v00.1.0]', '## [v65535.1.0]', '## [v0.1.0-rc0]', '## [v0.1.0-rc01]', '## [v0.1.0-rc2147483648]', '## [v0.1.0.1]', '## [v0.1.0-preview8]')) {
         "$heading - 2026-11-03`n- 内容。`n$validChangelog" | Set-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md')
         Assert-Rejected { Initialize-PbiReleaseVersion -RepositoryRoot $sandbox -Branch v2 }
     }
@@ -94,7 +89,7 @@ try {
     Assert ($stableBuild.ArchiveName -ceq 'pbi-utils-v0.2.0-win-x64-without-dotnet.zip') '正式版文件名必须带精确发布标签'
     $validChangelog | Set-Content -LiteralPath (Join-Path $sandbox 'CHANGELOG.md')
     $preview = Initialize-PbiReleaseVersion -RepositoryRoot $sandbox -Branch v2
-    foreach ($ref in @('refs/tags/desktop-v0.1.0-v2.1', 'refs/tags/v0.2.0', 'refs/tags/v0.1.0', 'refs/tags/v0.1.0-rc0', 'refs/tags/v0.1.0-rc.1', 'refs/heads/other')) {
+    foreach ($ref in @('refs/tags/v0.2.0', 'refs/tags/v0.1.0', 'refs/tags/v0.1.0-rc0', 'refs/tags/v0.1.0-rc.1', 'refs/heads/other', 'refs/heads/v02')) {
         Assert-Rejected { Get-PbiReleaseContext -RepositoryRoot $sandbox -Ref $ref }
     }
     $notes = Get-PbiReleaseNotes -RepositoryRoot $sandbox -Tag $preview.Tag
@@ -118,7 +113,6 @@ try {
     }
     Invoke-FixtureGit @('add', '--', 'CHANGELOG.md')
     Invoke-FixtureGit @('commit', '--quiet', '-m', 'Historical releases before version')
-    Invoke-FixtureGit @('tag', '--annotate', '-m', 'Historical desktop', 'desktop-v0.1.0-v2.7')
     Invoke-FixtureGit @('tag', '--annotate', '-m', 'Historical current-format tag', 'v0.1.0')
     Invoke-FixtureGit @('tag', '--annotate', '-m', 'Historical current-format prerelease', 'v0.1.0-rc9')
     $legacy = Get-PbiTaggedReleaseSpec -RepositoryRoot $sandbox -Tag 'v0.1.0'
@@ -141,7 +135,9 @@ try {
     Assert-Rejected { Get-PbiReleaseContext -RepositoryRoot $sandbox -Ref 'refs/tags/v0.1.0-rc2' }
     Assert-Rejected { Get-PbiReleaseContext -RepositoryRoot $sandbox -Ref 'refs/tags/v0.1.0-rc3' }
     $tagged = Get-PbiReleaseContext -RepositoryRoot $sandbox -Ref 'refs/tags/v0.1.0-rc1'
-    Assert ($tagged.Prerelease -and $tagged.ReleaseTag -ceq $preview.Tag -and $tagged.SourceBranch -ceq 'v2') '匹配的已提交预发布身份可进入标签构建'
+    Assert ($tagged.Prerelease -and $tagged.ReleaseTag -ceq $preview.Tag) 'RC 标签应标记为预发布'
+    Assert-PbiReleaseAncestry -RepositoryRoot $sandbox -Commit $head -SourceBranchPattern $tagged.SourceBranchPattern
+    Assert-Rejected { Assert-PbiReleaseAncestry -RepositoryRoot $sandbox -Commit $head -SourceBranchPattern $legacy.Context.SourceBranchPattern }
     Assert ($tagged.ArchiveName -ceq $branch.ArchiveName) '普通构建和标签构建使用相同的归档名称'
 
     $package = Join-Path $sandbox 'artifacts/release/win-x64/without-dotnet'
@@ -196,10 +192,16 @@ try {
             $env:RELEASE_TAG = $preview.Tag
             $env:ARCHIVE_NAME = $branch.ArchiveName
             $env:GITHUB_REPOSITORY = 'fixture/repository'
-            $historical = Get-PbiTaggedReleaseSpec -RepositoryRoot $sandbox -Tag 'desktop-v0.1.0-v2.7' -InstallerSha256 $hash
-            Assert ($historical.Context.Prerelease -and $historical.Context.ArchiveName -ceq 'pbi-utils-0.1.0-win-x64-without-dotnet.zip' -and $historical.Notes.Contains('旧格式预发布说明')) '历史 desktop 标签保持其原始附件名'
-            Assert ($historical.Context.InstallerName -ceq 'pbi-utils-0.1.0-win-x64-without-dotnet-setup.exe' -and $historical.Notes.Contains("### $($historical.Context.InstallerName) SHA256")) '历史发行说明沿用原安装器名称'
             $dist = Join-Path $sandbox 'dist'
+            # 同一 RC 标签也能从只有 main 包含发布提交的仓库生成和验证发布包.
+            $previous = Invoke-FixtureGit @('rev-parse', 'HEAD^')
+            Invoke-FixtureGit @('update-ref', 'refs/remotes/origin/v2', $previous)
+            Invoke-FixtureGit @('update-ref', 'refs/remotes/origin/v02', $head)
+            Assert-Rejected { & $bundleScript -Mode Create -Directory $dist }
+            Invoke-FixtureGit @('update-ref', 'refs/remotes/origin/v12', $head)
+            & $bundleScript -Mode Create -Directory $dist | Out-Null
+            Invoke-FixtureGit @('update-ref', 'refs/remotes/origin/v12', $previous)
+            Invoke-FixtureGit @('update-ref', 'refs/remotes/origin/main', $head)
             & $bundleScript -Mode Create -Directory $dist | Out-Null
             # 运行分支升级或修改说明后, 仍须使用原标签规范复验原包.
             'changed branch notes' | Set-Content (Join-Path $sandbox 'CHANGELOG.md')

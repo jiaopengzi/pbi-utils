@@ -8,11 +8,16 @@ name: Build pbi-utils
 
 on:
   push:
-    tags: ['v[0-9]+.[0-9]+.[0-9]+', 'v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+']
-    branches: [v2]
+    # 标签推送按标签格式单独触发, 无论推送命令在哪个分支上执行.
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      # 预发布后缀由发布校验统一识别为 alphaN、betaN 或 rcN.
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+    # 分支和路径筛选用于 main 与版本分支上的附件重试提交.
+    branches: [main, 'v[1-9]', 'v[1-9][0-9]+']
     paths: ['.github/**']
   pull_request:
-    branches: [main, v2]
+    branches: [main, 'v[1-9]', 'v[1-9][0-9]+']
   workflow_dispatch:
     inputs:
       release_tag:
@@ -58,22 +63,21 @@ jobs:
           $ErrorActionPreference = 'Stop'
           Import-Module ./scripts/ReleaseAutomation.psm1 -Force
           $requestedTag = $env:REQUESTED_TAG
-          if ($env:GITHUB_REF -ceq 'refs/heads/v2' -and $env:GITHUB_EVENT_NAME -ceq 'push') {
-            # 重试允许现行及历史预发布, 具体标签格式由原标签规范解析.
+          if ($env:GITHUB_EVENT_NAME -ceq 'push' -and $env:GITHUB_REF -cmatch '\Arefs/heads/(?:main|v[1-9][0-9]*)\z') {
+            # 附件重试使用原标签的发布说明和已有归档.
             $markers = [regex]::Matches($env:COMMIT_MESSAGE, '\[release-retry:(?: ([^\[\]\s]+)\])?')
             if ($markers.Count -ne 1 -or !$markers[0].Groups[1].Success) { throw '附件重试提交必须指定唯一有效标签' }
             $requestedTag = $markers[0].Groups[1].Value
           }
           $reuse = ![string]::IsNullOrEmpty($requestedTag)
-          if ($reuse -and $env:GITHUB_REF -cne 'refs/heads/v2') { throw '已有发行版重试只允许 v2' }
+          if ($reuse -and $env:GITHUB_REF -cnotmatch '\Arefs/heads/(?:main|v[1-9][0-9]*)\z') { throw '已有发行版重试仅支持 main 或 vN 分支' }
           $context = if ($reuse) {
             (Get-PbiTaggedReleaseSpec -RepositoryRoot $PWD -Tag $requestedTag).Context
           } else { Get-PbiReleaseContext -RepositoryRoot $PWD -Ref $env:GITHUB_REF }
-          if ($reuse -and !$context.Prerelease) { throw 'v2 不能重试正式发行版' }
+          if ($reuse -and !$context.Prerelease) { throw '附件重试仅支持已有预发布版' }
           "reuse=$($reuse.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
           if ($context.ReleaseTag -and !$reuse) {
-            git merge-base --is-ancestor HEAD "refs/remotes/origin/$($context.SourceBranch)"
-            if ($LASTEXITCODE -ne 0) { throw '发布提交不属于指定来源分支' }
+            Assert-PbiReleaseAncestry -RepositoryRoot $PWD -Commit HEAD -SourceBranchPattern $context.SourceBranchPattern
           }
           "release_tag=$($context.ReleaseTag)" >> $env:GITHUB_OUTPUT
           "prerelease=$($context.Prerelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT

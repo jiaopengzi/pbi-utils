@@ -14,9 +14,9 @@
 
 ## 下载与安装
 
-当前分发面向 **Windows x64**。在发布页面选择所需版本并阅读对应发布说明。新正式版使用 `vX.Y.Z`，预发布版使用 `vX.Y.Z-rcN`。安装向导显示对应的完整发布标签。
+当前分发面向 **Windows x64**。在发布页面选择所需版本并阅读对应发布说明。正式版使用 `vX.Y.Z`，内测版使用 `vX.Y.Z-alphaN`，预览版使用 `vX.Y.Z-betaN`，候选版使用 `vX.Y.Z-rcN`。安装向导显示对应的完整发布标签。
 
-1. 下载发布附件 `pbi-utils-<发布标签>-win-x64-without-dotnet.zip`，解压后运行其中的 `pbi-utils-<发布标签>-win-x64-without-dotnet-setup.exe`。例如，标签 `v0.1.0-rc1` 对应 `pbi-utils-v0.1.0-rc1-win-x64-without-dotnet.zip`。历史版本的附件使用数字版本，文件名以对应发布页为准。
+1. 下载发布附件 `pbi-utils-<发布标签>-win-x64-without-dotnet.zip`，解压后运行其中的 `pbi-utils-<发布标签>-win-x64-without-dotnet-setup.exe`。例如，标签 `v2.0.0-rc1` 对应 `pbi-utils-v2.0.0-rc1-win-x64-without-dotnet.zip`。
 2. 在向导的许可页阅读项目及第三方许可，接受 Microsoft AMO/ADOMD 组件条款后，继续检查运行环境并选择安装位置。默认目录为 `%LOCALAPPDATA%\Programs\pbi-utils`。
 3. 安装完成后，从桌面或开始菜单启动 pbi-utils。快捷方式可在安装时选择是否创建。
 

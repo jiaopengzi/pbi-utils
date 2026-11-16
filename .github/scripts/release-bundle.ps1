@@ -8,7 +8,7 @@
 .SYNOPSIS 创建或验证同一次构建的发布包, 发布端不重新生成说明.
 .PARAMETER Mode Download 下载并验证已有发行版; Create 生成说明和清单; Verify 校验完整共享包.
 .PARAMETER Directory 已包含精确 ZIP 的目录.
-.PARAMETER Reuse 验证从已有发行版下载的历史附件时, 使用原标签说明.
+.PARAMETER Reuse 验证从已有发行版下载的附件时, 使用原标签说明.
 .OUTPUTS 验证结果; 输入、归属、内容或摘要不符时抛错.
 #>
 param([Parameter(Mandatory)][ValidateSet('Create', 'Verify', 'Download')][string]$Mode,
@@ -30,8 +30,7 @@ $spec = if ($Mode -ceq 'Download' -or $Reuse) {
 }
 $context = $spec.Context
 if ($env:ARCHIVE_NAME -cne $context.ArchiveName) { throw 'ZIP 文件名与发布上下文不符' }
-git merge-base --is-ancestor $commit "refs/remotes/origin/$($context.SourceBranch)"
-if ($LASTEXITCODE -ne 0) { throw '标签不属于指定来源分支' }
+Assert-PbiReleaseAncestry -RepositoryRoot $PWD -Commit $commit -SourceBranchPattern $context.SourceBranchPattern
 $installerName = $context.InstallerName
 $zipPath = Join-Path $Directory $context.ArchiveName
 if ($Mode -ceq 'Download') {

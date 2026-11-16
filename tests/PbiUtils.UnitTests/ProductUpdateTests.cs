@@ -24,10 +24,10 @@ public sealed class ProductUpdateTests : IDisposable
     public void PreviewReleaseFromCurrentWorkflowIsVisible()
     {
         var check = ProductUpdatePolicy.Select("github", "v0.1.0-rc1",
-            [new("desktop-v0.2.0-v2.1", false, true, "preview")], DateTimeOffset.UtcNow);
+            [new("v0.2.0-beta1", false, true, "preview")], DateTimeOffset.UtcNow);
         Assert.Equal("available", check.Status);
         Assert.Equal("v0.1.0-rc1", check.CurrentVersion);
-        Assert.Equal("desktop-v0.2.0-v2.1", check.LatestVersion);
+        Assert.Equal("v0.2.0-beta1", check.LatestVersion);
     }
 
     /// <summary>共享夹具验证两站字段差异、旧版隔离、最高版本与完整发布列表.</summary>
@@ -57,32 +57,34 @@ public sealed class ProductUpdateTests : IDisposable
     public void StableAndPreviewReleasesAreOrderedAndRoundTrip()
     {
         var check = ProductUpdatePolicy.Select("gitee", "v0.2.0-rc2",
-            [new("desktop-v0.2.0-v2.2", false, true, "two"), new("desktop-v0.2.0-v2.10", false, true, "ten"),
-             new("desktop-v0.2.0", false, false, "stable"), new("desktop-v0.3.0-v2.1", true, true, "draft")], DateTimeOffset.UtcNow);
+            [new("v0.2.0-beta2", false, true, "two"), new("v0.2.0-beta10", false, true, "ten"),
+             new("v0.2.0", false, false, "stable"), new("v0.3.0-alpha1", true, true, "draft")], DateTimeOffset.UtcNow);
         Assert.Equal("current", check.Status);
-        Assert.Equal(["desktop-v0.2.0", "desktop-v0.2.0-v2.10", "desktop-v0.2.0-v2.2"], check.Releases.Select(release => release.Version));
+        Assert.Equal(["v0.2.0", "v0.2.0-beta10", "v0.2.0-beta2"], check.Releases.Select(release => release.Version));
         var store = new LocalProductUpdateStore(root);
         store.SaveCheck(check, false, default);
         Assert.Equal(check.Releases, store.Read("gitee").LastCheck!.Releases);
     }
 
-    /// <summary>新版标签与历史 desktop 标签共同排序和保存, 旧产品标签和无效候选编号不参与检查.</summary>
+    /// <summary>各预发布阶段按顺序和轮次排序并可保存, 无效标签不参与更新检查.</summary>
     [Fact]
     public void ReleaseCandidatesUseCurrentTagsAndRoundTrip()
     {
-        var check = ProductUpdatePolicy.Select("github", "v0.2.0-rc2",
+        var check = ProductUpdatePolicy.Select("github", "v0.2.0-alpha1",
             [new("v0.2.0-rc2", false, false, "two"), new("v0.2.0-rc10", false, true, "ten"),
-             new("v0.2.0", false, false, "stable"), new("desktop-v0.2.0", false, false, "historical stable"),
-             new("desktop-v0.2.0-v2.20", false, true, "historical preview"),
+             new("v0.2.0-alpha1", false, false, "internal"), new("v0.2.0-alpha11", false, false, "internal"),
+             new("v0.2.0-beta1", false, false, "preview"),
+             new("v0.2.0", false, false, "stable"),
              new("v0.3.0-rc1", true, true, "draft"), new("v0.4.0-rc01", false, true, "invalid"),
              new("v0.4.0-rc2147483648", false, true, "overflow"), new("v0.4.0-rc0", false, true, "zero"),
              new("v0.4.0-RC1", false, true, "capitalized"), new("v1.0.3.1", false, false, "old product"),
              new("v65535.0.0", false, false, "version overflow")], DateTimeOffset.UtcNow);
         Assert.Equal("current", check.Status);
         Assert.Equal("v0.2.0", check.LatestVersion);
-        Assert.Equal(["v0.2.0", "desktop-v0.2.0", "v0.2.0-rc10", "v0.2.0-rc2", "desktop-v0.2.0-v2.20"], check.Releases.Select(release => release.Tag));
-        Assert.Equal(["v0.2.0", "desktop-v0.2.0", "v0.2.0-rc10", "v0.2.0-rc2", "desktop-v0.2.0-v2.20"], check.Releases.Select(release => release.Version));
-        Assert.All(check.Releases.Skip(2), release => Assert.True(release.Prerelease));
+        string[] expected = ["v0.2.0", "v0.2.0-rc10", "v0.2.0-rc2", "v0.2.0-beta1", "v0.2.0-alpha11", "v0.2.0-alpha1"];
+        Assert.Equal(expected, check.Releases.Select(release => release.Tag));
+        Assert.Equal(expected, check.Releases.Select(release => release.Version));
+        Assert.All(check.Releases.Skip(1), release => Assert.True(release.Prerelease));
         var store = new LocalProductUpdateStore(root);
         store.SaveCheck(check, false, default);
         Assert.Equal(check.Releases, store.Read("github").LastCheck!.Releases);
@@ -92,7 +94,7 @@ public sealed class ProductUpdateTests : IDisposable
     [Fact]
     public void LargeReleaseListHasBoundedNotesAndReadableStorage()
     {
-        var releases = Enumerable.Range(1, 1000).Select(index => new ProductRelease($"desktop-v0.2.0-v2.{index}", false, true,
+        var releases = Enumerable.Range(1, 1000).Select(index => new ProductRelease($"v0.2.0-rc{index}", false, true,
             new string('中', 4095) + "😀"));
         var check = ProductUpdatePolicy.Select("github", "v0.1.0-rc1", releases, DateTimeOffset.UtcNow);
         Assert.Equal(1000, check.Releases.Length);
@@ -106,8 +108,8 @@ public sealed class ProductUpdateTests : IDisposable
 
     /// <summary>非法缓存的标签/展示版本/预发布状态不得成为可用列表.</summary>
     [Theory]
-    [InlineData("desktop-v0.2.0", "0.3.0", false)]
-    [InlineData("desktop-v0.2.0-v2.1", "desktop-v0.2.0-v2.1", false)]
+    [InlineData("v0.2.0", "0.3.0", false)]
+    [InlineData("v0.2.0-alpha1", "v0.2.0-alpha1", false)]
     [InlineData("v1.0.3.1", "v1.0.3.1", false)]
     [InlineData("v0.2.0-rc1", "v0.2.0-rc1", false)]
     public void InvalidCachedReleaseCannotBeSaved(string tag, string version, bool preview)
@@ -145,16 +147,20 @@ public sealed class ProductUpdateTests : IDisposable
         Assert.Contains("\"schemaVersion\":3", File.ReadAllText(path));
     }
 
-    /// <summary>升级后保留已有更新偏好, 丢弃只有数字版本的旧检查记录并允许立即检查.</summary>
-    [Fact]
-    public async Task NumericVersionCacheDoesNotReplaceCurrentReleaseIdentity()
+    /// <summary>升级后保留已有更新偏好, 丢弃使用不支持标签的检查记录并允许立即检查.</summary>
+    [Theory]
+    [InlineData(2, "0.1.0")]
+    [InlineData(3, "v0.1.0-preview1")]
+    public async Task ObsoleteCacheDoesNotReplaceCurrentReleaseIdentity(int schemaVersion, string cachedTag)
     {
         Directory.CreateDirectory(root);
         var path = Path.Combine(root, "product-updates.json");
-        const string previous = """
-            {"schemaVersion":2,"settings":{"source":"gitee","automaticCheck":true},"checks":{
-                "gitee":{"source":"gitee","currentVersion":"0.1.0","status":"noRelease","checkedAtUtc":"2026-11-03T00:00:00Z",
-                         "latestVersion":null,"releases":[],"errorCode":null,"isSimulation":false}}}
+        var previous = $$$"""
+            {"schemaVersion":{{{schemaVersion}}},"settings":{"source":"gitee","automaticCheck":true},"checks":{
+                "gitee":{"source":"gitee","currentVersion":"v0.1.0-rc1","status":"available","checkedAtUtc":"2026-11-03T00:00:00Z",
+                         "latestVersion":"{{{cachedTag}}}","releases":[{"tag":"{{{cachedTag}}}","version":"{{{cachedTag}}}","prerelease":true,"notes":"","notesTruncated":false}],
+                         "errorCode":null,"isSimulation":false}
+            }}
             """;
         File.WriteAllText(path, previous);
         using var http = new HttpClient(new Handler((request, _) =>
@@ -263,13 +269,13 @@ public sealed class ProductUpdateTests : IDisposable
         using var http = new HttpClient(new Handler((request, _) =>
         {
             Assert.Equal("api.github.com", request.RequestUri!.Host);
-            var response = Json(Interlocked.Increment(ref calls) == 1 ? "[]" : """[{"tag_name":"desktop-v0.4.0"}]""");
+            var response = Json(Interlocked.Increment(ref calls) == 1 ? "[]" : """[{"tag_name":"v0.4.0"}]""");
             if (calls == 1) response.Headers.Add("Link", "<https://evil.test/anything>; rel=\"next\"");
             return Task.FromResult(response);
         }));
         var check = (await Create(http).CheckAsync("github", false, default)).Check!;
         Assert.Equal(2, calls);
-        Assert.Equal("desktop-v0.4.0", check.LatestVersion);
+        Assert.Equal("v0.4.0", check.LatestVersion);
     }
 
     /// <summary>自动关闭/切源发生在网络期间时, 迟到结果不覆盖用户最新设置和缓存.</summary>

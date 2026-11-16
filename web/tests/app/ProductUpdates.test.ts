@@ -46,7 +46,7 @@ function result(source: "github" | "gitee" = "github", status: ProductUpdateChec
                           notes: "<img src=x onerror=alert(1)>\n[link](javascript:alert(1))",
                           notesTruncated: false,
                       },
-                      { tag: "desktop-v0.1.0-v2.1", version: "desktop-v0.1.0-v2.1", prerelease: true, notes: "Preview notes", notesTruncated: true },
+                      { tag: "v0.1.0-beta1", version: "v0.1.0-beta1", prerelease: true, notes: "Preview notes", notesTruncated: true },
                   ],
         errorCode: status === "failed" ? "UPDATE_TIMEOUT" : null,
         isSimulation: false,
@@ -400,8 +400,8 @@ it.each(["available", "current", "noRelease", "failed"] as const)("展示 %s 状
     const bridge = markRaw(new BridgeClient(new MockTransport()))
     const lastCheck = result("github", status)
     if (status === "current") {
-        lastCheck.latestVersion = "desktop-v0.1.0-v2.7"
-        lastCheck.releases = [{ tag: "desktop-v0.1.0-v2.7", version: "desktop-v0.1.0-v2.7", prerelease: true, notes: "", notesTruncated: false }]
+        lastCheck.latestVersion = "v0.1.0-rc7"
+        lastCheck.releases = [{ tag: "v0.1.0-rc7", version: "v0.1.0-rc7", prerelease: true, notes: "", notesTruncated: false }]
     }
     const state: ProductUpdateState = { settings: { automaticCheck: false, source: "github" }, lastCheck }
     const original = bridge.request.bind(bridge)
@@ -428,7 +428,7 @@ it.each(["available", "current", "noRelease", "failed"] as const)("展示 %s 状
     expect(wrapper.find(".release-notes").exists()).toBe(false)
     expect(wrapper.find("summary").exists()).toBe(false)
     expect(wrapper.get(".update-current-version strong").text()).toBe(status === "failed" ? "-" : "pbi-utils v0.1.0-rc1")
-    const latestLabels = { available: "pbi-utils v0.2.0", current: "pbi-utils desktop-v0.1.0-v2.7", noRelease: "-", failed: "-" }
+    const latestLabels = { available: "pbi-utils v0.2.0", current: "pbi-utils v0.1.0-rc7", noRelease: "-", failed: "-" }
     expect(wrapper.get(".update-release-version strong").text()).toBe(latestLabels[status])
     expect(wrapper.get(".update-actions").find('[data-action="check"]').exists()).toBe(true)
     expect(wrapper.text()).not.toContain("当前已是最新版本")

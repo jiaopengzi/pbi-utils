@@ -61,7 +61,7 @@ public sealed class LocalProductUpdateStore(string root) : IProductUpdateStore
     /// <summary>锁内合并仅本来源记录, 自动关闭或切源后不提交迟到结果; 取消保留原文件.</summary>
     public bool SaveCheck(ProductUpdateCheck check, bool automatic, CancellationToken token)
     {
-        ValidateCheck(check);
+        if (!ValidateCheck(check)) throw new JsonException();
         token.ThrowIfCancellationRequested();
         Prepare();
         using var lease = UserDataStore.Lock(Path.Combine(root, "product-updates.lock"));
@@ -81,7 +81,7 @@ public sealed class LocalProductUpdateStore(string root) : IProductUpdateStore
         UserDataStore.Check(root);
     }
 
-    /// <summary>按严格 schema 读取有界文件, 旧数字版本缓存失效时保留已经核验的更新偏好.</summary>
+    /// <summary>按严格 schema 读取有界文件, 失效的发布检查记录重新获取, 保留已核验的更新偏好.</summary>
     private Document Load()
     {
         UserDataStore.Check(path);
@@ -113,10 +113,10 @@ public sealed class LocalProductUpdateStore(string root) : IProductUpdateStore
             ProductUpdatePolicy.ValidateSource(document.Settings.Source);
             // 旧缓存不带已安装 RC 身份, 让下次检查重新取得确切标签; 只读仍不写磁盘.
             if (schemaVersion == 2) return new(CurrentSchemaVersion, document.Settings, new(StringComparer.Ordinal));
-            foreach (var entry in document.Checks)
+            foreach (var entry in document.Checks.ToArray())
             {
-                ValidateCheck(entry.Value);
-                if (entry.Key != entry.Value.Source) throw new JsonException();
+                if (entry.Value is null || entry.Key != entry.Value.Source) throw new JsonException();
+                if (!ValidateCheck(entry.Value)) document.Checks.Remove(entry.Key);
             }
             return document;
         }
@@ -144,30 +144,36 @@ public sealed class LocalProductUpdateStore(string root) : IProductUpdateStore
             foreach (var item in value.EnumerateArray()) Strict(item);
     }
 
-    /// <summary>缓存复用当前发布策略核验列表、顺序和状态, 拒绝非法标签、过量说明和伪造结果.</summary>
-    private static void ValidateCheck(ProductUpdateCheck check)
+    /// <summary>缓存复用当前发布策略, 标签失效时返回 false, 过量说明、无效结构或伪造结果抛错.</summary>
+    /// <param name="check">当前检查结果或某一来源的已存记录.</param>
+    private static bool ValidateCheck(ProductUpdateCheck check)
     {
         if (check is null) throw new JsonException();
         ProductUpdatePolicy.ValidateSource(check.Source);
-        if (!ProductUpdatePolicy.TryReleaseTag(check.CurrentVersion, out _, out _) || check.Status is not ("available" or "current" or "noRelease" or "failed")
+        if (check.Status is not ("available" or "current" or "noRelease" or "failed")
             || check.Releases is null || check.Releases.Length > ProductUpdatePolicy.MaximumReleases || check.IsSimulation) throw new JsonException();
+        var supported = ProductUpdatePolicy.TryReleaseTag(check.CurrentVersion, out _, out _);
         foreach (var release in check.Releases)
         {
-            if (release is null || !ProductUpdatePolicy.TryReleaseTag(release.Tag, out _, out var revision)
-                || release.Version != release.Tag || revision > 0 && !release.Prerelease
+            if (release is null || release.Version != release.Tag
                 || release.Notes is null || release.Notes.Length > 4096) throw new JsonException();
+            var validTag = ProductUpdatePolicy.TryReleaseTag(release.Tag, out _, out var revision);
+            if (validTag && revision > 0 && !release.Prerelease) throw new JsonException();
+            supported &= validTag;
         }
         if (check.Releases.Sum(release => release.Notes.Length) > ProductUpdatePolicy.MaximumNotesLength) throw new JsonException();
+        if (!supported) return false;
         if (check.Status == "failed")
         {
             if (check.LatestVersion is not null || check.Releases.Length != 0 || check.ErrorCode is null || !Errors.Contains(check.ErrorCode, StringComparer.Ordinal))
                 throw new JsonException();
-            return;
+            return true;
         }
         var expected = ProductUpdatePolicy.Select(check.Source, check.CurrentVersion,
             check.Releases.Select(release => new ProductRelease(release.Tag, false, release.Prerelease, release.Notes)), check.CheckedAtUtc);
         if (check.Status != expected.Status || check.LatestVersion != expected.LatestVersion || check.ErrorCode is not null
             || !check.Releases.Select(release => release.Tag).SequenceEqual(expected.Releases.Select(release => release.Tag))) throw new JsonException();
+        return true;
     }
 
     private static readonly string[] Errors = ["UPDATE_RATE_LIMITED", "UPDATE_HTTP_FAILED", "UPDATE_TIMEOUT", "UPDATE_INVALID_RESPONSE", "UPDATE_RESPONSE_TOO_LARGE", "UPDATE_PAGE_LIMIT", "UPDATE_NETWORK_FAILED", "UPDATE_CHECK_BUSY"];

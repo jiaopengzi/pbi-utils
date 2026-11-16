@@ -10,7 +10,7 @@
   <Target Name="RequireWindowsHost" BeforeTargets="PrepareForBuild;Restore">
     <Error Condition="'$(OS)' != 'Windows_NT'" Text="pbi-utils 仅支持 Windows 开发和运行." />
     <Error Condition="!Exists('$(_PbiVersionPath)')" Text="缺少根目录 version 文件, 请运行 git savetag --prepare." />
-    <Error Condition="'$(_PbiVersion)' == ''" Text="version 必须只包含单行完整标签 vX.Y.Z 或 vX.Y.Z-rcN." />
+    <Error Condition="'$(_PbiVersion)' == ''" Text="version 必须只包含单行完整标签 vX.Y.Z、vX.Y.Z-alphaN、vX.Y.Z-betaN 或 vX.Y.Z-rcN." />
     <Error Condition="'$(_PbiVersionMajor)' &gt; '65534' or '$(_PbiVersionMinor)' &gt; '65534' or '$(_PbiVersionPatch)' &gt; '65534'" Text="version 的数字版本各段最多为 65534." />
     <Error Condition="'$(_PbiVersionRevision)' != '' and '$(_PbiVersionRevision)' &gt; '2147483647'" Text="version 的预发布轮次最多为 2147483647." />
     <!-- 发布脚本传入起始快照, 文件在发布期间变化时拒绝编译不一致的产品元数据. -->

@@ -185,6 +185,13 @@ try {
         $evaluated = & dotnet msbuild $versionProject -nologo -target:RequireWindowsHost $argument 2>&1
         Assert ($LASTEXITCODE -ne 0 -and ($evaluated -join "`n") -cmatch '与 version 不一致') "MSBuild 必须拒绝与 version 不一致的发布参数: $argument"
     }
+    foreach ($tag in @('v1.2.3-alpha1', 'v1.2.3-beta12')) {
+        [IO.File]::WriteAllText($versionPath, "$tag`n")
+        $evaluated = & dotnet msbuild $versionProject -nologo -target:RequireWindowsHost -getProperty:Version,PbiReleaseTag,InformationalVersion
+        Assert ($LASTEXITCODE -eq 0) "MSBuild 必须接受 $tag"
+        $properties = ($evaluated -join "`n" | ConvertFrom-Json).Properties
+        Assert ($properties.Version -ceq '1.2.3' -and $properties.PbiReleaseTag -ceq $tag -and $properties.InformationalVersion -ceq $tag) '预发布标签和数字版本分别保留'
+    }
     [IO.File]::WriteAllText($versionPath, "v65534.65534.65534-rc2147483647`r`n")
     $evaluated = & dotnet msbuild $versionProject -nologo -target:RequireWindowsHost -getProperty:PbiReleaseTag
     Assert ($LASTEXITCODE -eq 0 -and ($evaluated -join "`n") -ceq 'v65534.65534.65534-rc2147483647') 'MSBuild 必须接受版本范围上限和 CRLF 行尾'

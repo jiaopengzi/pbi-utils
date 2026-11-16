@@ -105,7 +105,7 @@ function Test-ReleasePreparation {
     Assert-ReleaseTest ($repeat.Code -eq 0 -and [IO.File]::ReadAllText($versionPath) -ceq "$nextTag`n") '重复准备保持相同版本'
     foreach ($invalid in @(
         @{ Heading = '## [v0.1.0-rc3] - 2026-02-30'; Reason = '日期无效' },
-        @{ Heading = '## [v0.1.0] - 2026-11-14'; Reason = 'v2 分支仅允许 vX.Y.Z-rcN' }
+        @{ Heading = '## [v0.1.0] - 2026-11-14'; Reason = '正式标签仅允许在 main 分支发布' }
     )) {
         [IO.File]::WriteAllText($changelogPath, "$($invalid.Heading)`n- 夹具正文.`n")
         $prepare = Invoke-TestGit $repository @('savetag', '--prepare')
@@ -163,8 +163,27 @@ function Test-ReleasePublication {
     $release = Invoke-TestGit $fixture.Repository @('savetag')
     Assert-ReleaseTest ($release.Code -eq 0 -and (Invoke-RequiredGit $fixture.Remote @('tag', '--list')) -ceq 'v0.1.0') 'main 稳定发布且不附带其他 tag'
 
+    foreach ($case in @(
+        @{ Branch = 'main'; Tag = 'v2.0.0-rc1' },
+        @{ Branch = 'main'; Tag = 'v2.0.0-alpha1' },
+        @{ Branch = 'main'; Tag = 'v2.0.0-beta1' },
+        @{ Branch = 'v2'; Tag = 'v2.0.0-beta2' },
+        @{ Branch = 'v3'; Tag = 'v3.0.0-alpha1' },
+        @{ Branch = 'v12'; Tag = 'v12.0.0-rc1' }
+    )) {
+        $branch = $case.Branch
+        $tag = $case.Tag
+        $fixture = New-ReleaseFixture "$branch-$tag" $branch $tag
+        $prepare = Invoke-TestGit $fixture.Repository @('savetag', '--prepare')
+        Assert-ReleaseTest ($prepare.Code -eq 0 -and $prepare.Output.Contains($tag)) "$branch 可准备 $tag：$($prepare.Output)"
+        $preview = Invoke-TestGit $fixture.Repository @('savetag', '--dry-run')
+        Assert-ReleaseTest ($preview.Code -eq 0 -and $preview.Output.Contains($tag)) "$branch 可预览 $tag：$($preview.Output)"
+        $release = Invoke-TestGit $fixture.Repository @('savetag')
+        Assert-ReleaseTest ($release.Code -eq 0 -and (Invoke-RequiredGit $fixture.Remote @('tag', '--list')) -ceq $tag) "$branch 可发布 $tag：$($release.Output)"
+    }
+
     $fixture = New-ReleaseFixture 'multi-digit-rc' 'v2' 'v0.1.0-rc12'
-    $history = "`n## [desktop-v0.1.0-v2.7] - 2026-11-03`n`n- 历史发布。`n"
+    $history = "`n## [v0.1.0-beta2] - 2026-11-03`n`n- 上一版发布。`n"
     [IO.File]::AppendAllText((Join-Path $fixture.Repository 'CHANGELOG.md'), $history)
     Save-Fixture $fixture
     $release = Invoke-TestGit $fixture.Repository @('savetag')
@@ -175,14 +194,14 @@ function Test-ReleasePublication {
 function Test-ReleaseTagRules {
     foreach ($tagCase in @(
         @{ Name = 'out-of-range-version'; Branch = 'v2'; Tag = 'v0.65535.0-rc1'; Reason = '版本超出范围' },
-        @{ Name = 'wrong-branch'; Branch = 'feature'; Tag = 'v0.1.0-rc1'; Reason = '仅支持 main 或 v2' },
-        @{ Name = 'v2-stable'; Branch = 'v2'; Tag = 'v0.1.0'; Reason = 'v2 分支仅允许 vX.Y.Z-rcN' },
-        @{ Name = 'main-preview'; Branch = 'main'; Tag = 'v0.1.0-rc1'; Reason = 'main 分支仅允许 vX.Y.Z' },
+        @{ Name = 'wrong-branch'; Branch = 'feature'; Tag = 'v0.1.0-rc1'; Reason = '仅支持 main 或 vN' },
+        @{ Name = 'leading-zero-branch'; Branch = 'v02'; Tag = 'v0.1.0-beta1'; Reason = '仅支持 main 或 vN' },
+        @{ Name = 'version-branch-stable'; Branch = 'v3'; Tag = 'v0.1.0'; Reason = '正式标签仅允许在 main 分支发布' },
         @{ Name = 'zero-preview'; Branch = 'v2'; Tag = 'v0.1.0-rc0'; Reason = '标签格式无效' },
         @{ Name = 'leading-zero-preview'; Branch = 'v2'; Tag = 'v0.1.0-rc01'; Reason = '标签格式无效' },
         @{ Name = 'leading-zero-version'; Branch = 'v2'; Tag = 'v0.01.0-rc1'; Reason = '标签格式无效' },
         @{ Name = 'four-part-version'; Branch = 'main'; Tag = 'v1.0.3.1'; Reason = '标签格式无效' },
-        @{ Name = 'historical-desktop-tag'; Branch = 'v2'; Tag = 'desktop-v0.1.0-v2.7'; Reason = '标签格式无效' }
+        @{ Name = 'unknown-channel'; Branch = 'v2'; Tag = 'v0.1.0-preview1'; Reason = '标签格式无效' }
     )) {
         $fixture = New-ReleaseFixture $tagCase.Name $tagCase.Branch $tagCase.Tag
         Assert-ReleaseRejected $fixture $tagCase.Reason

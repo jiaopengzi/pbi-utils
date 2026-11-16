@@ -64,7 +64,7 @@ function Read-PbiInstallPayload([string]$PayloadRoot) {
     $releaseTagProperty = $manifest.PSObject.Properties['releaseTag']
     $releaseTag = if ($null -ne $releaseTagProperty) { $releaseTagProperty.Value } else { $null }
     $revision = 0
-    if ($releaseTag -isnot [string] -or $releaseTag -cnotmatch '\Av(?<version>(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){2})(?:-rc(?<revision>[1-9][0-9]*))?\z' -or
+    if ($releaseTag -isnot [string] -or $releaseTag -cnotmatch '\Av(?<version>(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){2})(?:-(?:alpha|beta|rc)(?<revision>[1-9][0-9]*))?\z' -or
         $Matches.version -cne $manifest.version -or $version.Major -gt 65534 -or $version.Minor -gt 65534 -or $version.Build -gt 65534 -or
         ($Matches.ContainsKey('revision') -and ![int]::TryParse($Matches.revision, [ref]$revision))) { throw '安装载荷发布标签无效或与数字版本不一致' }
     $expected = @{}
