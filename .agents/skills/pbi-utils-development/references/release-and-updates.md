@@ -27,6 +27,13 @@
 - 静默安装先要求 `/ACCEPTMICROSOFTTERMS=1`, 只检查已有运行时, 缺失返回前置条件错误, 不隐式下载. 系统目录登记无权限时非交互明确失败. 不将静默安装当作绕过许可或系统授权的入口.
 - 开发外部工具 `pbi-utils-dev.pbitool.json` 与安装入口 `pbi-utils.pbitool.json` 独立. `verifyAndBuild -Scope All` 成功交付后更新开发登记. 安装器事务维护安装登记, 仅登记 helper 按需提权. 外部工具传入 `--server`/`--database`, GUI 必须核实本机会话、回环引擎及数据库后连接, 不因参数存在自动修改模型.
 
+### 维护轻量包的运行时基线
+
+- 在准备发版时核对开发验收机的运行时. 用 x64 `dotnet --list-runtimes` 确认目标系列的 `Microsoft.NETCore.App` 和 `Microsoft.WindowsDesktop.App`, 用 Evergreen WebView2 的 EdgeUpdate 客户端登记 `pv` 确认 WebView2 Runtime 版本.
+- 审阅并提交根目录 `global.json` 中 `pbiUtils.installerRuntimeVersions` 的两项最低版本. 同一提交在本地和 CI 上使用相同下限. `sdk` 字段独立管理构建 SDK. 文件支持行与块注释, 生成给 NSIS 的清单仍为标准 JSON.
+- .NET 基线必须与应用框架系列相同且达到发布产物要求. 打包从微软官方发布元数据查找该 x64 Desktop Runtime 的下载地址及 SHA-512. 用户已有同系列且达到下限的共享框架时直接通过.
+- WebView2 使用微软 Evergreen 安装程序, 安装后用同一下限复检. 如果 Evergreen 更新受组织策略控制, 由管理员部署满足基线的版本. with-dotnet 仍使用随包运行时并检查 Evergreen 是否安装.
+
 ## 软件更新
 
 - 产品更新在设置页, 安装器只负责前置环境与安装维护. 自动检查默认开启, 默认 GitHub, 可切换 Gitee; 各来源最多每 24 小时自动检查一次, 手动可重查. 持久化由 `LocalProductUpdateStore` 负责, 不与 UI 偏好另建相互矛盾的来源.

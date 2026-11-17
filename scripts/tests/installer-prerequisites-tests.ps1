@@ -38,7 +38,7 @@ try {
             url = 'https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.14/windowsdesktop-runtime-10.0.14-win-x64.exe'
             sha512 = $hash
         }
-        webView2 = [pscustomobject]@{ url = 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' }
+        webView2 = [pscustomobject]@{ minimumVersion = '120.0.1.2'; url = 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' }
     }
     $manifestPath = Join-Path $sandbox 'prerequisites.json'
     $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
@@ -113,16 +113,18 @@ try {
         Assert-Throws { & $module { param($p) Invoke-PbiOfficialInstaller $p ('0' * 128) 'dotnet' } $installer } '错误哈希不能进入 Start-Process'
         Assert ((& $module { $script:Started.Count }) -eq 3) '校验失败不能再启动安装'
     }
-    Test 'WebView2 检测允许 HKCU, 拒绝缺失和零版本' {
+    Test 'WebView2 检测允许 HKCU, 拒绝低于发布基线的版本' {
         & $module {
             $script:UserWebView = '120.0.1.2'
             function script:Get-PbiRegistryValue { param($Hive, $View, $SubKey, $Name) if ([string]$Hive -eq 'CurrentUser') { return $script:UserWebView }; return '0.0.0.0' }
         }
-        Assert (& $module { Test-PbiInstalledWebView2 }) '按用户安装的 Evergreen Runtime 应满足要求'
+        Assert (& $module { Test-PbiInstalledWebView2 '120.0.1.2' }) '按用户安装的 Evergreen Runtime 应满足要求'
+        Assert (!(& $module { Test-PbiInstalledWebView2 '120.0.1.3' })) '存在旧版时需要更新'
+        Assert (& $module { Test-PbiInstalledWebView2 '120.0.1.1' }) '高于基线的 Evergreen Runtime 应满足要求'
         & $module { $script:UserWebView = '0.0.0.0' }
-        Assert (!(& $module { Test-PbiInstalledWebView2 })) '零版本不得代表已安装'
+        Assert (!(& $module { Test-PbiInstalledWebView2 '120.0.1.2' })) '零版本不得代表已安装'
         & $module { $script:UserWebView = '' }
-        Assert (!(& $module { Test-PbiInstalledWebView2 })) '缺失版本不得代表已安装'
+        Assert (!(& $module { Test-PbiInstalledWebView2 '120.0.1.2' })) '缺失版本不得代表已安装'
     }
     Test '下载适配器拒绝 HTTP, 不创建部分文件' {
         $target = Join-Path $sandbox 'http-download.exe'
@@ -256,11 +258,14 @@ try {
         $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
         Assert-Throws { Invoke-PbiInstallerPrerequisites -ManifestPath $manifestPath -CheckOnly } 'ASP.NET 不能代替桌面框架'
     }
-    Test '构建元数据从 SDK 对应的 WindowsDesktop 官方记录取值' {
+    Test '轻量包从发布基线选择官方 WindowsDesktop 文件' {
         $metadataModule = Import-Module $metadataPath -Force -PassThru
         $repo = Join-Path $sandbox 'repository'; $publish = Join-Path $sandbox 'publish'
         $null = New-Item -ItemType Directory -Path $repo, $publish
-        '{"sdk":{"version":"10.0.403"}}' | Set-Content -LiteralPath (Join-Path $repo 'global.json')
+        $config = '{"sdk":{"version":"10.0.403"},"pbiUtils":{"installerRuntimeVersions":{"dotnetDesktopMinimumVersion":"10.0.14","webView2MinimumVersion":"120.0.1.2"}}}'
+        # 开发工具在 PowerShell 7 下解析 JSONC. 终端 Windows PowerShell 只读取生成后的标准 JSON.
+        if ($PSVersionTable.PSVersion.Major -ge 7) { $config = $config.Insert(1, '/* installer baseline */') }
+        $config | Set-Content -LiteralPath (Join-Path $repo 'global.json')
         @{ schemaVersion = 3; configuration = 'Release'; scope = 'All'; runtime = 'win-x64'; layout = 'shared'; deploymentMode = 'framework-dependent' } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $publish 'manifest.json')
         foreach ($entry in @('pbi-utils', 'PbiUtils.Host', 'PbiUtils.Desktop')) {
             @{ runtimeOptions = @{ frameworks = @(@{ name = 'Microsoft.NETCore.App'; version = '10.0.0' }, @{ name = 'Microsoft.WindowsDesktop.App'; version = '10.0.0' }) } } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $publish ($entry + '.runtimeconfig.json'))
@@ -268,25 +273,25 @@ try {
         & $metadataModule {
             function script:Invoke-RestMethod {
                 [pscustomobject]@{ releases = @([pscustomobject]@{
-                    sdks = @([pscustomobject]@{ version = '10.0.403'; 'runtime-version' = '10.0.14' })
+                    sdks = @([pscustomobject]@{ version = '10.0.403'; 'runtime-version' = '10.0.13' })
                     windowsdesktop = [pscustomobject]@{ version = '10.0.14'; files = @([pscustomobject]@{ name = 'windowsdesktop-runtime-win-x64.exe'; rid = 'win-x64'; url = 'https://builds.dotnet.microsoft.com/official-runtime.exe'; hash = ('A' * 128) }) }
                 }) }
             }
         }
         $output = Join-Path $sandbox 'generated.json'
         $actual = Export-PbiInstallerPrerequisites -RepositoryRoot $repo -PublishRoot $publish -OutputPath $output
-        Assert ($actual.dotnet.sdkVersion -eq '10.0.403' -and $actual.dotnet.runtimeVersion -eq '10.0.14' -and $actual.dotnet.minimumVersion -eq '10.0.0') 'SDK 推荐版本和实际最低版本必须区分'
+        Assert ($actual.dotnet.sdkVersion -eq '10.0.403' -and $actual.dotnet.runtimeVersion -eq '10.0.14' -and $actual.dotnet.minimumVersion -eq '10.0.14' -and $actual.webView2.minimumVersion -eq '120.0.1.2') '安装清单应固定开发机基线, 与 SDK 对应补丁独立'
         Assert ($actual.dotnet.url -eq 'https://builds.dotnet.microsoft.com/official-runtime.exe' -and $actual.dotnet.sha512 -eq ('A' * 128)) '必须使用元数据原 URL 和哈希'
         Assert ((Get-Content -LiteralPath $output -Raw | ConvertFrom-Json).dotNetMode -eq 'without-dotnet') '构建输出必须映射包名'
         & $metadataModule { function script:Invoke-RestMethod { [pscustomobject]@{ releases = @() } } }
-        Assert-Throws { Export-PbiInstallerPrerequisites -RepositoryRoot $repo -PublishRoot $publish -OutputPath $output } '官方缺少 SDK 记录不得猜测版本或 URL'
+        Assert-Throws { Export-PbiInstallerPrerequisites -RepositoryRoot $repo -PublishRoot $publish -OutputPath $output } '官方缺少目标运行时记录不得猜测版本或 URL'
         # release 预取的同一官方元数据文件走相同解析和校验, 不再在线读取.
         $prefetched = Join-Path $sandbox 'releases.json'
-        @{ releases = @(@{ sdks = @(@{ version = '10.0.403'; 'runtime-version' = '10.0.14' }); windowsdesktop = @{ version = '10.0.14'; files = @(@{ name = 'windowsdesktop-runtime-win-x64.exe'; rid = 'win-x64'; url = 'https://builds.dotnet.microsoft.com/prefetched-runtime.exe'; hash = ('B' * 128) }) } }) } |
+        @{ releases = @(@{ sdks = @(@{ version = '10.0.403'; 'runtime-version' = '10.0.13' }); windowsdesktop = @{ version = '10.0.14'; files = @(@{ name = 'windowsdesktop-runtime-win-x64.exe'; rid = 'win-x64'; url = 'https://builds.dotnet.microsoft.com/prefetched-runtime.exe'; hash = ('B' * 128) }) } }) } |
             ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $prefetched -Encoding UTF8
         & $metadataModule { function script:Invoke-RestMethod { throw '预取元数据后不得在线读取' } }
         $actual = Export-PbiInstallerPrerequisites -RepositoryRoot $repo -PublishRoot $publish -OutputPath $output -ReleaseMetadataPath $prefetched
-        Assert ($actual.dotnet.url -eq 'https://builds.dotnet.microsoft.com/prefetched-runtime.exe' -and $actual.dotnet.sha512 -eq ('B' * 128)) '预取元数据必须经过相同的 SDK 记录与下载地址校验'
+        Assert ($actual.dotnet.url -eq 'https://builds.dotnet.microsoft.com/prefetched-runtime.exe' -and $actual.dotnet.sha512 -eq ('B' * 128)) '预取元数据必须经过相同的运行时记录与下载地址校验'
         Assert ((Get-PbiReleaseMetadataUri $repo) -ceq 'https://builds.dotnet.microsoft.com/dotnet/release-metadata/10.0/releases.json') '预取地址必须与在线读取使用同一 SDK 系列'
     }
     Write-Host "Installer prerequisites tests passed: $script:passed"

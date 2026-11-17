@@ -2,7 +2,7 @@
 # Author      : jiaopengzi
 # Blog        : https://jiaopengzi.com
 # Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-# Description : 将已验证 Release 包的运行前提和微软 SDK 对应 Desktop Runtime 元数据固化为安装清单.
+# Description : 将已验证 Release 包的运行前提和微软 Desktop Runtime 下载元数据固化为安装清单.
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -111,13 +111,13 @@ function Stop-PbiReleaseMetadataPrefetch($Prefetch) {
 }
 
 <#
-.SYNOPSIS 从 global.json 与官方发布元数据生成终端安装清单, 不通过 SDK 版本算术猜测运行时版本或 URL.
+.SYNOPSIS 轻量包使用仓库运行时基线, 自包含包使用 SDK 对应元数据, 生成终端安装清单.
 .PARAMETER RepositoryRoot 包含 global.json 的仓库根.
 .PARAMETER PublishRoot 已完成发布验证的完整 Release win-x64 包, 必须包含三个入口.
 .PARAMETER OutputPath 要写入的 schema 1 JSON; 仅在全部解析和验证成功后写入.
 .PARAMETER ReleaseMetadataPath 可选的本轮预取元数据文件; 为空时在线读取官方元数据.
 .OUTPUTS 与输出文件一致的清单对象. 网络、记录缺失/歧义、版本不兼容和写入错误直接传播.
-.NOTES SDK 仅用于追溯编译基线; 终端下载并安装对应的 WindowsDesktop Runtime EXE, 不要求安装 SDK.
+.NOTES 轻量包按最低补丁查找微软 WindowsDesktop Runtime EXE, SDK 版本用于追溯构建.
 #>
 function Export-PbiInstallerPrerequisites {
     [CmdletBinding()]
@@ -131,11 +131,65 @@ function Export-PbiInstallerPrerequisites {
     if ($publish.schemaVersion -ne 3 -or $publish.configuration -ne 'Release' -or $publish.scope -ne 'All' -or
         $publish.runtime -ne 'win-x64' -or $publish.layout -ne 'shared' -or
         $publish.deploymentMode -notin @('self-contained', 'framework-dependent')) { throw 'INSTALLER_RELEASE_PACKAGE_REQUIRED' }
-    $sdkVersion = [string](Get-Content -LiteralPath (Join-Path $RepositoryRoot 'global.json') -Raw -Encoding UTF8 | ConvertFrom-Json).sdk.version
+    $config = Get-Content -LiteralPath (Join-Path $RepositoryRoot 'global.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    $sdkVersion = [string]$config.sdk.version
     if ($sdkVersion -notmatch '^\d+\.\d+\.\d+$') { throw 'INSTALLER_STABLE_SDK_REQUIRED' }
     $minimumVersion = Get-PbiInstallerMinimumRuntime $PublishRoot $publish.deploymentMode
+    $mode = if ($publish.deploymentMode -eq 'self-contained') { 'with-dotnet' } else { 'without-dotnet' }
+    $webViewMinimumVersion = '0.0.0.1'
+    if ($mode -eq 'without-dotnet') {
+        $baseline = $config.pbiUtils.installerRuntimeVersions
+        if ($baseline.dotnetDesktopMinimumVersion -notmatch '^\d+\.\d+\.\d+$' -or
+            $baseline.webView2MinimumVersion -notmatch '^\d+\.\d+\.\d+\.\d+$' -or
+            [Version]$baseline.webView2MinimumVersion -le [Version]'0.0.0.0') { throw 'INSTALLER_RUNTIME_BASELINE_INVALID' }
+        $baselineDotnet = [Version]$baseline.dotnetDesktopMinimumVersion
+        $requiredDotnet = [Version]$minimumVersion
+        $sdk = [Version]$sdkVersion
+        if ($baselineDotnet.Major -ne $requiredDotnet.Major -or $baselineDotnet.Minor -ne $requiredDotnet.Minor -or
+            $baselineDotnet.Major -ne $sdk.Major -or $baselineDotnet.Minor -ne $sdk.Minor -or
+            $baselineDotnet -lt $requiredDotnet) { throw 'INSTALLER_RUNTIME_BASELINE_INCOMPATIBLE' }
+        $minimumVersion = $baselineDotnet.ToString()
+        $webViewMinimumVersion = [string]$baseline.webView2MinimumVersion
+    }
     $metadataUrl = Get-PbiReleaseMetadataUri $RepositoryRoot
     $metadata = if ($ReleaseMetadataPath) { Get-Content -LiteralPath $ReleaseMetadataPath -Raw -Encoding UTF8 | ConvertFrom-Json } else { Invoke-RestMethod -Uri $metadataUrl -TimeoutSec 60 }
+    if ($mode -eq 'without-dotnet') {
+        $desktopMatches = @($metadata.releases | Where-Object {
+            $_.PSObject.Properties['windowsdesktop'] -and $_.windowsdesktop.version -ceq $minimumVersion
+        })
+        if ($desktopMatches.Count -ne 1) { throw 'INSTALLER_RUNTIME_METADATA_MISSING_OR_AMBIGUOUS' }
+        $desktop = $desktopMatches[0].windowsdesktop
+    } else {
+        $desktop = Get-PbiSdkDesktopRuntime $metadata $sdkVersion
+    }
+    $runtimeVersion = [string]$desktop.version
+    $recommended = [Version]$runtimeVersion; $minimum = [Version]$minimumVersion
+    if ($recommended.Major -ne $minimum.Major -or $recommended.Minor -ne $minimum.Minor -or $recommended -lt $minimum) { throw 'INSTALLER_RECOMMENDED_RUNTIME_INCOMPATIBLE' }
+    $files = @($desktop.files | Where-Object { $_.rid -ceq 'win-x64' -and $_.name -ceq 'windowsdesktop-runtime-win-x64.exe' })
+    if ($files.Count -ne 1) { throw 'INSTALLER_RUNTIME_DOWNLOAD_MISSING_OR_AMBIGUOUS' }
+    $file = $files[0]; $uri = [Uri]$file.url
+    if (!$uri.IsAbsoluteUri -or $uri.Scheme -ne 'https' -or $uri.UserInfo -or
+        $uri.Host -notin @('builds.dotnet.microsoft.com', 'download.visualstudio.microsoft.com', 'dotnetcli.azureedge.net') -or
+        $uri.AbsolutePath -notlike '*.exe' -or $file.hash -notmatch '^[A-Fa-f0-9]{128}$') { throw 'INSTALLER_RUNTIME_DOWNLOAD_INVALID' }
+    $result = [pscustomobject][ordered]@{
+        schemaVersion = 1
+        dotNetMode = $mode
+        dotnet = [pscustomobject][ordered]@{
+            sdkVersion = $sdkVersion; runtimeVersion = $runtimeVersion; minimumVersion = $minimumVersion
+            frameworks = @('Microsoft.NETCore.App', 'Microsoft.WindowsDesktop.App'); architecture = 'x64'
+            url = [string]$file.url; sha512 = [string]$file.hash
+        }
+        webView2 = [pscustomobject]@{ minimumVersion = $webViewMinimumVersion; url = 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' }
+    }
+    $fullOutput = [IO.Path]::GetFullPath($OutputPath)
+    $null = New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($fullOutput)) -Force
+    $json = $result | ConvertTo-Json -Depth 8
+    [IO.File]::WriteAllText($fullOutput, $json + [Environment]::NewLine, (New-Object Text.UTF8Encoding($false)))
+    return $result
+}
+
+<# .SYNOPSIS 从官方 Metadata 中返回指定 SDK 对应的 Desktop Runtime, 缺失或歧义时抛出错误. #>
+function Get-PbiSdkDesktopRuntime($Metadata, [string]$SdkVersion) {
     $sdkMatches = New-Object 'Collections.Generic.List[object]'
     foreach ($release in $metadata.releases) {
         $sdks = @()
@@ -150,30 +204,7 @@ function Export-PbiInstallerPrerequisites {
     $desktop = $match.Release.windowsdesktop
     $runtimeVersion = [string]$desktop.version
     if ($runtimeVersion -notmatch '^\d+\.\d+\.\d+$' -or $match.Sdk.'runtime-version' -cne $runtimeVersion) { throw 'INSTALLER_SDK_RUNTIME_METADATA_MISMATCH' }
-    $recommended = [Version]$runtimeVersion; $minimum = [Version]$minimumVersion
-    if ($recommended.Major -ne $minimum.Major -or $recommended.Minor -ne $minimum.Minor -or $recommended -lt $minimum) { throw 'INSTALLER_RECOMMENDED_RUNTIME_INCOMPATIBLE' }
-    $files = @($desktop.files | Where-Object { $_.rid -ceq 'win-x64' -and $_.name -ceq 'windowsdesktop-runtime-win-x64.exe' })
-    if ($files.Count -ne 1) { throw 'INSTALLER_RUNTIME_DOWNLOAD_MISSING_OR_AMBIGUOUS' }
-    $file = $files[0]; $uri = [Uri]$file.url
-    if (!$uri.IsAbsoluteUri -or $uri.Scheme -ne 'https' -or $uri.UserInfo -or
-        $uri.Host -notin @('builds.dotnet.microsoft.com', 'download.visualstudio.microsoft.com', 'dotnetcli.azureedge.net') -or
-        $uri.AbsolutePath -notlike '*.exe' -or $file.hash -notmatch '^[A-Fa-f0-9]{128}$') { throw 'INSTALLER_RUNTIME_DOWNLOAD_INVALID' }
-    $mode = if ($publish.deploymentMode -eq 'self-contained') { 'with-dotnet' } else { 'without-dotnet' }
-    $result = [pscustomobject][ordered]@{
-        schemaVersion = 1
-        dotNetMode = $mode
-        dotnet = [pscustomobject][ordered]@{
-            sdkVersion = $sdkVersion; runtimeVersion = $runtimeVersion; minimumVersion = $minimumVersion
-            frameworks = @('Microsoft.NETCore.App', 'Microsoft.WindowsDesktop.App'); architecture = 'x64'
-            url = [string]$file.url; sha512 = [string]$file.hash
-        }
-        webView2 = [pscustomobject]@{ url = 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' }
-    }
-    $fullOutput = [IO.Path]::GetFullPath($OutputPath)
-    $null = New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($fullOutput)) -Force
-    $json = $result | ConvertTo-Json -Depth 8
-    [IO.File]::WriteAllText($fullOutput, $json + [Environment]::NewLine, (New-Object Text.UTF8Encoding($false)))
-    return $result
+    return $desktop
 }
 
 Export-ModuleMember -Function Export-PbiInstallerPrerequisites, Get-PbiReleaseMetadataUri, Start-PbiReleaseMetadataPrefetch, Receive-PbiReleaseMetadataPrefetch, Stop-PbiReleaseMetadataPrefetch

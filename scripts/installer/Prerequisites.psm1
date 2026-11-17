@@ -1,4 +1,4 @@
-﻿# FilePath    : pbi-utils\scripts\installer\Prerequisites.psm1
+# FilePath    : pbi-utils\scripts\installer\Prerequisites.psm1
 # Author      : jiaopengzi
 # Blog        : https://jiaopengzi.com
 # Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
@@ -33,6 +33,8 @@ function Read-PbiPrerequisiteManifest([string]$ManifestPath) {
         $uri.Host -notin @('builds.dotnet.microsoft.com', 'download.visualstudio.microsoft.com', 'dotnetcli.azureedge.net') -or
         $uri.AbsolutePath -notlike '*.exe' -or $dotnet.sha512 -notmatch '^[A-Fa-f0-9]{128}$') { throw 'PREREQUISITE_DOTNET_DOWNLOAD_INVALID' }
     if ($manifest.webView2.url -cne 'https://go.microsoft.com/fwlink/p/?LinkId=2124703') { throw 'PREREQUISITE_WEBVIEW_DOWNLOAD_INVALID' }
+    if ($manifest.webView2.minimumVersion -notmatch '^\d+\.\d+\.\d+\.\d+$' -or
+        [Version]$manifest.webView2.minimumVersion -le [Version]'0.0.0.0') { throw 'PREREQUISITE_WEBVIEW_VERSION_INVALID' }
     return $manifest
 }
 
@@ -85,7 +87,7 @@ function Test-PbiX64Executable([string]$Path) {
 <#
 .SYNOPSIS 核对实际 host 列出的两个共享框架, 只接受同安装根、稳定同系列且不低于最低版本.
 .PARAMETER Lines 已核验 x64 host 的 --list-runtimes 标准输出行.
-.PARAMETER MinimumVersion 产品 runtimeconfig 的最低版本; 不要求开发 SDK 或推荐补丁完全一致.
+.PARAMETER MinimumVersion 安装清单中的最低版本; 允许同系列更高补丁.
 .PARAMETER InstallationRoot 当前 host 的权威登记根, 不合并其他安装副本的框架.
 .OUTPUTS 两个共享框架均满足返回 true, 其他情况返回 false.
 #>
@@ -135,13 +137,18 @@ function Test-PbiInstalledDotNet([string]$MinimumVersion) {
     } finally { $process.Dispose() }
 }
 
-<# .SYNOPSIS 按微软规定检查 Evergreen WebView2 的 HKLM/HKCU pv; Edge 浏览器和零版本不构成前提满足. #>
-function Test-PbiInstalledWebView2 {
+<#
+.SYNOPSIS 读取微软 Evergreen WebView2 的系统及用户登记; 不接受 Edge 浏览器登记.
+.PARAMETER MinimumVersion 安装清单中的四段版本下限.
+.OUTPUTS 至少一个登记达到下限时返回 true, 其余返回 false; 注册表读取异常传播.
+#>
+function Test-PbiInstalledWebView2([string]$MinimumVersion) {
+    $minimum = [Version]$MinimumVersion
     $key = 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
     foreach ($hive in @([Microsoft.Win32.RegistryHive]::LocalMachine, [Microsoft.Win32.RegistryHive]::CurrentUser)) {
         $value = [string](Get-PbiRegistryValue $hive Registry32 $key 'pv')
         $version = $null
-        if ([Version]::TryParse($value, [ref]$version) -and $version -gt [Version]'0.0.0.0') { return $true }
+        if ($value -match '^\d+\.\d+\.\d+\.\d+$' -and [Version]::TryParse($value, [ref]$version) -and $version -ge $minimum) { return $true }
     }
     return $false
 }
@@ -245,7 +252,7 @@ function Invoke-PbiInstallerPrerequisites {
     param([Parameter(Mandatory = $true)][string]$ManifestPath, [switch]$CheckOnly)
     $manifest = Read-PbiPrerequisiteManifest $ManifestPath
     $dotnetReady = $manifest.dotNetMode -eq 'with-dotnet' -or (Test-PbiInstalledDotNet $manifest.dotnet.minimumVersion)
-    $webviewReady = Test-PbiInstalledWebView2
+    $webviewReady = Test-PbiInstalledWebView2 $manifest.webView2.minimumVersion
     Write-Host ('PREREQUISITE dotnet=' + $dotnetReady + ' webview2=' + $webviewReady)
     if ($dotnetReady -and $webviewReady) { return 0 }
     if ($CheckOnly) { return 3 }
@@ -264,7 +271,7 @@ function Invoke-PbiInstallerPrerequisites {
             $code = Invoke-PbiOfficialInstaller $file $hash $kind
             if ($code -notin @(0, 3010)) { $exitCode = $code; break }
             if ($code -eq 3010) { $reboot = $true }
-            $ready = if ($kind -eq 'dotnet') { Test-PbiInstalledDotNet $manifest.dotnet.minimumVersion } else { Test-PbiInstalledWebView2 }
+            $ready = if ($kind -eq 'dotnet') { Test-PbiInstalledDotNet $manifest.dotnet.minimumVersion } else { Test-PbiInstalledWebView2 $manifest.webView2.minimumVersion }
             if (!$ready) { throw 'PREREQUISITE_POSTCHECK_FAILED' }
             Write-Host "PREREQUISITE $kind verified"
         }
@@ -314,7 +321,7 @@ function Invoke-PbiPrerequisiteWorker([string]$ManifestPath, [string]$StatePath,
         $manifest = Read-PbiPrerequisiteManifest $ManifestPath
         foreach ($kind in @('dotnet', 'webview2')) {
             try {
-                $ready = if ($kind -eq 'dotnet') { $manifest.dotNetMode -eq 'with-dotnet' -or (Test-PbiInstalledDotNet $manifest.dotnet.minimumVersion) } else { Test-PbiInstalledWebView2 }
+                $ready = if ($kind -eq 'dotnet') { $manifest.dotNetMode -eq 'with-dotnet' -or (Test-PbiInstalledDotNet $manifest.dotnet.minimumVersion) } else { Test-PbiInstalledWebView2 $manifest.webView2.minimumVersion }
                 $state[$kind] = if ($ready) { if ($kind -eq 'dotnet' -and $manifest.dotNetMode -eq 'with-dotnet') { 'bundled' } else { 'ready' } } else { 'missing' }
             } catch { $state[$kind] = 'failed' }
             Write-PbiPrerequisiteWorkerState $StatePath $state
@@ -335,7 +342,7 @@ function Invoke-PbiPrerequisiteWorker([string]$ManifestPath, [string]$StatePath,
                 if ($code -notin @(0, 3010)) { throw 'PREREQUISITE_INSTALL_FAILED' }
                 if ($code -eq 3010) { $state.reboot = '1' }
                 $state.phase = 'checking'; Write-PbiPrerequisiteWorkerState $StatePath $state
-                $ready = if ($kind -eq 'dotnet') { Test-PbiInstalledDotNet $manifest.dotnet.minimumVersion } else { Test-PbiInstalledWebView2 }
+                $ready = if ($kind -eq 'dotnet') { Test-PbiInstalledDotNet $manifest.dotnet.minimumVersion } else { Test-PbiInstalledWebView2 $manifest.webView2.minimumVersion }
                 if (!$ready) { throw 'PREREQUISITE_POSTCHECK_FAILED' }
                 $state[$kind] = 'ready'; Write-PbiPrerequisiteWorkerState $StatePath $state
                 if (Test-Path -LiteralPath $CancelPath) { throw 'PREREQUISITE_CANCELLED' }

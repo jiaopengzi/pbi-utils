@@ -1,1 +1,15 @@
-{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}
+{
+  // 开发机和 CI 使用精确的 .NET SDK 版本.
+  "sdk": {
+    "version": "10.0.404",
+    "rollForward": "disable",
+    "allowPrerelease": false
+  },
+  "pbiUtils": {
+    // 轻量安装包的最低运行时版本. 发版前按开发验收机的环境核对.
+    "installerRuntimeVersions": {
+      "dotnetDesktopMinimumVersion": "10.0.15",
+      "webView2MinimumVersion": "157.0.4341.46"
+    }
+  }
+}

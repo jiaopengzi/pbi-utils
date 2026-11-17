@@ -11,7 +11,7 @@ $null = New-Item -ItemType Directory -Path $sandbox
 try {
     & $module {
         $script:Mode = 'check'; $script:ProbeCount = 0; $script:InstallCount = 0; $script:DownloadCount = 0
-        function script:Read-PbiPrerequisiteManifest { [pscustomobject]@{ dotNetMode='without-dotnet'; dotnet=[pscustomobject]@{minimumVersion='10.0.0';url='https://example.invalid/dotnet';sha512=''}; webView2=[pscustomobject]@{url='https://example.invalid/webview'} } }
+        function script:Read-PbiPrerequisiteManifest { [pscustomobject]@{ dotNetMode='without-dotnet'; dotnet=[pscustomobject]@{minimumVersion='10.0.0';url='https://example.invalid/dotnet';sha512=''}; webView2=[pscustomobject]@{minimumVersion='120.0.1.2';url='https://example.invalid/webview'} } }
         function script:Test-PbiInstalledDotNet { param($version) $script:ProbeCount++; if ($script:Mode -eq 'probe-error') { throw 'probe' }; if ($script:Mode -eq 'postcheck-error') { return $false }; return ($script:InstallCount -gt 0) }
         function script:Test-PbiInstalledWebView2 { return $true }
         function script:Receive-PbiInstaller { param($url,$destination,$cancel) $script:DownloadCount++; if ($script:Mode -eq 'network-error') { throw 'network' }; [IO.File]::WriteAllText($destination,'fake'); if ($script:Mode -eq 'cancel-download') { [IO.File]::WriteAllText($cancel,'1') } }

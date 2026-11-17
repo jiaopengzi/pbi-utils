@@ -1,4 +1,7 @@
 {
+  "files.associations": {
+    "global.json": "jsonc"
+  },
   "workbench.colorCustomizations": {
     "terminal.background": "#1D1F21",
     "terminal.foreground": "#C5C8C6",

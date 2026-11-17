@@ -20,7 +20,7 @@
 2. 在向导的许可页阅读项目及第三方许可，接受 Microsoft AMO/ADOMD 组件条款后，继续检查运行环境并选择安装位置。默认目录为 `%LOCALAPPDATA%\Programs\pbi-utils`。
 3. 安装完成后，从桌面或开始菜单启动 pbi-utils。快捷方式可在安装时选择是否创建。
 
-安装器会检查所需的 **x64 .NET Desktop Runtime** 和 **Microsoft Edge WebView2 Runtime**，缺失时提供安装入口。安装运行环境及注册 Power BI 外部工具时，可能需要 Windows 管理员授权。使用本软件无需安装开发 SDK、Node.js 或 pnpm；连接本地模型需要另行安装 Power BI Desktop。
+轻量安装器会检查 **x64 .NET Desktop Runtime** 和 **Microsoft Edge WebView2 Evergreen Runtime** 是否达到该安装包的最低版本。.NET 需要匹配应用的主次版本，接受同系列的更新补丁。组件缺失或版本过低时，向导提供安装或更新入口，并在完成后复检。安装运行环境及注册 Power BI 外部工具时，可能需要 Windows 管理员授权。使用本软件无需安装开发 SDK、Node.js 或 pnpm；连接本地模型需要另行安装 Power BI Desktop。
 
 安装完成后，重启 Power BI Desktop，即可在“外部工具”中使用 **pbi-utils** 打开并连接当前报表的本地模型。也可以直接启动 pbi-utils，在连接页选择目标。
 
