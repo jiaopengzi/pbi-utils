@@ -19,19 +19,19 @@
       "files": [
         {
           "sha256": "CFC21F5E8BD655AE997EEC916138B707B1D290B83272C02A95C9F821B8C87310",
-          "source": "https://raw.githubusercontent.com/dotnet/dotnet/0427b9abbead3fa64c6655eb4290c537397131fa/src/runtime/LICENSE.TXT",
+          "source": "https://raw.githubusercontent.com/dotnet/dotnet/8e0f8ed2312954727f8919d7d1c2f78b483b4ee7/src/runtime/LICENSE.TXT",
           "path": "licenses/source/dotnet-apphost-10.0.14-MIT.txt"
         },
         {
           "sha256": "66F1D4E44973185519BB4AA8A9718EB22FC7AF2CC532E3AE9CFC4C127EE7FC54",
-          "source": "https://raw.githubusercontent.com/dotnet/dotnet/0427b9abbead3fa64c6655eb4290c537397131fa/src/runtime/THIRD-PARTY-NOTICES.TXT",
+          "source": "https://raw.githubusercontent.com/dotnet/dotnet/8e0f8ed2312954727f8919d7d1c2f78b483b4ee7/src/runtime/THIRD-PARTY-NOTICES.TXT",
           "path": "licenses/source/dotnet-apphost-10.0.14-NOTICES.txt"
         }
       ],
-      "version": "10.0.14",
+      "version": "10.0.15",
       "name": "Microsoft.NETCore.App.Host.win-x64 apphost",
       "scope": "Core",
-      "source": "https://www.nuget.org/packages/Microsoft.NETCore.App.Host.win-x64/10.0.14"
+      "source": "https://www.nuget.org/packages/Microsoft.NETCore.App.Host.win-x64/10.0.15"
     },
     {
       "license": "MIT",
@@ -561,12 +561,12 @@
       "declaredLicense": "MIT",
       "license": "MIT AND LicenseRef-Microsoft-DotNet-Library (coreclr.dll and Microsoft.DiaSymReader.Native.amd64.dll)",
       "ecosystem": "nuget",
-      "version": "10.0.14",
+      "version": "10.0.15",
       "name": "Microsoft.NETCore.App.Runtime.win-x64",
       "files": [
         {
           "sha256": "7F6839A61CE892B79C6549E2DC5A81FDBD240A0B260F8881216B45B7FDA8B45D",
-          "source": "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-10.0.403-windows-x64-binaries-zip (LICENSE.txt)",
+          "source": "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-10.0.404-windows-x64-binaries-zip (LICENSE.txt)",
           "path": "licenses/source/dotnet-library-10.0.14.txt"
         }
       ]
@@ -575,22 +575,22 @@
       "declaredLicense": "MIT",
       "license": "MIT AND LicenseRef-Microsoft-DotNet-Library AND LicenseRef-Microsoft-Windows-SDK",
       "ecosystem": "nuget",
-      "version": "10.0.14",
+      "version": "10.0.15",
       "name": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
       "files": [
         {
           "sha256": "D23DBA2FEE20C6B59D8F7088EE9ED372459C952A319B7CA90F3EEC370CC76EB9",
-          "source": "https://raw.githubusercontent.com/dotnet/dotnet/0427b9abbead3fa64c6655eb4290c537397131fa/src/wpf/THIRD-PARTY-NOTICES.TXT",
+          "source": "https://raw.githubusercontent.com/dotnet/dotnet/8e0f8ed2312954727f8919d7d1c2f78b483b4ee7/src/wpf/THIRD-PARTY-NOTICES.TXT",
           "path": "licenses/source/WindowsDesktop-10.0.14-WPF-NOTICES.txt"
         },
         {
           "sha256": "5A412B38EFAE0B162DC0893B319023F4CD14A8985A0F9F9AE01AC052B37A36EB",
-          "source": "https://raw.githubusercontent.com/dotnet/dotnet/0427b9abbead3fa64c6655eb4290c537397131fa/src/winforms/THIRD-PARTY-NOTICES.TXT",
+          "source": "https://raw.githubusercontent.com/dotnet/dotnet/8e0f8ed2312954727f8919d7d1c2f78b483b4ee7/src/winforms/THIRD-PARTY-NOTICES.TXT",
           "path": "licenses/source/WindowsDesktop-10.0.14-WinForms-NOTICES.txt"
         },
         {
           "sha256": "7F6839A61CE892B79C6549E2DC5A81FDBD240A0B260F8881216B45B7FDA8B45D",
-          "source": "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-10.0.403-windows-x64-binaries-zip (LICENSE.txt; PresentationNative_cor3.dll, vcruntime140_cor3.dll and wpfgfx_cor3.dll)",
+          "source": "https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-10.0.404-windows-x64-binaries-zip (LICENSE.txt; PresentationNative_cor3.dll, vcruntime140_cor3.dll and wpfgfx_cor3.dll)",
           "path": "licenses/source/dotnet-library-10.0.14.txt"
         },
         {

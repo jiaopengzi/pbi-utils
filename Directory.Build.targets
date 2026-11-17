@@ -3,7 +3,7 @@
  * Author      : jiaopengzi
  * Blog        : https://jiaopengzi.com
  * Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
- * Description : 限定 Windows 构建并移除 WinForms 宿主不使用的 WebView2 WPF 引用.
+ * Description : 限定 Windows 构建, 移除未使用的 WebView2 WPF 引用及发布目录中的调试符号.
 -->
 
 <Project>
@@ -20,6 +20,12 @@
   <Target Name="RemoveUnusedWebView2WpfReference" BeforeTargets="ResolveAssemblyReferences">
     <ItemGroup>
       <Reference Remove="@(Reference)" Condition="'%(Reference.Filename)' == 'Microsoft.Web.WebView2.Wpf'" />
+    </ItemGroup>
+  </Target>
+  <!-- 编译仍生成 PDB 供本地诊断, 只从 Release 发布集合排除入口和引用项目的符号. -->
+  <Target Name="RemovePbiReleasePublishSymbols" AfterTargets="ComputeFilesToPublish" Condition="'$(Configuration)' == 'Release'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.Extension)' == '.pdb'" />
     </ItemGroup>
   </Target>
 </Project>

@@ -33,4 +33,10 @@
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!-- 产品提供中文和英文. 保留两种中文资源, 英文通常来自主程序集. -->
+    <SatelliteResourceLanguages>en;en-US;zh-Hans;zh-Hant</SatelliteResourceLanguages>
+    <!-- 发布包无需 SDK 的 IntelliSense 文档; 运行资源和许可由各自的构建入口收集. -->
+    <PublishDocumentationFiles>false</PublishDocumentationFiles>
+  </PropertyGroup>
 </Project>

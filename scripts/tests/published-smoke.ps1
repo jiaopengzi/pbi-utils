@@ -2,7 +2,7 @@
 # Author      : jiaopengzi
 # Blog        : https://jiaopengzi.com
 # Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-# Description : 验证两种发布模式的文件哈希、运行时来源与 CLI/MCP 命令, 保存独立证据.
+# Description : 验证两种发布模式的文件哈希、Release 载荷、运行时来源与 CLI/MCP 命令, 保存独立证据.
 
 <#
 .SYNOPSIS
@@ -27,12 +27,51 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 Import-Module (Join-Path $root 'scripts/PublishArtifacts.psm1') -Force
 . (Join-Path $PSScriptRoot 'PublishedRuntimeSmoke.ps1')
+
+<#
+.SYNOPSIS 校验 Release 的语言资源、开发文件与离线许可.
+.PARAMETER PublishRoot 已通过完整文件集合及哈希核验的发布目录.
+.PARAMETER Manifest 已核验的发布清单.
+.OUTPUTS 无; 资源缺失、残留冗余文件或许可错误时抛错.
+#>
+function Assert-PbiReleaseSmokePayload([string]$PublishRoot, $Manifest) {
+    $files = $Manifest.files.file
+    $supportedCulture = '(?:en|en-US|zh-Hans|zh-Hant)'
+    foreach ($file in $files) {
+        if ($file -match '\.pdb$|^Microsoft\.Web\.WebView2\.[^/]+\.xml$') { throw "Release 载荷残留开发文件: $file" }
+        if ($file -like '*.resources.dll' -and $file -notmatch "^$supportedCulture/[^/]+\.resources\.dll$") { throw "Release 载荷包含范围外语言资源: $file" }
+    }
+    foreach ($descriptor in $files | Where-Object { $_ -like '*.deps.json' -and !$_.Contains('/') }) {
+        $deps = Get-Content -LiteralPath (Join-Path $PublishRoot $descriptor) -Raw | ConvertFrom-Json -AsHashtable
+        $satellites = @(foreach ($library in $deps.targets[$deps.runtimeTarget.name].Values) {
+            if (!$library.Contains('resources')) { continue }
+            foreach ($resource in $library.resources.GetEnumerator()) {
+                $locale = $resource.Value.locale
+                $resourceFile = "$locale/$([IO.Path]::GetFileName($resource.Key))"
+                if ($locale -notmatch "^$supportedCulture$" -or $resourceFile -notin $files) { throw "Release 依赖描述的语言资源超出范围或缺失: $descriptor, $resourceFile" }
+                $resourceFile
+            }
+        })
+        # 英文由主程序集提供; 简体和繁体资源随各自的 TOM/ADOMD 依赖交付.
+        $required = @('Microsoft.AnalysisServices.Core.resources.dll', 'Microsoft.AnalysisServices.Tabular.resources.dll')
+        if ($descriptor -ne 'pbi-utils.deps.json') { $required += 'Microsoft.AnalysisServices.AdomdClient.resources.dll' }
+        foreach ($locale in @('zh-Hans', 'zh-Hant')) {
+            foreach ($name in $required) {
+                if ("$locale/$name" -notin $satellites) { throw "Release 依赖描述缺少中文语言资源: $descriptor, $locale/$name" }
+            }
+        }
+    }
+    Import-Module (Join-Path $root 'scripts/ThirdPartyLicenses.psm1') -Force
+    Assert-PbiLicenseBundle -PublishRoot $PublishRoot
+}
+
 $publishRoots = if ($PublishRoot) { @([IO.Path]::GetFullPath($PublishRoot)) }
 elseif ($Configuration -eq 'Debug') { @(Join-Path $root 'artifacts/build/debug/win-x64') }
 else { @(Join-Path $root "artifacts/build/release/win-x64/$($DotNetMode.ToLowerInvariant())") }
 $runEvidence = Join-Path $root ('artifacts/evidence/published-smoke-' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '-' + [Guid]::NewGuid().ToString('N'))
 foreach ($packageRoot in $publishRoots) {
 $manifest = Assert-PbiPublishedArtifacts $packageRoot
+if ($manifest.configuration -ceq 'Release') { Assert-PbiReleaseSmokePayload $packageRoot $manifest }
 $releaseTag = $manifest['releaseTag']
 if ([string]::IsNullOrWhiteSpace($releaseTag)) { throw '发布清单缺少完整发布标签' }
 $modeDirectory = if ($manifest.deploymentMode -ceq 'self-contained') { 'with-dotnet' } else { 'without-dotnet' }
