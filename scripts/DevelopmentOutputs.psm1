@@ -8,10 +8,17 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'PublishArtifacts.psm1')
 
-<# .SYNOPSIS 从中央目标框架取得固定 Desktop Debug 目录, 不创建替代发布目录. #>
+<#
+.SYNOPSIS 从中央配置读取唯一目标框架, 跳过未定义此属性的配置组.
+.PARAMETER Root 当前仓库根目录.
+.OUTPUTS Desktop Debug 输出路径; 配置读取失败或目标框架无效时抛错.
+#>
 function Get-PbiDevelopmentDirectory([string]$Root) {
-    $framework = ([xml](Get-Content -LiteralPath (Join-Path $Root 'Directory.Build.props') -Raw)).Project.PropertyGroup.TargetFramework
-    if ($framework -isnot [string] -or $framework -notmatch '^net[0-9.]+-windows$') { throw '开发目标框架无效' }
+    $props = [xml](Get-Content -LiteralPath (Join-Path $Root 'Directory.Build.props') -Raw)
+    $frameworkNodes = $props.SelectNodes('/Project/PropertyGroup/TargetFramework')
+    if ($frameworkNodes.Count -ne 1) { throw '开发目标框架必须唯一定义' }
+    $framework = $frameworkNodes[0].InnerText
+    if ($framework -notmatch '^net[0-9.]+-windows$') { throw '开发目标框架无效' }
     return Join-Path $Root "src/PbiUtils.Desktop/bin/Debug/$framework"
 }
 

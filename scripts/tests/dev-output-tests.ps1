@@ -19,7 +19,16 @@ function Write-TestJson([string]$Path, $Value) { $Value | ConvertTo-Json -Depth 
 function New-TestCase([string]$Name) {
     $case = Join-Path $sandbox $Name
     $null = New-Item -ItemType Directory -Path $case -Force
-    Set-Content -LiteralPath (Join-Path $case 'Directory.Build.props') -Value '<Project><PropertyGroup><TargetFramework>net10.0-windows</TargetFramework></PropertyGroup></Project>'
+    Set-Content -LiteralPath (Join-Path $case 'Directory.Build.props') -Value @'
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <PublishDocumentationFiles>false</PublishDocumentationFiles>
+  </PropertyGroup>
+</Project>
+'@
     foreach ($pair in @(@('Cli', 'pbi-utils'), @('Host', 'PbiUtils.Host'), @('Desktop', 'PbiUtils.Desktop'))) {
         $directory = Join-Path $case "src/PbiUtils.$($pair[0])/bin/Debug/net10.0-windows"
         $null = New-Item -ItemType Directory -Path $directory -Force
