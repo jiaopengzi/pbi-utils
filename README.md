@@ -17,7 +17,7 @@
 当前分发面向 **Windows x64**。在发布页面选择所需版本并阅读对应发布说明。正式版使用 `vX.Y.Z`，内测版使用 `vX.Y.Z-alphaN`，预览版使用 `vX.Y.Z-betaN`，候选版使用 `vX.Y.Z-rcN`。安装向导显示对应的完整发布标签。
 
 1. 下载发布附件 `pbi-utils-<发布标签>-win-x64-without-dotnet.zip`，解压后运行其中的 `pbi-utils-<发布标签>-win-x64-without-dotnet-setup.exe`。例如，标签 `v2.0.0-rc1` 对应 `pbi-utils-v2.0.0-rc1-win-x64-without-dotnet.zip`。
-2. 在向导的许可页阅读项目及第三方许可，接受 Microsoft AMO/ADOMD 组件条款后，继续检查运行环境并选择安装位置。默认目录为 `%LOCALAPPDATA%\Programs\pbi-utils`。
+2. 在向导的许可页阅读项目及第三方许可，接受 Microsoft AMO/ADOMD 组件条款后点击“下一步”。向导会显示运行环境检查进度，检查通过后自动进入“选择安装位置”。默认目录为 `%LOCALAPPDATA%\Programs\pbi-utils`。
 3. 安装完成后，从桌面或开始菜单启动 pbi-utils。快捷方式可在安装时选择是否创建。
 
 轻量安装器会检查 **x64 .NET Desktop Runtime** 和 **Microsoft Edge WebView2 Evergreen Runtime** 是否达到该安装包的最低版本。.NET 需要匹配应用的主次版本，接受同系列的更新补丁。组件缺失或版本过低时，向导提供安装或更新入口，并在完成后复检。安装运行环境及注册 Power BI 外部工具时，可能需要 Windows 管理员授权。使用本软件无需安装开发 SDK、Node.js 或 pnpm；连接本地模型需要另行安装 Power BI Desktop。

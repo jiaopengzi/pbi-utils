@@ -49,12 +49,17 @@ Var PrerequisiteWebviewStatus
 Var PrerequisiteInstallButton
 Var PrerequisiteRetryButton
 Var PrerequisiteCancelButton
+Var PrerequisiteProgress
+Var PrerequisiteAutoAdvance
+Var PrerequisiteCanContinue
 Var WorkRunning
 Var WorkHandle
-Var PrerequisiteBack
+Var WorkInstallMissing
 Var JobCount
 Var JobRoot
-Var JobWait
+!define PBS_MARQUEE 0x08
+; NSIS 的页面导航消息. 正值 1 请求前进, 仍执行当前页的离开回调.
+!define /math WM_NOTIFY_OUTER_NEXT ${WM_USER} + 8
 ; 状态颜色始终配合本地化文字, 不依赖颜色单独表达通过、缺失或失败.
 !define PBI_STATUS_READY 16794A
 !define PBI_STATUS_MISSING 9A5B00
@@ -77,6 +82,7 @@ Var JobWait
 !define MUI_LICENSEPAGE_BUTTON "$(^NextBtn)"
 !define MUI_LICENSEPAGE_CHECKBOX
 !define MUI_LICENSEPAGE_CHECKBOX_TEXT "$(MicrosoftTermsAccept)"
+!define MUI_PAGE_CUSTOMFUNCTION_LEAVE LicensePageLeave
 !insertmacro MUI_PAGE_LICENSE "${PBI_LICENSE_TEXT}"
 Page custom PrerequisitePageCreate PrerequisitePageLeave
 !insertmacro MUI_PAGE_DIRECTORY
@@ -252,22 +258,27 @@ Function .onInit
     File /oname=Prerequisites.psm1 "${PBI_PAYLOAD}\maintenance\Prerequisites.psm1"
     File /oname=prerequisites.json "${PBI_PAYLOAD}\maintenance\prerequisites.json"
     StrCpy $WorkRunning 0
+    StrCpy $PrerequisiteAutoAdvance 0
     StrCpy $JobCount 0
     StrCpy $RequiresReboot 0
     StrCpy $CreateDesktopShortcut ${BST_CHECKED}
     StrCpy $CreateStartMenuShortcut ${BST_CHECKED}
 FunctionEnd
 
- ; 仅调用随包引导文件的只读检查; 返回码留在 $0, 缺失与探测错误都不得继续.
+; 仅调用随包引导文件的只读检查, 返回码留在 $0 供实际安装阶段判定.
 Function CheckPrerequisites
     nsExec::ExecToLog '"$PowerShell" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\bootstrap\Ensure-Prerequisites.ps1" -ManifestPath "$PLUGINSDIR\bootstrap\prerequisites.json" -CheckOnly'
     Pop $0
 FunctionEnd
 
-; 创建页面前执行当前只读检测, 已满足时跳过该页; 其他结果继续后台检查, 不放宽最终安装门禁.
+; 许可页向前离开时安排一次新的后台检查, 从目录页后退时不重复进入检查页.
+Function LicensePageLeave
+    StrCpy $PrerequisiteAutoAdvance 1
+FunctionEnd
+
+; 先创建可重绘的检查页, 再启动只读任务. 首轮检查通过时自动进入目录页.
 Function PrerequisitePageCreate
-    Call CheckPrerequisites
-    ${If} $0 == 0
+    ${If} $PrerequisiteAutoAdvance != 1
         Abort
     ${EndIf}
     !insertmacro MUI_HEADER_TEXT "$(PrerequisiteTitle)" "$(PrerequisiteSubtitle)"
@@ -277,15 +288,17 @@ Function PrerequisitePageCreate
         SetErrorLevel 4
         Quit
     ${EndIf}
-    StrCpy $PrerequisiteBack 0
     GetFunctionAddress $0 PrerequisiteOnBack
     nsDialogs::OnBack $0
     ${NSD_CreateLabel} 0 0 100% 15u ""
     Pop $PrerequisiteDotnetStatus
     ${NSD_CreateLabel} 0 20u 100% 15u ""
     Pop $PrerequisiteWebviewStatus
-    ${NSD_CreateLabel} 0 40u 100% 25u "$(WorkChecking)"
+    ${NSD_CreateLabel} 0 40u 100% 20u "$(WorkChecking)"
     Pop $PrerequisiteStatus
+    ${NSD_CreateProgressBar} 0 61u 100% 5u ""
+    Pop $PrerequisiteProgress
+    ${NSD_AddStyle} $PrerequisiteProgress ${PBS_MARQUEE}
     ${NSD_CreateButton} 0 70u 30% 18u "$(PrerequisiteInstall)"
     Pop $PrerequisiteInstallButton
     ${NSD_OnClick} $PrerequisiteInstallButton PrerequisiteInstallClick
@@ -301,14 +314,14 @@ Function PrerequisitePageCreate
     ${NSD_CreateLink} 0 120u 100% 15u "$(PrerequisiteWebview)"
     Pop $0
     ${NSD_OnClick} $0 PrerequisiteWebviewClick
-    ${NSD_CreateTimer} PrerequisiteTimer 500
+    ${NSD_CreateTimer} PrerequisiteTimer 250
     StrCpy $2 0
     Call StartPrerequisiteWork
     nsDialogs::Show
     ${NSD_KillTimer} PrerequisiteTimer
 FunctionEnd
 
-; $2 为 0 检查或 1 安装缺失项; 每轮独立目录防止迟到状态覆盖新任务.
+; $2 为 0 检查或 1 安装缺失项. 启动时显示动画, 启动失败时留在本页并允许重试.
 Function StartPrerequisiteWork
     ${If} $WorkRunning == 1
         Return
@@ -316,18 +329,27 @@ Function StartPrerequisiteWork
     IntOp $JobCount $JobCount + 1
     StrCpy $JobRoot "$PLUGINSDIR\prerequisite-$JobCount"
     CreateDirectory "$JobRoot"
-    StrCpy $JobWait 0
+    StrCpy $PrerequisiteCanContinue 0
+    StrCpy $WorkInstallMissing $2
     StrCpy $WorkRunning 1
+    SetCtlColors $PrerequisiteDotnetStatus ${PBI_STATUS_NEUTRAL} SYSCLR:15
+    SetCtlColors $PrerequisiteWebviewStatus ${PBI_STATUS_NEUTRAL} SYSCLR:15
+    ${NSD_SetText} $PrerequisiteDotnetStatus ".NET Desktop Runtime: $(ComponentChecking)"
+    ${NSD_SetText} $PrerequisiteWebviewStatus "WebView2: $(ComponentChecking)"
     SetCtlColors $PrerequisiteStatus ${PBI_STATUS_NEUTRAL} SYSCLR:15
     ${NSD_SetText} $PrerequisiteStatus "$(WorkChecking)"
+    ShowWindow $PrerequisiteProgress ${SW_SHOW}
+    SendMessage $PrerequisiteProgress ${PBM_SETMARQUEE} 1 0
     GetDlgItem $1 $HWNDPARENT 1
     EnableWindow $1 0
     GetDlgItem $1 $HWNDPARENT 3
     EnableWindow $1 0
+    GetDlgItem $1 $HWNDPARENT 2
+    EnableWindow $1 $WorkInstallMissing
     EnableWindow $PrerequisiteRetryButton 0
     EnableWindow $PrerequisiteInstallButton 0
-    EnableWindow $PrerequisiteCancelButton 1
-    ; 保留真实进程句柄直至退出, 防止启动延迟或 PID 复用导致安装仍在运行时放行.
+    EnableWindow $PrerequisiteCancelButton $WorkInstallMissing
+    ; 每轮使用独立目录, 持有真实句柄直至退出, 避免旧结果或 PID 复用导致提前放行.
     System::Call 'kernel32::GlobalAlloc(i 0x40, i 68) p .r6'
     System::Call 'kernel32::GlobalAlloc(i 0x40, i 16) p .r7'
     StrCpy $8 0
@@ -349,10 +371,16 @@ Function StartPrerequisiteWork
     ${EndIf}
     ${If} $8 == 0
         StrCpy $WorkRunning 0
+        StrCpy $PrerequisiteAutoAdvance 0
+        SendMessage $PrerequisiteProgress ${PBM_SETMARQUEE} 0 0
+        ShowWindow $PrerequisiteProgress ${SW_HIDE}
         SetCtlColors $PrerequisiteStatus ${PBI_STATUS_FAILED} SYSCLR:15
         ${NSD_SetText} $PrerequisiteStatus "$(WorkProbeError)"
+        EnableWindow $PrerequisiteCancelButton 0
         EnableWindow $PrerequisiteRetryButton 1
         GetDlgItem $1 $HWNDPARENT 3
+        EnableWindow $1 1
+        GetDlgItem $1 $HWNDPARENT 2
         EnableWindow $1 1
     ${EndIf}
 FunctionEnd
@@ -377,7 +405,7 @@ Function PrerequisiteStatusText
     ${EndIf}
 FunctionEnd
 
-; 检查进程是否仍存在并刷新状态; 缺失终态时 fail-closed, 不放行 Next.
+; 轮询工作进程及状态并刷新界面, 只有成功退出且报告就绪才允许继续.
 Function PrerequisiteTimer
     ${If} $WorkRunning != 1
         Return
@@ -434,15 +462,28 @@ Function PrerequisiteTimer
     System::Call 'kernel32::CloseHandle(p $WorkHandle)'
     StrCpy $WorkHandle 0
     StrCpy $WorkRunning 0
+    SendMessage $PrerequisiteProgress ${PBM_SETMARQUEE} 0 0
+    ShowWindow $PrerequisiteProgress ${SW_HIDE}
+    StrCpy $0 $PrerequisiteAutoAdvance
+    StrCpy $PrerequisiteAutoAdvance 0
     ReadINIStr $5 "$JobRoot\state.ini" "state" "reboot"
     ${If} $5 == 1
         StrCpy $RequiresReboot 1
     ${EndIf}
     EnableWindow $PrerequisiteCancelButton 0
     EnableWindow $PrerequisiteRetryButton 1
-    GetDlgItem $1 $HWNDPARENT 3
-    EnableWindow $1 1
-    ${If} $4 == "ready"
+    ${If} $9 != 0
+        SetCtlColors $PrerequisiteStatus ${PBI_STATUS_FAILED} SYSCLR:15
+        ${NSD_SetText} $PrerequisiteStatus "$(WorkProbeError)"
+    ${ElseIf} $4 == "ready"
+        StrCpy $PrerequisiteCanContinue 1
+        ${If} $0 == 1
+            ; 排队而非立即重入页面回调, 让定时器先完成本轮资源清理.
+            System::Call 'user32::PostMessageW(p $HWNDPARENT, i ${WM_NOTIFY_OUTER_NEXT}, p 1, p 0) i .r0'
+            ${If} $0 != 0
+                Return
+            ${EndIf}
+        ${EndIf}
         GetDlgItem $1 $HWNDPARENT 1
         EnableWindow $1 1
     ${ElseIf} $4 == "missing"
@@ -452,6 +493,10 @@ Function PrerequisiteTimer
         SetCtlColors $PrerequisiteStatus ${PBI_STATUS_FAILED} SYSCLR:15
         ${NSD_SetText} $PrerequisiteStatus "$(WorkProbeError)"
     ${EndIf}
+    GetDlgItem $1 $HWNDPARENT 3
+    EnableWindow $1 1
+    GetDlgItem $1 $HWNDPARENT 2
+    EnableWindow $1 1
 FunctionEnd
 
 Function PrerequisiteRetryClick
@@ -478,8 +523,10 @@ Function PrerequisiteCancelClick
 FunctionEnd
 Function OnAbortCheck
     ${If} $WorkRunning == 1
-        Call RequestPrerequisiteCancel
-        MessageBox MB_ICONINFORMATION "$(WorkAbortWait)"
+        ${If} $WorkInstallMissing == 1
+            Call RequestPrerequisiteCancel
+            MessageBox MB_ICONINFORMATION "$(WorkAbortWait)"
+        ${EndIf}
         Abort
     ${EndIf}
 FunctionEnd
@@ -491,26 +538,19 @@ Function PrerequisiteWebviewClick
     Pop $0
     ExecShell "open" "https://developer.microsoft.com/microsoft-edge/webview2/"
 FunctionEnd
-; 离开时重新读取权威状态, 并对后台未排空或失败一律拒绝.
+; 向前离开只接受本轮已经排空的成功结果, 实际安装前还会重新检查环境.
 Function PrerequisitePageLeave
     ${If} $WorkRunning == 1
-        Abort
-    ${EndIf}
-    ${If} $PrerequisiteBack == 1
-        Return
-    ${EndIf}
-    Call CheckPrerequisites
-    ${If} $0 != 0
+    ${OrIf} $PrerequisiteCanContinue != 1
         Abort
     ${EndIf}
 FunctionEnd
 
-; 仅将明确的后退动作标记为后退; 后退不要求运行环境已满足.
+; 工作进程必须先退出, 才允许后退销毁页面. 后退不要求运行环境已满足.
 Function PrerequisiteOnBack
     ${If} $WorkRunning == 1
         Abort
     ${EndIf}
-    StrCpy $PrerequisiteBack 1
 FunctionEnd
 
 ; 显示两个默认选中的快捷方式选项, 从本轮状态恢复回退选择; 控件创建失败时终止安装并返回 4.

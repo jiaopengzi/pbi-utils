@@ -73,8 +73,8 @@ function Invoke-EntryOptions([string]$Entry, [string]$Options) {
         return @{ ExitCode = $process.ExitCode; Output = $output.GetAwaiter().GetResult(); Error = $errors.GetAwaiter().GetResult() }
     } finally { $process.Dispose() }
 }
-<# .SYNOPSIS 创建带完整 hash 清单的隔离产品载荷, 参数为名称、版本、额外文件、部署模式及可选缺失许可路径, 返回根目录, I/O 失败抛错. #>
-function New-Payload([string]$Name, [string]$Version, [string]$Extra = 'old.dll', [string]$DeploymentMode = 'framework-dependent', [string]$OmitLicense = '') {
+<# .SYNOPSIS 创建带完整 hash 清单的隔离产品载荷, 参数为名称、数字版本、额外文件、部署模式、可选缺失许可路径及发布标签, 返回根目录, I/O 失败抛错. #>
+function New-Payload([string]$Name, [string]$Version, [string]$Extra = 'old.dll', [string]$DeploymentMode = 'framework-dependent', [string]$OmitLicense = '', [string]$ReleaseTag = "v$Version") {
     $directory = Join-Path $sandbox $Name
     $null = New-Item -ItemType Directory -Path (Join-Path $directory 'app/web/branding'), (Join-Path $directory 'maintenance') -Force
     [IO.File]::WriteAllText((Join-Path $directory 'app/web/branding/logo.svg'), '<svg xmlns="http://www.w3.org/2000/svg"></svg>')
@@ -94,7 +94,7 @@ function New-Payload([string]$Name, [string]$Version, [string]$Extra = 'old.dll'
     $files = @(Get-ChildItem -LiteralPath (Join-Path $directory 'app') -Recurse -File | ForEach-Object {
         @{ file = $_.FullName.Substring((Join-Path $directory 'app').Length + 1).Replace('\', '/'); sha256 = (Get-FileHash -LiteralPath $_.FullName).Hash }
     })
-    @{ schemaVersion = 3; layout = 'shared'; runtime = 'win-x64'; scope = 'All'; configuration = 'Release'; deploymentMode = $DeploymentMode; version = $Version; releaseTag = "v$Version"; files = $files } |
+    @{ schemaVersion = 3; layout = 'shared'; runtime = 'win-x64'; scope = 'All'; configuration = 'Release'; deploymentMode = $DeploymentMode; version = $Version; releaseTag = $ReleaseTag; files = $files } |
         ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $directory 'app/manifest.json') -Encoding UTF8
     return $directory
 }
@@ -179,6 +179,7 @@ try {
     $null = Invoke-PbiApplicationInstallation -Operation Install -PayloadRoot $bundled -InstallRoot $bundledRoot -Adapters $adapters
     Reject { Invoke-PbiApplicationInstallation -Operation Uninstall -InstallRoot $bundledRoot -Adapters $adapters -RemoveUserData $true -RegistrationNonInteractive $true } '只能在交互式卸载'
     $bundledState = Get-Content -LiteralPath (Join-Path $bundledRoot 'maintenance/installation-state.json') -Raw | ConvertFrom-Json
+    Assert ($bundledState.version -ceq 'v1.0.0') '正式安装身份必须完整记录 v 前缀'
     $before = Snapshot $bundledRoot
     $shellBefore = $environment.Shell
     $environment.ExpectedDataRemovalDeletes = @($bundledState.files).Count + 1
@@ -215,28 +216,35 @@ try {
         Assert (!(Test-Path -LiteralPath $bundledRoot) -and $environment.Writes -eq $writesBefore) '许可未列入有效文件清单时须在安装文件和系统入口写入前拒绝'
     }
     $first = New-Payload 'payload-one' '1.0.0'
-    $next = New-Payload 'payload-two' '1.1.0' 'new.dll'
+    $next = New-Payload 'payload-two' '1.1.0' 'new.dll' -ReleaseTag 'v1.1.0-rc3'
     $destination = Join-Path $sandbox 'installed'
     $null = Invoke-PbiApplicationInstallation -Operation Install -PayloadRoot $first -InstallRoot $destination -Adapters $adapters
     Assert $environment.Leased '注册与快捷方式更新前, 产品入口必须始终被禁止打开'
-    $state = Get-Content -LiteralPath (Join-Path $destination 'maintenance/installation-state.json') -Raw | ConvertFrom-Json
-    Assert ($state.productId -eq 'pbi-utils-desktop' -and $state.version -eq '1.0.0') '必须记录当前安装身份及版本'
+    $statePath = Join-Path $destination 'maintenance/installation-state.json'
+    $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    Assert ($state.productId -ceq 'pbi-utils-desktop' -and $state.version -ceq 'v1.0.0') '必须记录当前安装身份及完整正式版标签'
     foreach ($license in @('LICENSE', 'THIRD-PARTY-NOTICES.md', 'THIRD-PARTY-NOTICES.txt', 'licenses/manifest.json')) {
         Assert ([IO.File]::ReadAllText((Join-Path $destination "app/$license")) -ceq "1.0.0 license fixture $license") '安装后许可原文必须可从应用目录读取'
         Assert (@($state.files | Where-Object { $_.file -ceq "app/$license" }).Count -eq 1) '安装身份必须记录许可文件以覆盖修复、回滚和卸载'
     }
     [IO.File]::WriteAllText((Join-Path $destination 'personal.txt'), 'preserve unknown user file')
+    # 模拟已经分发的安装身份, 后续升级应读取原数字版本并写入新包的完整标签.
+    $state.version = '1.0.0'
+    $state | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $statePath -Encoding UTF8
     $environment.DeleteCount = 0; $environment.ExpectedDeletes = @($state.files).Count + 1
     $environment.NewPayloadFile = Join-Path $destination 'app/new.dll'
     $environment.EntryRoot = Join-Path $destination 'app'
     $null = Invoke-PbiApplicationInstallation -Operation Install -PayloadRoot $next -InstallRoot $destination -Adapters $adapters
     Assert ($environment.DeleteCount -eq $environment.ExpectedDeletes) '升级必须在写新版前移除所有旧自有文件, 包括同名文件和安装状态'
     Assert ($environment.EntryChecks -eq 3 * $environment.ExpectedDeletes) '整个旧文件移除阶段的三个产品入口必须锁定或不存在'
+    $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    Assert ($state.version -ceq 'v1.1.0-rc3') '升级后安装身份必须精确记录预发布标签及轮次'
     $environment.ExpectedDeletes = 0; $environment.NewPayloadFile = ''; $environment.EntryRoot = ''
     [IO.File]::WriteAllText((Join-Path $destination 'app/PbiUtils.Host.dll'), 'damaged own product file')
     [IO.File]::Delete((Join-Path $destination 'app/new.dll'))
     $null = Invoke-PbiApplicationInstallation -Operation Install -PayloadRoot $next -InstallRoot $destination -Adapters $adapters
     Assert ((Get-Content -LiteralPath (Join-Path $destination 'app/PbiUtils.Host.dll') -Raw) -eq '1.1.0 PbiUtils.Host dll' -and (Test-Path -LiteralPath (Join-Path $destination 'app/new.dll'))) '同版修复必须恢复已损坏或缺失的自有程序文件'
+    Assert ((Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json).version -ceq 'v1.1.0-rc3') '同版修复后必须保留完整预发布标签'
     Assert (!(Test-Path -LiteralPath (Join-Path $destination 'app/old.dll')) -and (Test-Path -LiteralPath (Join-Path $destination 'app/new.dll'))) '升级只删除旧版自有过期文件'
     Assert ((Get-Content -LiteralPath (Join-Path $destination 'personal.txt') -Raw) -eq 'preserve unknown user file') '升级应保留未知文件'
     $before = Snapshot $destination
@@ -297,7 +305,6 @@ try {
     [IO.File]::WriteAllText((Join-Path $destination 'app/third.dll'), 'unknown file must survive')
     Reject { Invoke-PbiApplicationInstallation -Operation Install -PayloadRoot $third -InstallRoot $destination -Adapters $adapters } '未知文件冲突'
     [IO.File]::Delete((Join-Path $destination 'app/third.dll'))
-    $statePath = Join-Path $destination 'maintenance/installation-state.json'
     $stateBytes = [IO.File]::ReadAllBytes($statePath)
     $foreign = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
     $foreign.userId = 'another-user'

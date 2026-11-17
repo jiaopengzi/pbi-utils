@@ -46,6 +46,16 @@ function Join-PbiOwnedInstallPath([string]$Root, [string]$Relative) {
 <# .SYNOPSIS 返回文件 SHA256, 参数为路径, 读取失败抛错. #>
 function Get-PbiInstallHash([string]$Path) { return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash }
 
+<# .SYNOPSIS 从完整发布标签提取数字比较版本, 参数为原始 JSON 字段值; 标签格式或版本越界时返回空. #>
+function ConvertTo-PbiInstallReleaseVersion($ReleaseTag) {
+    $version = $null
+    $revision = 0
+    if ($ReleaseTag -isnot [string] -or $ReleaseTag -cnotmatch '\Av(?<version>(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){2})(?:-(?:alpha|beta|rc)(?<revision>[1-9][0-9]*))?\z' -or
+        ![Version]::TryParse($Matches.version, [ref]$version) -or $version.Major -gt 65534 -or $version.Minor -gt 65534 -or $version.Build -gt 65534 -or
+        ($Matches.ContainsKey('revision') -and ![int]::TryParse($Matches.revision, [ref]$revision))) { return $null }
+    return $version
+}
+
 <# .SYNOPSIS 读取并验证两种 .NET 部署模式的 Release All 载荷、许可声明及维护文件, 参数为解包根目录, 返回数字版本、发布标签和精确相对文件映射; 清单、许可或文件无效抛错. #>
 function Read-PbiInstallPayload([string]$PayloadRoot) {
     $root = Resolve-PbiInstallPath $PayloadRoot
@@ -63,10 +73,8 @@ function Read-PbiInstallPayload([string]$PayloadRoot) {
         $manifest.configuration -cne 'Release' -or $manifest.deploymentMode -cnotin @('framework-dependent', 'self-contained') -or ![Version]::TryParse($manifest.version, [ref]$version)) { throw '安装载荷必须为有效 Release All framework-dependent 或 self-contained 发布清单' }
     $releaseTagProperty = $manifest.PSObject.Properties['releaseTag']
     $releaseTag = if ($null -ne $releaseTagProperty) { $releaseTagProperty.Value } else { $null }
-    $revision = 0
-    if ($releaseTag -isnot [string] -or $releaseTag -cnotmatch '\Av(?<version>(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){2})(?:-(?:alpha|beta|rc)(?<revision>[1-9][0-9]*))?\z' -or
-        $Matches.version -cne $manifest.version -or $version.Major -gt 65534 -or $version.Minor -gt 65534 -or $version.Build -gt 65534 -or
-        ($Matches.ContainsKey('revision') -and ![int]::TryParse($Matches.revision, [ref]$revision))) { throw '安装载荷发布标签无效或与数字版本不一致' }
+    $tagVersion = ConvertTo-PbiInstallReleaseVersion $releaseTag
+    if ($null -eq $tagVersion -or $tagVersion.ToString() -cne $manifest.version) { throw '安装载荷发布标签无效或与数字版本不一致' }
     $expected = @{}
     foreach ($item in $manifest.files) {
         $path = Join-PbiOwnedInstallPath $app $item.file
@@ -96,7 +104,7 @@ function Read-PbiInstallPayload([string]$PayloadRoot) {
     return @{ Root = $root; Version = $version.ToString(); ReleaseTag = $releaseTag; Files = $files }
 }
 
-<# .SYNOPSIS 读取当前用户且同目录的安装状态, 参数为目录、用户身份和可选同版修复版本; 返回现存自有文件真实哈希, 陌生身份或非修复修改抛错. #>
+<# .SYNOPSIS 读取当前用户且同目录的安装状态, 参数为目录、用户身份和可选同版修复的数字版本; 返回数字比较版本及现存自有文件真实哈希, 陌生身份或非修复修改抛错. #>
 function Read-PbiInstallationState([string]$InstallRoot, [string]$UserId, [string]$RepairVersion) {
     $statePath = Join-Path $InstallRoot 'maintenance/installation-state.json'
     if (![IO.File]::Exists($statePath)) {
@@ -105,9 +113,12 @@ function Read-PbiInstallationState([string]$InstallRoot, [string]$UserId, [strin
     }
     $null = @(Get-PbiInstallFiles $InstallRoot)
     $state = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
-    $version = $null
+    $stateRelease = $state.version
+    # 已安装的纯数字身份仍参与升级、修复和卸载, 新写入的状态统一使用完整发布标签.
+    if ($stateRelease -is [string] -and $stateRelease -cmatch '\A[0-9]+(?:\.[0-9]+){2}\z') { $stateRelease = 'v' + $stateRelease }
+    $version = ConvertTo-PbiInstallReleaseVersion $stateRelease
     if ($state.schemaVersion -ne 1 -or $state.productId -cne 'pbi-utils-desktop' -or $state.userId -cne $UserId -or
-        ![string]::Equals($state.installRoot, $InstallRoot, [StringComparison]::OrdinalIgnoreCase) -or ![Version]::TryParse($state.version, [ref]$version)) { throw '当前目录的产品安装身份无效' }
+        ![string]::Equals($state.installRoot, $InstallRoot, [StringComparison]::OrdinalIgnoreCase) -or $null -eq $version) { throw '当前目录的产品安装身份无效' }
     $files = @{}; $declared = @{}
     $repair = $RepairVersion -and [Version]$RepairVersion -eq $version
     foreach ($item in $state.files) {

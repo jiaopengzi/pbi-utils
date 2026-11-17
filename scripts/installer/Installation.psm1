@@ -82,7 +82,7 @@ function Remove-PbiInstallationUserData([string]$Executable) {
 .PARAMETER RegistrationNonInteractive true 时外部工具登记不得申请 UAC, 权限不足返回前置错误.
 .PARAMETER RemoveUserData 仅在交互式卸载明确选择后清理当前用户数据根, 失败时恢复程序和入口.
 .PARAMETER Adapters 测试可注入身份、进程和系统适配; ApplyShell 接收捕获快照限定修改范围, 安装时接收载荷验证过的发布标签, 正式 CLI 不暴露此参数.
-.OUTPUTS 动作和版本; 并发、占用、身份错误、降级或事务失败时抛错. 不承诺断电原子性或用户数据回滚.
+.OUTPUTS 动作和数字版本, 安装身份文件记录完整发布标签; 并发、占用、身份错误、降级或事务失败时抛错. 不承诺断电原子性或用户数据回滚.
 #>
 function Invoke-PbiApplicationInstallation {
     [CmdletBinding()]
@@ -178,7 +178,7 @@ function Invoke-PbiApplicationInstallation {
                 Write-PbiLeasedFile $leases[$relative] (Join-PbiOwnedInstallPath $payload.Root $relative)
                 if ((Get-PbiLeaseHash $leases[$relative]) -cne $desired[$relative]) { throw "安装写入后哈希不一致: $relative" }
             }
-            $newState = @{ schemaVersion = 1; productId = 'pbi-utils-desktop'; userId = $Adapters.UserId; installRoot = $root; version = $payload.Version; files = @($desired.Keys | Sort-Object | ForEach-Object { @{ file = $_; sha256 = $desired[$_] } }) }
+            $newState = @{ schemaVersion = 1; productId = 'pbi-utils-desktop'; userId = $Adapters.UserId; installRoot = $root; version = $payload.ReleaseTag; files = @($desired.Keys | Sort-Object | ForEach-Object { @{ file = $_; sha256 = $desired[$_] } }) }
             $stateSource = Join-Path $backupRoot 'new-state.json'
             [IO.File]::WriteAllText($stateSource, ($newState | ConvertTo-Json -Depth 8), (New-Object Text.UTF8Encoding($true)))
             Write-PbiLeasedFile $leases[$stateRelative] $stateSource
