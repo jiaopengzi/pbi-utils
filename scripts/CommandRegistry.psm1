@@ -28,6 +28,7 @@ $script:Registry = @(
     @{ Name = 'setupAll'; Parameters = @('Scope'); Script = 'setup.ps1'; Description = '还原 C# 和 Vue 依赖'; Defaults = @{}; Requires = @('dotnet', 'node', 'pnpm') }
     @{ Name = 'setupC#'; Parameters = @('Scope'); Script = 'setup.ps1'; Description = '还原 C# 依赖'; Defaults = @{}; Requires = @('dotnet') }
     @{ Name = 'setupVue'; Parameters = @(); Script = 'setup.ps1'; Description = '还原 Vue 依赖'; Defaults = @{}; Requires = @('node', 'pnpm') }
+    @{ Name = 'setupLicense'; Parameters = @(); Script = 'setup.ps1'; Description = '从已准备的依赖更新第三方许可清单'; Defaults = @{}; Requires = @('dotnet', 'node') }
     @{ Name = 'devDesktop'; Parameters = @(); Script = 'dev.ps1'; Description = '启动桌面开发'; Defaults = @{}; Requires = @('dotnet', 'node', 'pnpm') }
     @{ Name = 'devWeb'; Parameters = @(); Script = 'dev.ps1'; Description = '浏览器模拟预览'; Defaults = @{}; Requires = @('node', 'pnpm') }
 
@@ -89,6 +90,7 @@ function Show-PbiHelp {
     Write-Host ''
     Write-Host '常用命令'
     Write-Host '  .\run.ps1 -Choice setupAll                             # 首次还原依赖'
+    Write-Host '  .\run.ps1 -Choice setupLicense                         # 从已准备的依赖更新许可'
     Write-Host '  .\run.ps1 -Choice devDesktop                           # 启动桌面开发'
     Write-Host '  .\run.ps1 -Choice devWeb                               # 浏览器模拟预览'
     Write-Host '  .\run.ps1 -Choice checkAll                             # 只读检查'

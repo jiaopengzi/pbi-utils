@@ -31,7 +31,7 @@ try {
     Import-Module (Join-Path $sandbox 'scripts/CommandRegistry.psm1') -Force
     $registry = Get-PbiRegistry
     $expectedActions = @(
-        'help', 'setupAll', 'setupC#', 'setupVue', 'devDesktop', 'devWeb',
+        'help', 'setupAll', 'setupC#', 'setupVue', 'setupLicense', 'devDesktop', 'devWeb',
         'formatAll', 'formatC#', 'formatVue', 'checkAll', 'checkC#', 'checkVue',
         'testAll', 'testC#', 'testVue', 'buildAll', 'buildC#', 'buildVue',
         'verifyAndBuild', 'package', 'release', 'clean'
@@ -681,6 +681,14 @@ exit 130
         Assert ((ConvertTo-PbiNativeText 'pnpm' @('restore') $original) -ceq $original) '其他工具不可替换输出'
         Assert ((ConvertTo-PbiNativeText 'dotnet' @() $original) -ceq $original) '空参数不可替换输出'
     }
+    @'
+<# .SYNOPSIS 记录独立许可同步调用, 使用隔离仓库替代真实许可数据. #>
+function Update-PbiLicenseCatalog([string]$RepositoryRoot) {
+    [IO.File]::WriteAllText((Join-Path $RepositoryRoot 'license-update.called'), 'setupLicense')
+    return $false
+}
+Export-ModuleMember -Function Update-PbiLicenseCatalog
+'@ | Set-Content -LiteralPath (Join-Path $sandbox 'scripts/LicenseCatalogUpdate.psm1')
     & $module {
         $script:NativeCalls = [Collections.Generic.List[string]]::new()
         # 独立仓库模拟 clean 后的缺失资产, 验证提前停止及显式还原提示, 不调用真实工具.
@@ -772,6 +780,11 @@ exit 130
             $script:NativeCalls.Clear()
             Invoke-PbiAction 'buildVue' @{}
             if (($script:NativeCalls -join ',') -ne 'pnpm') { throw 'buildVue 调用了 C#' }
+            $script:NativeCalls.Clear()
+            Invoke-PbiAction 'setupLicense' @{}
+            Assert ($script:NativeCalls.Count -eq 0) 'setupLicense 不得调用依赖还原工具'
+            Assert ([IO.File]::ReadAllText((Join-Path $script:Root 'license-update.called')) -ceq 'setupLicense') 'setupLicense 必须调用许可同步'
+            Assert (((Get-PbiRegistry | Where-Object Name -CEQ 'setupLicense').Requires -join ',') -ceq 'dotnet,node') 'setupLicense 只需要用于读取依赖的 dotnet 和 node'
         } finally { Pop-Location }
         Push-Location $script:Root
         try {

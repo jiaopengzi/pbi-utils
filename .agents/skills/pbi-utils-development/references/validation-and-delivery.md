@@ -9,6 +9,7 @@
 | 目的 | 命令 |
 | --- | --- |
 | 首次使用或依赖有变时还原 C# 和 Vue 依赖 | `.\run.ps1 -Choice setupAll` |
+| 根据已还原的依赖同步第三方许可 | `.\run.ps1 -Choice setupLicense` |
 | 启动真实桌面开发环境 | `.\run.ps1 -Choice devDesktop` |
 | 在浏览器中用模拟数据预览界面 | `.\run.ps1 -Choice devWeb` |
 | 按需格式化 C# 和 Vue 源码 | `.\run.ps1 -Choice formatAll` |

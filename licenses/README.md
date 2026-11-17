@@ -7,7 +7,7 @@
 | [项目许可](../LICENSE) | pbi-utils 自有代码的 MIT 原文。 |
 | [第三方来源说明](../THIRD-PARTY-NOTICES.md) | 随项目发布的组件、资源与改编来源。 |
 | [catalog.json](catalog.json) | 用精确身份、来源和 SHA-256 绑定必需的补充文件。 |
-| [source/](source/) | 来自精确上游版本或提交的许可、NOTICE 和可离线阅读的补充文本。 |
+| [source/](source/) | 来自精确上游版本或提交的许可、NOTICE 和可离线阅读的补充文本。文件名按组件和用途固定，精确版本、来源和 SHA-256 由清单记录。 |
 | 资源目录 | 字体、图标、配色和日期字段来源的许可随对应资源维护，由清单直接引用。 |
 
 核对每种组件时优先使用对应精确版本包内的 LICENSE、NOTICE、COPYING 和版权文件。CodeMirror、Lezer、Element Plus、Marked 和 DOMPurify 的随包许可原文直接来自 npm 包。
@@ -37,8 +37,14 @@ NSIS 许可页和安装后的 `app/THIRD-PARTY-NOTICES.txt` 使用同一份全�
 
 ## 变更验证
 
-核对新增、更新或移除的组件在直接依赖、传递依赖、内嵌资源及安装器中的实际使用。同步维护来源、精确版本、原文和 SHA-256。共享许可仍供其他组件使用时一并保留。
+更新依赖声明、锁文件或 SDK 绑定后，若本地依赖尚未还原或已过期，先按需运行 `.\run.ps1 -Choice setupAll`、`.\run.ps1 -Choice 'setupC#'` 或 `.\run.ps1 -Choice setupVue`。依赖准备好后，在仓库根运行许可同步命令。
 
-- 升级 .NET SDK 时，使用 `ProcessFrameworkReferences` 查询各入口的 `AppHostPack`，并核对实际发布的两个 runtimepack。自包含包要求每个实际 runtimepack 版本有对应的已审核许可全文。
-- 升级前端构建工具时，检查产物仍注入哪些辅助代码，并按锁文件中的实际版本更新其原文。
-- 运行 `scripts/tests/license-source-git-tests.ps1`、`scripts/tests/license-bundle-tests.ps1` 和 `scripts/tests/license-bundle-validation-tests.ps1`，并按 [仓库约定](../AGENTS.md) 核验两种 .NET 模式的分发内容。
+~~~powershell
+.\run.ps1 -Choice setupLicense
+~~~
+
+该动作读取已还原的 win-x64 目标、当前 SDK 为各入口及两种部署方式选用的 apphost 和运行时包，以及本地已安装的锁定前端构建工具，核对上游原文和已有 SHA-256。已知 NuGet 补充来源的固定提交变化时会读取新版原文。SDK 或 apphost 来源变化时会下载官方 Windows x64 SDK ZIP，核验 SHA-512、根目录许可及 apphost 模板。原文相同则更新清单中的版本和来源，发布仍复用离线生成及校验流程。
+
+审阅清单差异并与依赖变更一起提交。遇到原文、许可证声明或来源变化时，按诊断核对完整条款和版权，更新对应补充文件及清单后再运行命令。AMO/ADOMD 自定义条款、NSIS 和复制到仓库的资源，按实际分发版本维护。移除组件时核对直接依赖、传递依赖、内嵌资源及安装器的实际使用，共用许可仍有引用时继续保留。
+
+运行许可来源、许可包生成与校验测试，并按 [仓库约定](../AGENTS.md) 核验两种 .NET 模式的分发内容。

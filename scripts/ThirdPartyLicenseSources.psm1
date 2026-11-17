@@ -80,8 +80,14 @@ function Get-PbiCatalogDocuments([string]$RepositoryRoot, $Entry) {
     }
 }
 
-<# .SYNOPSIS 解析包缓存位置并核验 nuspec 精确身份、许可和依赖哈希; 返回可分发包记录, 未知许可抛错. #>
-function Get-PbiNugetLicenseComponent([string]$RepositoryRoot, [string]$Key, $Library, $Catalog) {
+<#
+.SYNOPSIS 从还原缓存定位 NuGet 包, 校验 nuspec 精确身份和可用的依赖哈希.
+.PARAMETER RepositoryRoot 仓库根目录.
+.PARAMETER Key name/version 或 runtimepack.name/version.
+.PARAMETER Library 发布或还原依赖元数据.
+.OUTPUTS 包目录、身份和 nuspec 元数据; 缺包、身份冲突或哈希不符时抛错.
+#>
+function Get-PbiNugetLicensePackage([string]$RepositoryRoot, [string]$Key, $Library) {
     $parts = $Key.Split('/')
     $name = $parts[0] -replace '^runtimepack\.', ''
     $version = $parts[1]
@@ -110,6 +116,23 @@ function Get-PbiNugetLicenseComponent([string]$RepositoryRoot, [string]$Key, $Li
         $cacheMetadata = Get-Content -LiteralPath $hashPath -Raw | ConvertFrom-Json -AsHashtable
         if (('sha512-' + $cacheMetadata.contentHash) -cne $Library.sha512) { throw "NuGet content identity mismatch: $Key" }
     }
+    return @{ name = $name; version = $version; directory = $directory; metadata = $metadata }
+}
+
+<#
+.SYNOPSIS 从已核验的 NuGet 包及固定补充来源收集完整可分发许可.
+.PARAMETER RepositoryRoot 仓库根目录.
+.PARAMETER Key name/version 或 runtimepack.name/version.
+.PARAMETER Library 发布或还原依赖元数据.
+.PARAMETER Catalog 精确版本的离线许可补充清单.
+.OUTPUTS 可分发包记录; 缺少文件或未知许可抛错.
+#>
+function Get-PbiNugetLicenseComponent([string]$RepositoryRoot, [string]$Key, $Library, $Catalog) {
+    $package = Get-PbiNugetLicensePackage $RepositoryRoot $Key $Library
+    $name = $package.name
+    $version = $package.version
+    $directory = $package.directory
+    $metadata = $package.metadata
     $licenseNode = $metadata.SelectSingleNode('*[local-name()="license"]')
     $license = if ($licenseNode) { $licenseNode.InnerText } else { '' }
     $override = @($Catalog.packages | Where-Object { $_.ecosystem -eq 'nuget' -and $_.name -ieq $name -and $_.version -ceq $version })
@@ -132,7 +155,7 @@ function Get-PbiNugetLicenseComponent([string]$RepositoryRoot, [string]$Key, $Li
     if (!@($documents | Where-Object Aggregate).Count) { throw "No readable license for NuGet package: $Key" }
     $copyrightNode = $metadata.SelectSingleNode('*[local-name()="copyright"]')
     $repositoryNode = $metadata.SelectSingleNode('*[local-name()="repository"]')
-    return @{ ecosystem = 'nuget'; name = $parts[0]; version = $version; license = $license; copyright = $(if ($copyrightNode) { $copyrightNode.InnerText } else { '' }); source = $(if ($repositoryNode) { $repositoryNode.GetAttribute('url') } else { "https://www.nuget.org/packages/$name/$version" }); documents = $documents }
+    return @{ ecosystem = 'nuget'; name = $Key.Split('/')[0]; version = $version; license = $license; copyright = $(if ($copyrightNode) { $copyrightNode.InnerText } else { '' }); source = $(if ($repositoryNode) { $repositoryNode.GetAttribute('url') } else { "https://www.nuget.org/packages/$name/$version" }); documents = $documents }
 }
 
 <# .SYNOPSIS 运行离线前端闭包解析并核验包内许可; 返回组件, 缺失文件/依赖或未知许可直接抛错. #>
@@ -157,4 +180,4 @@ function Get-PbiNpmLicenseComponents([string]$RepositoryRoot, $Catalog) {
     }
 }
 
-Export-ModuleMember -Function Get-PbiLicenseSafePath, Get-PbiLicenseDocuments, Get-PbiPublishedLicenseDependencies, Get-PbiCatalogDocuments, Get-PbiNugetLicenseComponent, Get-PbiNpmLicenseComponents
+Export-ModuleMember -Function Get-PbiLicenseSafePath, Get-PbiLicenseDocuments, Get-PbiPublishedLicenseDependencies, Get-PbiCatalogDocuments, Get-PbiNugetLicensePackage, Get-PbiNugetLicenseComponent, Get-PbiNpmLicenseComponents

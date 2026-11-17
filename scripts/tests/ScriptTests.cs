@@ -22,7 +22,7 @@ public sealed partial class ScriptTests
     {
         var (Code, Out, Error) = await CliTests.RunWithTimeout("pwsh", CliTests.ScriptCollectionTimeout, "-NoProfile", "-File", Path.Combine(ScriptTestRepository.Root(), "scripts/tests/command-entry-tests.ps1"));
         Assert.True(Code == 0, Out + Error);
-        Assert.Contains("PASS command entry rejections: 24 invalid arguments, 12 retired actions, 11 lower entries, 12 lane arguments", Out);
+        Assert.Contains("PASS command entry rejections: 25 invalid arguments, 12 retired actions, 11 lower entries, 12 lane arguments", Out);
     }
 
     /// <summary>管道停止与控制台 Ctrl+C 同样跳过 catch; 每个入口脚本仍须在自身 finally 中以 130 结束, 并行通道写回取消结果.</summary>

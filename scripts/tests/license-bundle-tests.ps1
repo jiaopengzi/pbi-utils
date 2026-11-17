@@ -199,6 +199,72 @@ try {
         # 显式移除链接本身后才清理自有夹具树, 不递归进入外部目标.
         [IO.Directory]::Delete($junction)
     }
+
+    # 用真实 NuGet 缓存和还原资产验证更新, 仅替换网络及本夹具未安装的 SDK/前端构建工具.
+    $catalogModule = Import-Module (Join-Path $root 'scripts/LicenseCatalogUpdate.psm1') -Force -PassThru
+    $catalogPath = Join-Path $repository 'licenses/catalog.json'
+    $sourcePath = Join-Path $repository 'licenses/source/Example.txt'
+    $null = New-Item -ItemType Directory -Path (Split-Path $sourcePath -Parent) -Force
+    [IO.File]::WriteAllText($sourcePath, 'Approved MIT license with original copyright.')
+    $sourceHash = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash
+    $oldCommit = 'a' * 40
+    $newCommit = 'b' * 40
+    $newSource = "https://raw.githubusercontent.com/Example/Example/$newCommit/LICENSE"
+    Write-Json $catalogPath @{
+        schemaVersion = 1
+        resources = @()
+        packages = @(@{
+            ecosystem = 'nuget'; name = 'Example'; version = '1.0.0'; license = 'MIT'; declaredLicense = 'MIT'
+            files = @(@{ path = 'licenses/source/Example.txt'; sha256 = $sourceHash; source = "https://raw.githubusercontent.com/Example/Example/$oldCommit/LICENSE" })
+        })
+    }
+    $catalogHashBefore = (Get-FileHash -LiteralPath $catalogPath -Algorithm SHA256).Hash
+    Assert-Fails { Update-PbiLicenseCatalog -RepositoryRoot $repository } "缺少 .*NuGet 还原资产.*setupC#"
+    $package = Join-Path $env:NUGET_PACKAGES 'example/2.0.0'
+    $null = New-Item -ItemType Directory -Path $package -Force
+    Set-Content -LiteralPath (Join-Path $package 'example.nuspec') -Value @"
+<package><metadata><id>Example</id><version>2.0.0</version><license type="expression">MIT</license><repository type="git" url="https://github.com/Example/Example.git" commit="$newCommit" /></metadata></package>
+"@
+    $restoredHash = [Convert]::ToBase64String([Security.Cryptography.SHA512]::HashData([byte[]]@(1, 2, 3)))
+    Write-Json (Join-Path $package '.nupkg.metadata') @{ contentHash = $restoredHash }
+    foreach ($project in @('PbiUtils.Cli', 'PbiUtils.Host', 'PbiUtils.Desktop')) {
+        Write-Json (Join-Path $repository "src/$project/obj/project.assets.json") @{
+            targets = @{ 'net10.0-windows/win-x64' = @{
+                'Example/2.0.0' = @{ type = 'package'; runtime = @{ 'lib/Example.dll' = @{} } }
+                'BuildOnly/1.0.0' = @{ type = 'package'; build = @{ 'build/BuildOnly.targets' = @{} } }
+            } }
+            libraries = @{ 'Example/2.0.0' = @{ sha512 = $restoredHash } }
+        }
+    }
+    $fixture = @{ Source = $newSource; Bytes = [Text.Encoding]::UTF8.GetBytes('Changed upstream text.'); Reads = 0 }
+    try {
+        & $catalogModule {
+            param($inputFixture)
+            $script:LicenseSyncFixture = $inputFixture
+            <# .SYNOPSIS 模拟固定提交下载, 校验地址并提供本轮夹具字节. #>
+            function script:Get-PbiLicenseUpdateBytes([uri]$Uri) {
+                if ($Uri.AbsoluteUri -cne $script:LicenseSyncFixture.Source) { throw "Unexpected license lookup: $Uri" }
+                $script:LicenseSyncFixture.Reads++
+                return ,$script:LicenseSyncFixture.Bytes
+            }
+            <# .SYNOPSIS 本夹具仅验证已还原 NuGet 的同步, 跳过 SDK 发现. #>
+            function script:Update-PbiDotNetLicenseCatalog($RepositoryRoot, $Catalog, $Context) { }
+            <# .SYNOPSIS 本夹具使用真实 npm 依赖闭包, 跳过构建工具发现. #>
+            function script:Update-PbiNpmLicenseCatalog($RepositoryRoot, $Catalog) { }
+        } $fixture
+        Assert-Fails { Update-PbiLicenseCatalog -RepositoryRoot $repository } '许可原文已变化'
+        Assert ((Get-FileHash -LiteralPath $catalogPath -Algorithm SHA256).Hash -ceq $catalogHashBefore) 'A changed upstream license must not rewrite the catalog.'
+        $fixture.Bytes = [IO.File]::ReadAllBytes($sourcePath)
+        Assert (Update-PbiLicenseCatalog -RepositoryRoot $repository) 'An exact restored upgrade with unchanged license bytes must update the catalog.'
+        $updated = Get-Content -LiteralPath $catalogPath -Raw | ConvertFrom-Json
+        Assert ($updated.packages.Count -eq 1 -and $updated.packages[0].version -ceq '2.0.0' -and
+            $updated.packages[0].files[0].source -ceq $newSource -and $updated.packages[0].files[0].sha256 -ceq $sourceHash) 'Catalog must retain the reviewed stable file while recording new exact provenance.'
+        Assert (!(Update-PbiLicenseCatalog -RepositoryRoot $repository) -and $fixture.Reads -eq 2 -and
+            (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash -ceq $sourceHash) 'A repeat update must reuse the original bytes without fetching again.'
+        $count++
+    } finally {
+        Remove-Module $catalogModule
+    }
     Write-Output "License bundle tests passed. $count behavioral checks."
 } finally {
     $env:NUGET_PACKAGES = $savedNuget

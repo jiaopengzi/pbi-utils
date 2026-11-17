@@ -52,6 +52,7 @@ $invalidArguments = @(
     @('-Choice', 'testVue', '-Configuration', 'Debug'),
     @('-Choice', 'buildC#', '-Configuration'),
     @('-Choice', 'setupAll', '-Scope', '-Unknown'),
+    @('-Choice', 'setupLicense', '-Scope', 'Core'),
     @('-Choice', 'hello', '-Name'),
     @('-Choice', 'publish', '-Runtime', 'win-x64'),
     @('-List', '-Choice', 'help'),
@@ -71,7 +72,7 @@ foreach ($argumentSet in $invalidArguments) {
     Assert-RejectedEntry $rootEntry $argumentSet
 }
 
-$retiredActions = @('setup', 'build', 'testCore', 'format', 'check', 'hello', 'agentHello', 'doctor', 'publish', '-1', '22', '28')
+$retiredActions = @('setup', 'build', 'testCore', 'format', 'check', 'hello', 'agentHello', 'doctor', 'publish', '-1', '23', '28')
 foreach ($action in $retiredActions) {
     Assert-RejectedEntry $rootEntry @('-Choice', $action) -RequireEmptyOutput
 }
