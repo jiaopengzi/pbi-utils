@@ -240,6 +240,7 @@
     "redir",
     "REDIST",
     "refreshpolicy",
+    "refspecs",
     "ropeproject",
     "runtimeconfig",
     "runtimepack",

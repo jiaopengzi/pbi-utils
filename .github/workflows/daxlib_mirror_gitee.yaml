@@ -1,0 +1,61 @@
+# FilePath    : pbi-utils\.github\workflows\daxlib_mirror_gitee.yaml
+# Author      : jiaopengzi
+# Blog        : https://jiaopengzi.com
+# Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
+# Description : 定时或手动将 GitHub DAXLib 的分支与标签同步到 Gitee 镜像.
+
+name: Mirror DAXLib to Gitee
+
+on:
+  schedule:
+    - cron: '55 5 * * *'
+      timezone: 'Asia/Shanghai'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: daxlib-mirror-gitee
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Mirror DAXLib branches and tags
+        shell: bash
+        env:
+          DAXLIB_REPO: https://github.com/daxlib/daxlib.git
+          GITEE_REPO: git@gitee.com:jiaopengzi/daxlib-mirror.git
+          GITEE_SSH_PRIVATE_KEY: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}
+          GIT_TERMINAL_PROMPT: '0'
+        run: |
+          set -euo pipefail
+          if [[ -z "$GITEE_SSH_PRIVATE_KEY" ]]; then
+            echo '::error::GITEE_SSH_PRIVATE_KEY is missing.'
+            exit 1
+          fi
+
+          sync_dir="$(mktemp -d "$RUNNER_TEMP/daxlib-mirror.XXXXXX")"
+          trap 'rm -rf -- "$sync_dir"' EXIT
+          (
+            umask 077
+            printf '%s\n' "$GITEE_SSH_PRIVATE_KEY" > "$sync_dir/key"
+            # Gitee 官方公钥: https://help.gitee.com/account/gitees-ssh-key-fingerprints
+            printf '%s\n' 'gitee.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEKxHSJ7084RmkJ4YdEi5tngynE8aZe2uEoVVsB/OvYN' > "$sync_dir/known_hosts"
+          )
+          unset GITEE_SSH_PRIVATE_KEY
+
+          repo="$sync_dir/daxlib.git"
+          # 仅镜像分支和标签, 避免同步 GitHub 的 PR 引用.
+          refspecs=('+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*')
+          git init --bare --quiet "$repo"
+          git -C "$repo" fetch --no-tags "$DAXLIB_REPO" "${refspecs[@]}"
+          if [[ -z "$(git -C "$repo" for-each-ref --count=1 refs/heads/)" ]]; then
+            echo '::error::DAXLib upstream has no branches. Mirror push skipped.'
+            exit 1
+          fi
+
+          export GIT_SSH_COMMAND="ssh -i \"$sync_dir/key\" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=\"$sync_dir/known_hosts\""
+          git -C "$repo" push --prune "$GITEE_REPO" "${refspecs[@]}"
