@@ -28,7 +28,8 @@ class SourceTransport extends MockTransport {
     /** 来源响应采用指定事实, 其他响应原样转发. */
     override addEventListener(type: "message", listener: (event: MessageEvent) => void): void {
         const wrapped = (event: MessageEvent) => {
-            if (this.sourceRequests.has(event.data.id)) listener(new MessageEvent("message", { data: { ...event.data, result: { items: this.sources } } }))
+            if (this.sourceRequests.has(event.data.id))
+                listener(new MessageEvent("message", { data: { ...event.data, result: { ...event.data.result, items: this.sources } } }))
             else listener(event)
         }
         this.replacements.set(listener, wrapped)
@@ -50,6 +51,14 @@ class SourceTransport extends MockTransport {
 
 const local: UdfSourceEntry = { id: "local", name: "Local", kind: "local", baseUrl: null, baseline: null, protocol: "git" }
 const withoutUrl: UdfSourceEntry = { id: "daxlib", name: "DAXLib", kind: "builtin", baseUrl: null, baseline: null, protocol: "git" }
+
+/** 等待管理来源弹窗实例显示并读取已保存偏好. */
+async function openDaxLibPolicy(wrapper: ReturnType<typeof mount<typeof UdfStep>>): Promise<HTMLElement> {
+    await flushPromises()
+    await wrapper.get(".udf-management button").trigger("click")
+    await flushPromises()
+    return document.querySelector<HTMLElement>('[data-test="udf-daxlib-github-only"]')!
+}
 
 it("新建配置默认可见, 仅在进入已启用的 UDF 步骤后提示首次更新", async () => {
     const feedback = vi.spyOn(messages, "showMessage")
@@ -180,6 +189,39 @@ it("正常内置来源照常更新, 来源与本地管理集中折叠且所有�
         wrapper.unmount()
         bridge.dispose()
         feedback.mockRestore()
+    }
+})
+
+it("DAXLib 开关的标签和仓库地址随宿主偏好切换并在重开后恢复, 不下载目录", async () => {
+    const bridge = new BridgeClient(new MockTransport())
+    const request = vi.spyOn(bridge, "request")
+    const props = { bridge: markRaw(bridge), disabled: false, modelValue: [] }
+    let wrapper = mount(UdfStep, { attachTo: document.body, props })
+    try {
+        const toggle = await openDaxLibPolicy(wrapper)
+        expect(toggle.querySelector('[role="switch"]')?.getAttribute("aria-checked")).toBe("false")
+        expect(toggle.textContent).toBe("Gitee")
+        expect(toggle.closest(".udf-source-row")?.textContent).toContain("https://gitee.com/jiaopengzi/daxlib-mirror")
+        toggle.click()
+        await flushPromises()
+        expect(request).toHaveBeenCalledWith("udf.daxlibPolicySave", { gitHubOnly: true }, expect.any(Function), expect.any(Function))
+        expect(toggle.querySelector('[role="switch"]')?.getAttribute("aria-checked")).toBe("true")
+        expect(toggle.textContent).toBe("GitHub")
+        expect(toggle.closest(".udf-source-row")?.textContent).toContain("https://github.com/daxlib/daxlib")
+        wrapper.unmount()
+        wrapper = mount(UdfStep, { attachTo: document.body, props })
+        const reopened = await openDaxLibPolicy(wrapper)
+        expect(reopened.querySelector('[role="switch"]')?.getAttribute("aria-checked")).toBe("true")
+        expect(reopened.textContent).toBe("GitHub")
+        reopened.click()
+        await flushPromises()
+        expect(request).toHaveBeenCalledWith("udf.daxlibPolicySave", { gitHubOnly: false }, expect.any(Function), expect.any(Function))
+        expect(reopened.textContent).toBe("Gitee")
+        expect(reopened.closest(".udf-source-row")?.textContent).toContain("https://gitee.com/jiaopengzi/daxlib-mirror")
+        expect(request.mock.calls.some(([method]) => method === "udf.catalogRefresh")).toBe(false)
+    } finally {
+        wrapper.unmount()
+        bridge.dispose()
     }
 })
 

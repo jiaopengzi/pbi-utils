@@ -25,6 +25,7 @@ export function useUdfSources(state: UdfState, requests: UdfRequests, listLocal:
         catalogRetrievedAt,
         error,
         sources,
+        gitHubOnly,
         sourceManager,
         sourceName,
         sourceUrl,
@@ -56,12 +57,24 @@ export function useUdfSources(state: UdfState, requests: UdfRequests, listLocal:
     /** 来源登记是本地元数据读取, 即使可选步骤未启用也不发起网络请求. */
     async function listSources(): Promise<void> {
         const result = await call("udf.sources", {}, true)
-        if (result) sources.value = result.items
+        if (result) {
+            sources.value = result.items
+            gitHubOnly.value = result.gitHubOnly
+        }
     }
-    /** 模态管理只编辑登记来源, 不从目录请求传入任意 URL. */
+    /** 打开管理器并重读来源和更新偏好, 不联网. */
     async function openSources(): Promise<void> {
+        gitHubOnly.value = undefined
         sourceManager.value = true
         await listSources()
+    }
+    /** 保存下次更新使用的偏好; 请求拒绝时保留已确认的开关状态.
+     * @param value 是否强制从 GitHub 更新内置 DAXLib.
+     */
+    async function saveDaxLibPolicy(value: boolean): Promise<void> {
+        if (gitHubOnly.value === undefined || gitHubOnly.value === value || state.busy.value) return
+        const result = await call("udf.daxlibPolicySave", { gitHubOnly: value })
+        if (result) gitHubOnly.value = result.gitHubOnly
     }
     /** 输入先做 HTTP(S) 仓库及引用校验, 宿主继续独立验证和原子持久化; 保存本身不联网. */
     async function saveSource(): Promise<void> {
@@ -106,6 +119,6 @@ export function useUdfSources(state: UdfState, requests: UdfRequests, listLocal:
     function sourceLabel(id: string): string {
         return id === "local" ? t("scaffold.local") : (sources.value.find((item) => item.id === id)?.name ?? id)
     }
-    return { changeSource, listSources, openSources, saveSource, removeSource, sourceLabel }
+    return { changeSource, listSources, openSources, saveDaxLibPolicy, saveSource, removeSource, sourceLabel }
 }
 export type UdfSources = ReturnType<typeof useUdfSources>

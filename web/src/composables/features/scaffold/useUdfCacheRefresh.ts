@@ -91,8 +91,11 @@ export function useUdfCacheRefresh(state: UdfState, requests: UdfRequests, readP
             accept(result)
             let loaded = await readPage()
             if (loaded && (await preserve())) loaded = await readPage()
+            const mirror = state.source.value === "daxlib" && result.usedMirror
             showFeedback({
-                message: t(loaded ? "scaffold.catalogUpdated" : "scaffold.catalogReadFailed"),
+                message: loaded
+                    ? t(mirror ? "scaffold.catalogMirrorUpdated" : "scaffold.catalogUpdated")
+                    : t(mirror ? "scaffold.catalogMirrorReadFailed" : "scaffold.catalogReadFailed"),
                 type: loaded ? "success" : "warning",
             })
         } finally {

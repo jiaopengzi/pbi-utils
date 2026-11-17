@@ -93,6 +93,7 @@ public static class BusinessOperationCatalog
         new("udf.catalog", false, false),
         new("udf.catalogRefresh", true, true),
         new("udf.sources", false, false),
+        new("udf.daxlibPolicySave", true, true),
         new("udf.sourceSave", true, true),
         new("udf.sourceDelete", true, true),
         new("udf.localList", false, false),

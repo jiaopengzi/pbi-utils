@@ -13,6 +13,7 @@ namespace PbiUtils.Host.Bridge.Udf;
 /// <summary>只持有原来源和本地存储适配器, 不另建队列、代际、锁或关闭状态.</summary>
 internal sealed class UdfManagementBridge(ILocalUdfStore? local, IUdfSourceProvider? sources)
 {
+    internal sealed record DaxLibPolicySave(bool GitHubOnly);
     internal sealed record SourceSave(string Name, string BaseUrl, string? Id = null, string? Baseline = null, string Protocol = "git", string? GitRef = null);
     internal sealed record SourceDelete(string Id, string Baseline, bool Confirm);
     internal sealed record LocalIdentity(string Id);
@@ -30,7 +31,11 @@ internal sealed class UdfManagementBridge(ILocalUdfStore? local, IUdfSourceProvi
         switch (method)
         {
             case "udf.sources":
-                Empty(parameters); return new { items = await Sources().ListAsync(token) };
+                Empty(parameters);
+                return new { items = await Sources().ListAsync(token), gitHubOnly = await Sources().GetDaxLibGitHubOnlyAsync(token) };
+            case "udf.daxlibPolicySave":
+                var policy = Read<DaxLibPolicySave>(parameters);
+                return new { gitHubOnly = await Sources().SaveDaxLibGitHubOnlyAsync(policy.GitHubOnly, token, committing) };
             case "udf.sourceSave":
                 var sourceSave = Read<SourceSave>(parameters);
                 if ((sourceSave.Id is null) != (sourceSave.Baseline is null)) throw Invalid();

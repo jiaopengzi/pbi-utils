@@ -22,7 +22,7 @@ public sealed partial class McpBusinessRuntime
             async (input, token) => { RequireConfirmation(input.Confirm); await scaffold.Sources.Sources.DeleteAsync(input.Id, input.Baseline, token, CommitLocalWrite); return new { deleted = true }; });
         Register<UdfSourceInput>("udf_catalog_status", "Read local full-catalog status. An uninitialized catalog is not treated as an empty successful search.", false,
             async (input, token) => await (await CatalogAsync(input.Source, input.SourceBaseline, token)).GetStatusAsync(token));
-        Register<UdfSourceInput>("udf_catalog_refresh", "Explicitly download and atomically replace the full UDF catalog for the selected registered source. Requires --allow-write; this tool accesses the network. Failed/cancelled updates retain the old catalog.", true,
+        Register<UdfSourceInput>("udf_catalog_refresh", "Explicitly download and atomically replace the full UDF catalog for the selected registered source. DAXLib uses the saved mirror policy and reports usedMirror. Requires --allow-write; this tool accesses the network. Failed/cancelled updates retain the old catalog.", true,
             async (input, token) =>
             {
                 using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);

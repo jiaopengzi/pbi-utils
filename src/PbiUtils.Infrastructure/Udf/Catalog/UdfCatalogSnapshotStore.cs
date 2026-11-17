@@ -75,7 +75,8 @@ internal sealed partial class UdfCatalogSnapshotStore
             if (manifest.SchemaVersion != 5 || manifest.Packages is null || manifest.Packages.Length > 4096) throw Invalid();
             var entries = manifest.Packages;
             ValidateIndex(entries);
-            var snapshot = new Snapshot(current.Baseline, current.RetrievedAt, entries, item => LoadPackage(generation, item, current.RetrievedAt), repository, lease);
+            var snapshot = new Snapshot(current.Baseline, current.RetrievedAt, entries, item => LoadPackage(generation, item, current.RetrievedAt), repository, lease,
+                IsDaxLibMirror(repository));
             lease = null;
             return snapshot;
         }
@@ -284,14 +285,15 @@ internal sealed partial class UdfCatalogSnapshotStore
 
     /// <summary>绑定不可变代和索引, 精确包按需读取并再次验证摘要.</summary>
     internal sealed record Snapshot(string Baseline, DateTimeOffset RetrievedAt, IReadOnlyList<PackageFile> Entries, Func<PackageFile, UdfPackage> Load,
-        UdfRepositoryRevision Repository, FileStream Lease) : IDisposable
+        UdfRepositoryRevision Repository, FileStream Lease, bool UsedMirror) : IDisposable
     {
         /// <summary>释放固定代的共享句柄, 之后不再允许从此快照读取包体.</summary>
         public void Dispose() => Lease.Dispose();
         /// <summary>当前完整指针字节的内部见证, 与纯包内容基线分离, 不对外替代CatalogBaseline.</summary>
         internal string? Revision { get; init; }
 
-        internal UdfCatalogStatus Status => new(true, Baseline, RetrievedAt, Entries.Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(), Entries.Count, LatestEntries(Entries, true).Sum(item => item.Functions!.Length));
+        /// <summary>返回当前目录统计及已核验的镜像来源状态.</summary>
+        internal UdfCatalogStatus Status => new(true, Baseline, RetrievedAt, Entries.Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(), Entries.Count, LatestEntries(Entries, true).Sum(item => item.Functions!.Length), UsedMirror);
         /// <summary>提交验证逐包检查取消, 不向外部返回部分集合.</summary>
         internal UdfPackage[] ReadAll(CancellationToken token)
         {

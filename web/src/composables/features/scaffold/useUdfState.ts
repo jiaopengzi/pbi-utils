@@ -30,6 +30,7 @@ export function useUdfState(bridge: BridgeClient, model: ModelRef<UdfSelection[]
         searching = ref(false),
         prerelease = ref(false)
     const sources = ref<UdfSourceEntry[]>([]),
+        gitHubOnly = ref<boolean>(),
         sourceManager = ref(false),
         sourceDeleteTarget = shallowRef<UdfSourceEntry>(),
         sourceName = ref(""),
@@ -90,6 +91,7 @@ export function useUdfState(bridge: BridgeClient, model: ModelRef<UdfSelection[]
         searching,
         prerelease,
         sources,
+        gitHubOnly,
         sourceManager,
         sourceDeleteTarget,
         sourceName,

@@ -102,6 +102,7 @@ public sealed class GitUdfHistoryTransportTests : IDisposable
             if (fault == "http") return new(HttpStatusCode.ServiceUnavailable);
             return Response("result", [.. GitSmartUdfFixture.Packet("NAK\n"), .. "PACKbad"u8]);
         })));
+        await router.Sources.SaveDaxLibGitHubOnlyAsync(true, default);
         var provider = router.DefaultProvider;
         var before = await provider.RefreshAsync(null, default);
         var pointer = Assert.Single(Directory.GetFiles(root, "current.json", SearchOption.AllDirectories)); var pointerBytes = File.ReadAllBytes(pointer);

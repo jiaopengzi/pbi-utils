@@ -1028,6 +1028,22 @@
       "nonEmpty": []
     },
     {
+      "name": "desktop_udf_daxlibPolicySave",
+      "readOnly": false,
+      "category": "write-denied",
+      "arguments": {
+        "parameters": {
+          "gitHubOnly": true
+        }
+      },
+      "errorCode": "MCP_WRITE_DISABLED",
+      "fields": [],
+      "note": "默认只读权限拦截 DAXLib 下载策略的持久修改",
+      "resultKind": "object",
+      "equals": {},
+      "nonEmpty": []
+    },
+    {
       "name": "desktop_udf_localDelete",
       "readOnly": false,
       "category": "write-denied",
@@ -1116,7 +1132,8 @@
       },
       "errorCode": "",
       "fields": [
-        "items"
+        "items",
+        "gitHubOnly"
       ],
       "note": "实际只读业务结果",
       "resultKind": "object",

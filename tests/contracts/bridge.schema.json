@@ -85,6 +85,7 @@
         "udf.localSave",
         "udf.localDelete",
         "udf.sources",
+        "udf.daxlibPolicySave",
         "udf.sourceSave",
         "udf.sourceDelete",
         "configuration.context",
@@ -2875,6 +2876,31 @@
             "additionalProperties": false,
             "properties": {},
             "required": []
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "method": {
+            "const": "udf.daxlibPolicySave"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "gitHubOnly": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "gitHubOnly"
+            ]
           }
         }
       }

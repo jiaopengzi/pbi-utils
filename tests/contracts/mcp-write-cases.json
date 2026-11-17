@@ -573,6 +573,20 @@
       "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
     },
     {
+      "name": "desktop_udf_daxlibPolicySave",
+      "readOnly": false,
+      "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",
+      "testMethod": "PbiUtils.UnitTests.McpWriteScaffoldUdfTests.DaxLibPolicyPersistsWithoutChangingSourceIdentity",
+      "expectedCases": [
+        ""
+      ],
+      "assertions": [
+        "保存下载策略时禁止联网, 两种策略值均持久化并记录提交回执",
+        "来源列表回读策略, 内置与第三方来源的身份和配置基线保持"
+      ],
+      "validationLevel": "isolated-host-and-filesystem-with-controlled-external-adapters"
+    },
+    {
       "name": "desktop_udf_localDelete",
       "readOnly": false,
       "project": "tests/PbiUtils.UnitTests/PbiUtils.UnitTests.csproj",

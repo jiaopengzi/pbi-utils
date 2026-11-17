@@ -24,6 +24,6 @@ public static class BridgeMethods
         "scaffold.templates", "scaffold.templateDetails", "scaffold.chooseOutput", "scaffold.openTemplates", "scaffold.openDirectory", "scaffold.openDesktop", "scaffold.updateDraft", "scaffold.preview", "scaffold.create", "scaffold.discard",
         "configuration.context", "configuration.apply", "configuration.complete", "configuration.discard",
         "calendar.preferences", "calendar.savePreferences", "calendar.parseWorkdays", "calendar.preview",
-        "udf.catalog", "udf.catalogRefresh", "udf.sources", "udf.sourceSave", "udf.sourceDelete", "udf.localList", "udf.localGet", "udf.localSave", "udf.localDelete"
+        "udf.catalog", "udf.catalogRefresh", "udf.sources", "udf.daxlibPolicySave", "udf.sourceSave", "udf.sourceDelete", "udf.localList", "udf.localGet", "udf.localSave", "udf.localDelete"
     ]);
 }

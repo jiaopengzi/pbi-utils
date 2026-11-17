@@ -112,8 +112,9 @@ public static class McpDesktopCatalog
         Add("calendar.parseWorkdays", "Parse and validate holiday/workday overrides locally.");
         Add("calendar.preview", "Generate calendar/date/time-intelligence code using the existing local compiler without committing a model.");
         Add("udf.catalog", "Query locally cached third-party UDF packages, versions, dependencies and documentation.");
-        Add("udf.catalogRefresh", "Explicitly refresh the selected UDF source over the network; retain the current snapshot on failure.");
-        Add("udf.sources", "Read configured third-party UDF sources and baselines.");
+        Add("udf.catalogRefresh", "Explicitly refresh the selected UDF source over the network. DAXLib uses the saved mirror policy and reports usedMirror. A failed refresh retains the current snapshot.");
+        Add("udf.sources", "Read configured UDF sources, their baselines, and the saved DAXLib GitHub-only preference.");
+        Add("udf.daxlibPolicySave", "Save whether DAXLib updates use GitHub only. This preference applies to subsequent explicit refreshes.");
         Add("udf.sourceSave", "Create or update a UDF source with its exact configuration baseline.");
         Add("udf.sourceDelete", "Delete a UDF source after baseline validation.");
         Add("udf.localList", "List stored local UDF definitions.");

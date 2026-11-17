@@ -170,6 +170,7 @@ public sealed partial class ScaffoldBridge(IPbipTemplateCatalog catalog, Scaffol
                     lock (sync) if (planDigest != discard.Digest) throw new AppException("INVALID_SCAFFOLD_PLAN", "该计划不属于当前文档", 3);
                     return new { discarded = await DiscardCurrentAsync() };
                 case "udf.sources":
+                case "udf.daxlibPolicySave":
                 case "udf.sourceSave":
                 case "udf.sourceDelete":
                 case "udf.localList":

@@ -64,7 +64,7 @@ public interface IUdfPackageProvider
     Task<UdfPackage> GetAsync(string packageId, string version, CancellationToken cancellationToken);
 }
 /// <summary>已完整发布的本地目录状态, 时间仅表示最近成功获取.</summary>
-public sealed record UdfCatalogStatus(bool Initialized, string? Baseline, DateTimeOffset? RetrievedAt, int PackageCount, int VersionCount, int FunctionCount);
+public sealed record UdfCatalogStatus(bool Initialized, string? Baseline, DateTimeOffset? RetrievedAt, int PackageCount, int VersionCount, int FunctionCount, bool UsedMirror = false);
 /// <summary>有界目录更新阶段及已完成数量.</summary>
 public sealed record UdfCatalogProgress(string Stage, int Completed, int Total);
 /// <summary>浏览只读取本地完整快照, 仅显式更新允许访问远端.</summary>
@@ -93,6 +93,11 @@ public sealed record UdfSourceEntry(string Id, string Name, string? BaseUrl, str
 /// <summary>持久来源配置不联网, 所有变更均绑定稳定身份和当前基线.</summary>
 public interface IUdfSourceRegistry
 {
+    /// <summary>读取内置 DAXLib 的下载偏好, 默认允许镜像.</summary>
+    Task<bool> GetDaxLibGitHubOnlyAsync(CancellationToken cancellationToken);
+    /// <summary>保存内置 DAXLib 的下载偏好并返回实际保存值, 配置不可用或提交前取消时失败.</summary>
+    Task<bool> SaveDaxLibGitHubOnlyAsync(bool gitHubOnly, CancellationToken cancellationToken, Action? committing = null);
+
     /// <summary>列出固定来源和用户来源, 损坏或未知版本明确失败.</summary>
     Task<IReadOnlyList<UdfSourceEntry>> ListAsync(CancellationToken cancellationToken);
     /// <summary>按稳定身份获取来源.</summary>

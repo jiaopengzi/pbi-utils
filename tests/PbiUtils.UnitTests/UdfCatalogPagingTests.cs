@@ -53,6 +53,7 @@ public sealed class UdfCatalogPagingTests : IDisposable
     {
         var fixture = GitHubUdfFixture.Catalog();
         using var router = Router(request => request.RequestUri!.Host == "codeload.github.com" ? throw new HttpRequestException("offline") : fixture.Respond(request));
+        await router.Sources.SaveDaxLibGitHubOnlyAsync(true, default);
         Assert.Equal("UDF_GIT_NETWORK", (await Assert.ThrowsAsync<AppException>(() => router.DefaultProvider.RefreshAsync(null, default))).Code);
         Assert.False((await router.DefaultProvider.GetStatusAsync(default)).Initialized);
     }

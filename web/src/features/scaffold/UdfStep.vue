@@ -135,6 +135,7 @@ onMounted(async () => {
             <p v-if="catalogStatus?.initialized && source !== 'local'" class="muted" role="status">
                 {{ t("scaffold.catalogSummary", { packages: catalogStatus.packageCount, functions: catalogStatus.functionCount }) }} ·
                 {{ t("scaffold.lastUpdated") }}: {{ formatUdfLocalTime(catalogStatus.retrievedAt) }}
+                <template v-if="source === 'daxlib' && catalogStatus.usedMirror"> · {{ t("scaffold.catalogMirrorSource") }}</template>
             </p>
             <section v-if="state.uncertain.value" class="udf-stale" role="status">
                 <p>{{ cache.failureMessage.value }}</p>

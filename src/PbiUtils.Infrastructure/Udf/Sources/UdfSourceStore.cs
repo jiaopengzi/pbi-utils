@@ -2,12 +2,13 @@
 // Author      : jiaopengzi
 // Blog        : https://jiaopengzi.com
 // Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
-// Description : 原子保存宿主分配的第三方函数来源, 严格保留未知和损坏配置.
+// Description : 原子保存第三方函数来源和 DAXLib 下载偏好, 严格保留未知和损坏配置.
 
 using PbiUtils.Infrastructure.Storage;
 using PbiUtils.Infrastructure.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using PbiUtils.Application.Udf;
 using PbiUtils.Core;
 
@@ -16,7 +17,7 @@ using PbiUtils.Infrastructure.Udf.Repositories;
 
 namespace PbiUtils.Infrastructure.Udf.Sources;
 
-/// <summary>配置只含来源名称与 HTTP(S) 仓库, 不保存凭据, 保存和读取均不联网.</summary>
+/// <summary>配置保存来源登记与 DAXLib 下载偏好, 保存和读取均不联网.</summary>
 public sealed class UdfSourceStore(string? userDataRoot = null) : IUdfSourceRegistry
 {
     private readonly string path = Path.Combine(userDataRoot ?? RuntimeEnvironment.UserDataDirectory(), "udf", "sources.json");
@@ -24,7 +25,20 @@ public sealed class UdfSourceStore(string? userDataRoot = null) : IUdfSourceRegi
     private static IReadOnlyList<UdfSourceEntry> Builtins => UdfSourceDefaults.Builtins;
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<UdfSourceEntry>> ListAsync(CancellationToken cancellationToken) => Run<IReadOnlyList<UdfSourceEntry>>(() => [.. Builtins, .. Read()], cancellationToken);
+    public Task<IReadOnlyList<UdfSourceEntry>> ListAsync(CancellationToken cancellationToken) => Run<IReadOnlyList<UdfSourceEntry>>(() => [.. Builtins, .. Read().Items], cancellationToken);
+
+    /// <inheritdoc />
+    public Task<bool> GetDaxLibGitHubOnlyAsync(CancellationToken cancellationToken) =>
+        Run(() => Read().GitHubOnly, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<bool> SaveDaxLibGitHubOnlyAsync(bool gitHubOnly, CancellationToken cancellationToken, Action? committing = null) => Run(() =>
+    {
+        using var gate = Gate();
+        var (items, _) = Read();
+        Write(items, gitHubOnly, committing, cancellationToken);
+        return gitHubOnly;
+    }, cancellationToken);
 
     /// <inheritdoc />
     public async Task<UdfSourceEntry> GetAsync(string id, CancellationToken cancellationToken) =>
@@ -36,7 +50,8 @@ public sealed class UdfSourceStore(string? userDataRoot = null) : IUdfSourceRegi
         ValidateProtocol(protocol, gitRef);
         var normalizedName = Name(name); var normalizedUrl = GitHubUdfRepositoryUri.Normalize(baseUrl).AbsoluteUri;
         using var gate = Gate();
-        var items = Read().ToList();
+        var (registered, gitHubOnly) = Read();
+        var items = registered.ToList();
         UdfSourceEntry? old = null;
         if (id is not null) { old = items.SingleOrDefault(item => item.Id == id) ?? throw Missing(); CheckBaseline(old, baseline); }
         else if (baseline is not null) throw Changed();
@@ -48,10 +63,7 @@ public sealed class UdfSourceStore(string? userDataRoot = null) : IUdfSourceRegi
         var entry = Entry(saved);
         if (old is not null) items.Remove(old);
         items.Add(entry);
-        var bytes = Serialize(items);
-        cancellationToken.ThrowIfCancellationRequested();
-        committing?.Invoke();
-        UserDataStore.Write(path, bytes);
+        Write(items, gitHubOnly, committing, cancellationToken);
         return entry;
     }, cancellationToken);
 
@@ -59,12 +71,10 @@ public sealed class UdfSourceStore(string? userDataRoot = null) : IUdfSourceRegi
     public Task DeleteAsync(string id, string baseline, CancellationToken cancellationToken, Action? committing = null) => Run(() =>
     {
         using var gate = Gate();
-        var items = Read().ToList(); var current = items.SingleOrDefault(item => item.Id == id) ?? throw Missing(); CheckBaseline(current, baseline);
+        var (registered, gitHubOnly) = Read();
+        var items = registered.ToList(); var current = items.SingleOrDefault(item => item.Id == id) ?? throw Missing(); CheckBaseline(current, baseline);
         items.Remove(current);
-        var bytes = Serialize(items);
-        cancellationToken.ThrowIfCancellationRequested();
-        committing?.Invoke();
-        UserDataStore.Write(path, bytes);
+        Write(items, gitHubOnly, committing, cancellationToken);
         return true;
     }, cancellationToken);
 
@@ -73,11 +83,11 @@ public sealed class UdfSourceStore(string? userDataRoot = null) : IUdfSourceRegi
     { UserDataStore.Check(path); Directory.CreateDirectory(Path.GetDirectoryName(path)!); UserDataStore.Check(path); return UserDataStore.Lock(path + ".lock"); }
 
     /// <summary>严格读取小型配置, 所有保存前先验证现有文件.</summary>
-    private UdfSourceEntry[] Read()
+    private (UdfSourceEntry[] Items, bool GitHubOnly) Read()
     {
         UserDataStore.Check(path);
-        if (!File.Exists(path)) return [];
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        if (!File.Exists(path)) return ([], false);
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
         if (stream.Length > 64 * 1024) throw Invalid();
         var bytes = new byte[(int)stream.Length]; stream.ReadExactly(bytes);
         try
@@ -95,17 +105,20 @@ public sealed class UdfSourceStore(string? userDataRoot = null) : IUdfSourceRegi
             if (result.Select(item => item.Id).Distinct(StringComparer.Ordinal).Count() != result.Length
                 || result.Concat(Builtins).Select(item => item.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() != result.Length + Builtins.Count
                 || result.Concat([Builtins[0]]).Select(item => item.Protocol + "\n" + item.BaseUrl + "\n" + item.GitRef).Distinct(StringComparer.Ordinal).Count() != result.Length + 1) throw Invalid();
-            return result;
+            return (result, saved.GitHubOnly);
         }
         catch (JsonException) { throw Invalid(); }
         catch (AppException error) when (error.Code != "UDF_SOURCE_STORE_INVALID") { throw Invalid(); }
     }
 
-    /// <summary>提交前验证完整序列化预算, 不产生无法由同一读取边界恢复的配置.</summary>
-    private static byte[] Serialize(IEnumerable<UdfSourceEntry> entries)
+    /// <summary>在配置锁内保存完整登记与偏好, 超限或提交前取消时保留原文件.</summary>
+    private void Write(IEnumerable<UdfSourceEntry> entries, bool gitHubOnly, Action? committing, CancellationToken cancellationToken)
     {
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(new Saved(3, [.. entries.Select(item => new Source(item.Id, item.Name, item.BaseUrl!, item.Protocol, item.GitRef))]), Json);
-        return bytes.Length <= 64 * 1024 ? bytes : throw new AppException("UDF_SOURCE_STORE_LIMIT", "函数来源完整配置超出大小限制, 请缩短名称或地址");
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(new Saved(3, [.. entries.Select(item => new Source(item.Id, item.Name, item.BaseUrl!, item.Protocol, item.GitRef))], gitHubOnly), Json);
+        if (bytes.Length > 64 * 1024) throw new AppException("UDF_SOURCE_STORE_LIMIT", "函数来源完整配置超出大小限制, 请缩短名称或地址");
+        cancellationToken.ThrowIfCancellationRequested();
+        committing?.Invoke();
+        UserDataStore.Write(path, bytes);
     }
     /// <summary>每个条目的基线只绑定自身身份和规范内容, 其他来源编辑不使其失效.</summary>
     private static UdfSourceEntry Entry(Source source) => new(source.Id, source.Name, source.BaseUrl,
@@ -134,5 +147,5 @@ public sealed class UdfSourceStore(string? userDataRoot = null) : IUdfSourceRegi
         GitUdfCatalogSource.ValidateReference(gitRef);
     }
     private sealed record Source(string Id, string Name, string BaseUrl, string Protocol, string? GitRef = null);
-    private sealed record Saved(int SchemaVersion, Source[] Items);
+    private sealed record Saved(int SchemaVersion, Source[] Items, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool GitHubOnly = false);
 }

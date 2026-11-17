@@ -86,6 +86,7 @@ public sealed partial class BridgeSession
             case "udf.catalog":
             case "udf.catalogRefresh":
             case "udf.sources":
+            case "udf.daxlibPolicySave":
             case "udf.sourceSave":
             case "udf.sourceDelete":
             case "udf.localList":

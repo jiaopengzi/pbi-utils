@@ -45,10 +45,15 @@ public sealed class GitUdfCatalogSource
         (await DownloadSnapshotAsync(progress, cancellationToken).ConfigureAwait(false)).Packages;
 
     /// <summary>完整包解析与来源 commit 一起返回给目录发布者; CPU 解析在线程池执行, 失败不返回部分结果.</summary>
-    internal async Task<UdfRepositoryDownload> DownloadSnapshotAsync(IProgress<UdfCatalogProgress>? progress, CancellationToken cancellationToken)
+    /// <param name="progress">下载和解析进度.</param>
+    /// <param name="cancellationToken">整次更新的取消与截止时间.</param>
+    /// <param name="attemptTimeout">当前仓库的预算; 缺省为八分钟.</param>
+    /// <returns>有效的完整目录和实际仓库追溯, 失败或取消不返回部分目录.</returns>
+    internal async Task<UdfRepositoryDownload> DownloadSnapshotAsync(IProgress<UdfCatalogProgress>? progress, CancellationToken cancellationToken,
+        TimeSpan? attemptTimeout = null)
     {
         using var bounded = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        bounded.CancelAfter(TimeSpan.FromMinutes(8));
+        bounded.CancelAfter(attemptTimeout ?? TimeSpan.FromMinutes(8));
         try
         {
             var snapshot = await GitUdfFetch.DownloadAsync(source, client, progress, bounded.Token).ConfigureAwait(false);

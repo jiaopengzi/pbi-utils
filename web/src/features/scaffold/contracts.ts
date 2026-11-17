@@ -114,6 +114,7 @@ export interface UdfCatalogStatus {
     packageCount: number
     versionCount: number
     functionCount: number
+    usedMirror?: boolean
 }
 export interface UdfSourceEntry {
     id: string
@@ -334,7 +335,8 @@ export interface ScaffoldMethods {
     }
     "udf.catalogRefresh": { params: { source?: string; sourceBaseline?: string | null }; result: UdfCatalogStatus }
 
-    "udf.sources": { params: Record<string, never>; result: { items: UdfSourceEntry[] } }
+    "udf.sources": { params: Record<string, never>; result: { items: UdfSourceEntry[]; gitHubOnly: boolean } }
+    "udf.daxlibPolicySave": { params: { gitHubOnly: boolean }; result: { gitHubOnly: boolean } }
     "udf.sourceSave": {
         params: { name: string; baseUrl: string; id?: string; baseline?: string; protocol?: "git"; gitRef?: string | null }
         result: UdfSourceEntry

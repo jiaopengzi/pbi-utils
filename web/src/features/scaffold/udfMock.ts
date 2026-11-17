@@ -21,13 +21,19 @@ const mockCommittedAt: Record<string, string> = {
 export class UdfMock {
     private catalogs: Record<string, UdfCatalogStatus> = {}
     private locals: LocalUdfEntry[] = []
+    private gitHubOnly = false
     private sources: UdfSourceEntry[] = [
         { id: "daxlib", name: "DAXLib", baseUrl: "https://github.com/daxlib/daxlib", baseline: null, kind: "builtin", protocol: "git" },
         { id: "local", name: "Local", baseUrl: null, baseline: null, kind: "local", protocol: "git" },
     ]
     /** 只返回内存模拟结果, 失效基线和未知方法保持原错误. */
     handle(method: string, params: Record<string, unknown>): unknown {
-        if (method === "udf.sources") return { items: copy(this.sources) }
+        if (method === "udf.sources") return { items: copy(this.sources), gitHubOnly: this.gitHubOnly }
+        if (method === "udf.daxlibPolicySave") {
+            if (Object.keys(params).length !== 1 || typeof params.gitHubOnly !== "boolean") throw new Error("VALIDATION_ERROR")
+            this.gitHubOnly = params.gitHubOnly
+            return { gitHubOnly: this.gitHubOnly }
+        }
         if (method === "udf.sourceSave") {
             if ((params.id === undefined || params.id === null) !== (params.baseline === undefined || params.baseline === null))
                 throw new Error("UDF_SOURCE_BASELINE_CHANGED")

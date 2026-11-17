@@ -42,13 +42,16 @@ public static class UdfSourceNetwork
 
     /// <summary>直连校验后的数值地址, 不继承代理、cookie或凭据; TLS 仍核验原始主机证书.</summary>
     /// <param name="repository">规范来源, null 仅供固定 GitHub 公网端点使用.</param>
-    internal static HttpClient CreateClient(Uri? repository = null) => CreateBoundClient(repository, false);
+    internal static HttpClient CreateClient(Uri? repository = null) => CreateBoundClient(repository, false, true);
 
-    /// <summary>标准 Git 历史仅访问精确来源主机; GitHub 固定公网 HTTPS, 不开放额外日期服务.</summary>
-    internal static HttpClient CreateGitClient(Uri repository) => CreateBoundClient(repository, true);
+    /// <summary>标准 Git 只访问精确来源主机; GitHub 和内置镜像限定公网.</summary>
+    /// <param name="repository">规范 Git 仓库地址.</param>
+    /// <param name="allowPrivateAddresses">用户显式登记的非 GitHub 仓库可允许内网地址.</param>
+    /// <returns>限制仓库主机及可连接地址的客户端.</returns>
+    internal static HttpClient CreateGitClient(Uri repository, bool allowPrivateAddresses = true) => CreateBoundClient(repository, true, allowPrivateAddresses);
 
     /// <summary>复用 DNS 数值地址直连、无代理/凭据与重定向保护; 固定快照端点与精确仓库连接隔离.</summary>
-    private static HttpClient CreateBoundClient(Uri? repository, bool git) => new(new SocketsHttpHandler
+    private static HttpClient CreateBoundClient(Uri? repository, bool git, bool allowPrivateAddresses) => new(new SocketsHttpHandler
     {
         AllowAutoRedirect = false,
         UseProxy = false,
@@ -61,7 +64,7 @@ public static class UdfSourceNetwork
                 : github ? context.DnsEndPoint.Host is not ("api.github.com" or "codeload.github.com") || context.DnsEndPoint.Port != 443
                 : !context.DnsEndPoint.Host.Equals(repository!.Host.Trim('[', ']'), StringComparison.OrdinalIgnoreCase) || context.DnsEndPoint.Port != repository.Port) throw Invalid();
             var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancellationToken).ConfigureAwait(false);
-            if (addresses.Length == 0 || addresses.Any(address => github ? !IsPublicAddress(address) : !IsRepositoryAddress(address))) throw Invalid();
+            if (addresses.Length == 0 || addresses.Any(address => github || !allowPrivateAddresses ? !IsPublicAddress(address) : !IsRepositoryAddress(address))) throw Invalid();
             foreach (var address in addresses)
             {
                 var socket = new Socket(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);

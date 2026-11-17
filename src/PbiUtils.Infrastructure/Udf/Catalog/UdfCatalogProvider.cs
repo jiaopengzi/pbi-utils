@@ -96,8 +96,7 @@ internal sealed class UdfCatalogProvider(string userDataRoot, UdfSourceEntry sou
         using var gate = await Task.Run(store.LockRefresh, token).ConfigureAwait(false);
         var original = await Task.Run(() => store.ReadRefreshRevision(token), token).ConfigureAwait(false);
         progress?.Report(new("catalog", 0, 0));
-        using var client = clientFactory?.Invoke(source);
-        var download = await new GitUdfCatalogSource(userDataRoot, source, client).DownloadSnapshotAsync(progress, token).ConfigureAwait(false);
+        var download = await DownloadAsync(progress, token).ConfigureAwait(false);
         var packages = download.Packages;
         progress?.Report(new("validate", packages.Count, packages.Count));
         var repository = new UdfRepositoryRevision(download.RepositoryUrl, download.RequestedRef, download.ResolvedCommit);
@@ -107,6 +106,9 @@ internal sealed class UdfCatalogProvider(string userDataRoot, UdfSourceEntry sou
         {
             using var configurationGate = await Task.Run(sources.LockConfiguration, token).ConfigureAwait(false);
             await CheckSourceAsync(token).ConfigureAwait(false);
+            if (source == UdfSourceDefaults.Official && repository.RepositoryUrl == UdfSourceDefaults.DaxLibMirror.BaseUrl
+                && await sources.GetDaxLibGitHubOnlyAsync(token).ConfigureAwait(false))
+                throw new AppException("UDF_SOURCE_CHANGED", "DAXLib 下载偏好已变化, 请重新更新来源", 3);
             using var published = await Task.Run(() => store.Publish(candidate, original, committing, token), CancellationToken.None).ConfigureAwait(false);
             return published.Status;
         }
@@ -115,6 +117,31 @@ internal sealed class UdfCatalogProvider(string userDataRoot, UdfSourceEntry sou
         {
             // 成功发布代已跨越提交边界, 即使指针随后被外部移除也不能再当作未发布候选删除.
             if (firstFailure is not null) await Task.Run(() => store.CleanupCandidate(candidate, firstFailure), CancellationToken.None).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>内置 DAXLib 才能在 GitHub 拉取失败后尝试固定镜像, 取消或内容校验失败直接返回.</summary>
+    /// <param name="progress">当前显式更新的下载与解析进度.</param>
+    /// <param name="token">整个更新的截止时间与调用方取消令牌.</param>
+    /// <returns>一个完整的、带实际仓库追溯的下载结果; 镜像失败时保留其下载错误.</returns>
+    private async Task<UdfRepositoryDownload> DownloadAsync(IProgress<UdfCatalogProgress>? progress, CancellationToken token)
+    {
+        var allowMirror = source == UdfSourceDefaults.Official && !await sources.GetDaxLibGitHubOnlyAsync(token).ConfigureAwait(false);
+        try
+        {
+            using var client = clientFactory?.Invoke(source);
+            // 共享更新上限内预留镜像下载时间; 强制 GitHub 与自定义来源沿用单仓库预算.
+            return await new GitUdfCatalogSource(userDataRoot, source, client)
+                .DownloadSnapshotAsync(progress, token, allowMirror ? TimeSpan.FromMinutes(3) : null).ConfigureAwait(false);
+        }
+        catch (AppException error) when (allowMirror && !token.IsCancellationRequested &&
+            error.Code is "UDF_GIT_NETWORK" or "UDF_GIT_TIMEOUT" or "UDF_GIT_HTTP_FAILED" or "UDF_GIT_RATE_LIMIT" or "UDF_GIT_FORBIDDEN" or "UDF_GIT_AUTH_REQUIRED")
+        {
+            token.ThrowIfCancellationRequested();
+            var mirror = UdfSourceDefaults.DaxLibMirror;
+            using var client = clientFactory?.Invoke(mirror)
+                ?? UdfSourceNetwork.CreateGitClient(new Uri(mirror.BaseUrl!), allowPrivateAddresses: false);
+            return await new GitUdfCatalogSource(userDataRoot, mirror, client).DownloadSnapshotAsync(progress, token).ConfigureAwait(false);
         }
     }
 

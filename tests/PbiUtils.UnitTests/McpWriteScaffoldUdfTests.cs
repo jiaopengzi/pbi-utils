@@ -7,6 +7,7 @@
 using PbiUtils.Infrastructure.Udf.Sources;
 using System.Text.Json;
 using PbiUtils.Application.Udf;
+using PbiUtils.Core;
 using PbiUtils.Infrastructure.Udf;
 using Xunit;
 using static PbiUtils.UnitTests.McpWriteScaffoldFixture;
@@ -16,6 +17,30 @@ namespace PbiUtils.UnitTests;
 /// <summary>真实存储与正式 Git 解析/发布运行在隔离用户目录, 不读取用户库或连接模型.</summary>
 public sealed class McpWriteScaffoldUdfTests
 {
+    /// <summary>保存 DAXLib 下载策略不联网, 提交后通过独立存储与来源列表核验, 不修改来源身份和用户登记.</summary>
+    [Fact]
+    public async Task DaxLibPolicyPersistsWithoutChangingSourceIdentity()
+    {
+        await using var fixture = new McpWriteScaffoldFixture(_ => throw new InvalidOperationException("Saving policy must not create an HTTP client"));
+        var registered = await fixture.Sources.Sources.SaveAsync("Keep", "https://github.com/example/keep", null, null, default);
+        var before = Json(await fixture.Session.InvokeMcpAsync("udf.sources", Json(new { }), default) ?? throw new InvalidOperationException());
+        Assert.False(before.GetProperty("gitHubOnly").GetBoolean());
+        foreach (var invalid in new[] { Json(new { }), Json(new { gitHubOnly = "true" }), Json(new { gitHubOnly = true, baseUrl = "https://example.com/other" }) })
+        {
+            var error = await Assert.ThrowsAsync<AppException>(() => fixture.Session.InvokeMcpAsync("udf.daxlibPolicySave", invalid, default));
+            Assert.Equal("VALIDATION_ERROR", error.Code);
+        }
+        var enabled = await fixture.WriteAsync("udf.daxlibPolicySave", new { gitHubOnly = true }, commitStarted: true);
+        Assert.True(enabled.GetProperty("gitHubOnly").GetBoolean());
+        Assert.True(await new UdfSourceStore(fixture.UserRoot).GetDaxLibGitHubOnlyAsync(default));
+        var after = Json(await fixture.Session.InvokeMcpAsync("udf.sources", Json(new { }), default) ?? throw new InvalidOperationException());
+        Assert.True(after.GetProperty("gitHubOnly").GetBoolean());
+        Assert.Equal(before.GetProperty("items").GetRawText(), after.GetProperty("items").GetRawText());
+        var disabled = await fixture.WriteAsync("udf.daxlibPolicySave", new { gitHubOnly = false }, commitStarted: true);
+        Assert.False(disabled.GetProperty("gitHubOnly").GetBoolean());
+        Assert.Equal(registered, await new UdfSourceStore(fixture.UserRoot).GetAsync(registered.Id, default));
+    }
+
     /// <summary>来源新增、精确基线更新和删除都通过 MCP, 独立读取证明内容与同级来源保护.</summary>
     [Fact]
     public async Task SourceSaveUpdatesExactBaselineAndDeletePreservesOtherSources()

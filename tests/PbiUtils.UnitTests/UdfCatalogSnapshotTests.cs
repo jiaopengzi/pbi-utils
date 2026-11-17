@@ -130,6 +130,7 @@ public sealed class UdfCatalogSnapshotTests : IDisposable
                 || failed == "trees" && uri.AbsolutePath.Contains("/git/trees/", StringComparison.Ordinal))) throw new HttpRequestException("offline");
             return Fixture(request);
         });
+        await router.Sources.SaveDaxLibGitHubOnlyAsync(true, default);
         var provider = Assert.IsType<IUdfCatalogProvider>(await router.GetProviderAsync("daxlib", null, default), exactMatch: false);
         var before = await provider.RefreshAsync(null, default);
         fail = true;

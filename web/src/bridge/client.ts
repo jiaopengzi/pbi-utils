@@ -180,6 +180,7 @@ export class BridgeClient {
                     "udf.localDelete",
                     "udf.sourceSave",
                     "udf.sourceDelete",
+                    "udf.daxlibPolicySave",
                     "udf.catalogRefresh",
                 ].includes(entry.method) &&
                 !entry.committing &&

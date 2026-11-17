@@ -121,6 +121,10 @@
     min-width: 0;
     overflow-wrap: anywhere;
 }
+.udf-source-row .udf-source-policy {
+    --el-switch-off-color: var(--el-text-color-regular);
+    flex-basis: 100%;
+}
 .udf-source-form {
     margin-top: 20px;
 }
