@@ -76,7 +76,7 @@ function Get-PbiCatalogDocuments([string]$RepositoryRoot, $Entry) {
         $full = Get-PbiLicenseSafePath $RepositoryRoot (Join-Path $RepositoryRoot $file.path)
         if (!(Test-Path -LiteralPath $full -PathType Leaf) -or (Get-Item -LiteralPath $full).Length -eq 0) { throw "Missing catalog license: $($file.path)" }
         if ((Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash -cne $file.sha256) { throw "Catalog license hash mismatch: $($file.path)" }
-        [pscustomobject]@{ Path = $full; Relative = [IO.Path]::GetFileName($full); Source = $file.source; Aggregate = [IO.Path]::GetExtension($full) -notin @('.rtf', '.pdf') }
+        [pscustomobject]@{ Path = $full; CatalogPath = $file.path; Relative = [IO.Path]::GetFileName($full); Source = $file.source; Aggregate = [IO.Path]::GetExtension($full) -notin @('.rtf', '.pdf') }
     }
 }
 

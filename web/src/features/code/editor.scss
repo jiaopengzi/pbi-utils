@@ -34,7 +34,7 @@
 }
 
 // DAX/M 配色改编自 highlightjs-dax 1.1.0 与 highlightjs-m 1.0.0 的主题.
-// Copyright (c) 2026 焦棚子, MIT. 完整许可随 web/public/licenses 分发.
+// Copyright (c) 2026 焦棚子, MIT. 原文见 licenses/source/highlightjs-themes-MIT.txt, 随包收录于 THIRD-PARTY-NOTICES.txt.
 // 使用零优先级语言作用域共享编辑器与静态预览的配色, 保留强制颜色模式的覆盖能力.
 // 同一词元上的语言类用于 Markdown 围栏, 祖先语言作用域用于独立编辑器和静态预览.
 :where([data-lang="dax"], code.language-dax, .pbi-code-dax) {

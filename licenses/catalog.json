@@ -123,7 +123,7 @@
         {
           "sha256": "A76ABF002C49097D146E86740A3105A5D00450B1592E820A1109A8C5680CD697",
           "source": "https://github.com/JetBrains/JetBrainsMono",
-          "path": "web/public/licenses/JetBrainsMono-OFL.txt"
+          "path": "licenses/source/JetBrainsMono-OFL.txt"
         }
       ],
       "version": "SHA256-086c48dfbea9ddaff1320f7e09399b8e2924e88ce67453721255db3bdbb5a353",
@@ -137,7 +137,7 @@
         {
           "sha256": "AF35ADB2B12CA2F9F9613BC8618AA055F5E9D1FAADB890EB0000FB9D15EBAF03",
           "source": "https://www.npmjs.com/package/highlightjs-dax/v/1.1.0",
-          "path": "web/public/licenses/highlightjs-dax-MIT.txt"
+          "path": "licenses/source/highlightjs-themes-MIT.txt"
         }
       ],
       "version": "1.1.0",
@@ -151,7 +151,7 @@
         {
           "sha256": "AF35ADB2B12CA2F9F9613BC8618AA055F5E9D1FAADB890EB0000FB9D15EBAF03",
           "source": "https://www.npmjs.com/package/highlightjs-m/v/1.0.0",
-          "path": "web/public/licenses/highlightjs-m-MIT.txt"
+          "path": "licenses/source/highlightjs-themes-MIT.txt"
         }
       ],
       "version": "1.0.0",
@@ -165,7 +165,7 @@
         {
           "sha256": "C0878418702A1C58790FFBE6B0A4663E62DFD76B693FACE439A516C80B7514E8",
           "source": "https://github.com/vscode-icons/vscode-icons/tree/e397afa6e0e4a0d6a892d31a001a1df5efe8b436",
-          "path": "web/public/licenses/vscode-icons-MIT.txt"
+          "path": "licenses/source/vscode-icons-MIT.txt"
         }
       ],
       "version": "e397afa6e0e4a0d6a892d31a001a1df5efe8b436",
@@ -177,7 +177,7 @@
       "license": "ISC AND MIT",
       "files": [
         {
-          "sha256": "E95CAC1908A42DF063393AB55BB3F9F29D5FD2A5C3F2B760A48DAB9CADB75599",
+          "sha256": "59E30698C9B70CBAE2C33A83EDC8138BD7C0D304F4B0F68F6E7AD2BA2128643C",
           "source": "repository:web/public/icons/LICENSE.txt",
           "path": "web/public/icons/LICENSE.txt"
         }

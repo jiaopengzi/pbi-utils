@@ -62,6 +62,6 @@ SOFTWARE.
 power-bi.svg 来自 Iconify 收录的 VSCode Icons 图标集, 固定提交 e397afa6e0e4a0d6a892d31a001a1df5efe8b436, 原始 SVG 保持不变 (2026-10-15 引入).
 目录: https://icon-sets.iconify.design/vscode-icons/
 原始 SVG: https://raw.githubusercontent.com/vscode-icons/vscode-icons/e397afa6e0e4a0d6a892d31a001a1df5efe8b436/icons/file_type_powerbi.svg
-许可证: ../licenses/vscode-icons-MIT.txt (MIT, Copyright (c) 2016 Roberto Huertas).
+许可为 MIT, Copyright (c) 2016 Roberto Huertas. 源码全文见 ../../../licenses/source/vscode-icons-MIT.txt, 安装后见 app/THIRD-PARTY-NOTICES.txt.
 Power BI 名称和图形的商标权归各自权利人所有.
 J 品牌图标位于 ../branding/, 来源见源码根 BRANDING.md, 不属于上述第三方图标集合.

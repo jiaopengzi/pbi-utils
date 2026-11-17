@@ -7,8 +7,8 @@
 | [项目许可](../LICENSE) | pbi-utils 自有代码的 MIT 原文。 |
 | [第三方来源说明](../THIRD-PARTY-NOTICES.md) | 随项目发布的组件、资源与改编来源。 |
 | [catalog.json](catalog.json) | 用精确身份、来源和 SHA-256 绑定必需的补充文件。 |
-| [source/](source/) | 来自精确上游版本或提交的许可、NOTICE 和可离线阅读的补充文本。文件名按组件和用途固定，精确版本、来源和 SHA-256 由清单记录。 |
-| 资源目录 | 字体、图标、配色和日期字段来源的许可随对应资源维护，由清单直接引用。 |
+| [source/](source/) | 来自精确上游版本或提交的许可、NOTICE 和可离线阅读的补充文本，包括代码字体、编辑器配色和 VSCode Icons 图标的许可原文。文件名按组件和用途固定，精确版本、来源和 SHA-256 由清单记录。 |
+| 资源目录 | 图标来源说明、日期字段相关许可等随对应资源维护，由清单直接引用。 |
 
 核对每种组件时优先使用对应精确版本包内的 LICENSE、NOTICE、COPYING 和版权文件。CodeMirror、Lezer、Element Plus、Marked 和 DOMPurify 的随包许可原文直接来自 npm 包。
 
@@ -29,7 +29,7 @@
 2. All 范围从前端 `dependencies` 出发，遍历已安装的生产、peer 与可选依赖。解析 npm 别名，合并同一身份的 peer 实例，核验仓库和已安装锁文件。根 `devDependencies` 不参与该闭包。
 3. 收录包内原文、清单列出的离线补充及适用于当前范围的随包资源。缺失全文、未知许可、依赖缺失和身份或 SHA-256 漂移会使构建失败。
 
-输出包括根目录的 `LICENSE`、`THIRD-PARTY-NOTICES.md`、带 UTF-8 BOM 的聚合 `THIRD-PARTY-NOTICES.txt` 和 `licenses/manifest.json`。`licenses/inputs/` 保存生成所用的清单和适用的前端依赖文件。分发原文使用 `licenses/<生态>/<身份散列前 16 位>/` 下的短文件名，以适应 Windows 安装器暂存路径。清单记录组件全名、精确版本、原文名称、来源、长度与 SHA-256。
+输出包括根目录的 `LICENSE`、`THIRD-PARTY-NOTICES.md`、带 UTF-8 BOM 的聚合 `THIRD-PARTY-NOTICES.txt` 和 `licenses/manifest.json`。`licenses/inputs/` 保存生成所用的清单和适用的前端依赖文件。分发原文使用 `licenses/<生态>/<身份散列前 16 位>/` 下的短文件名，以适应 Windows 安装器暂存路径。清单记录组件全名、精确版本、原文名称、来源、长度与 SHA-256。多个静态资源引用同一份许可原文时，各自保留版本和来源，共用 `licenses/resource/shared/` 下的分发文件，聚合文档收录一次全文。
 
 独立执行 `package` 时先核验已验证的发布目录，再以当前来源刷新私有打包副本的许可与清单。依赖集合或内嵌资源身份变化时须重新构建。安装器编译和交付时都会复核所用许可输入。门禁等待期间来源变化时，重新打包才能交付。
 

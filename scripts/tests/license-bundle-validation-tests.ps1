@@ -42,12 +42,46 @@ try {
         $path = Write-Fixture $repository $relative "$name resource full license"
         $resources += @{ name = $name; version = '1.0.0'; license = 'MIT'; scope = 'Core'; source = "https://example.invalid/$name"; files = @(@{ path = $relative; source = "https://example.invalid/$name"; sha256 = (Get-FileHash -LiteralPath $path).Hash }) }
     }
+    $sharedRelative = 'licenses/source/Shared.txt'
+    $sharedText = 'Full license shared by two components'
+    $sharedSource = Write-Fixture $repository $sharedRelative $sharedText
+    $sharedHash = (Get-FileHash -LiteralPath $sharedSource).Hash
+    $sharedVersions = [ordered]@{ SharedFirst = '1.2.0'; SharedSecond = '2.3.0' }
+    foreach ($entry in $sharedVersions.GetEnumerator()) {
+        $origin = "https://example.invalid/$($entry.Key)/$($entry.Value)"
+        $resources += @{ name = $entry.Key; version = $entry.Value; license = 'MIT'; scope = 'Core'; source = $origin; files = @(@{ path = $sharedRelative; source = "$origin/LICENSE"; sha256 = $sharedHash }) }
+    }
     $null = Write-Fixture $repository 'licenses/catalog.json' (@{ schemaVersion = 1; resources = $resources; packages = @() } | ConvertTo-Json -Depth 10)
     foreach ($entry in @('pbi-utils', 'PbiUtils.Host')) {
         $null = Write-Fixture $publish "$entry.deps.json" '{"libraries":{},"targets":{}}'
     }
     $generatedManifest = Export-PbiLicenseBundle $repository $publish Core
     Assert-PbiLicenseBundle $publish
+
+    # 核对共用原文只分发一份, 两个组件仍保留各自的版本和来源.
+    $sharedComponents = @($generatedManifest.components | Where-Object name -In @('SharedFirst', 'SharedSecond'))
+    $sharedFiles = @($generatedManifest.files | Where-Object sha256 -CEQ $sharedHash)
+    $sharedCopies = @(Get-ChildItem -LiteralPath (Join-Path $publish 'licenses') -File -Recurse | Where-Object {
+        (Get-FileHash -LiteralPath $_.FullName).Hash -ceq $sharedHash
+    })
+    if ($sharedComponents.Count -ne 2 -or $sharedFiles.Count -ne 1 -or $sharedCopies.Count -ne 1) {
+        throw 'Shared static resource licenses must retain both identities and publish exactly one original.'
+    }
+    $aggregate = Get-Content -LiteralPath (Join-Path $publish 'THIRD-PARTY-NOTICES.txt') -Raw
+    if ([regex]::Matches($aggregate, [regex]::Escape($sharedText)).Count -ne 1) {
+        throw 'Shared static resource license text must appear exactly once in the aggregate.'
+    }
+    foreach ($component in $sharedComponents) {
+        $version = $sharedVersions[$component.name]
+        $origin = "https://example.invalid/$($component.name)/$version"
+        $document = $component.files[0]
+        $section = [regex]::Match($aggregate, "(?ms)^resource: $($component.name) / $version\r?\n(.*?)(?=^={78}\r?$|\z)")
+        if ($component.version -cne $version -or $component.source -cne $origin -or $component.files.Count -ne 1 -or
+            $document.path -cne $sharedFiles[0].path -or $document.source -cne "$origin/LICENSE" -or
+            !$section.Success -or !$section.Groups[1].Value.Contains($document.path, [StringComparison]::Ordinal)) {
+            throw "Shared static resource license lost a component binding: $($component.name)"
+        }
+    }
 
     # JSON 字段顺序不是清单身份; 强制反转本进程生成顺序, 再由全新 PowerShell 进程验证同一许可包.
     $manifestPath = Join-Path $publish 'licenses/manifest.json'
@@ -81,6 +115,16 @@ Write-Output 'Independent license validation passed.'
     Reject-Manifest 'Missing original document name' { param($manifest) $manifest.components[0].files[0].sourceDocument = '' } 'component license'
     Reject-Manifest 'Invalid original document path' { param($manifest) $manifest.components[0].files[0].sourceDocument = '../LICENSE' } 'component license'
     Reject-Manifest 'Changed original resource document name' { param($manifest) $manifest.components[0].files[0].sourceDocument = 'Wrong.txt' } 'Static resource'
+    Reject-Manifest 'Unrelated license uses a shared resource document' {
+        param($manifest)
+        $manifest.components[0].files[0].path = $sharedFiles[0].path
+    } '(component license|Static resource)'
+    Reject-Manifest 'Shared license has the other component origin' {
+        param($manifest)
+        $first = $manifest.components | Where-Object name -CEQ 'SharedFirst'
+        $second = $manifest.components | Where-Object name -CEQ 'SharedSecond'
+        $first.files[0].source = $second.files[0].source
+    } 'Static resource'
     Reject-Manifest 'Path alias into the root license' {
         param($manifest)
         $alias = @{} + ($manifest.files | Where-Object path -CEQ 'LICENSE')

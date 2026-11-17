@@ -7,6 +7,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'ThirdPartyLicenseSources.psm1') -Force
+$script:SharedResourceLicensePrefix = 'licenses/resource/shared/'
 
 <# .SYNOPSIS 建立已写入文件的相对路径、长度和 SHA-256 清单项; 输入目录和文件, 失败直接抛错. #>
 function Get-PbiLicenseFileRecord([string]$Root, [string]$Path) {
@@ -20,6 +21,29 @@ function Get-PbiLicenseComponentId([string]$Ecosystem, [string]$Name, [string]$V
     if (!$Ecosystem -or !$Name -or !$Version) { throw 'License component identity must not be empty.' }
     $bytes = [Text.Encoding]::UTF8.GetBytes("$Ecosystem/$Name/$Version")
     return [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).Substring(0, 16).ToLowerInvariant()
+}
+
+<#
+.SYNOPSIS 为指定范围内共用清单原文的静态资源生成短分发路径.
+.PARAMETER Resources 当前发布范围内的静态资源条目.
+.OUTPUTS 原文路径到分发路径的映射; 同一原文声明不同哈希或分发路径冲突时抛错.
+#>
+function Get-PbiSharedResourceLicensePaths($Resources) {
+    $paths = @{}
+    $destinations = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $groups = $Resources | ForEach-Object { $_.files } | Group-Object -Property path
+    foreach ($group in $groups) {
+        if ($group.Count -lt 2) { continue }
+        $file = $group.Group[0]
+        if (@($group.Group | Where-Object sha256 -CNE $file.sha256).Count) { throw "Conflicting static resource license hashes: $($file.path)" }
+        $id = Get-PbiLicenseComponentId 'resource' $file.path $file.sha256
+        $extension = [IO.Path]::GetExtension($file.path).ToLowerInvariant()
+        if (!$extension) { $extension = '.txt' }
+        $destination = "$script:SharedResourceLicensePrefix$id$extension"
+        if (!$destinations.Add($destination)) { throw "Conflicting shared resource license path: $destination" }
+        $paths[$file.path] = $destination
+    }
+    return $paths
 }
 
 <##
@@ -42,11 +66,13 @@ function Export-PbiLicenseBundle {
     $components = @()
     foreach ($key in $dependencies.Packages.Keys | Sort-Object) { $components += Get-PbiNugetLicenseComponent $repository $key $dependencies.Packages[$key] $catalog }
     if ($Scope -eq 'All') { $components += @(Get-PbiNpmLicenseComponents $repository $catalog) }
-    foreach ($resource in $catalog.resources) {
-        if ($resource.scope -eq 'All' -and $Scope -ne 'All') { continue }
+    $resources = @($catalog.resources | Where-Object { $_.scope -ne 'All' -or $Scope -eq 'All' })
+    foreach ($resource in $resources) {
         if ($resource.scope -notin @('Core', 'All') -or !$resource.name -or !$resource.version -or !$resource.license) { throw 'Invalid static license resource.' }
         $components += @{ ecosystem = 'resource'; name = $resource.name; version = $resource.version; license = $resource.license; copyright = ''; source = $resource.source; documents = @(Get-PbiCatalogDocuments $repository $resource) }
     }
+    $sharedResourcePaths = Get-PbiSharedResourceLicensePaths $resources
+    $writtenShared = @{}
     $rootDocumentHashes = @{}
     foreach ($name in @('LICENSE', 'THIRD-PARTY-NOTICES.md')) {
         $file = Get-PbiLicenseSafePath $repository (Join-Path $repository $name)
@@ -81,8 +107,6 @@ function Export-PbiLicenseBundle {
         $identity = "$($component.ecosystem)/$($component.name)/$($component.version)"
         if ($componentIds.ContainsKey($componentId)) { throw "Duplicate or conflicting license component id: $identity" }
         $componentIds[$componentId] = $identity
-        $componentRoot = Get-PbiLicenseSafePath $publish (Join-Path $licenseRoot "$($component.ecosystem)/$componentId")
-        $null = New-Item -ItemType Directory -Path $componentRoot -Force
         $null = $text.AppendLine().AppendLine(('=' * 78)).AppendLine("$($component.ecosystem): $($component.name) / $($component.version)").AppendLine("License: $($component.license)").AppendLine("Copyright: $($component.copyright)").AppendLine("Source: $($component.source | ConvertTo-Json -Compress -Depth 5)")
         $record = @{ ecosystem = $component.ecosystem; name = $component.name; version = $component.version; license = $component.license; copyright = $component.copyright; source = $component.source; files = @() }
         if ($component.ContainsKey('dependencies')) { $record.dependencies = $component.dependencies }
@@ -91,12 +115,24 @@ function Export-PbiLicenseBundle {
             $index++
             $extension = [IO.Path]::GetExtension($document.Path).ToLowerInvariant()
             if (!$extension) { $extension = '.txt' }
-            $destination = Get-PbiLicenseSafePath $publish (Join-Path $componentRoot (('{0:D2}' -f $index) + $extension))
-            Copy-Item -LiteralPath $document.Path -Destination $destination
-            $fileRecord = Get-PbiLicenseFileRecord $publish $destination
-            $files.Add($fileRecord)
+            $shared = $component.ecosystem -ceq 'resource' -and $sharedResourcePaths.ContainsKey($document.CatalogPath)
+            $relative = if ($shared) { $sharedResourcePaths[$document.CatalogPath] } else { "licenses/$($component.ecosystem)/$componentId/" + ('{0:D2}' -f $index) + $extension }
+            $destination = Get-PbiLicenseSafePath $publish (Join-Path $publish $relative)
+            $alreadyWritten = $shared -and $writtenShared.ContainsKey($relative)
+            if ($alreadyWritten) { $fileRecord = $writtenShared[$relative] }
+            else {
+                $null = [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($destination))
+                Copy-Item -LiteralPath $document.Path -Destination $destination
+                $fileRecord = Get-PbiLicenseFileRecord $publish $destination
+                $files.Add($fileRecord)
+                if ($shared) { $writtenShared[$relative] = $fileRecord }
+            }
             $record.files += @{ path = $fileRecord.path; sourceDocument = $document.Relative; source = $document.Source; aggregate = $document.Aggregate }
-            if ($document.Aggregate) { $null = $text.AppendLine().AppendLine("--- $($document.Relative) [$($fileRecord.path)] ---").AppendLine((Get-Content -LiteralPath $destination -Raw)) }
+            if ($document.Aggregate) {
+                $null = $text.AppendLine().AppendLine("--- $($document.Relative) [$($fileRecord.path)] ---")
+                if ($alreadyWritten) { $null = $text.AppendLine('Full text appears above at the first occurrence of this file. / 全文见上方首次列出此文件的位置。') }
+                else { $null = $text.AppendLine((Get-Content -LiteralPath $destination -Raw)) }
+            }
         }
         if (!$record.files.Count) { throw "Empty component license documents: $($component.name)" }
         $manifestComponents.Add($record)
@@ -185,9 +221,12 @@ function Assert-PbiLicenseBundle {
         $documentPaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         foreach ($document in $component.files) {
             $sourceDocument = $document.sourceDocument
+            $path = $document.path
+            if ($path -isnot [string] -or !$expected.ContainsKey($path)) { throw "Missing or invalid component license: $identity" }
+            $shared = $component.ecosystem -ceq 'resource' -and $path.StartsWith($script:SharedResourceLicensePrefix, [StringComparison]::Ordinal)
             if ($sourceDocument -isnot [string] -or !$sourceDocument -or $sourceDocument.Contains('\') -or $sourceDocument.Contains(':') -or $sourceDocument.StartsWith('/') -or
                 $sourceDocument.Split('/') -contains '..' -or $sourceDocument.Split('/') -contains '.' -or $sourceDocument.Split('/') -contains '' -or
-                !$expected.ContainsKey($document.path) -or !$document.path.StartsWith($prefix, [StringComparison]::Ordinal) -or !$documentPaths.Add($document.path)) { throw "Missing or invalid component license: $identity" }
+                (!$shared -and !$path.StartsWith($prefix, [StringComparison]::Ordinal)) -or !$documentPaths.Add($path)) { throw "Missing or invalid component license: $identity" }
         }
         if ($component.ecosystem -eq 'nuget') { $nuget["$($component.name)/$($component.version)"] = $true }
         if ($component.ecosystem -eq 'resource') { $resources[$identity] = $component }
@@ -196,6 +235,11 @@ function Assert-PbiLicenseBundle {
     # 静态素材没有 deps 入口, 以随包固化且已校验哈希的来源清单核验适用资源及每份原文.
     $catalog = Get-Content -LiteralPath (Join-Path $publish 'licenses/inputs/catalog.json') -Raw | ConvertFrom-Json -AsHashtable
     if ($catalog.schemaVersion -ne 1) { throw 'Unsupported static resource catalog.' }
+    $applicableResources = @($catalog.resources | Where-Object { $_.scope -cne 'All' -or $manifest.scope -ceq 'All' })
+    $sharedResourcePaths = Get-PbiSharedResourceLicensePaths $applicableResources
+    foreach ($path in $expected.Keys) {
+        if ($path.StartsWith($script:SharedResourceLicensePrefix, [StringComparison]::OrdinalIgnoreCase) -and $path -cnotin $sharedResourcePaths.Values) { throw "Unlisted shared resource license: $path" }
+    }
     $requiredResources = @{}
     foreach ($resource in $catalog.resources) {
         if ($resource.scope -cnotin @('Core', 'All') -or !$resource.name -or !$resource.version -or !$resource.license -or !$resource.files.Count) { throw 'Static resource catalog is invalid.' }
@@ -203,8 +247,13 @@ function Assert-PbiLicenseBundle {
         $identity = "resource/$($resource.name)/$($resource.version)"
         if ($requiredResources.ContainsKey($identity) -or !$resources.ContainsKey($identity) -or $resources[$identity].license -cne $resource.license) { throw "Static resource identity or license mismatch: $identity" }
         $requiredResources[$identity] = $true
-        $catalogDocuments = @($resource.files | ForEach-Object { "$($_.sha256)|$($_.source)|$([IO.Path]::GetFileName($_.path))" } | Sort-Object)
-        $componentDocuments = @($resources[$identity].files | ForEach-Object { "$($expected[$_.path].sha256)|$($_.source)|$($_.sourceDocument)" } | Sort-Object)
+        $catalogDocuments = @($resource.files | ForEach-Object {
+            "$($_.sha256)|$($_.source)|$([IO.Path]::GetFileName($_.path))|$($sharedResourcePaths[$_.path])"
+        } | Sort-Object)
+        $componentDocuments = @($resources[$identity].files | ForEach-Object {
+            $sharedPath = if ($_.path.StartsWith($script:SharedResourceLicensePrefix, [StringComparison]::Ordinal)) { $_.path }
+            "$($expected[$_.path].sha256)|$($_.source)|$($_.sourceDocument)|$sharedPath"
+        } | Sort-Object)
         if (($catalogDocuments -join "`n") -cne ($componentDocuments -join "`n")) { throw "Static resource documents do not match the catalog: $identity" }
     }
     if ($resources.Count -ne $requiredResources.Count) { throw 'Static resource component scope does not match the catalog.' }
