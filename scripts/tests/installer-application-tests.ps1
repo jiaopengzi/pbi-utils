@@ -4,6 +4,9 @@
 # Copyright   : Copyright (c) 2026 by jiaopengzi, All Rights Reserved.
 # Description : 在隔离目录和内存系统适配中验证安装升级、降级拒绝、租约与失败回滚, 不修改真实注册表或快捷方式.
 
+<# .SYNOPSIS 默认验证完整安装行为; 测试套件可分别验证原生入口参数和安装事务. #>
+param([ValidateSet('All', 'EntryOptions', 'Transactions')][string]$Scenario = 'All')
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../installer/Installation.psm1') -Force
@@ -106,7 +109,8 @@ function Reject([scriptblock]$Action, [string]$Pattern) {
     Assert ($null -ne $failure -and $failure.Exception.Message -match $Pattern) "未按预期拒绝: $Pattern; $failure"
 }
 
-try {
+<# .SYNOPSIS 对系统 Windows PowerShell 原生 -File 调用验证安装参数的默认值、合法组合及拒绝行为; 断言失败时抛错. #>
+function Test-EntryOptions {
     # 保留真实入口的 -File 参数绑定和转发, 只替换业务模块, 不访问任何产品注册表或快捷方式.
     $entryDirectory = Join-Path $sandbox 'entry-options'
     $null = [IO.Directory]::CreateDirectory($entryDirectory)
@@ -154,7 +158,13 @@ Export-ModuleMember -Function Invoke-PbiApplicationInstallation
         $entryResult = Invoke-EntryOptions $entry ('-' + $option + ' 2')
         Assert ($entryResult.ExitCode -ne 0 -and !$entryResult.Output -and $entryResult.Error) '非法创建选项必须在执行业务模块前被拒绝'
     }
+    Write-Output 'PASS installer Windows PowerShell entry options'
+}
 
+try {
+    # 原生入口总由同一个系统解释器执行, 无需随两个安装事务宿主重复.
+    if ($Scenario -ne 'Transactions') { Test-EntryOptions }
+    if ($Scenario -eq 'EntryOptions') { return }
     $bundled = New-Payload 'payload-bundled' '1.0.0' -DeploymentMode 'self-contained'
     $bundledRoot = Join-Path $sandbox 'installed-bundled'
     $null = Invoke-PbiApplicationInstallation -Operation Install -PayloadRoot $bundled -InstallRoot $bundledRoot -Adapters $adapters -RegistrationNonInteractive $true

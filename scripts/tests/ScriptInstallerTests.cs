@@ -99,6 +99,7 @@ public sealed class ScriptInstallerTests
 }
 
 /// <summary>各安装脚本在独立的子进程中执行, 事务按唯一临时根加锁.</summary>
+[Collection(nameof(InstallerApplicationTests))]
 public sealed class InstallerApplicationTests
 {
     /// <summary>在每个解释器中验证安装、升级、回滚和租约, 以实际退出码及终态判定成功.</summary>
@@ -108,7 +109,17 @@ public sealed class InstallerApplicationTests
     [InlineData("powershell.exe")]
     public Task ApplicationTransactions(string shell) =>
         InstallerScriptTestProcess.AssertCompletedAsync(shell, "installer-application-tests.ps1",
-            "PASS installer application transactions, upgrades, rollback, ownership and leases");
+            "PASS installer application transactions, upgrades, rollback, ownership and leases", "Transactions");
+}
+
+/// <summary>维护入口原生参数只由系统 Windows PowerShell 验证一次.</summary>
+public sealed class InstallerEntryOptionsTests
+{
+    /// <summary>以实际进程退出码及终态验证 Windows PowerShell 5.1 的 -File 参数边界.</summary>
+    [Fact]
+    public Task WindowsPowerShellEntryOptions() =>
+        InstallerScriptTestProcess.AssertCompletedAsync("pwsh", "installer-application-tests.ps1",
+            "PASS installer Windows PowerShell entry options", "EntryOptions");
 }
 
 /// <summary>安装外壳测试只使用唯一注册键和临时快捷方式目录.</summary>

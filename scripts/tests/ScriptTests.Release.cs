@@ -32,6 +32,7 @@ public sealed class ScriptReleaseAliasPreparationTests
 }
 
 /// <summary>用独立 Git 仓库和本地 bare origin 验证真实发布引用.</summary>
+[Collection(nameof(ScriptReleaseAliasPublicationTests))]
 public sealed class ScriptReleaseAliasPublicationTests
 {
     /// <summary>验证预览、发布成功及远端拒绝场景, 子进程失败时使测试失败.</summary>
