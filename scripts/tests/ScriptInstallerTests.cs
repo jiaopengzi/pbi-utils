@@ -161,6 +161,7 @@ public sealed class InstallerLicenseTests
     [InlineData("installer-package-tests.ps1", "PASS installer license input drift, missing sources and concurrent edits rejected", "LicenseRefreshFailure")]
     [InlineData("license-bundle-tests.ps1", "License bundle tests passed.", null)]
     [InlineData("license-bundle-validation-tests.ps1", "License bundle validation tests passed.", null)]
+    [InlineData("license-source-git-tests.ps1", "License source Git tests passed.", null)]
     public Task PackageLicenses(string script, string completed, string? scenario) =>
         InstallerScriptTestProcess.AssertCompletedAsync("pwsh", script, completed, scenario);
 }

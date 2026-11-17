@@ -16,6 +16,7 @@
 | 只读检查 C# 和 Vue | `.\run.ps1 -Choice checkAll` |
 | 只改 C# 时按需检查或运行相关项目测试 | `.\run.ps1 -Choice 'checkC#'` 或 `dotnet test tests/PbiUtils.UnitTests --no-restore --filter "FullyQualifiedName~<测试类>"` |
 | 只改 Vue 时按需检查或运行相关文件测试 | `.\run.ps1 -Choice checkVue` 或 `pnpm --dir web exec vitest run <测试文件>` |
+| 定向运行 PowerShell 脚本回归 | `.\run.ps1 -Choice testScripts` |
 | 运行 C# 和 Vue 测试 | `.\run.ps1 -Choice testAll` |
 | 构建 Release 应用产物 | `.\run.ps1 -Choice buildAll -Configuration Release` |
 | 完整检查、测试并构建 Debug 应用产物 | `.\run.ps1 -Choice verifyAndBuild` |
@@ -28,6 +29,14 @@
 - `-Configuration` 默认为 `Debug`，产物在 `artifacts/build/debug/win-x64`。选 `Release` 后，产物在 `artifacts/build/release/win-x64/<模式>`。
 - `-DotNetMode` 每次选一种模式。Debug 构建默认 `with-dotnet`，Release 构建和两个打包动作默认 `without-dotnet`。
 - `.\run.ps1 -Choice clean -WhatIf` 可预览要清理的生成目录。
+
+### 脚本回归与验收
+
+在 Windows 上用 PowerShell 7 运行 `testScripts`。该命令需要仓库绑定的 .NET SDK、Git 和已还原的 C# 依赖。首次运行或还原资产缺失时，先执行 `.\run.ps1 -Choice 'setupC#' -Scope Core`。默认按 Debug 运行，可用 `-Configuration Release` 切换。安装器回归还覆盖 Windows 自带的 Windows PowerShell 5.1。
+
+脚本回归由 `PbiUtils.Cli.Tests` 调用，覆盖开发入口、门禁编排、取消、发布、隔离安装器行为，以及许可原文的哈希与 Git 暂存、检出字节。`testScripts` 只选择该项目的脚本回归用例，复用 `testC#` 的退出码和本轮 TRX 核验。`testC#` 的 Core 和 All 范围均包含这些回归，`testAll`、`verifyAndBuild` 和 `release` 也会通过 `testC#` 执行。日常仅生成应用产物时使用 `buildC#`、`buildVue` 或 `buildAll`。
+
+发布产物的 smoke 使用已交付的发布目录，GitHub Actions 在 `release` 后单独运行。真实安装、外部 MCP 客户端和 Power BI 模型的验收按本次影响和实际环境选择对应脚本。详见下文的发布检查与验收分层。
 
 ### 生成轻量安装包
 

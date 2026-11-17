@@ -216,6 +216,7 @@ WHERE WITH WORK WRITE WTD XOR YTD
   ```
 
 - clean 后先 `setupC# -Scope All`; check 只读, format 是显式写源码动作. SDK 不匹配报告配置/期望/可见/实际版本并返回前置条件错误, 不自动安装、改绑定或滚动版本.
+- `testScripts` 在 Windows 上定向运行 CLI 测试项目的 PowerShell 脚本回归, 可用 `-Configuration Release` 选择配置, 默认 Debug. 按需先执行 `setupC# -Scope Core`. 脚本回归包含开发入口、门禁、发布、安装器及许可原文的哈希和 Git 检出校验, 随 `testC#` 的 Core/All 范围、`testAll`、`verifyAndBuild` 和 `release` 自动执行一次. `buildC#`、`buildVue`、`buildAll` 用于构建, 发布产物的 smoke 和真实安装、模型、外部客户端验收按目标另行执行.
 - 门禁逐层保留工具非零退出码, 以本轮结构化结果核验测试实际执行; C# 编译器警告按错误处理, 零用例/全部跳过/无效 TRX 失败, 部分跳过明确为 UNRUN. 前端未预期 console.warn/error 和 Vue 诊断必须使测试失败; 负向用例仅在具体动作中精确声明预期参数与次数, 不全局过滤或吞诊断.
 - 发布模块独立设置终止错误策略, 枚举/读取失败不得生成部分清单. 清理单独失败也返回非零; 与主操作同时失败时保留最先阶段和退出码, 并报告清理原因及产物实际状态.
 - PowerShell 真实 Ctrl+C 与 `PowerShell.Stop()` 跳过 catch, 只执行 finally. 清理、回滚、释放锁与通道取消结果放在 finally, 以完成标记区分成功与失败/取消; 模块不调用 exit, 入口脚本预设 130 并在自身 finally 中退出, 意外异常记为 4, 新入口纳入 `scripts/tests/entry-stop-tests.ps1`. 取消验收另在独立控制台发送真实 Ctrl+C, 覆盖门禁中段与预生成安装包期间, 核对 130、排空、残留进程、临时目录及产物不变.

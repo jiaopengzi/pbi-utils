@@ -19,7 +19,8 @@ $script:GateLanes = [ordered]@{ 'checkC#' = 'BelowNormal'; 'testC#' = 'Normal'; 
 $script:ParallelGateMinProcessors = 16
 # 当前主流程正在执行的门禁; 原生命令据此在失败后不再启动, 并登记在途命令供快速失败终止.
 $script:ActiveGate = $null
-$script:Projects = @('src/PbiUtils.Core', 'src/PbiUtils.Application', 'src/PbiUtils.Infrastructure', 'src/PbiUtils.Windows', 'src/PbiUtils.Host', 'src/PbiUtils.Cli', 'tests/PbiUtils.UnitTests', 'tests/PbiUtils.Cli.Tests')
+$script:CliTestProject = 'tests/PbiUtils.Cli.Tests'
+$script:Projects = @('src/PbiUtils.Core', 'src/PbiUtils.Application', 'src/PbiUtils.Infrastructure', 'src/PbiUtils.Windows', 'src/PbiUtils.Host', 'src/PbiUtils.Cli', 'tests/PbiUtils.UnitTests', $script:CliTestProject)
 $script:WindowsProjects = @('src/PbiUtils.Desktop', 'tests/PbiUtils.Desktop.Tests')
 # 注册顺序决定菜单展示顺序.
 $script:Registry = @(
@@ -38,9 +39,10 @@ $script:Registry = @(
     @{ Name = 'checkAll'; Parameters = @('Scope'); Script = 'check.ps1'; Description = '只读检查 C# 和 Vue'; Defaults = @{}; Requires = @('dotnet', 'node', 'pnpm') }
     @{ Name = 'checkC#'; Parameters = @('Scope'); Script = 'check.ps1'; Description = '只读检查 C# 格式与分析器'; Defaults = @{}; Requires = @('dotnet') }
     @{ Name = 'checkVue'; Parameters = @(); Script = 'check.ps1'; Description = '只读检查 Vue'; Defaults = @{}; Requires = @('node', 'pnpm') }
-    @{ Name = 'testAll'; Parameters = @('Scope', 'Configuration'); Script = 'test.ps1'; Description = '测试 C# 和 Vue'; Defaults = @{ Configuration = 'Debug' }; Requires = @('dotnet', 'node', 'pnpm') }
-    @{ Name = 'testC#'; Parameters = @('Scope', 'Configuration'); Script = 'test.ps1'; Description = '测试 C#'; Defaults = @{ Configuration = 'Debug' }; Requires = @('dotnet') }
+    @{ Name = 'testAll'; Parameters = @('Scope', 'Configuration'); Script = 'test.ps1'; Description = '测试 C#、Vue 和开发脚本'; Defaults = @{ Configuration = 'Debug' }; Requires = @('dotnet', 'node', 'pnpm') }
+    @{ Name = 'testC#'; Parameters = @('Scope', 'Configuration'); Script = 'test.ps1'; Description = '测试 C# 和开发脚本'; Defaults = @{ Configuration = 'Debug' }; Requires = @('dotnet') }
     @{ Name = 'testVue'; Parameters = @(); Script = 'test.ps1'; Description = '测试 Vue'; Defaults = @{}; Requires = @('node', 'pnpm') }
+    @{ Name = 'testScripts'; Parameters = @('Configuration'); Script = 'test.ps1'; Description = '只运行开发、构建和打包脚本的回归测试'; Defaults = @{ Configuration = 'Debug' }; Requires = @('dotnet') }
     @{ Name = 'buildAll'; Parameters = @('Scope', 'Configuration', 'DotNetMode'); Script = 'build.ps1'; Description = '构建 C# 和 Vue'; Defaults = @{ Configuration = 'Debug' }; Requires = @('dotnet', 'node', 'pnpm') }
     @{ Name = 'buildC#'; Parameters = @('Scope', 'Configuration', 'DotNetMode'); Script = 'build.ps1'; Description = '构建 C#'; Defaults = @{ Configuration = 'Debug' }; Requires = @('dotnet') }
     @{ Name = 'buildVue'; Parameters = @(); Script = 'build.ps1'; Description = '构建 Vue'; Defaults = @{}; Requires = @('node', 'pnpm') }
@@ -94,7 +96,8 @@ function Show-PbiHelp {
     Write-Host '  .\run.ps1 -Choice devDesktop                           # 启动桌面开发'
     Write-Host '  .\run.ps1 -Choice devWeb                               # 浏览器模拟预览'
     Write-Host '  .\run.ps1 -Choice checkAll                             # 只读检查'
-    Write-Host '  .\run.ps1 -Choice testAll                              # 运行测试'
+    Write-Host '  .\run.ps1 -Choice testAll                              # 测试 C#、Vue 和开发脚本'
+    Write-Host '  .\run.ps1 -Choice testScripts                          # 只运行脚本回归'
     Write-Host '  .\run.ps1 -Choice verifyAndBuild                       # 完整验证并构建'
     Write-Host '  .\run.ps1 -Choice buildAll -Configuration Debug        # 构建调试版本 F12打开开发者工具'
     Write-Host '  日常修改可先开发预览并执行相关检查和测试；需要交付安装包时再执行 release。'
@@ -482,11 +485,12 @@ function Assert-PbiTools([string[]]$Tools) {
 .SYNOPSIS 检查所选 C# 项目的依赖资产, 缺失时给出显式还原命令, 不调用工具或联网.
 .PARAMETER Scope 当前动作需要的 Core 或 All 项目范围.
 .PARAMETER IncludeTests 是否检查测试项目, 构建应用时不要求测试项目资产.
+.PARAMETER TestProject 指定时只检查该测试项目和范围内的产品项目, 用于定向测试.
 .NOTES clean 会删除 obj 中的资产; 缺少文件返回 3, 不隐式还原或改变锁文件.
 #>
-function Assert-PbiRestoreAssets([string]$Scope, [bool]$IncludeTests = $true) {
+function Assert-PbiRestoreAssets([string]$Scope, [bool]$IncludeTests = $true, [string]$TestProject = '') {
     foreach ($project in (Get-PbiProjects $Scope)) {
-        if (!$IncludeTests -and $project.StartsWith('tests/')) { continue }
+        if ($project.StartsWith('tests/') -and (!$IncludeTests -or ($TestProject -and $project -ne $TestProject))) { continue }
         if (!(Test-Path -LiteralPath (Join-Path $script:Root "$project/obj/project.assets.json") -PathType Leaf)) {
             Stop-Pbi 3 "C# 依赖资产缺失 (首次使用或 clean 后需重新还原). 请先运行 .\run.ps1 -Choice 'setupC#' -Scope $Scope, 再重试当前动作."
         }
@@ -1141,6 +1145,7 @@ function Invoke-PbiAction([string]$Name, [hashtable]$Options, [scriptblock]$Afte
         $restoreScope = if ($item.Name -eq 'release') { 'All' } else { $Options.Scope }
         Assert-PbiRestoreAssets $restoreScope ($item.Name -ne 'buildC#')
     }
+    if ($item.Name -eq 'testScripts') { Assert-PbiRestoreAssets 'Core' -TestProject $script:CliTestProject }
     if ($item.Name -eq 'help') { Show-PbiHelp; return }
     if ($item.Name -eq 'verifyAndBuild') { Invoke-PbiVerifyAndBuild $Options; return }
     if ($item.Name -eq 'release') { Invoke-PbiRelease $Options; return }

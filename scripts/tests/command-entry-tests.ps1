@@ -63,6 +63,9 @@ $invalidArguments = @(
     @('-Choice', 'verifyAndBuild', '-DotNetMode', 'both'),
     @('-Choice', 'buildC#', '-DotNetMode'),
     @('-Choice', 'testC#', '-DotNetMode', 'without-dotnet'),
+    @('-Choice', 'testScripts', '-Scope', 'Core'),
+    @('-Choice', 'testScripts', '-Configuration', 'Other'),
+    @('-Choice', 'testScripts', '-DotNetMode', 'without-dotnet'),
     @('-Choice', 'testAll', '-DotNetMode', 'with-dotnet'),
     @('-Choice', 'buildVue', '-DotNetMode', 'with-dotnet'),
     @('-Choice', 'package', '-Scope', 'All'),
@@ -72,7 +75,8 @@ foreach ($argumentSet in $invalidArguments) {
     Assert-RejectedEntry $rootEntry $argumentSet
 }
 
-$retiredActions = @('setup', 'build', 'testCore', 'format', 'check', 'hello', 'agentHello', 'doctor', 'publish', '-1', '23', '28')
+# 数字越界用例远离当前菜单范围, 避免新增动作后误执行真实命令.
+$retiredActions = @('setup', 'build', 'testCore', 'format', 'check', 'hello', 'agentHello', 'doctor', 'publish', '-1', '99999', '2147483648')
 foreach ($action in $retiredActions) {
     Assert-RejectedEntry $rootEntry @('-Choice', $action) -RequireEmptyOutput
 }

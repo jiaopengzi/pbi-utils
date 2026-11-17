@@ -33,7 +33,7 @@ try {
     $expectedActions = @(
         'help', 'setupAll', 'setupC#', 'setupVue', 'setupLicense', 'devDesktop', 'devWeb',
         'formatAll', 'formatC#', 'formatVue', 'checkAll', 'checkC#', 'checkVue',
-        'testAll', 'testC#', 'testVue', 'buildAll', 'buildC#', 'buildVue',
+        'testAll', 'testC#', 'testVue', 'testScripts', 'buildAll', 'buildC#', 'buildVue',
         'verifyAndBuild', 'package', 'release', 'clean'
     )
     Assert (($registry.Name -join ',') -ceq ($expectedActions -join ',')) '注册表须按开发到打包的顺序展示动作'
@@ -46,6 +46,9 @@ try {
     Assert (@(Get-PbiFormatTargets 'Core') -contains 'src/PbiUtils.Host/PbiUtils.Host.csproj') 'Core 格式检查必须覆盖业务后台'
     $expectedIds = 0..($expectedActions.Count - 1)
     Assert (($registry.Id -join ',') -eq ($expectedIds -join ',')) '注册编号须随动作顺序从 0 连续递增'
+    $scriptTestAction = $registry | Where-Object Name -CEQ 'testScripts'
+    Assert (($scriptTestAction.Parameters -join ',') -ceq 'Configuration') 'testScripts 只接受测试配置'
+    Assert (($scriptTestAction.Requires -join ',') -ceq 'dotnet') 'testScripts 不要求前端工具或安装器编译器'
     foreach ($entry in $registry) {
         if ($entry.Name.EndsWith('C#')) { Assert (($entry.Requires -join ',') -eq 'dotnet') 'C# 不依赖 Node/pnpm' }
         if ($entry.Name.EndsWith('Vue')) { Assert (($entry.Requires -join ',') -eq 'node,pnpm') 'Vue 不依赖 dotnet' }
@@ -702,6 +705,10 @@ Export-ModuleMember -Function Update-PbiLicenseCatalog
                 if ($_.Exception.Data['ExitCode'] -ne 3 -or $_.Exception.Message -notlike "*setupC#*Scope Core*") { throw }
             }
         }
+        try { Invoke-PbiAction 'testScripts' @{}; throw 'testScripts 缺失依赖资产应失败' }
+        catch {
+            if ($_.Exception.Data['ExitCode'] -ne 3 -or $_.Exception.Message -notlike '*setupC#*Scope Core*') { throw }
+        }
         <# .SYNOPSIS 记录 release 门禁是否被启动; 前置失败时不得启动通道、预取或编译. #>
         function Invoke-PbiRelease([hashtable]$Options) { $script:NativeCalls.Add('release-gate') }
         try { Invoke-PbiAction 'release' @{}; throw 'release 缺失依赖资产应失败' }
@@ -752,7 +759,15 @@ Export-ModuleMember -Function Update-PbiLicenseCatalog
             }
             if ($Arguments[0] -eq 'msbuild') {
                 $graph = Get-TestProjectGraphFixture $File $Arguments
-                Assert (($graph.Projects -join ',') -ceq 'PbiUtils.UnitTests,PbiUtils.Cli.Tests') 'Core 图只传入已注册的两套测试'
+                $filters = @($Arguments -clike '-p:VSTestTestCaseFilter=*')
+                if ($script:CheckingScriptTests) {
+                    Assert (($graph.Projects -join ',') -ceq 'PbiUtils.Cli.Tests') 'testScripts 只应执行包含脚本回归的 CLI 项目'
+                    Assert (($filters -join ',') -ceq '-p:VSTestTestCaseFilter=FullyQualifiedName~PbiUtils.ScriptTests.') 'testScripts 只应运行脚本回归用例'
+                    Assert ($Arguments -ccontains '-p:Configuration=Release') 'testScripts 应传递显式测试配置'
+                } else {
+                    Assert (($graph.Projects -join ',') -ceq 'PbiUtils.UnitTests,PbiUtils.Cli.Tests') 'Core 图只传入已注册的两套测试'
+                    Assert ($filters.Count -eq 0) 'testC# 应运行所选项目内的全部用例'
+                }
                 $now = [DateTimeOffset]::UtcNow.ToString('O', [Globalization.CultureInfo]::InvariantCulture)
                 # 合成一项本轮通过, 让真实 TRX 门禁继续验证语言隔离及参数传播.
                 $xml = @"
@@ -768,6 +783,7 @@ Export-ModuleMember -Function Update-PbiLicenseCatalog
         # 内部调用绕过正式入口的 Set-Location, 仍将本轮 TRX 限制在隔离仓库中.
         Push-Location -LiteralPath $script:Root
         try {
+            $script:CheckingScriptTests = $false
             foreach ($family in @('setup', 'test', 'format', 'check')) {
                 foreach ($target in @('C#', 'Vue')) {
                     $script:NativeCalls.Clear()
@@ -776,6 +792,17 @@ Export-ModuleMember -Function Update-PbiLicenseCatalog
                     $expected = if ($target -eq 'C#') { 'dotnet' } else { 'pnpm' }
                     if (!$script:NativeCalls.Count -or @($script:NativeCalls | Where-Object { $_ -ne $expected }).Count) { throw '语言动作依赖串线' }
                 }
+            }
+            # 临时仓库移除不相关的测试资产, 验证定向入口只要求实际使用的依赖.
+            $unitAsset = Join-Path $script:Root 'tests/PbiUtils.UnitTests/obj/project.assets.json'
+            $script:NativeCalls.Clear()
+            $script:CheckingScriptTests = $true
+            Remove-Item -LiteralPath $unitAsset
+            try {
+                Invoke-PbiAction 'testScripts' @{ Configuration = 'release' }
+                Assert (($script:NativeCalls -join ',') -ceq 'dotnet') 'testScripts 应仅执行一次 C# 测试图'
+            } finally {
+                Set-Content -LiteralPath $unitAsset -Value '{}'
             }
             $script:NativeCalls.Clear()
             Invoke-PbiAction 'buildVue' @{}

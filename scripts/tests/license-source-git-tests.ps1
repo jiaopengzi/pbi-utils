@@ -63,12 +63,24 @@ try {
         Copy-Item -LiteralPath (Join-Path $root $relative) -Destination $destination
     }
 
-    # 在默认 Windows 换行环境下实际暂存、覆盖检出, 检查 Git 不会改变清单绑定的原始字节.
+    # 单独核对 Git blob ID, 避免检出时反向换行转换掩盖暂存时的字节变化.
+    $relativePaths = @($expected.Keys)
+    $sourceBlobs = @(& git -C $repository hash-object --no-filters -- @relativePaths)
+    if ($LASTEXITCODE -ne 0 -or $sourceBlobs.Count -ne $relativePaths.Count) { throw 'Failed to hash isolated Git source files.' }
     & git -C $repository -c core.autocrlf=true add -- .
     if ($LASTEXITCODE -ne 0) { throw 'Failed to stage isolated Git files.' }
-    & git -C $repository -c core.autocrlf=true checkout-index --all --force
+    $indexPaths = @($relativePaths | ForEach-Object { ':' + $_ })
+    $stagedBlobs = @(& git -C $repository rev-parse @indexPaths)
+    if ($LASTEXITCODE -ne 0 -or $stagedBlobs.Count -ne $relativePaths.Count) { throw 'Failed to read isolated Git index objects.' }
+    for ($i = 0; $i -lt $relativePaths.Count; $i++) {
+        if ($stagedBlobs[$i] -cne $sourceBlobs[$i]) { throw "Staged Git bytes differ: $($relativePaths[$i])" }
+    }
+
+    # 由空输出目录接收实际检出内容, 避免复用工作树中原来复制的文件.
+    $checkout = Join-Path $sandbox 'checkout'
+    & git -C $repository -c core.autocrlf=true checkout-index --all "--prefix=$checkout/"
     if ($LASTEXITCODE -ne 0) { throw 'Failed to check out isolated Git files.' }
-    Assert-CatalogHashes $repository $expected
+    Assert-CatalogHashes $checkout $expected
     Write-Host "License source Git tests passed. Verified $($expected.Count) catalog files."
 } finally {
     foreach ($variable in @(Get-ChildItem Env: | Where-Object { $_.Name -like 'GIT_*' })) {
